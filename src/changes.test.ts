@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aiInstructions, exportChanges, hideImages, imageToken, packToText, parseChangeFile, planChanges } from './changes';
+import { aiInstructions, exportChanges, hideImages, imageToken, packToText, parseChangeFile, planChanges, revertChanges } from './changes';
 import { emptyData } from './store';
 import type { AppData } from './types';
 
@@ -136,5 +136,65 @@ describe('1.7: выгрузка для нейросети и обратно', ()
   it('инструкция перечисляет, что уже есть', () => {
     expect(aiInstructions(base())).toContain('§12 Фотосинтез');
     expect(hideImages('![a](data:x)')).toMatch(/mnema-img:/);
+  });
+});
+
+describe('1.7: файл изменений — защита данных', () => {
+  it('подтемы с одинаковым названием в разных главах не сливаются (выгрузка → загрузка)', () => {
+    const d = base();
+    d.topics.push(
+      { id: 'g1', subjectId: 's1', name: 'Глава 1', note: '', createdAt: T0, updatedAt: T0 },
+      { id: 'g2', subjectId: 's1', name: 'Глава 2', note: '', createdAt: T0, updatedAt: T0 },
+      { id: 'z1', subjectId: 's1', name: 'Задачи', parentId: 'g1', note: 'первая', examDate: '2026-10-01', createdAt: T0, updatedAt: T0 },
+      { id: 'z2', subjectId: 's1', name: 'Задачи', parentId: 'g2', note: 'вторая', createdAt: T0, updatedAt: T0 }
+    );
+    d.cards.push({ id: 'k2', topicId: 'z2', type: 'basic', front: 'Q2', back: 'A2', createdAt: T0, updatedAt: T0 });
+    const p = planChanges(d, exportChanges(d, { subjectId: 's1' }), env);
+    expect(p.data.topics).toEqual(d.topics);
+    expect(p.data.cards).toEqual(d.cards);
+    expect(p.lines).toEqual([]);
+    // без главы — неоднозначно: предупреждение, а не правка наугад
+    const amb = planChanges(d, { changes: [{ do: 'topic', subject: 'Биология', topic: 'Задачи', note: 'x' }] }, env);
+    expect(amb.warnings[0]).toMatch(/несколько/);
+    expect(amb.data.topics.find((t) => t.id === 'z1')?.note).toBe('первая');
+  });
+
+  it('«constructor», «__proto__» и прочие встроенные имена не портят данные', () => {
+    const p = planChanges(base(), { changes: [
+      { do: 'subject', name: 'Биология', color: 'constructor' },
+      { do: 'list', subject: 'Биология', topic: '§12 Фотосинтез', mode: 'constructor', kind: '__proto__', rows: [['a', 'b']] },
+      { do: 'cards', subject: 'Биология', topic: '§12 Фотосинтез', cards: [{ front: 'Q', back: 'A', type: 'constructor' }] },
+      { do: 'schedule', day: '__proto__', subjects: ['Биология'] }
+    ] }, env);
+    const d = JSON.parse(JSON.stringify(p.data)) as AppData;
+    expect(typeof d.subjects[0].color).toBe('string');
+    expect(d.topics[0].lists?.[0].mode).toBe('basic');
+    expect(d.cards.find((c) => c.front === 'Q')?.type).toBe('basic');
+    expect(Object.keys(d.settings.schedule)).not.toContain('[object Object]');
+  });
+
+  it('replace с непонятыми полями ничего не удаляет', () => {
+    const p = planChanges(base(), { changes: [{ do: 'cards', subject: 'Биология', topic: '§12 Фотосинтез', mode: 'replace', cards: [{ q: 'вопрос', a: 'ответ' }] }] }, env);
+    expect(p.data.cards).toHaveLength(1);
+    expect(p.warnings[0]).toMatch(/не понял/);
+  });
+
+  it('«Вернуть» отменяет только файл и не боится синхронизации', () => {
+    const before = base();
+    const p = planChanges(before, { changes: [
+      { do: 'topic', subject: 'Химия', topic: 'Атомы', note: 'x' },
+      { do: 'delete', what: 'topic', subject: 'Биология', name: '§12 Фотосинтез' }
+    ] }, env);
+    // после применения ученик успел добавить домашку
+    const current: AppData = { ...p.data, homework: [{ id: 'h9', text: 'новое', createdAt: T0, updatedAt: T0 }] };
+    const back = revertChanges(before, p.data, current, new Date('2026-09-29T11:00:00Z'));
+    expect(back.topics.map((t) => t.id)).toEqual(['t1']);
+    expect(back.topics[0].updatedAt).toBe('2026-09-29T11:00:00.000Z'); // свежая отметка — синхронизация не «вернёт» удаление
+    expect(back.deleted?.['topic:t1']).toBeUndefined();
+    expect(back.subjects.some((s) => s.name === 'Химия')).toBe(false);
+    expect(Object.keys(back.deleted ?? {}).some((k) => k.startsWith('subj:'))).toBe(true);
+    expect(back.cards.map((c) => c.id)).toEqual(['c1']);
+    expect(back.states['c1:0']).toBeDefined();
+    expect(back.homework).toHaveLength(1); // сделанное после — на месте
   });
 });
