@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Collapse, Icon, Modal, plural, AnimatedNumber, AnimText, SubjectMark } from '../components/ui';
+import { Collapse, Icon, Modal, plural, AnimatedNumber, AnimText, SubjectMark, touchUI } from '../components/ui';
 import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
@@ -58,7 +58,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
               <span><strong>Создай тему</strong> и коротко запиши главное своими словами.</span>
             </li>
             <li>
-              <span><strong>Выдели важное</strong>, нажми правую кнопку мыши → «В карточку».</span>
+              <span><strong>Выдели важное</strong>, {touchUI() ? 'выбери «В карточку» в меню над текстом.' : 'нажми правую кнопку мыши → «В карточку».'}</span>
             </li>
             <li>
               <span><strong>Каждый день</strong> нажимай «Начать» — хватит 10–15 минут.</span>

@@ -90,6 +90,8 @@ declare global {
       /** Поставить скачанное. На телефоне может попросить разрешение «ставить приложения» (permission). */
       updateInstall?: () => Promise<boolean | { ok: boolean; permission?: boolean; error?: string }>;
       onUpdateEvent?: (cb: (e: { type: 'progress'; percent: number } | { type: 'ready'; version: string } | { type: 'error'; message: string }) => void) => () => void;
+      /** Пункты «Мнемы» в меню выделения текста Android (пустой список — убрать). */
+      setSelMenu?: (items: { id: string; title: string }[]) => void;
       /** Значок приложения на рабочем столе телефона (под тему). */
       setAppIcon?: (name: string) => void;
       onNotifyOpen?: (cb: (what: string) => void) => () => void;

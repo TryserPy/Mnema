@@ -425,15 +425,17 @@ export function Sidebar({
       <div className="brand">
         <span className="logo">М</span>
         <span className="grow">Мнема</span>
-        <button
-          className="icon-btn small collapse-btn"
-          aria-label="Скрыть панель"
-          title={'Скрыть панель' + (hideKey ? ` (${prettyCombo(hideKey).join('+')})` : '')}
-          onClick={() => updateSettings({ sidebarCollapsed: true })}
-          hidden={mobile}
-        >
-          <Icon name="panel" size={18} />
-        </button>
+        {/* На телефоне панель — это шторка, её закрывают касанием мимо; кнопки «Скрыть» там нет. */}
+        {!mobile && (
+          <button
+            className="icon-btn small collapse-btn"
+            aria-label="Скрыть панель"
+            title={'Скрыть панель' + (hideKey ? ` (${prettyCombo(hideKey).join('+')})` : '')}
+            onClick={() => updateSettings({ sidebarCollapsed: true })}
+          >
+            <Icon name="panel" size={18} />
+          </button>
+        )}
       </div>
       <nav className="nav">
         <button className={'nav-item' + nav('today')} onClick={() => go({ name: 'today' })}>
@@ -443,7 +445,7 @@ export function Sidebar({
         {onSearch && (
           <button className="nav-item search-item" onClick={onSearch} title="Поиск по всему и команды">
             <Icon name="search" /> <span className="grow">Поиск</span>
-            <kbd className="nav-kbd">{prettyCombo(keyFor(s, 'palette')).join('+')}</kbd>
+            {!mobile && <kbd className="nav-kbd">{prettyCombo(keyFor(s, 'palette')).join('+')}</kbd>}
           </button>
         )}
         {s.features.homework && (
@@ -480,7 +482,7 @@ export function Sidebar({
       <div className="side-foot">
         <FootButtons />
       </div>
-      <div hidden={mobile} className="side-resize" role="separator" aria-orientation="vertical" aria-label="Ширина панели" title="Потяни, чтобы изменить ширину. Двойной щелчок — как было." onPointerDown={startResize} onDoubleClick={() => updateSettings({ sidebarWidth: 248 })} />
+      {!mobile && <div className="side-resize" role="separator" aria-orientation="vertical" aria-label="Ширина панели" title="Потяни, чтобы изменить ширину. Двойной щелчок — как было." onPointerDown={startResize} onDoubleClick={() => updateSettings({ sidebarWidth: 248 })} />}
 
       {shownMenu && shownMenu.folder && (
         <div className={'menu ctx' + (menuPres.closing ? ' closing' : '')} role="menu" style={{ left: Math.min(shownMenu.x, window.innerWidth - 260), top: Math.min(shownMenu.y, window.innerHeight - 240) }} onMouseDown={(e) => e.stopPropagation()}>

@@ -13,8 +13,12 @@ import 'katex/dist/katex.min.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { touchUI } from './components/ui';
 import './styles.css';
 import './design.css';
+
+// Телефон или планшет: прячем подсказки про клавиши и мышь (html[data-touch] в CSS).
+if (touchUI()) document.documentElement.dataset.touch = '1';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

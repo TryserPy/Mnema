@@ -6,7 +6,7 @@ import { rulePreview } from '../rules';
 import { getData, useData } from '../store';
 import type { Route } from '../types';
 import { Markdown } from './Markdown';
-import { Icon, Modal, usePresence } from './ui';
+import { Icon, Modal, usePresence, touchUI } from './ui';
 
 const KIND: Record<LinkOption['kind'], { label: string; icon: string }> = {
   term: { label: 'Термины и словари', icon: 'list' },
@@ -79,7 +79,7 @@ export function LinkPicker({ text, currentTopicId, hasLink, onPick, onClose }: {
               Убрать ссылку
             </button>
           ) : (
-            <span className="small muted">Ctrl+щелчок по ссылке в конспекте — перейти к ней</span>
+            <span className="small muted">{touchUI() ? 'Нажми на ссылку в конспекте — появится кнопка «Открыть»' : 'Ctrl+щелчок по ссылке в конспекте — перейти к ней'}</span>
           )}
           <button className="btn ghost" onClick={onClose}>
             Отмена

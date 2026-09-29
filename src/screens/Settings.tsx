@@ -1,6 +1,6 @@
 // Настройки: слева разделы, справа — один раздел. Ничего не надо листать и искать глазами: есть поиск по настройкам.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Icon, Modal, Switch } from '../components/ui';
+import { Icon, Modal, Switch, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
@@ -85,7 +85,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     { id: 'study', title: 'Учёба', icon: 'book' },
     { id: 'reminders', title: 'Напоминания', icon: 'bell' },
     { id: 'ai', title: 'ИИ-помощник', icon: 'bot', hidden: !s.features.ai },
-    { id: 'keys', title: 'Клавиши', icon: 'keyboard', hidden: android },
+    { id: 'keys', title: 'Клавиши', icon: 'keyboard', hidden: touchUI() },
     { id: 'data', title: 'Данные', icon: 'database' },
     { id: 'styles', title: 'Стили', icon: 'brush' },
     { id: 'mods', title: 'Моды', icon: 'puzzle', hidden: !s.features.mods },

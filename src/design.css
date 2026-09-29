@@ -668,3 +668,70 @@ textarea.cell { field-sizing: content; }
   .title-row { min-width: 0; }
 }
 .update-error { color: var(--again-ink); }
+
+/* ---------- 1.7: «Важное» не уезжает в самый низ ---------- */
+/* Средний экран: панель справа поверх конспекта. Телефон: выдвигается снизу. */
+@media (max-width: 1150px) {
+  .note-layout.with-panel .imp-panel,
+  .imp-panel { position: fixed; z-index: 46; top: 12px; right: 12px; bottom: 12px; width: min(360px, calc(100vw - 24px)); max-height: none; box-shadow: var(--shadow-pop); }
+}
+@media (max-width: 720px) {
+  .note-layout.with-panel .imp-panel,
+  .imp-panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: min(62vh, 560px); border-radius: 22px 22px 0 0; border-bottom: none; animation: sheetIn 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.05); padding-bottom: env(safe-area-inset-bottom); }
+  .imp-panel::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 4px; background: var(--line-2); margin: 8px auto 0; flex-shrink: 0; }
+  .imp-wrap.closing .imp-panel { animation: sheetOut 0.18s ease forwards; }
+  /* Чтобы «Показать в тексте» не прятало строку под панелью. */
+  .note-layout.with-panel .note-page { padding-bottom: 64vh; }
+}
+@keyframes sheetIn { from { transform: translateY(100%); } }
+@keyframes sheetOut { to { transform: translateY(100%); } }
+
+/* ---------- 1.7: у быстрых инструментов конспекта всегда видны названия ---------- */
+.note-float-panel .btn .tl { display: inline !important; }
+.note-float-panel.note-insert .btn.small { padding: 0 12px; }
+@media (max-width: 720px) { .note-doc > * { scroll-margin-top: 76px; } }
+
+/* ---------- 1.7: на телефоне нет клавиатуры — нет и подсказок про клавиши ---------- */
+html[data-touch] :is(kbd, .kbd, .menu-key, .nav-kbd, .key-hint) { display: none !important; }
+/* Атрибут hidden сильнее стилей кнопок. */
+[hidden] { display: none !important; }
+
+/* ---------- 1.7: переключатели не налезают друг на друга — не влезли в ряд, переходят во второй ---------- */
+.seg button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- 1.7: инструменты конспекта на телефоне — значок и подпись под ним ---------- */
+@media (max-width: 560px) {
+  .note-insert:not(.note-float-panel) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .note-insert:not(.note-float-panel) > .btn.small { flex-direction: column; justify-content: center; gap: 3px; min-height: 54px; padding: 6px 4px; font-size: 0.74rem; line-height: 1.1; text-align: center; white-space: normal; }
+  .note-insert:not(.note-float-panel) > .btn .tl { display: block !important; }
+  .note-insert:not(.note-float-panel) > .menu { grid-column: 1 / -1; }
+}
+
+/* ---------- 1.7: рисунок — ползунок не налезает на кнопки, предпросмотр с настоящим текстом ---------- */
+.draw-size > label { min-width: 0; }
+@media (max-width: 720px) {
+  .draw-size > label { flex: 1 1 100%; }
+  .draw-size input[type='range'] { min-width: 0; max-width: none; }
+}
+.dp-text { margin: 0; line-height: 1.55; color: var(--ink); overflow-wrap: anywhere; }
+
+/* ---------- 1.7: поглаживание растений ---------- */
+.gd-plant { position: relative; }
+.pet-body { display: block; transform-origin: 50% 100%; }
+.pet-body.petting, .plant-box.petting > svg { animation: petSquish 0.9s cubic-bezier(0.3, 1.4, 0.5, 1); transform-origin: 50% 100%; }
+@keyframes petSquish { 0% { transform: scale(1, 1); } 18% { transform: scale(1.12, 0.86); } 38% { transform: scale(0.94, 1.1) rotate(-4deg); } 58% { transform: scale(1.04, 0.97) rotate(3deg); } 78% { transform: scale(0.99, 1.02) rotate(-1deg); } 100% { transform: none; } }
+.pet-fx-layer { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.pet-hand { position: absolute; top: 18%; left: 50%; font-size: 1.6rem; opacity: 0; animation: petHand 0.95s ease-in-out forwards; }
+@keyframes petHand { 0% { opacity: 0; transform: translate(-90%, -10px) rotate(-18deg); } 15% { opacity: 1; } 50% { transform: translate(-10%, 0) rotate(8deg); } 70% { transform: translate(-60%, -4px) rotate(-8deg); } 90% { opacity: 1; } 100% { opacity: 0; transform: translate(-20%, -14px) rotate(4deg); } }
+.pet-fx-layer .hearts i { font-size: 1.15rem; animation-duration: 1.3s; }
+.pet-fx-layer .hearts i:nth-child(1) { animation-delay: 0.25s; }
+.pet-fx-layer .hearts i:nth-child(4) { animation-delay: 0.45s; margin-left: -30px; color: #F08BA0; }
+.pet-fx-layer .hearts i:nth-child(5) { animation-delay: 0.55s; margin-left: 24px; color: #F08BA0; }
+.sparks i { position: absolute; left: 50%; top: 30%; font-style: normal; color: #F6C945; font-size: 0.8rem; opacity: 0; animation: spark 0.9s ease-out forwards; }
+.sparks i:nth-child(1) { animation-delay: 0.3s; margin-left: -28px; }
+.sparks i:nth-child(2) { animation-delay: 0.5s; margin-left: 26px; top: 22%; }
+.sparks i:nth-child(3) { animation-delay: 0.7s; margin-left: -4px; top: 12%; }
+@keyframes spark { 0% { opacity: 0; transform: scale(0.3) rotate(0); } 40% { opacity: 1; transform: scale(1.3) rotate(90deg); } 100% { opacity: 0; transform: scale(0.6) rotate(180deg) translateY(-10px); } }
+.pet-say { align-self: center; color: var(--good-ink); font-weight: 600; animation: petSay 1.8s ease forwards; }
+@keyframes petSay { 0% { opacity: 0; transform: translateY(6px); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+html[data-motion='off'] .pet-fx-layer, html[data-motion='off'] .pet-say { display: none; }

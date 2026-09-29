@@ -13,7 +13,7 @@ import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
 import { comboFromEvent, keyFor, matches, toAccelerator, typingTarget } from './keys';
-import { Icon, onToast, usePresence } from './components/ui';
+import { Icon, keepMenusInView, onToast, usePresence } from './components/ui';
 import { Help } from './screens/Help';
 import { Review } from './screens/Review';
 import { Settings } from './screens/Settings';
@@ -153,6 +153,9 @@ export function App() {
     window.addEventListener('mnema:open-link', h);
     return () => window.removeEventListener('mnema:open-link', h);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Любое меню, которое открылось у края окна (особенно на телефоне), сдвигаем внутрь.
+  useEffect(() => keepMenusInView(), []);
 
   // Раз в день — есть ли новая версия.
   useEffect(() => {
@@ -330,6 +333,15 @@ export function App() {
       } else if (matches(e, st, 'goToday')) {
         e.preventDefault();
         go({ name: 'today' });
+      } else if (matches(e, st, 'goHomework') && st.features.homework) {
+        e.preventDefault();
+        go({ name: 'homework' });
+      } else if (matches(e, st, 'goStats')) {
+        e.preventDefault();
+        go({ name: 'stats' });
+      } else if (matches(e, st, 'goSettings')) {
+        e.preventDefault();
+        go({ name: 'settings' });
       } else if (matches(e, st, 'learnToday')) {
         e.preventDefault();
         go({ name: 'review', run: Date.now() });

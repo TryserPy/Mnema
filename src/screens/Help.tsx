@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { renderTex } from '../components/Markdown';
-import { Segmented } from '../components/ui';
+import { Segmented, selHow, touchUI } from '../components/ui';
 import { FORMULA_GROUPS } from '../formulaExamples';
-import { KEY_DEFS, keyFor, prettyCombo } from '../keys';
-import { useData } from '../store';
+import { KeySettings } from '../components/KeySettings';
 import type { Route } from '../types';
 
 type Section = 'start' | 'formulas' | 'keys' | 'mods';
 
 export function Help({ section = 'start', go }: { section?: Section; go: (r: Route) => void }) {
   const [copied, setCopied] = useState('');
-  const data = useData();
   return (
     <div className="page narrow">
       <h1 className="display">Справка</h1>
@@ -21,7 +19,7 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
         options={[
           { value: 'start', label: 'Как учиться' },
           { value: 'formulas', label: 'Формулы' },
-          { value: 'keys', label: 'Клавиши' },
+          ...(touchUI() ? [] : [{ value: 'keys' as const, label: 'Клавиши' }]),
           { value: 'mods', label: 'Моды' }
         ]}
       />
@@ -37,7 +35,7 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
               <strong>Конспект своими словами.</strong> Коротко: главное, определения, формулы, схемы. Жирным выдели ключевые понятия.
             </li>
             <li>
-              <strong>Карточки.</strong> Выдели фразу в конспекте, нажми правую кнопку мыши и выбери «В карточку» (на телефоне панель появится сама). Одна карточка — один факт.
+              <strong>Карточки.</strong> В конспекте {selHow('В карточку')}. Одна карточка — один факт.
             </li>
             <li>
               <strong>Каждый день — «Начать».</strong> Сначала вспомни ответ сам, потом открывай. Честно оценивай, помнил ли.
@@ -127,25 +125,14 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
       )}
 
       {section === 'keys' && (
-        <div className="card help">
+        <div className="card help stack gap16">
+          <p className="small muted" style={{ margin: 0 }}>
+            Нажми на сочетание справа от действия и затем нажми новые клавиши. Esc — отменить, «×» — вернуть как было.
+          </p>
+          <KeySettings />
+          <span className="label">Ещё в конспекте (не меняются)</span>
           <table className="keys">
             <tbody>
-              {KEY_DEFS.filter((d) => keyFor(data.settings, d.id)).map((d) => (
-                <tr key={d.id}>
-                  <td>
-                    {prettyCombo(keyFor(data.settings, d.id)).map((p, i) => (
-                      <span key={i}>
-                        {i > 0 && ' + '}
-                        <span className="kbd">{p}</span>
-                      </span>
-                    ))}
-                  </td>
-                  <td>
-                    {d.label}
-                    {d.group !== 'Везде' && <span className="muted small"> · {d.group.toLowerCase()}</span>}
-                  </td>
-                </tr>
-              ))}
               <tr>
                 <td>
                   <span className="kbd">Ctrl</span> + <span className="kbd">B</span> / <span className="kbd">I</span>
@@ -166,9 +153,6 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
               </tr>
             </tbody>
           </table>
-          <button className="btn small" onClick={() => go({ name: 'settings' })}>
-            Изменить клавиши в настройках
-          </button>
         </div>
       )}
       {section === 'mods' && <ModsHelp />}

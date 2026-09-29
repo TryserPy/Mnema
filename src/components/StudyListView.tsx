@@ -6,7 +6,7 @@ import { addListRow, addListRows, deleteCardsUndoable, deleteList, getData, LIST
 import { orderTabs, reorderTab } from '../tabs';
 import type { AppData, Card, ListMode, Route, StudyList } from '../types';
 import { Markdown } from './Markdown';
-import { AnimText, Icon, Modal, motionOn, plural, Segmented, toast } from './ui';
+import { AnimText, Icon, Modal, motionOn, plural, Segmented, toast, touchUI } from './ui';
 
 const MODE_LABEL: Record<ListMode, string> = { basic: 'Показать ответ', reverse: 'В обе стороны', typing: 'Вписать ответ' };
 
@@ -147,7 +147,7 @@ export function StudyListView({ topicId, list, go, subjectId }: { topicId: strin
         ))}
         {!q && <NewRow key={focusNew} list={list} topicId={topicId} autoFocus={focusNew > 0 || rows.length === 0} onAdded={() => setFocusNew((n) => n + 1)} />}
       </div>
-      {rows.length === 0 && <p className="small muted">{LIST_PRESETS[list.kind].hint} Enter — следующая клетка, Shift+Enter — новая строка в клетке. Можно записать просто термин без определения. Ширину столбцов меняй, потянув за границу в заголовке.</p>}
+      {rows.length === 0 && <p className="small muted">{LIST_PRESETS[list.kind].hint} {touchUI() ? 'Можно записать просто термин без определения.' : 'Enter — следующая клетка, Shift+Enter — новая строка в клетке. Можно записать просто термин без определения. Ширину столбцов меняй, потянув за границу в заголовке.'}</p>}
 
       {settingsOpen && <ListSettings topicId={topicId} list={list} rows={rows.length} onClose={() => setSettingsOpen(false)} onDeleted={() => go({ name: 'topic', id: topicId, tab: 'note' })} />}
       {pasteOpen && <PasteRows topicId={topicId} list={list} onClose={() => setPasteOpen(false)} />}

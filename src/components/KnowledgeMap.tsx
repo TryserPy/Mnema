@@ -437,9 +437,47 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     return [e.clientX - r.left, e.clientY - r.top];
   }
 
+  // Пальцы на экране: двумя — приблизить/отдалить и сдвинуть (как в картах).
+  const fingers = useRef(new Map<number, [number, number]>()).current;
+  const pinch = useRef<{ d0: number; k0: number; wx: number; wy: number } | null>(null);
+  function startPinch() {
+    const [[ax, ay], [bx, by]] = [...fingers.values()];
+    const mx = (ax + bx) / 2;
+    const my = (ay + by) / 2;
+    const t = S.target;
+    pinch.current = { d0: Math.max(10, Math.hypot(ax - bx, ay - by)), k0: t.k, wx: (mx - S.w / 2) / t.k + t.x, wy: (my - S.h / 2) / t.k + t.y };
+    // Второй палец — это уже не перетаскивание узла и не нажатие на тему.
+    if (S.drag?.node) {
+      S.drag.node.fx = null;
+      S.drag.node.fy = null;
+      S.sim?.alphaTarget(0);
+    }
+    S.drag = null;
+    S.autoFit = false;
+  }
+  function movePinch() {
+    const p = pinch.current;
+    if (!p || fingers.size < 2) return;
+    const [[ax, ay], [bx, by]] = [...fingers.values()];
+    const mx = (ax + bx) / 2;
+    const my = (ay + by) / 2;
+    const k2 = Math.min(5, Math.max(0.15, (p.k0 * Math.hypot(ax - bx, ay - by)) / p.d0));
+    // Точка между пальцами остаётся под пальцами.
+    S.target = { k: k2, x: p.wx - (mx - S.w / 2) / k2, y: p.wy - (my - S.h / 2) / k2 };
+    S.cam = { ...S.target };
+    kick();
+  }
+
   function onDown(e: React.PointerEvent<HTMLCanvasElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
     const [sx, sy] = local(e);
+    if (e.pointerType === 'touch') {
+      fingers.set(e.pointerId, [sx, sy]);
+      if (fingers.size >= 2) {
+        startPinch();
+        return;
+      }
+    }
     const node = nodeAt(sx, sy) ?? undefined;
     S.drag = { node, sx, sy, cx: S.target.x, cy: S.target.y, moved: false };
     if (node) {
@@ -452,6 +490,8 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
   }
   function onMove(e: React.PointerEvent<HTMLCanvasElement>) {
     const [sx, sy] = local(e);
+    if (fingers.has(e.pointerId)) fingers.set(e.pointerId, [sx, sy]);
+    if (pinch.current) return movePinch();
     const d = S.drag;
     if (d) {
       if (Math.hypot(sx - d.sx, sy - d.sy) > 3) d.moved = true;
@@ -478,7 +518,14 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
       kick();
     }
   }
-  function onUp() {
+  function onUp(e?: React.PointerEvent<HTMLCanvasElement>) {
+    if (e) fingers.delete(e.pointerId);
+    if (pinch.current) {
+      // Убрали один палец — масштаб закончен; оставшийся палец не считается нажатием.
+      if (fingers.size < 2) pinch.current = null;
+      S.drag = null;
+      return;
+    }
     const d = S.drag;
     S.drag = null;
     if (d?.node) {

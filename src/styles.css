@@ -612,7 +612,8 @@ input[type='range'] { accent-color: var(--accent); }
 .progress span, .bar-fill { transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .stack > .hint { animation: fadeIn 0.25s ease; }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  /* Поглаживание растений (.pet-fx) оставляем: это ответ на нажатие, а не украшение. */
+  *:not(.pet-fx, .pet-fx *), *:not(.pet-fx, .pet-fx *)::before, *:not(.pet-fx, .pet-fx *)::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
 /* ---------- 1.1.1: граф ---------- */

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { defaultRemind, dueLabel, fromYmd, GROUP_LABEL, groupOf, nextLesson, ymd, type HwGroup } from '../homework';
 import { addHomework, deleteHomework, sortedSubjects, toggleHomework, updateHomework, useData } from '../store';
 import type { Homework, Route } from '../types';
-import { AnimText, Collapse, Icon, Modal, plural, SubjectMark, Switch, toast, usePresence } from './ui';
+import { AnimText, Collapse, Icon, Modal, plural, SubjectMark, Switch, toast, usePresence, touchUI } from './ui';
 
 const ORDER: HwGroup[] = ['overdue', 'today', 'tomorrow', 'week', 'later', 'nodate', 'done'];
 
@@ -372,7 +372,7 @@ function QuickAdd({ presetSubject }: { presetSubject?: string }) {
       }}
     >
       <Icon name="plus" size={18} />
-      <input ref={inputRef} className="hw-quick-input" value={text} onChange={(e) => setText(e.target.value)} placeholder={window.mnemaApi?.platform === 'android' ? 'Что задали? Например: § 12, упр. 3' : 'Что задали? Можно вставить фото — Ctrl+V'} aria-label="Что задали" />
+      <input ref={inputRef} className="hw-quick-input" value={text} onChange={(e) => setText(e.target.value)} placeholder={touchUI() ? 'Что задали? Например: § 12, упр. 3' : 'Что задали? Можно вставить фото — Ctrl+V'} aria-label="Что задали" />
       <div className="hw-quick-pills">
         <Pill
           open={menu === 's'}
