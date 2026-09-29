@@ -1,8 +1,14 @@
 // Новые версии Мнемы из выпусков на GitHub. На компьютере — скачать и поставить внутри приложения
-// (electron-updater), на телефоне — найти APK в выпуске и открыть ссылку: Android сам предложит установить.
+// (electron-updater), на телефоне — скачать APK из выпуска и отдать Android на установку (Updater.java).
 import { getData, updateSettings } from './store';
 
 export const APP_VERSION = '1.6.4';
+
+/**
+ * Откуда брать обновления. Зашито в код, а не в настройки: иначе чужой файл резервной копии
+ * мог бы подсунуть «обновление» из своего репозитория.
+ */
+export const UPDATE_REPO = { owner: 'TryserPy', repo: 'Mnema' } as const;
 
 export interface UpdateInfo {
   ok: boolean;
@@ -11,6 +17,7 @@ export interface UpdateInfo {
   available?: boolean;
   notes?: string;
   apk?: string; // ссылка на APK (телефон)
+  size?: number; // размер APK, байт
 }
 
 /** 1.10.0 > 1.9.3 */
@@ -27,9 +34,16 @@ export function parseRepo(s: string): { owner: string; repo: string } | null {
   return m ? { owner: m[1], repo: m[2] } : null;
 }
 
+/** Из ответа GitHub о выпуске — версия, текст и файл для телефона. */
+export function readRelease(j: { tag_name: string; body?: string | null; assets?: { name: string; browser_download_url: string; size?: number }[] }, current = APP_VERSION): UpdateInfo {
+  const latest = j.tag_name.replace(/^v/, '');
+  const assets = j.assets ?? [];
+  const apk = assets.find((a) => /android\.apk$/i.test(a.name)) ?? assets.find((a) => /\.apk$/i.test(a.name));
+  return { ok: true, latest, available: newer(latest, current), notes: (j.body ?? '').trim().slice(0, 2000), apk: apk?.browser_download_url, size: apk?.size };
+}
+
 export async function checkUpdate(): Promise<UpdateInfo> {
-  const { owner, repo } = getData().settings.update;
-  if (!owner) return { ok: false, error: 'Не указано, где искать обновления' };
+  const { owner, repo } = UPDATE_REPO;
   const api = window.mnemaApi;
   updateSettings({ update: { ...getData().settings.update, lastCheck: new Date().toISOString() } });
   if (api?.updateCheck) {
@@ -47,12 +61,11 @@ export async function checkUpdate(): Promise<UpdateInfo> {
       status = res.status;
       text = await res.text();
     }
-    if (status === 404) return { ok: false, error: 'В репозитории пока нет выпусков' };
+    if (status === 404) return { ok: false, error: 'Новых выпусков пока нет' };
+    if (status === 403 || status === 429) return { ok: false, error: 'GitHub просит подождать — попробуй через час' };
+    if (status === 0) return { ok: false, error: 'Нет интернета или GitHub недоступен' };
     if (status >= 400) return { ok: false, error: 'GitHub ответил ошибкой ' + status };
-    const j = JSON.parse(text) as { tag_name: string; body?: string; assets?: { name: string; browser_download_url: string }[] };
-    const latest = j.tag_name.replace(/^v/, '');
-    const apk = j.assets?.find((a) => /\.apk$/i.test(a.name))?.browser_download_url;
-    return { ok: true, latest, available: newer(latest, APP_VERSION), notes: (j.body ?? '').slice(0, 2000), apk };
+    return readRelease(JSON.parse(text));
   } catch {
     return { ok: false, error: 'Нет интернета или GitHub недоступен' };
   }
@@ -61,6 +74,6 @@ export async function checkUpdate(): Promise<UpdateInfo> {
 /** Проверять не чаще раза в сутки. */
 export function dueForAutoCheck(): boolean {
   const u = getData().settings.update;
-  if (!u.owner || !u.auto) return false;
+  if (!u.auto) return false;
   return !u.lastCheck || Date.now() - Date.parse(u.lastCheck) > 20 * 3600_000;
 }

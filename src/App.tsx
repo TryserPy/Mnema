@@ -3,6 +3,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
 import { RuleView } from './components/Rules';
+import { UpdateDialog } from './components/UpdateFlow';
+import type { UpdateInfo } from './update';
 import { PluginScreen } from './screens/PluginScreen';
 import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
 import { applyLook, FONTS, lookKey } from './themes';
@@ -66,6 +68,7 @@ export function App() {
   const [dragging, setDragging] = useState(false);
   const [ankiFile, setAnkiFile] = useState<File | null>(null);
   const [adding, setAdding] = useState<AddingAt>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const systemDark = useSystemDark();
   const s = data.settings;
   const dark = s.theme === 'dark' || (s.theme === 'system' && systemDark);
@@ -157,7 +160,7 @@ export function App() {
       const { dueForAutoCheck, checkUpdate } = await import('./update');
       if (!dueForAutoCheck()) return;
       const r = await checkUpdate();
-      if (r.ok && r.available) showToast(`Вышла Мнема ${r.latest}`, { label: 'Обновить', run: () => go({ name: 'settings', section: 'about' }) });
+      if (r.ok && r.available) showToast(`Вышла Мнема ${r.latest}`, { label: 'Обновить', run: () => setUpdateInfo(r) });
     }, 6000);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -477,6 +480,7 @@ export function App() {
         />
       )}
 
+      {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />
       {addingSubject && (

@@ -1,0 +1,137 @@
+# Выпуск новой версии: по тегу vX.Y.Z собираются APK и установщик Windows и выкладываются в GitHub Releases.
+# Оттуда Мнема сама берёт обновления (Windows — electron-updater по latest.yml, Android — APK из выпуска).
+#
+# Нужен один секрет репозитория: ANDROID_KEYSTORE_B64 — ключ подписи APK в base64
+# (тот же ключ, которым подписаны прошлые версии, иначе обновление не встанет поверх).
+# Необязательный: ANDROID_KEYSTORE_PASSWORD (если пароль ключа не стандартный).
+name: Выпуск
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# По умолчанию — только чтение; писать в выпуски может лишь последний шаг.
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - id: v
+        name: Версия
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          grep -q "APP_VERSION = '$V'" src/update.ts || { echo "::error::В src/update.ts другая версия, чем в package.json ($V)"; exit 1; }
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$V" ]; then
+            echo "::error::Тег ${GITHUB_REF_NAME} не совпадает с версией v$V в package.json"; exit 1
+          fi
+      - run: npm ci --ignore-scripts
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npx vite build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  android:
+    needs: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+          echo "$ANDROID_HOME/build-tools/34.0.0" >> "$GITHUB_PATH"
+          echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-34/android.jar" >> "$GITHUB_ENV"
+      - name: Ключ подписи
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::Нет секрета ANDROID_KEYSTORE_B64 (ключ подписи APK)"; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 -d > android/mnema-release.jks
+      - name: Сборка APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'mnema-release' }}
+        run: bash android/build.sh
+      - name: Имя файла
+        run: |
+          V=${{ needs.web.outputs.version }}
+          mkdir -p out && cp "android/build/Mnema-$V.apk" "out/Mnema-$V-Android.apk"
+          rm -f android/mnema-release.jks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: out/*.apk
+
+  windows:
+    needs: web
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Установщик
+        run: npx electron-builder --win --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
+
+  release:
+    needs: [web, android, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Текст выпуска
+        run: |
+          V=${{ needs.web.outputs.version }}
+          awk -v v="## $V" 'index($0, v)==1 {on=1; next} /^## / {if (on) exit} on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Мнема $V" > notes.md
+          ls -la files
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.web.outputs.version }}
+          name: Мнема ${{ needs.web.outputs.version }}
+          body_path: notes.md
+          make_latest: true
+          files: files/*

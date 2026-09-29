@@ -70,6 +70,15 @@ public class Reminders extends BroadcastReceiver {
         String action = intent.getAction();
         if (Intent.ACTION_BOOT_COMPLETED.equals(action) || "android.intent.action.MY_PACKAGE_REPLACED".equals(action)) {
             scheduleAll(ctx);
+            if ("android.intent.action.MY_PACKAGE_REPLACED".equals(action)) {
+                // После обновления Android закрывает Мнему — скажем, что всё готово, и дадим открыть одним нажатием.
+                String v = "";
+                try {
+                    v = " " + ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionName;
+                } catch (Exception ignored) {
+                }
+                show(ctx, 7302, "Мнема обновлена" + v, "Нажми, чтобы открыть. Все карточки и настройки на месте.", "today");
+            }
             return;
         }
         String id = intent.getStringExtra("id");

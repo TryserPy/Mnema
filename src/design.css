@@ -667,3 +667,4 @@ textarea.cell { field-sizing: content; }
   .topic-head > * { align-self: stretch; min-width: 0; max-width: 100%; }
   .title-row { min-width: 0; }
 }
+.update-error { color: var(--again-ink); }

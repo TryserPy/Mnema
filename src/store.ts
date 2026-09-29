@@ -1,5 +1,6 @@
 // Хранилище данных: состояние в памяти + сохранение в файл (Electron) или localStorage (браузер).
 import { useSyncExternalStore } from 'react';
+import { bridgeKey } from './platform/bridgeKey';
 import type { Grade } from 'ts-fsrs';
 import { DEFAULT_HIGHLIGHT } from './important';
 import { DEFAULT_ACCENT, DEFAULT_LOOK, migrateLook } from './themes';
@@ -84,9 +85,13 @@ declare global {
       scheduleNotifications?: (list: { id: string; at: number; title: string; body: string; open: string }[]) => void;
       setWidget?: (json: string) => void;
       updateCheck?: (src: { owner: string; repo: string }) => Promise<{ ok: boolean; error?: string; current?: string; latest?: string | null; available?: boolean; notes?: string }>;
-      updateDownload?: () => Promise<{ ok: boolean; error?: string }>;
-      updateInstall?: () => Promise<boolean>;
-      onUpdateEvent?: (cb: (e: { type: 'progress'; percent: number } | { type: 'ready'; version: string }) => void) => () => void;
+      /** Скачать обновление. На телефоне — APK по ссылке из выпуска (url), на компьютере url не нужен. */
+      updateDownload?: (url?: string) => Promise<{ ok: boolean; error?: string }>;
+      /** Поставить скачанное. На телефоне может попросить разрешение «ставить приложения» (permission). */
+      updateInstall?: () => Promise<boolean | { ok: boolean; permission?: boolean; error?: string }>;
+      onUpdateEvent?: (cb: (e: { type: 'progress'; percent: number } | { type: 'ready'; version: string } | { type: 'error'; message: string }) => void) => () => void;
+      /** Значок приложения на рабочем столе телефона (под тему). */
+      setAppIcon?: (name: string) => void;
       onNotifyOpen?: (cb: (what: string) => void) => () => void;
       notifyPermission?: () => Promise<boolean>;
       trayState?: (s: { enabled: boolean; due: number; reminder: string | null; hotkey: boolean; accelerator?: string; closeToTray: boolean; autostart: boolean }) => void;
@@ -211,8 +216,8 @@ export function normalizeData(raw: unknown): AppData {
 function loadInitial(): AppData {
   try {
     // На Android мост может быть готов раньше, чем собран window.mnemaApi (порядок загрузки частей сборки), — читаем прямо из него.
-    const bridge = (window as unknown as { MnemaAndroid?: { load(): string | null } }).MnemaAndroid;
-    const json = window.mnemaApi ? window.mnemaApi.load() : bridge ? bridge.load() : localStorage.getItem(LS_KEY);
+    const bridge = (window as unknown as { MnemaAndroid?: { load(k: string): string | null } }).MnemaAndroid;
+    const json = window.mnemaApi ? window.mnemaApi.load() : bridge ? bridge.load(bridgeKey()) : localStorage.getItem(LS_KEY);
     if (json) return normalizeData(JSON.parse(json));
   } catch (e) {
     console.error('Не удалось прочитать данные', e);
