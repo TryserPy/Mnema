@@ -2,7 +2,7 @@
 // (electron-updater), на телефоне — скачать APK из выпуска и отдать Android на установку (Updater.java).
 import { getData, updateSettings } from './store';
 
-export const APP_VERSION = '1.6.4';
+export const APP_VERSION = '1.7.0';
 
 /**
  * Откуда брать обновления. Зашито в код, а не в настройки: иначе чужой файл резервной копии
@@ -50,17 +50,12 @@ export async function checkUpdate(): Promise<UpdateInfo> {
     const r = await api.updateCheck({ owner, repo });
     return { ok: r.ok, error: r.error, latest: r.latest, available: Boolean(r.available), notes: r.notes };
   }
-  // Телефон (и браузер): спросить у GitHub последний выпуск.
+  // Телефон: спросить у GitHub последний выпуск.
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
-    let status = 0;
-    let text = '';
-    if (api?.http) ({ status, text } = await api.http({ url, headers: { Accept: 'application/vnd.github+json' }, timeout: 15000 }));
-    else {
-      const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
-      status = res.status;
-      text = await res.text();
-    }
+    // Только через мост приложения (в окне сеть к GitHub закрыта правилами безопасности страницы).
+    if (!api?.http) return { ok: false, error: 'Обновления проверяются только в установленной Мнеме' };
+    const { status, text } = await api.http({ url, headers: { Accept: 'application/vnd.github+json' }, timeout: 15000 });
     if (status === 404) return { ok: false, error: 'Новых выпусков пока нет' };
     if (status === 403 || status === 429) return { ok: false, error: 'GitHub просит подождать — попробуй через час' };
     if (status === 0) return { ok: false, error: 'Нет интернета или GitHub недоступен' };

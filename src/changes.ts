@@ -3,6 +3,7 @@
 // и применяет одним нажатием (с кнопкой «Вернуть»). Всё находится по названиям, а не по внутренним номерам,
 // поэтому такой файл легко написать руками или попросить у любой нейросети.
 import { autoChunk } from './poem';
+import { itemKey, itemOrds } from './srs';
 import { LIST_PRESETS } from './store';
 import type { AppData, Card, CardType, Folder, Homework, ListKind, ListMode, Poem, StudyList, Subject, Topic } from './types';
 
@@ -71,6 +72,10 @@ export function norm(s: unknown): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+/** Поиск в словаре только по его собственным ключам: «constructor», «__proto__» и т. п. — не находятся. */
+function pick<T>(dict: Record<string, T>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : undefined;
+}
 const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : undefined);
 const q = (s: string) => `«${s.length > 60 ? s.slice(0, 57) + '…' : s}»`;
 
@@ -84,7 +89,7 @@ function color(v: unknown): string | undefined {
   if (!s) return undefined;
   if (/^#[0-9a-f]{6}$/i.test(s)) return s.toUpperCase();
   if (/^#[0-9a-f]{3}$/i.test(s)) return ('#' + s.slice(1).split('').map((c) => c + c).join('')).toUpperCase();
-  return COLOR_NAMES[norm(s)];
+  return pick(COLOR_NAMES, norm(s));
 }
 
 const CARD_TYPES: Record<string, CardType> = {
@@ -94,7 +99,7 @@ const CARD_TYPES: Record<string, CardType> = {
   typing: 'typing', ввод: 'typing', 'ввод ответа': 'typing',
   problem: 'problem', задача: 'problem'
 };
-const cardType = (v: unknown, front: string): CardType => CARD_TYPES[norm(v)] ?? (/\{\{.+?\}\}/.test(front) ? 'cloze' : 'basic');
+const cardType = (v: unknown, front: string): CardType => pick(CARD_TYPES, norm(v)) ?? (/\{\{.+?\}\}/.test(front) ? 'cloze' : 'basic');
 
 const LIST_KINDS: Record<string, ListKind> = { vocab: 'vocab', словарь: 'vocab', слова: 'vocab', terms: 'terms', термины: 'terms', dates: 'dates', даты: 'dates', formulas: 'formulas', формулы: 'formulas', custom: 'custom', список: 'custom', свой: 'custom' };
 const LIST_MODES: Record<string, ListMode> = { basic: 'basic', reverse: 'reverse', typing: 'typing', 'в обе стороны': 'reverse', ввод: 'typing', обычный: 'basic' };
@@ -142,7 +147,7 @@ export interface PlanEnv {
 export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): Plan {
   const stamp = (env.now ?? new Date()).toISOString();
   const uid = env.uid ?? (() => crypto.randomUUID());
-  const d: AppData = { ...src, folders: [...src.folders], subjects: [...src.subjects], topics: [...src.topics], cards: [...src.cards], homework: [...(src.homework ?? [])], states: src.states, logs: src.logs, deleted: { ...(src.deleted ?? {}) }, settings: { ...src.settings, schedule: { ...src.settings.schedule } } };
+  const d: AppData = { ...src, folders: [...src.folders], subjects: [...src.subjects], topics: [...src.topics], cards: [...src.cards], homework: [...(src.homework ?? [])], states: src.states, logs: src.logs, deleted: { ...(src.deleted ?? {}) }, settings: src.settings };
   const lines: PlanLine[] = [];
   const warnings: string[] = [];
   const add = (text: string) => lines.push({ kind: 'add', text });
@@ -184,21 +189,36 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
     }
     return s;
   }
-  function findTopic(subjectId: string, name: string, kind?: Topic['kind']): Topic | undefined {
-    return d.topics.find((t) => t.subjectId === subjectId && (t.kind ?? undefined) === kind && norm(t.name) === norm(name));
+  function findTopic(subjectId: string, name: string, kind?: Topic['kind'], parentId?: string | null): Topic | undefined {
+    const all = d.topics.filter((t) => t.subjectId === subjectId && (t.kind ?? undefined) === kind && norm(t.name) === norm(name));
+    // Родитель указан — только среди его подтем (null — только верхний уровень).
+    if (parentId !== undefined) return all.find((t) => (t.parentId ?? null) === parentId);
+    if (all.length <= 1) return all[0];
+    // Одинаковые названия в разных главах: без "parent" берём тему верхнего уровня, иначе — неоднозначно.
+    const top = all.filter((t) => !t.parentId);
+    if (top.length === 1) return top[0];
+    throw new Error(`тем ${q(name)} несколько — укажи главу в "parent" (например "Глава 1")`);
   }
-  function ensureTopic(subject: Subject, name: string, parentName?: string): Topic {
-    const parent = parentName ? ensureTopic(subject, parentName) : undefined;
-    let t = findTopic(subject.id, name);
-    if (!t) {
-      const siblings = d.topics.filter((x) => x.subjectId === subject.id && !x.kind && (x.parentId ?? null) === (parent?.id ?? null));
-      t = { id: uid(), subjectId: subject.id, name: name.trim(), note: '', ...(parent ? { parentId: parent.id } : {}), order: siblings.reduce((m, x) => Math.max(m, x.order ?? 0), 0) + 1, createdAt: stamp, updatedAt: stamp };
-      d.topics.push(t);
-      add(`Тема ${q(t.name)}${parent ? ` в ${q(parent.name)}` : ''} (${subject.name})`);
+  /** Тема по названию и пути глав ("Глава 1 / Раздел 2"); чего нет — создаётся. */
+  function ensureTopic(subject: Subject, name: string, parentPath?: string): Topic {
+    let parent: Topic | undefined;
+    if (parentPath) {
+      for (const part of parentPath.split(/\s+\/\s+/).map((x) => x.trim()).filter(Boolean)) {
+        let next = parent ? findTopic(subject.id, part, undefined, parent.id) : findTopic(subject.id, part);
+        if (!next) next = createTopic(subject, part, parent);
+        parent = next;
+      }
     }
+    return (parent ? findTopic(subject.id, name, undefined, parent.id) : findTopic(subject.id, name)) ?? createTopic(subject, name, parent);
+  }
+  function createTopic(subject: Subject, name: string, parent?: Topic): Topic {
+    const siblings = d.topics.filter((x) => x.subjectId === subject.id && !x.kind && (x.parentId ?? null) === (parent?.id ?? null));
+    const t: Topic = { id: uid(), subjectId: subject.id, name: name.trim(), note: '', ...(parent ? { parentId: parent.id } : {}), order: siblings.reduce((m, x) => Math.max(m, x.order ?? 0), 0) + 1, createdAt: stamp, updatedAt: stamp };
+    d.topics.push(t);
+    add(`Тема ${q(t.name)}${parent ? ` в ${q(parent.name)}` : ''} (${subject.name})`);
     return t;
   }
-  /** Тема из полей subject + topic (создаётся, если нет). */
+  /** Тема из полей subject + topic (+ parent). Создаётся, если нет. */
   function topicOf(c: Change): { subject: Subject; topic: Topic } | null {
     const sn = str(c.subject)?.trim();
     const tn = str(c.topic)?.trim();
@@ -235,23 +255,28 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
   function upsertRows(topic: Topic, list: StudyList, rows: unknown[], replace: boolean): string {
     const type = listCardType(list.mode);
     const existing = d.cards.filter((x) => x.topicId === topic.id && x.listId === list.id);
-    const byA = new Map(existing.map((x) => [norm(x.front), x]));
+    // Одинаковый первый столбец бывает (bank — берег, bank — банк): сопоставляем по порядку.
+    const byA = new Map<string, Card[]>();
+    for (const x of existing) byA.set(norm(x.front), [...(byA.get(norm(x.front)) ?? []), x]);
     let added = 0;
     let changed = 0;
     const keep = new Set<string>();
-    for (const r of rows.map(row)) {
-      if (!r) continue;
-      const old = byA.get(norm(r.a));
+    const parsed = rows.map(row).filter((r): r is NonNullable<typeof r> => Boolean(r));
+    if (replace && rows.length && !parsed.length) {
+      warnings.push(`${list.title} (${topic.name}): ни одной строки не понял — ничего не удаляю`);
+      return 'без изменений';
+    }
+    for (const r of parsed) {
+      const old = (byA.get(norm(r.a)) ?? []).find((x) => !keep.has(x.id));
       if (old) {
         keep.add(old.id);
-        if (old.back !== r.b || (old.why ?? '') !== r.c) {
+        if (old.back.trim() !== r.b || (old.why ?? '').trim() !== r.c) {
           d.cards = d.cards.map((x) => (x.id === old.id ? { ...x, back: r.b, why: r.c || undefined, updatedAt: stamp } : x));
           changed++;
         }
       } else {
         const card: Card = { id: uid(), topicId: topic.id, listId: list.id, type, front: r.a, back: r.b, ...(r.c ? { why: r.c } : {}), createdAt: stamp, updatedAt: stamp };
         d.cards.push(card);
-        byA.set(norm(r.a), card);
         keep.add(card.id);
         added++;
       }
@@ -261,20 +286,22 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
     return [added && `+${added}`, changed && `изменено ${changed}`, gone.length && `убрано ${gone.length}`].filter(Boolean).join(', ') || 'без изменений';
   }
   function ensureList(topic: Topic, c: Change): StudyList {
-    const kind = LIST_KINDS[norm(c.kind)] ?? 'terms';
+    const kind = pick(LIST_KINDS, norm(c.kind)) ?? 'terms';
     const title = str(c.title)?.trim();
     const lists = topic.lists ?? [];
     let list = title ? lists.find((l) => norm(l.title) === norm(title)) : lists.find((l) => l.kind === kind);
     const p = LIST_PRESETS[kind];
     const cols = Array.isArray(c.columns) ? (c.columns.map((x) => str(x) ?? '') as string[]) : null;
-    const mode = LIST_MODES[norm(c.mode)];
+    const mode = pick(LIST_MODES, norm(c.mode));
     if (!list) {
       list = { id: uid().slice(0, 8), kind, title: title || p.title, cols: [cols?.[0] || p.cols[0], cols?.[1] || p.cols[1], cols?.[2] || p.cols[2]], mode: mode ?? p.mode, ...(str(c.lang) ? { lang: str(c.lang) } : p.lang ? { lang: p.lang } : {}) };
       topic = setTopic(topic.id, { lists: [...lists, list] });
       add(`${list.title} в теме ${q(topic.name)}`);
     } else if (cols || mode) {
       const upd: StudyList = { ...list, ...(cols ? { cols: [cols[0] || list.cols[0], cols[1] || list.cols[1], cols[2] || list.cols[2]] as [string, string, string] } : {}), ...(mode ? { mode } : {}) };
+      if (upd.cols.join('|') === list.cols.join('|') && upd.mode === list.mode) return list; // ничего не поменялось
       setTopic(topic.id, { lists: lists.map((l) => (l.id === upd.id ? upd : l)) });
+      edit(`${list.title} (${topic.name}): столбцы или способ учить`);
       if (mode && mode !== list.mode) d.cards = d.cards.map((x) => (x.topicId === topic.id && x.listId === upd.id ? { ...x, type: listCardType(mode), updatedAt: stamp } : x));
       list = upd;
     }
@@ -292,12 +319,16 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
         }
         const f = ensureFolder(name);
         const patch: Partial<Folder> = {};
-        if (str(c.rename)?.trim()) patch.name = str(c.rename)!.trim();
-        if (color(c.color)) patch.color = color(c.color);
-        if (str(c.icon)) patch.icon = str(c.icon);
+        const rn = str(c.rename)?.trim();
+        if (rn && rn !== f.name) {
+          if (findFolder(rn)) warnings.push(`Папка ${q(rn)} уже есть — не переименовываю`);
+          else patch.name = rn;
+        }
+        if (color(c.color) && color(c.color) !== f.color) patch.color = color(c.color);
+        if (str(c.icon) && str(c.icon) !== f.icon) patch.icon = str(c.icon);
         if (Object.keys(patch).length) {
           d.folders = d.folders.map((x) => (x.id === f.id ? { ...x, ...patch, updatedAt: stamp } : x));
-          if (patch.name) edit(`Папка ${q(f.name)} → ${q(patch.name)}`);
+          edit(patch.name ? `Папка ${q(f.name)} → ${q(patch.name)}` : `Папка ${q(f.name)}: цвет или значок`);
         }
       } else if (kind === 'subject' || kind === 'предмет') {
         const name = str(c.name)?.trim();
@@ -307,15 +338,24 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
         }
         const s = ensureSubject(name);
         const patch: Partial<Subject> = {};
-        if (str(c.rename)?.trim()) patch.name = str(c.rename)!.trim();
-        if (color(c.color)) patch.color = color(c.color);
-        else if (str(c.color)) warnings.push(`Не понял цвет ${q(str(c.color)!)} — напиши, например, "#3A5BD9" или "зелёный"`);
-        if (str(c.icon)) patch.icon = str(c.icon);
-        if (c.folder !== undefined) patch.folderId = str(c.folder)?.trim() ? ensureFolder(str(c.folder)!).id : undefined;
+        const rn = str(c.rename)?.trim();
+        if (rn && rn !== s.name) {
+          if (findSubject(rn)) warnings.push(`Предмет ${q(rn)} уже есть — не переименовываю`);
+          else patch.name = rn;
+        }
+        const col = color(c.color);
+        if (col && col !== s.color.toUpperCase()) patch.color = col;
+        else if (!col && str(c.color)) warnings.push(`Не понял цвет ${q(str(c.color)!)} — напиши, например, "#3A5BD9" или "зелёный"`);
+        if (str(c.icon) && str(c.icon) !== s.icon) patch.icon = str(c.icon);
+        if (c.folder !== undefined) {
+          const fid = str(c.folder)?.trim() ? ensureFolder(str(c.folder)!).id : undefined;
+          if (fid !== s.folderId) patch.folderId = fid;
+        }
         if (Object.keys(patch).length) {
           d.subjects = d.subjects.map((x) => (x.id === s.id ? { ...x, ...patch, updatedAt: stamp } : x));
           if (patch.name) edit(`Предмет ${q(s.name)} → ${q(patch.name)}`);
           if ('folderId' in patch) edit(`Предмет ${q(patch.name ?? s.name)}: ${patch.folderId ? `в папке ${q(str(c.folder)!)}` : 'без папки'}`);
+          if (patch.color || patch.icon) edit(`Предмет ${q(patch.name ?? s.name)}: цвет или значок`);
         }
       } else if (kind === 'topic' || kind === 'тема') {
         const got = topicOf({ ...c, topic: c.topic ?? c.name });
@@ -326,20 +366,30 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
         if (note !== undefined) {
           const md = restoreImages(note);
           const how = norm(c.noteMode);
-          patch.note = how === 'append' || how === 'добавить' ? (topic.note.trim() ? topic.note.trimEnd() + '\n\n' : '') + md : how === 'prepend' ? md + (topic.note.trim() ? '\n\n' + topic.note : '') : md;
-          if (patch.note !== topic.note) edit(`Конспект ${q(topic.name)}: ${how === 'append' || how === 'добавить' ? 'дописан' : how === 'prepend' ? 'дописан в начало' : topic.note.trim() ? 'заменён' : 'написан'} (${patch.note.length} знаков)`);
+          const next = how === 'append' || how === 'добавить' ? (topic.note.trim() ? topic.note.trimEnd() + '\n\n' : '') + md : how === 'prepend' ? md + (topic.note.trim() ? '\n\n' + topic.note : '') : md;
+          if (next.trim() !== topic.note.trim()) {
+            patch.note = next;
+            edit(`Конспект ${q(topic.name)}: ${how === 'append' || how === 'добавить' ? 'дописан' : how === 'prepend' ? 'дописан в начало' : topic.note.trim() ? 'заменён' : 'написан'} (${next.length} знаков)`);
+          }
         }
-        if (str(c.rename)?.trim()) {
-          patch.name = str(c.rename)!.trim();
-          edit(`Тема ${q(topic.name)} → ${q(patch.name)}`);
+        const rn = str(c.rename)?.trim();
+        if (rn && rn !== topic.name) {
+          patch.name = rn;
+          edit(`Тема ${q(topic.name)} → ${q(rn)}`);
         }
         if (c.examDate !== undefined) {
           const ex = str(c.examDate)?.trim();
-          patch.examDate = ex && /^\d{4}-\d{2}-\d{2}$/.test(ex) ? ex : undefined;
-          if (ex && !patch.examDate) warnings.push(`Дата контрольной ${q(ex)}: нужен вид ГГГГ-ММ-ДД`);
-          else edit(`Тема ${q(topic.name)}: ${patch.examDate ? 'контрольная ' + patch.examDate : 'без даты контрольной'}`);
+          const date = ex && /^\d{4}-\d{2}-\d{2}$/.test(ex) ? ex : undefined;
+          if (ex && !date) warnings.push(`Дата контрольной ${q(ex)}: нужен вид ГГГГ-ММ-ДД`);
+          else if (date !== topic.examDate) {
+            patch.examDate = date;
+            edit(`Тема ${q(topic.name)}: ${date ? 'контрольная ' + date : 'без даты контрольной'}`);
+          }
         }
-        if (typeof c.important === 'boolean') patch.important = c.important;
+        if (typeof c.important === 'boolean' && c.important !== Boolean(topic.important)) {
+          patch.important = c.important;
+          edit(`Тема ${q(topic.name)}: ${c.important ? 'важная ★' : 'не важная'}`);
+        }
         if (Object.keys(patch).length) setTopic(topic.id, patch);
       } else if (kind === 'cards' || kind === 'card' || kind === 'карточки' || kind === 'карточка') {
         const got = topicOf(c);
@@ -361,9 +411,18 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
           const why = str(o.why) ?? str(o.почему);
           if (old) {
             keep.add(old.id);
-            const next: Card = { ...old, ...(front ? { front } : {}), ...(back !== undefined ? { back: back.trim() } : {}), ...(why !== undefined ? { why: why.trim() || undefined } : {}), ...(o.type !== undefined ? { type: cardType(o.type, front || old.front) } : {}) };
+            const next: Card = { ...old, ...(front && front !== old.front.trim() ? { front } : {}), ...(back !== undefined && back.trim() !== old.back.trim() ? { back: back.trim() } : {}), ...(why !== undefined && why.trim() !== (old.why ?? '').trim() ? { why: why.trim() || undefined } : {}), ...(o.type !== undefined ? { type: cardType(o.type, front || old.front) } : {}) };
             if (next.front !== old.front || next.back !== old.back || next.why !== old.why || next.type !== old.type) {
               d.cards = d.cards.map((x) => (x.id === old.id ? { ...next, updatedAt: stamp } : x));
+              // Изменился текст с пропусками — прогресс пропусков, которых больше нет, убрать.
+              if (next.front !== old.front || next.type !== old.type) {
+                const ords = new Set(itemOrds(next).map((o2) => itemKey(next.id, o2)));
+                const stale = Object.keys(d.states).filter((k) => k.startsWith(next.id + ':') && !ords.has(k));
+                if (stale.length) {
+                  d.states = { ...d.states };
+                  for (const k of stale) delete d.states[k];
+                }
+              }
               changed++;
             }
           } else {
@@ -379,7 +438,12 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
             added++;
           }
         }
-        const replace = norm(c.mode) === 'replace' || norm(c.mode) === 'заменить';
+        let replace = norm(c.mode) === 'replace' || norm(c.mode) === 'заменить';
+        if (replace && items.length && !keep.size) {
+          // Ни одной карточки не понял (например, поля названы не так) — ничего не удаляем.
+          warnings.push(`Карточки (${topic.name}): ни одной не понял — нужны поля "front" и "back"; старые не трогаю`);
+          replace = false;
+        }
         const gone = replace ? own.filter((x) => !keep.has(x.id)).map((x) => x.id) : [];
         dropCards(gone);
         if (added) add(`${added} ${plural(added, 'карточка', 'карточки', 'карточек')} в теме ${q(topic.name)}`);
@@ -423,12 +487,15 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
           add(`Правило ${q(name)} (${subject.name})`);
         }
         const patch: Partial<Topic> = {};
-        if (str(c.text) !== undefined) patch.note = restoreImages(str(c.text)!);
-        if (Array.isArray(c.words)) patch.ruleWords = c.words.map((w) => str(w)?.trim() ?? '').filter(Boolean);
-        if (str(c.rename)?.trim()) patch.name = str(c.rename)!.trim();
+        const text = str(c.text) !== undefined ? restoreImages(str(c.text)!) : undefined;
+        if (text !== undefined && text.trim() !== rule.note.trim()) patch.note = text;
+        const words = Array.isArray(c.words) ? c.words.map((w) => str(w)?.trim() ?? '').filter(Boolean) : undefined;
+        if (words && words.join('|') !== (rule.ruleWords ?? []).join('|')) patch.ruleWords = words;
+        if (str(c.rename)?.trim() && str(c.rename)!.trim() !== rule.name) patch.name = str(c.rename)!.trim();
         if (Object.keys(patch).length) {
+          const fresh = !rule.note && !rule.ruleWords?.length;
           setTopic(rule.id, patch);
-          if (rule.note || rule.ruleWords?.length) edit(`Правило ${q(rule.name)} изменено`);
+          if (!fresh) edit(`Правило ${q(rule.name)} изменено`);
         }
       } else if (kind === 'poem' || kind === 'стих' || kind === 'стихотворение') {
         const got = topicOf(c);
@@ -444,10 +511,12 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
         const t2 = title || text!.split('\n')[0].replace(/[,.;:!?…—-]+$/, '');
         const old = poems.find((p) => norm(p.title) === norm(t2));
         if (old) {
-          const patch: Partial<Poem> = { ...(str(c.author) !== undefined ? { author: str(c.author) } : {}), ...(str(c.rename) ? { title: str(c.rename) } : {}) };
+          const patch: Partial<Poem> = { ...(str(c.author) !== undefined && (str(c.author) || undefined) !== old.author ? { author: str(c.author) || undefined } : {}), ...(str(c.rename) && str(c.rename) !== old.title ? { title: str(c.rename) } : {}) };
           if (text && text !== old.text.trim()) Object.assign(patch, { text, chunk: autoChunk(text), learned: 0, lineMiss: [], review: undefined });
-          setTopic(topic.id, { poems: poems.map((p) => (p.id === old.id ? { ...p, ...patch, updatedAt: stamp } : p)) });
-          edit(`Стихотворение ${q(old.title)}${patch.text ? ' — новый текст (учить заново)' : ''}`);
+          if (Object.keys(patch).length) {
+            setTopic(topic.id, { poems: poems.map((p) => (p.id === old.id ? { ...p, ...patch, updatedAt: stamp } : p)) });
+            edit(`Стихотворение ${q(old.title)}${patch.text ? ' — новый текст (учить заново)' : ''}`);
+          }
         } else {
           if (!text) {
             warnings.push(`Стихотворение ${q(t2)}: нет текста`);
@@ -476,14 +545,13 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
           add(`Домашка ${q(text)}${patch.due ? ' к ' + patch.due : ''}`);
         }
       } else if (kind === 'schedule' || kind === 'расписание') {
-        const day = DAYS[norm(c.day)];
+        const day = pick(DAYS, norm(c.day));
         if (!day) {
           warnings.push('Расписание: "day" — от 1 (понедельник) до 6 (суббота)');
           continue;
         }
         const names = Array.isArray(c.subjects) ? c.subjects.map((x) => str(x)?.trim() ?? '').filter(Boolean) : [];
-        d.settings.schedule[day] = names.map((n) => ensureSubject(n).id);
-        d.settings = { ...d.settings, features: { ...d.settings.features, schedule: true } };
+        d.settings = { ...d.settings, schedule: { ...d.settings.schedule, [day]: names.map((n) => ensureSubject(n).id) }, features: { ...d.settings.features, schedule: true } };
         edit(`Расписание, ${['', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'][+day]}: ${names.join(', ') || 'нет уроков'}`);
       } else if (kind === 'delete' || kind === 'удалить') {
         const what = norm(c.what);
@@ -601,13 +669,17 @@ export function exportChanges(data: AppData, scope: { subjectId?: string; topicI
       if (l) changes.push({ do: 'glossary', subject: subject.name, rows: data.cards.filter((c) => c.topicId === t.id && c.listId === l.id).map((c) => [c.front, c.back, c.why ?? '']) });
       continue;
     }
-    const parent = t.parentId ? byId.get(t.parentId) : undefined;
-    changes.push({ do: 'topic', subject: subject.name, topic: t.name, ...(parent ? { parent: parent.name } : {}), note: hideImages(t.note), ...(t.examDate ? { examDate: t.examDate } : {}), ...(t.important ? { important: true } : {}) });
+    // Путь глав: "Глава 1 / Раздел 2" — чтобы одинаковые названия в разных главах не путались.
+    const path: string[] = [];
+    for (let p = t.parentId ? byId.get(t.parentId) : undefined; p && path.length < 10; p = p.parentId ? byId.get(p.parentId) : undefined) path.unshift(p.name);
+    const parent = path.length ? path.join(' / ') : undefined;
+    changes.push({ do: 'topic', subject: subject.name, topic: t.name, ...(parent ? { parent } : {}), note: hideImages(t.note), ...(t.examDate ? { examDate: t.examDate } : {}), ...(t.important ? { important: true } : {}) });
     const own = data.cards.filter((c) => c.topicId === t.id && !c.listId);
-    if (own.length) changes.push({ do: 'cards', subject: subject.name, topic: t.name, cards: own.map((c) => ({ front: c.front, back: c.back, ...(c.type !== 'basic' ? { type: c.type } : {}), ...(c.why ? { why: c.why } : {}) })) });
+    const at = { subject: subject.name, topic: t.name, ...(parent ? { parent } : {}) };
+    if (own.length) changes.push({ do: 'cards', ...at, cards: own.map((c) => ({ front: c.front, back: c.back, ...(c.type !== 'basic' ? { type: c.type } : {}), ...(c.why ? { why: c.why } : {}) })) });
     for (const l of lists)
-      changes.push({ do: 'list', subject: subject.name, topic: t.name, title: l.title, kind: l.kind, columns: l.cols, mode: l.mode, rows: data.cards.filter((c) => c.topicId === t.id && c.listId === l.id).map((c) => [c.front, c.back, c.why ?? '']) });
-    for (const p of t.poems ?? []) changes.push({ do: 'poem', subject: subject.name, topic: t.name, title: p.title, ...(p.author ? { author: p.author } : {}), text: p.text });
+      changes.push({ do: 'list', ...at, title: l.title, kind: l.kind, columns: l.cols, mode: l.mode, rows: data.cards.filter((c) => c.topicId === t.id && c.listId === l.id).map((c) => [c.front, c.back, c.why ?? '']) });
+    for (const p of t.poems ?? []) changes.push({ do: 'poem', ...at, title: p.title, ...(p.author ? { author: p.author } : {}), text: p.text });
   }
   return { title: scope.topicId ? `Тема «${topics[0]?.name ?? ''}»` : `Предмет «${subject.name}»`, changes };
 }
@@ -662,4 +734,58 @@ export function aiInstructions(data: AppData, withStructure = true): string {
     }
   }
   return CHANGES_GUIDE + '\n\nЧто уже есть у ученика (используй эти названия):\n' + lines.join('\n').slice(0, 6000);
+}
+
+// ---------- «Вернуть» ----------
+
+type Keyed = { id: string; updatedAt?: string };
+const TOMB: [keyof AppData & ('folders' | 'subjects' | 'topics' | 'cards' | 'homework'), string][] = [
+  ['folders', 'folder:'],
+  ['subjects', 'subj:'],
+  ['topics', 'topic:'],
+  ['cards', 'card:'],
+  ['homework', 'hw:']
+];
+
+/**
+ * Отменить применённый файл изменений, не трогая то, что поменялось потом в другом месте.
+ * Созданное — удалить (с отметкой для синхронизации), удалённое — вернуть, изменённое — вернуть как было.
+ * Всё со свежей отметкой времени: иначе синхронизация «вернула бы» изменения обратно.
+ */
+export function revertChanges(before: AppData, applied: AppData, current: AppData, now = new Date()): AppData {
+  const stamp = now.toISOString();
+  const out: AppData = { ...current, deleted: { ...(current.deleted ?? {}) } };
+  for (const [key, prefix] of TOMB) {
+    const b = new Map(((before[key] ?? []) as Keyed[]).map((x) => [x.id, x]));
+    const a = new Map(((applied[key] ?? []) as Keyed[]).map((x) => [x.id, x]));
+    let list = [...((current[key] ?? []) as Keyed[])];
+    // созданное файлом — убрать
+    const created = new Set([...a.keys()].filter((id) => !b.has(id)));
+    if (created.size) {
+      list = list.filter((x) => !created.has(x.id));
+      for (const id of created) out.deleted![prefix + id] = stamp;
+    }
+    // изменённое — вернуть как было
+    list = list.map((x) => (b.has(x.id) && a.has(x.id) && a.get(x.id) !== b.get(x.id) ? { ...b.get(x.id)!, updatedAt: stamp } : x));
+    // удалённое — вернуть
+    const have = new Set(list.map((x) => x.id));
+    for (const [id, x] of b) {
+      if (a.has(id) || have.has(id)) continue;
+      list.push({ ...x, updatedAt: stamp });
+      delete out.deleted![prefix + id];
+    }
+    (out as unknown as Record<string, unknown>)[key] = list;
+  }
+  // прогресс удалённых карточек
+  const states = { ...out.states };
+  for (const [k, v] of Object.entries(before.states)) if (!(k in applied.states) && !(k in states)) states[k] = v;
+  out.states = states;
+  if (applied.logs !== before.logs) {
+    const kept = new Set(applied.logs);
+    const logIds = new Set(out.logs.map((l) => l.at + l.key));
+    out.logs = [...out.logs, ...before.logs.filter((l) => !kept.has(l) && !logIds.has(l.at + l.key))];
+  }
+  // расписание
+  if (applied.settings.schedule !== before.settings.schedule) out.settings = { ...out.settings, schedule: before.settings.schedule, features: { ...out.settings.features, schedule: before.settings.features.schedule } };
+  return out;
 }

@@ -1,6 +1,6 @@
 // Окно «Файл изменений»: выбрать файл (или вставить ответ нейросети) → посмотреть, что поменяется → применить.
 import { useMemo, useRef, useState } from 'react';
-import { aiInstructions, exportChanges, packToText, parseChangeFile, planChanges, type Plan } from '../changes';
+import { aiInstructions, exportChanges, packToText, parseChangeFile, planChanges, revertChanges, type ChangePack, type Plan } from '../changes';
 import { downloadFile } from '../share';
 import { getData, replaceData } from '../store';
 import { Icon, Modal, toast } from './ui';
@@ -22,8 +22,11 @@ export function openChanges(text?: string) {
 export function ChangesDialog({ initial = '', onClose }: { initial?: string; onClose: () => void }) {
   const openGuide = initial === '#guide';
   const [text, setText] = useState(openGuide ? '' : initial);
-  const [plan, setPlan] = useState<Plan | null>(() => (initial && !openGuide ? check(initial) : null));
-  const [error, setError] = useState('');
+  // Файл перетащили в окно — сразу разбираем (без setState во время отрисовки).
+  const [first] = useState(() => (initial && !openGuide ? parseChangeFile(initial) : null));
+  const [pack, setPack] = useState<ChangePack | null>(first?.ok ? first.pack : null);
+  const [plan, setPlan] = useState<Plan | null>(() => (first?.ok ? planChanges(getData(), first.pack) : null));
+  const [error, setError] = useState(first && !first.ok ? first.error : '');
   const [guide, setGuide] = useState(openGuide);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -34,6 +37,7 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
       return null;
     }
     setError('');
+    setPack(r.pack);
     return planChanges(getData(), r.pack);
   }
 
@@ -45,12 +49,15 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
   }
 
   function apply() {
-    if (!plan) return;
+    if (!plan || !pack) return;
+    // Считаем заново на текущих данных: пока окно было открыто, могла пройти синхронизация.
     const before = getData();
-    replaceData(plan.data);
+    const fresh = planChanges(before, pack);
+    replaceData(fresh.data);
     onClose();
-    const n = plan.lines.length;
-    toast(`Готово: ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'изменение' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'изменения' : 'изменений'}`, { label: 'Вернуть', run: () => replaceData(before) });
+    const n = fresh.lines.length;
+    // «Вернуть» отменяет только сделанное файлом — то, что поменялось потом, остаётся.
+    toast(`Готово: ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'изменение' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'изменения' : 'изменений'}`, { label: 'Вернуть', run: () => replaceData(revertChanges(before, fresh.data, getData())) });
   }
 
   if (guide) return <GuideDialog onBack={() => setGuide(false)} onClose={onClose} />;
