@@ -103,6 +103,14 @@ describe('1.8: Мнема-текст — простой формат для не
     expect(p.data.cards.find((c) => c.id === 'c1')?.front).toBe('Правил {{49 лет::сколько лет?}}');
   });
 
+  it('«@предмет: Русский» с двоеточием тоже читается', () => {
+    const r = parseChangeFile('@предмет: Русский язык\n@тема: Наречие\nТекст');
+    expect(r.ok && r.pack.changes.map((c) => [c.do, c.name ?? c.topic])).toEqual([
+      ['subject', 'Русский язык'],
+      ['topic', 'Наречие']
+    ]);
+  });
+
   it('служебные слова объекта не становятся командой удаления', () => {
     const pack = parseMnemaText('@предмет X\n@удалить constructor Y\n@удалить __proto__ Z');
     expect(pack.changes.filter((c) => c.do === 'delete')).toEqual([]);

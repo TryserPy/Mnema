@@ -806,7 +806,7 @@ html[data-touch] .bubble .bubble-sep { display: none; }
 .table-tools button:hover { background: var(--sunken); }
 .table-tools button.danger { color: var(--again-ink); }
 @media (max-width: 720px), (pointer: coarse) {
-  .table-tools { flex-wrap: wrap; max-width: calc(100vw - 16px); }
+  .table-tools { flex-wrap: wrap; max-width: calc(100vw - 56px); }
   .table-tools button { padding: 0 7px; }
 }
 @media (max-width: 720px) { .md table { display: block; overflow-x: auto; } }

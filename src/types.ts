@@ -219,7 +219,7 @@ export interface Settings {
   lessonsRemind: { on: boolean; time: string }; // вечером: «завтра такие-то уроки — повтори»
   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
   appIcon?: string; // значок на рабочем столе телефона: 'default', 'theme' (под тему) или id темы (свой выбор)
-  bgImage?: { src: string; fade: number }; // свой фон картинкой (JPEG data:); fade 0.3–0.95 — насколько её прикрывает цвет темы
+  bgImage?: { src: string; fade: number }; // свой фон картинкой (JPEG data:); fade 0.5–0.95 — насколько её прикрывает цвет темы
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов

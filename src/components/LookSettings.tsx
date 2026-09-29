@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { updateSettings, useData } from '../store';
 import { BACKGROUNDS, DEFAULT_ACCENT, DEFAULT_LOOK, FONTS, HEAD_FONTS, presetFor, STYLES, THEMES, type Palette, type ThemePreset } from '../themes';
 import type { Look, MotionKind, MotionLevel } from '../types';
-import { Collapse, ColorPicker, Icon, Segmented, Switch } from './ui';
+import { Collapse, ColorPicker, Icon, Segmented, Switch, toast } from './ui';
 import { Group, PaneHead, SRow } from './SettingsKit';
 
 const ACCENTS = ['#4C5BD4', '#3F51D8', '#1F7A6B', '#B4452F', '#6B3FC4', '#2A5BB8', '#3A3F4E', '#C2417A', '#2F8F5B', '#A4591A', '#0E8FA3'];
@@ -169,15 +169,21 @@ function BgImageRow() {
     if (!f) return;
     setBusy(true);
     try {
-      const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' });
+      // Старый WebView не знает imageOrientation — тогда без него.
+      const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(f));
       const k = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
       const c = document.createElement('canvas');
       c.width = Math.round(bmp.width * k);
       c.height = Math.round(bmp.height * k);
-      c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height);
+      const g = c.getContext('2d')!;
+      // Прозрачные места PNG в JPEG стали бы чёрными — подкладываем белый.
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(bmp, 0, 0, c.width, c.height);
+      bmp.close();
       updateSettings({ bgImage: { src: c.toDataURL('image/jpeg', 0.8), fade: img?.fade ?? 0.78 } });
     } catch {
-      /* не картинка — ничего не меняем */
+      toast('Не получилось открыть картинку — попробуй другой файл (JPG или PNG)');
     } finally {
       setBusy(false);
     }

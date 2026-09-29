@@ -86,10 +86,23 @@ export function Sidebar({
   const pickBox = (key: string) => picking && <span className={'pick-box' + (sel.has(key) ? ' on' : '')} aria-hidden="true">{sel.has(key) && <Icon name="check" size={12} />}</span>;
   useEffect(() => {
     if (!picking) return;
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setSel(new Set());
+    // Esc снимает выбор — но не когда открыто окно (там Esc закрывает только окно).
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && !document.querySelector('.modal-back') && setSel(new Set());
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
   }, [picking]);
+  // Выбранное удалили другим способом (или синхронизация) — убираем его из выбора, чтобы не было «Выбрано: 2» ни о чём.
+  useEffect(() => {
+    setSel((old) => {
+      if (!old.size) return old;
+      const alive = (k: string) => {
+        const id = k.slice(2);
+        return k.startsWith('f:') ? data.folders.some((f) => f.id === id) : k.startsWith('s:') ? data.subjects.some((x) => x.id === id) : data.topics.some((t) => t.id === id);
+      };
+      const next = new Set([...old].filter(alive));
+      return next.size === old.size ? old : next;
+    });
+  }, [data]);
   const openMenuAt = (el: HTMLElement, m: { topic?: Topic; subject?: Subject; folder?: Folder }) => {
     const r = el.getBoundingClientRect();
     setMenu({ x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 4, ...m });

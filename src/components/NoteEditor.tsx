@@ -2,7 +2,7 @@ import '../katexCache';
 // Редактор конспекта «как в Word»: без значков разметки на экране, но хранится всё в Markdown.
 import { Extension, InputRule } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
-import { TableKit } from '@tiptap/extension-table';
+import { renderTableToMarkdown, Table, TableKit } from '@tiptap/extension-table';
 import { BlockMath, InlineMath } from '@tiptap/extension-mathematics';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from '@tiptap/markdown';
@@ -148,6 +148,16 @@ interface Props {
   topicId?: string;
 }
 
+
+/** Таблица, которая не ломается от «|» в ячейке (|x|, «A | B»): в Markdown он пишется как «\|». */
+const PipeSafeTable = Table.extend({
+  renderMarkdown: (node, h) =>
+    renderTableToMarkdown(node, {
+      ...h,
+      renderChildren: (...args: Parameters<typeof h.renderChildren>) => h.renderChildren(...args).replace(/(?<!\\)\|/g, '\\|')
+    })
+});
+
 export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, onPage, tools, onReady, rules = null, onRuleHover, onAddRule, onLinkHover, topicId }: Props) {
   const linkHoverRef = useRef(onLinkHover);
   linkHoverRef.current = onLinkHover;
@@ -197,7 +207,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
         onClick: (node, pos) => setFormula({ mode: 'edit', pos, latex: node.attrs.latex, block: true })
       }),
       // Таблицы (в Markdown — | a | b |): вставка через «Вставить → Таблица», строки и столбцы — кнопками над таблицей.
-      TableKit.configure({ table: { resizable: false } }),
+      TableKit.configure({ table: false }),
+      PipeSafeTable.configure({ resizable: false }),
       DollarMath,
       NoStickyMarks,
       AutoHighlight(
