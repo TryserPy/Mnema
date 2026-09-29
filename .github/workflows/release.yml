@@ -131,6 +131,8 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.web.outputs.version }}
+          # Запуск кнопкой (без метки): метка создаётся на собранном коммите.
+          target_commitish: ${{ github.sha }}
           name: Мнема ${{ needs.web.outputs.version }}
           body_path: notes.md
           make_latest: true
