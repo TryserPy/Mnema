@@ -107,9 +107,10 @@ export function applyLook(root: HTMLElement, s: Settings, dark: boolean) {
   root.dataset.bg = look.background;
   root.dataset.font = look.font;
   // Свой фон картинкой: картинка под полупрозрачным цветом темы — текст остаётся читаемым.
-  if (s.bgImage?.src) {
+  // Принимаем только картинку внутри данных (data:image/…;base64) — без кавычек и скобок, чтобы не сломать CSS.
+  if (s.bgImage?.src && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(s.bgImage.src)) {
     root.style.setProperty('--bg-img', `url("${s.bgImage.src}")`);
-    root.style.setProperty('--bg-fade', String(Math.min(0.95, Math.max(0.3, s.bgImage.fade))));
+    root.style.setProperty('--bg-fade', String(Number.isFinite(s.bgImage.fade) ? Math.min(0.95, Math.max(0.3, s.bgImage.fade)) : 0.78));
     root.dataset.bgimg = '1';
   } else {
     root.style.removeProperty('--bg-img');
