@@ -6,5 +6,6 @@
     android:minResizeHeight="110dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget"
+    android:description="@string/w_main_desc"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

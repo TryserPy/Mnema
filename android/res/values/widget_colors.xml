@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Цвета виджетов: светлые; для тёмной темы телефона — values-night/widget_colors.xml -->
+<resources>
+    <color name="w_bg">#F7F8FB</color>
+    <color name="w_chip">#E9EBF7</color>
+    <color name="w_accent">#4C5BD4</color>
+    <color name="w_ink">#1E2230</color>
+    <color name="w_ink2">#2A2F3A</color>
+    <color name="w_muted">#5B6070</color>
+    <color name="w_streak">#8A5A00</color>
+</resources>

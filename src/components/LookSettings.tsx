@@ -119,7 +119,40 @@ export function LookPane({ dark }: { dark: boolean }) {
           <ColorPicker value={s.accent} onChange={(c) => updateSettings({ accent: c })} colors={ACCENTS} />
         </div>
       </Group>
+      {window.mnemaApi?.setAppIcon && <AppIconGroup dark={dark} />}
     </div>
+  );
+}
+
+/** Значок Мнемы на рабочем столе телефона: обычный или в цветах темы. */
+function AppIconGroup({ dark }: { dark: boolean }) {
+  const s = useData().settings;
+  const mode = s.appIcon ?? 'default';
+  const t = presetFor(s.look, dark);
+  return (
+    <Group title="Значок на рабочем столе" id="appicon">
+      <SRow label="Какой значок" hint="Меняется, когда выходишь из Мнемы">
+        <div className="ctl-seg">
+          <Segmented
+            ariaLabel="Значок приложения"
+            value={mode}
+            onChange={(v) => updateSettings({ appIcon: v })}
+            options={[
+              { value: 'default', label: 'Обычный' },
+              { value: 'theme', label: 'Как тема' }
+            ]}
+          />
+        </div>
+      </SRow>
+      <div className="srow app-icon-row">
+        <span className={'app-icon-prev' + (mode === 'theme' && t.dark ? ' dark' : '')} style={mode === 'theme' ? ({ '--ai-acc': t.accent, '--ai-bg': t.p.bg, '--ai-top': t.p.surface } as React.CSSProperties) : undefined}>
+          М
+        </span>
+        <span className="small muted">
+          {mode === 'theme' ? `Сейчас — «${t.name}». Сменишь тему — сменится и значок.` : 'Синий значок с буквой «М».'} На некоторых телефонах после смены значок пропадает с рабочего стола — тогда перетащи его заново из списка приложений.
+        </span>
+      </div>
+    </Group>
   );
 }
 

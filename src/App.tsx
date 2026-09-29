@@ -154,6 +154,12 @@ export function App() {
     return () => window.removeEventListener('mnema:open-link', h);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Значок на рабочем столе телефона — под тему (если так выбрано в «Оформлении»).
+  const iconTheme = dark ? s.look.dark : s.look.light;
+  useEffect(() => {
+    window.mnemaApi?.setAppIcon?.(s.appIcon === 'theme' ? iconTheme : 'default');
+  }, [s.appIcon, iconTheme]);
+
   // Любое меню, которое открылось у края окна (особенно на телефоне), сдвигаем внутрь.
   useEffect(() => keepMenusInView(), []);
 
@@ -176,7 +182,13 @@ export function App() {
       const now = new Date();
       const c = todayCounts(d, now);
       const fresh = d.cards.reduce((n, card) => n + itemOrds(card).filter((o) => !d.states[itemKey(card.id, o)]).length, 0);
-      window.mnemaApi?.setWidget?.(JSON.stringify(widgetState(d, now, c.learning + c.review + c.newCount, forecast(d, now, 8), fresh, streak(d, now))));
+      // Сколько карточек на сегодня по каждому предмету из расписания — для виджета «Уроки».
+      const bySubject: Record<string, number> = {};
+      for (const id of new Set(Object.values(d.settings.schedule).flat())) {
+        const k = todayCounts(d, now, { subjectId: id });
+        bySubject[id] = k.learning + k.review + k.newCount;
+      }
+      window.mnemaApi?.setWidget?.(JSON.stringify(widgetState(d, now, c.learning + c.review + c.newCount, forecast(d, now, 8), fresh, streak(d, now), bySubject)));
     }, 1500);
     return () => clearTimeout(t);
   }, [data]);

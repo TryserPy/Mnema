@@ -217,6 +217,7 @@ export interface Settings {
   homeworkRemind: { on: boolean; time: string; when: 'dayBefore' | 'sameDay' }; // напоминания о ДЗ по умолчанию
   lessonsRemind: { on: boolean; time: string }; // вечером: «завтра такие-то уроки — повтори»
   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
+  appIcon?: 'default' | 'theme'; // значок на рабочем столе телефона: обычный или под тему
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов
