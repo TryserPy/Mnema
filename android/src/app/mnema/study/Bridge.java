@@ -148,7 +148,8 @@ public class Bridge {
             try {
                 return readAll(new FileInputStream(f));
             } catch (Exception e) {
-                return null;
+                // Файл есть, но не прочитался: не «пусто», иначе окно сохранило бы пустые данные поверх.
+                return "!read-error";
             }
         }
     }
@@ -710,24 +711,27 @@ public class Bridge {
         pool.execute(new Runnable() {
             @Override
             public void run() {
-                deliver(id, Updater.download(activity, url, new Updater.Progress() {
+                String r = Updater.download(activity, url, new Updater.Progress() {
                     @Override
                     public void on(int percent) {
                         js("window.__mnemaUpdate && window.__mnemaUpdate('{\"type\":\"progress\",\"percent\":" + percent + "}')");
                     }
-                }));
+                });
+                // Всем открытым окнам обновления — «скачано» (ответ получает только то окно, что начинало скачивание).
+                if (r.startsWith("{\"ok\":true")) js("window.__mnemaUpdate && window.__mnemaUpdate('{\"type\":\"ready\",\"version\":\"\"}')");
+                deliver(id, r);
             }
         });
     }
 
-    /** Поставить скачанное обновление: Android покажет «Обновить приложение?». */
+    /** Поставить скачанное обновление: Android покажет «Обновить приложение?». ask — открыть разрешение, если его нет. */
     @JavascriptInterface
-    public void apkInstall(String k, final String id) {
+    public void apkInstall(String k, final String id, final boolean ask) {
         if (!allowed(k)) return;
-        activity.runOnUiThread(new Runnable() {
+        pool.execute(new Runnable() {
             @Override
             public void run() {
-                deliver(id, Updater.install(activity));
+                deliver(id, Updater.install(activity, ask));
             }
         });
     }

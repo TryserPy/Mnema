@@ -74,6 +74,6 @@ export async function checkUpdate(): Promise<UpdateInfo> {
 /** Проверять не чаще раза в сутки. */
 export function dueForAutoCheck(): boolean {
   const u = getData().settings.update;
-  if (!u.auto) return false;
+  if (!u.auto || !window.mnemaApi) return false; // в обычном браузере обновлять нечего
   return !u.lastCheck || Date.now() - Date.parse(u.lastCheck) > 20 * 3600_000;
 }

@@ -248,7 +248,10 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     const onSel = () => setHasSel(!editor.state.selection.empty);
     const onFocus = () => api?.setSelMenu?.(onAddRuleRef.current ? SEL_MENU : SEL_MENU.filter((x) => x.id !== 'rule'));
     const onBlur = () => api?.setSelMenu?.([]);
-    window.__mnemaSelAction = (a: string) => selActionRef.current(a as SelAction);
+    // Пункт из меню Android — только если сейчас пишешь именно в этом конспекте (иначе выделение старое).
+    window.__mnemaSelAction = (a: string) => {
+      if (editor.isFocused || editor.view.hasFocus()) selActionRef.current(a as SelAction);
+    };
     editor.on('selectionUpdate', onSel);
     editor.on('focus', onFocus);
     editor.on('blur', onBlur);
@@ -287,7 +290,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   useEffect(() => {
     if (!editor) return;
     const onKey = (e: KeyboardEvent) => {
-      if (document.querySelector('.modal-back')) return;
+      // Уже обработано самим редактором (например, Ctrl+Shift+H — маркер): не делать второй раз.
+      if (e.defaultPrevented || document.querySelector('.modal-back')) return;
       const st = getData().settings;
       const inEditor = editor.view.dom.contains(e.target as Node) || e.target === document.body;
       if (e.key === 'Escape' && bubbleAt.current) {

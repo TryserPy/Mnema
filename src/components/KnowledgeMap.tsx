@@ -522,7 +522,9 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     if (e) fingers.delete(e.pointerId);
     if (pinch.current) {
       // Убрали один палец — масштаб закончен; оставшийся палец не считается нажатием.
-      if (fingers.size < 2) pinch.current = null;
+      // Было три пальца, стало два — щипок продолжается с новой парой (без скачка).
+      if (fingers.size >= 2) startPinch();
+      else pinch.current = null;
       S.drag = null;
       return;
     }

@@ -88,7 +88,7 @@ declare global {
       /** Скачать обновление. На телефоне — APK по ссылке из выпуска (url), на компьютере url не нужен. */
       updateDownload?: (url?: string) => Promise<{ ok: boolean; error?: string }>;
       /** Поставить скачанное. На телефоне может попросить разрешение «ставить приложения» (permission). */
-      updateInstall?: () => Promise<boolean | { ok: boolean; permission?: boolean; error?: string }>;
+      updateInstall?: (ask?: boolean) => Promise<boolean | { ok: boolean; permission?: boolean; error?: string }>;
       onUpdateEvent?: (cb: (e: { type: 'progress'; percent: number } | { type: 'ready'; version: string } | { type: 'error'; message: string }) => void) => () => void;
       /** Пункты «Мнемы» в меню выделения текста Android (пустой список — убрать). */
       setSelMenu?: (items: { id: string; title: string }[]) => void;
@@ -110,6 +110,8 @@ declare global {
 }
 
 const LS_KEY = 'mnema-data';
+/** Так Android отвечает, если файл данных есть, но прочитать его не вышло (а не «файла ещё нет»). */
+const READ_ERROR = '!read-error';
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
@@ -215,11 +217,20 @@ export function normalizeData(raw: unknown): AppData {
   };
 }
 
+/** Файл данных есть, но не прочитался: работаем, но не сохраняем поверх (иначе потеряли бы всё). */
+let readOnly = false;
+export const dataReadOnly = () => readOnly;
+
 function loadInitial(): AppData {
   try {
     // На Android мост может быть готов раньше, чем собран window.mnemaApi (порядок загрузки частей сборки), — читаем прямо из него.
     const bridge = (window as unknown as { MnemaAndroid?: { load(k: string): string | null } }).MnemaAndroid;
     const json = window.mnemaApi ? window.mnemaApi.load() : bridge ? bridge.load(bridgeKey()) : localStorage.getItem(LS_KEY);
+    if (json === READ_ERROR || (bridge && !bridgeKey())) {
+      readOnly = true;
+      console.error('Файл данных не прочитался — сохранение отключено, чтобы его не затереть');
+      return emptyData();
+    }
     if (json) return normalizeData(JSON.parse(json));
   } catch (e) {
     console.error('Не удалось прочитать данные', e);
@@ -237,9 +248,21 @@ function persistNow(sync = false) {
   dirty = false;
   const json = JSON.stringify(data);
   try {
+    if (readOnly) {
+      dirty = true; // файл данных не прочитался — не затираем его пустыми данными
+      return;
+    }
     if (window.mnemaApi) {
-      if (sync) window.mnemaApi.saveSync(json);
-      else void window.mnemaApi.save(json);
+      // Не сохранилось (например, мост не принял вызов) — данные остаются «несохранёнными» и уйдут в следующий раз.
+      if (sync) {
+        if (window.mnemaApi.saveSync(json) === false) dirty = true;
+      } else
+        void window.mnemaApi.save(json).then(
+          (ok) => {
+            if (ok === false) dirty = true;
+          },
+          () => (dirty = true)
+        );
     } else {
       localStorage.setItem(LS_KEY, json);
     }

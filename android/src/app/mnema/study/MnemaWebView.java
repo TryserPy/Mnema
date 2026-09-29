@@ -19,7 +19,9 @@ import org.json.JSONObject;
  */
 public class MnemaWebView extends WebView {
     static final int BASE_ID = 0x4d4e00; // «MN»: номера наших пунктов меню
+    static final int MAX_ITEMS = 12;
     JSONArray items = new JSONArray();
+    ActionMode active; // открытое сейчас меню выделения — чтобы обновить его, если пункты поменялись
 
     public MnemaWebView(Context ctx) {
         super(ctx);
@@ -31,10 +33,14 @@ public class MnemaWebView extends WebView {
         } catch (Exception e) {
             items = new JSONArray();
         }
+        // Меню уже открыто (пункты пришли позже долгого нажатия) — перестроить.
+        if (active != null) active.invalidate();
     }
 
     void addItems(Menu menu) {
-        for (int i = 0; i < items.length(); i++) {
+        // Старые пункты (курсор ушёл из конспекта) — убрать.
+        for (int i = items.length(); i < MAX_ITEMS; i++) menu.removeItem(BASE_ID + i);
+        for (int i = 0; i < items.length() && i < MAX_ITEMS; i++) {
             JSONObject it = items.optJSONObject(i);
             if (it == null || menu.findItem(BASE_ID + i) != null) continue;
             // Первый пункт («В карточку») — первым в меню, остальные после «Копировать».
@@ -47,6 +53,7 @@ public class MnemaWebView extends WebView {
         return new ActionMode.Callback2() {
             @Override
             public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+                active = mode;
                 boolean r = cb.onCreateActionMode(mode, menu);
                 addItems(menu);
                 return r;
@@ -73,6 +80,7 @@ public class MnemaWebView extends WebView {
 
             @Override
             public void onDestroyActionMode(ActionMode mode) {
+                if (active == mode) active = null;
                 cb.onDestroyActionMode(mode);
             }
 

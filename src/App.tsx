@@ -27,7 +27,7 @@ import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
 import { importTopicPackage, isTopicPackage } from './share';
 import { forecast, itemKey, itemOrds, streak, todayCounts, tomorrowSubjects } from './srs';
-import { getData, updateSettings, updateTopic, useData } from './store';
+import { dataReadOnly, getData, updateSettings, updateTopic, useData } from './store';
 import type { Route } from './types';
 
 export function useMobile() {
@@ -159,6 +159,11 @@ export function App() {
   useEffect(() => {
     window.mnemaApi?.setAppIcon?.(s.appIcon === 'theme' ? iconTheme : 'default');
   }, [s.appIcon, iconTheme]);
+
+  // Файл данных есть, но не прочитался — честно сказать, что сейчас ничего не сохранится.
+  useEffect(() => {
+    if (dataReadOnly()) showToast('Не получилось открыть твои данные — сейчас ничего не сохранится. Закрой и открой Мнему снова.');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Любое меню, которое открылось у края окна (особенно на телефоне), сдвигаем внутрь.
   useEffect(() => keepMenusInView(), []);
