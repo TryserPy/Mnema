@@ -2,6 +2,7 @@ import '../katexCache';
 // Редактор конспекта «как в Word»: без значков разметки на экране, но хранится всё в Markdown.
 import { Extension, InputRule } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
+import { TableKit } from '@tiptap/extension-table';
 import { BlockMath, InlineMath } from '@tiptap/extension-mathematics';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from '@tiptap/markdown';
@@ -155,6 +156,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   // Панель выделения на компьютере появляется только по правой кнопке мыши (на телефоне — сразу при выделении).
   const bubbleAt = useRef<{ from: number; to: number } | null>(null);
   const bubbleKey = useRef(new PluginKey('noteBubble')).current;
+  const tableKey = useRef(new PluginKey('noteTable')).current;
   const hlRef = useRef(highlight);
   hlRef.current = highlight;
   const rulesRef = useRef(rules);
@@ -194,6 +196,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
         katexOptions: { throwOnError: false, displayMode: true },
         onClick: (node, pos) => setFormula({ mode: 'edit', pos, latex: node.attrs.latex, block: true })
       }),
+      // Таблицы (в Markdown — | a | b |): вставка через «Вставить → Таблица», строки и столбцы — кнопками над таблицей.
+      TableKit.configure({ table: { resizable: false } }),
       DollarMath,
       NoStickyMarks,
       AutoHighlight(
@@ -489,6 +493,9 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
             <button role="menuitem" onClick={insert(() => setDrawing({ mode: 'new' }))}>
               <span className="menu-ico">✎</span> Рисунок<span className="menu-key">{hint('insertDrawing', true)}</span>
             </button>
+            <button role="menuitem" onClick={insert(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}>
+              <span className="menu-ico">▦</span> Таблица
+            </button>
             <button role="menuitem" onClick={insert(() => setVideoAsk(true))}>
               <span className="menu-ico">▶</span> Видео по ссылке
             </button>
@@ -535,6 +542,37 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
           </div>
         </div>
       )}
+
+      {/* Курсор в таблице — кнопки строк и столбцов над ней. */}
+      <BubbleMenu
+        editor={editor}
+        pluginKey={tableKey}
+        className="table-tools"
+        options={{ placement: 'top-start', offset: 8, flip: { padding: 12 }, shift: { padding: 8 } }}
+        shouldShow={({ editor: ed, from, to }) => from === to && ed.isEditable && ed.isActive('table')}
+        getReferencedVirtualElement={() => {
+          const cell = editor.view.domAtPos(editor.state.selection.from).node as HTMLElement;
+          const table = (cell.nodeType === 3 ? cell.parentElement : cell)?.closest?.('table');
+          return table ? { getBoundingClientRect: () => table.getBoundingClientRect(), getClientRects: () => [table.getBoundingClientRect()] as unknown as DOMRectList } : null;
+        }}
+      >
+        <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} title="Добавить строку ниже">
+          <Icon name="plus" size={14} /> Строка
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} title="Добавить столбец справа">
+          <Icon name="plus" size={14} /> Столбец
+        </button>
+        <span className="bubble-sep" />
+        <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} title="Убрать строку с курсором">
+          − Строка
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} title="Убрать столбец с курсором">
+          − Столбец
+        </button>
+        <button type="button" className="danger" onClick={() => editor.chain().focus().deleteTable().run()} title="Удалить всю таблицу">
+          <Icon name="trash" size={14} />
+        </button>
+      </BubbleMenu>
 
       <BubbleMenu
         editor={editor}

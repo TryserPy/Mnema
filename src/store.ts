@@ -430,9 +430,13 @@ export function moveTopic(id: string, to: { subjectId: string; parentId?: string
   const topic = data.topics.find((t) => t.id === id);
   if (!topic) return false;
   const parentId = to.parentId || undefined;
+  // Порядок считаем от того, что видно на экране (по названию или свой).
   const siblings = data.topics
     .filter((t) => t.id !== id && t.subjectId === to.subjectId && (t.parentId ?? undefined) === parentId)
-    .sort(byOrder);
+    .sort(topicOrder(data));
+  // Перетащил тему между соседями, а темы стоят по названию, — дальше порядок твой.
+  const reorder = Boolean(to.beforeId || to.afterId);
+  const topicSort = reorder ? 'manual' : data.settings.topicSort;
   let idx = siblings.length;
   if (to.beforeId) idx = Math.max(0, siblings.findIndex((t) => t.id === to.beforeId));
   else if (to.afterId) idx = siblings.findIndex((t) => t.id === to.afterId) + 1;
@@ -445,7 +449,7 @@ export function moveTopic(id: string, to: { subjectId: string; parentId?: string
     return t;
   });
   const treeOpen = parentId && !data.settings.treeOpen.includes(parentId) ? [...data.settings.treeOpen, parentId] : data.settings.treeOpen;
-  commit({ ...data, topics, settings: { ...data.settings, treeOpen } });
+  commit({ ...data, topics, settings: { ...data.settings, treeOpen, ...(topicSort ? { topicSort } : {}) } });
   return true;
 }
 
@@ -465,8 +469,17 @@ export function byOrder(a: { order?: number; createdAt: string }, b: { order?: n
 
 /** Темы предмета (или подтемы темы) по порядку. */
 /** Темы предмета на одном уровне (без правил — они живут отдельно). */
+/** Сравнение названий «как у людей»: «§2» раньше «§10», «1. Введение» — первым; регистр и ё не важны. */
+const nameCollator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' });
+export const byName = (a: { name: string }, b: { name: string }) => nameCollator.compare(a.name.trim(), b.name.trim());
+
+/** Порядок тем: по названию (по умолчанию) или как расставил сам (перетаскиванием). */
+export function topicOrder(d: AppData): (a: Topic, b: Topic) => number {
+  return (d.settings.topicSort ?? 'name') === 'name' ? (a, b) => byName(a, b) || byOrder(a, b) : byOrder;
+}
+
 export function childTopics(d: AppData, subjectId: string, parentId?: string): Topic[] {
-  return d.topics.filter((t) => t.subjectId === subjectId && !t.kind && (t.parentId ?? undefined) === (parentId ?? undefined)).sort(byOrder);
+  return d.topics.filter((t) => t.subjectId === subjectId && !t.kind && (t.parentId ?? undefined) === (parentId ?? undefined)).sort(topicOrder(d));
 }
 
 /** Правила предмета (верхний уровень). */

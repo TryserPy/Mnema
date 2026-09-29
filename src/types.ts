@@ -254,6 +254,7 @@ export interface Settings {
   sidebarWidth: number;
   sidebarCollapsed: boolean;
   treeOpen: string[]; // раскрытые предметы и темы в боковой панели
+  topicSort?: 'name' | 'manual'; // темы: по названию с учётом чисел (по умолчанию) или как расставил сам
   keys: Partial<Record<string, string>>; // свои горячие клавиши (только изменённые)
   graph: GraphSettings;
   highlight: HighlightSettings;

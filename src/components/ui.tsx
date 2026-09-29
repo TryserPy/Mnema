@@ -169,6 +169,12 @@ const paths: Record<string, ReactNode> = {
     </>
   ),
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  sort: (
+    <>
+      <path d="M7 5v14M4 16l3 3 3-3" />
+      <path d="M13 7h7M13 12h5M13 17h3" />
+    </>
+  ),
   upload: (
     <>
       <path d="M12 15V4" />

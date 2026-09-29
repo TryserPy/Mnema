@@ -23,6 +23,7 @@ describe('Термины предмета', () => {
     expect(g.map((x) => x.cards.map((c) => c.id))).toEqual([['g1'], ['p1', 'p2'], ['n1']]);
   });
   it('словарь предмета не виден как тема в дереве', () => {
+    d.settings = { ...d.settings, topicSort: 'manual' };
     expect(childTopics(d, 's').map((t) => t.id)).toEqual(['p', 'n', 'e']);
   });
 });

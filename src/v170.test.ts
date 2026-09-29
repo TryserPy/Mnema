@@ -30,3 +30,18 @@ describe('1.7: обновления из выпусков GitHub', () => {
     expect(UPDATE_REPO).toEqual({ owner: 'TryserPy', repo: 'Mnema' });
   });
 });
+
+import { childTopics, emptyData } from './store';
+describe('1.8: порядок тем', () => {
+  const T0 = '2026-09-01T10:00:00.000Z';
+  const d = emptyData();
+  d.subjects = [{ id: 's', name: 'Русский', color: '#000', createdAt: T0 }];
+  const t = (id: string, name: string, order: number) => ({ id, subjectId: 's', name, note: '', order, createdAt: T0, updatedAt: T0 });
+  d.topics = [t('a', '§10. Наречие', 1), t('b', '§2. Глагол', 2), t('c', '1. Введение', 3), t('d', 'Ёж и ель', 4), t('e', '§1. Имя', 5)];
+  it('по умолчанию — по названию с учётом чисел', () => {
+    expect(childTopics(d, 's').map((x) => x.name)).toEqual(['§1. Имя', '§2. Глагол', '§10. Наречие', '1. Введение', 'Ёж и ель']);
+  });
+  it('«в своём порядке» — как расставил', () => {
+    expect(childTopics({ ...d, settings: { ...d.settings, topicSort: 'manual' } }, 's').map((x) => x.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+});
