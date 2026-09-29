@@ -121,6 +121,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: files
+          # Только файлы для установки (без веб-сборки dist).
+          pattern: '{apk,windows}'
           merge-multiple: true
       - name: Текст выпуска
         run: |
