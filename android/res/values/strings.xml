@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Мнема</string>
+    <string name="w_main_desc">Карточки на сегодня, домашка на завтра и серия дней</string>
+    <string name="w_small_desc">Сколько карточек повторить — и одно нажатие, чтобы начать</string>
+    <string name="w_hw_desc">Домашка на сегодня и завтра</string>
+    <string name="w_lessons_desc">Уроки на сегодня или завтра и сколько повторить к каждому</string>
 </resources>

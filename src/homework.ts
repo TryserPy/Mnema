@@ -108,7 +108,11 @@ export function notificationPlan(data: AppData, now = new Date(), withDaily = fa
 }
 
 /** Данные для виджета телефона: карточки по дням на неделю вперёд и ближайшая домашка. */
-export function widgetState(data: AppData, now: Date, todayTotal: number, fc: number[], newRemaining: number, streakDays: number) {
+/**
+ * Данные для виджетов на рабочем столе телефона (считаются заранее — виджет работает и без запуска Мнемы).
+ * dueBySubject — сколько карточек на сегодня по каждому предмету (для виджета «Уроки»).
+ */
+export function widgetState(data: AppData, now: Date, todayTotal: number, fc: number[], newRemaining: number, streakDays: number, dueBySubject: Record<string, number> = {}) {
   const hour = data.settings.dayStartHour;
   const start = new Date(now);
   if (start.getHours() < hour) start.setDate(start.getDate() - 1);
@@ -132,7 +136,18 @@ export function widgetState(data: AppData, now: Date, todayTotal: number, fc: nu
     ? data.homework
         .filter((h) => !h.done && (!h.due || h.due <= ymd(until)))
         .slice(0, 40)
-        .map((h) => ({ due: h.due ?? '', text: h.text.slice(0, 80), subject: data.subjects.find((s) => s.id === h.subjectId)?.name ?? '' }))
+        .map((h) => {
+          const sub = data.subjects.find((s) => s.id === h.subjectId);
+          return { due: h.due ?? '', text: h.text.slice(0, 80), subject: sub?.name ?? '', color: sub?.color ?? '' };
+        })
     : [];
-  return { dayStartHour: hour, days, hw, streak: streakDays };
+  // Расписание уроков: день недели ('1' — пн … '6' — сб) → предметы по порядку.
+  const lessons: Record<string, { name: string; color: string; cards: number }[]> = {};
+  if (data.settings.features.schedule)
+    for (const [day, ids] of Object.entries(data.settings.schedule))
+      lessons[day] = ids.flatMap((id) => {
+        const sub = data.subjects.find((x) => x.id === id);
+        return sub ? [{ name: sub.name, color: sub.color, cards: dueBySubject[id] ?? 0 }] : [];
+      });
+  return { dayStartHour: hour, days, hw, streak: streakDays, lessons, today: ymd(start) };
 }

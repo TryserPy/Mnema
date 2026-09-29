@@ -34,6 +34,7 @@ public class MnemaWidget extends AppWidgetProvider {
         AppWidgetManager m = AppWidgetManager.getInstance(ctx);
         int[] ids = m.getAppWidgetIds(new ComponentName(ctx, MnemaWidget.class));
         if (ids.length > 0) update(ctx, m, ids);
+        Widgets.refreshAll(ctx); // «Повторить», «Домашка», «Уроки»
     }
 
     @Override
@@ -42,7 +43,7 @@ public class MnemaWidget extends AppWidgetProvider {
     }
 
     private static PendingIntent open(Context ctx, String what, int code) {
-        Intent i = new Intent(ctx, MainActivity.class);
+        Intent i = new Intent(ctx, AppActivity.class);
         i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         i.putExtra("open", what);
         return PendingIntent.getActivity(ctx, code, i, PendingIntent.FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE);

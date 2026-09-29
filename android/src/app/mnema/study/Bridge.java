@@ -53,7 +53,7 @@ public class Bridge {
     static final String KEY_ALIAS = "mnema-secrets";
     static final int MAX_RESPONSE = 64 * 1024 * 1024;
 
-    final MainActivity activity;
+    final AppActivity activity;
     final MnemaWebView web;
     final SharedPreferences prefs;
     final ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -71,11 +71,11 @@ public class Bridge {
     /**
      * Ключ моста. Объект MnemaAndroid Android подставляет во все фреймы страницы, в том числе во встроенные
      * плееры (YouTube, Rutube, VK) и их рекламу. Поэтому каждый вызов несёт ключ, который получает только
-     * наша страница (meta в index.html, см. MainActivity) — без него мост ничего не делает.
+     * наша страница (meta в index.html, см. AppActivity) — без него мост ничего не делает.
      */
     final String token = new java.math.BigInteger(130, new java.security.SecureRandom()).toString(32);
 
-    Bridge(MainActivity activity, MnemaWebView web) {
+    Bridge(AppActivity activity, MnemaWebView web) {
         this.activity = activity;
         this.web = web;
         this.prefs = activity.getSharedPreferences("mnema", Context.MODE_PRIVATE);
@@ -401,7 +401,7 @@ public class Bridge {
                 i.setType(mime == null || mime.isEmpty() ? "application/octet-stream" : mime);
                 i.putExtra(Intent.EXTRA_TITLE, name);
                 try {
-                    activity.startActivityForResult(i, MainActivity.REQ_SAVE);
+                    activity.startActivityForResult(i, AppActivity.REQ_SAVE);
                 } catch (Exception e) {
                     saveId = null;
                     saveBytes = null;
@@ -458,7 +458,7 @@ public class Bridge {
             public void run() {
                 if (activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                     pendingSpeechLang = lang;
-                    activity.requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, MainActivity.REQ_PERM_AUDIO);
+                    activity.requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, AppActivity.REQ_PERM_AUDIO);
                 } else {
                     startRecognizer(lang);
                 }
@@ -632,7 +632,7 @@ public class Bridge {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                activity.requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, MainActivity.REQ_PERM_NOTIFY);
+                activity.requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, AppActivity.REQ_PERM_NOTIFY);
             }
         });
     }
@@ -676,6 +676,15 @@ public class Bridge {
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "mnema");
         } catch (Exception ignored) {
         }
+    }
+
+    // ---------- значок на рабочем столе ----------
+
+    /** Значок под тему: "default" или id темы. Поменяется, когда Мнема уйдёт с экрана. */
+    @JavascriptInterface
+    public void setIcon(String k, String id) {
+        if (!allowed(k)) return;
+        Icons.request(activity, id);
     }
 
     // ---------- меню выделения текста ----------

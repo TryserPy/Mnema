@@ -25,9 +25,10 @@ import java.util.Map;
 
 /**
  * Мнема для Android: окно WebView, в котором работает то же приложение, что и на Windows.
+ * Значок на рабочем столе — это «псевдонимы» этого окна в манифесте (MainActivity, Icon_<тема>), см. Icons.
  * Файлы приложения отдаются с адреса https://mnema.app/ прямо из APK (так работают модули JS и WebAssembly).
  */
-public class MainActivity extends Activity {
+public class AppActivity extends Activity {
     static final String HOST = "mnema.app";
     static final int REQ_FILE = 1;
     static final int REQ_SAVE = 2;
@@ -298,6 +299,13 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         web.saveState(outState);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Значок меняем, когда Мнема ушла с экрана: так смена ярлыка не мешает работе.
+        Icons.applyPending(this);
     }
 
     @Override

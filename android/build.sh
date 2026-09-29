@@ -37,7 +37,7 @@ echo "▸ Java"
 if [ "$JAVAC_JAR" = "$PLATFORM" ]; then JAVAC_CP="-bootclasspath $JAVAC_JAR -classpath $JAVAC_JAR"; else JAVAC_CP="-classpath $JAVAC_JAR"; fi
 javac -nowarn -encoding UTF-8 -source 8 -target 8 $JAVAC_CP \
   -d "$OUT/classes" $(find src "$OUT/gen" -name '*.java') 2>&1 | grep -v 'bootstrap classpath\|source value 8\|target value 8\|To suppress warnings\|^warning: \[options\]\|^[0-9] warnings\?$' || true
-test -f "$OUT/classes/app/mnema/study/MainActivity.class"
+test -f "$OUT/classes/app/mnema/study/AppActivity.class"
 
 echo "▸ DEX"
 if command -v d8 >/dev/null; then

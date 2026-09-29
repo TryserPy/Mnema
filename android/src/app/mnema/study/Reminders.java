@@ -102,7 +102,7 @@ public class Reminders extends BroadcastReceiver {
         } catch (Exception e) {
             b = new Notification.Builder(ctx);
         }
-        Intent it = new Intent(ctx, MainActivity.class);
+        Intent it = new Intent(ctx, AppActivity.class);
         it.putExtra("open", open == null ? "homework" : open);
         it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pi = PendingIntent.getActivity(ctx, code, it, PendingIntent.FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE);

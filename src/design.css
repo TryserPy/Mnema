@@ -735,3 +735,8 @@ html[data-touch] :is(kbd, .kbd, .menu-key, .nav-kbd, .key-hint) { display: none 
 .pet-say { align-self: center; color: var(--good-ink); font-weight: 600; animation: petSay 1.8s ease forwards; }
 @keyframes petSay { 0% { opacity: 0; transform: translateY(6px); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 html[data-motion='off'] .pet-fx-layer, html[data-motion='off'] .pet-say { display: none; }
+
+/* ---------- 1.7: значок на рабочем столе (предпросмотр) ---------- */
+.app-icon-row { display: flex; align-items: center; gap: 14px; }
+.app-icon-prev { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font-family: 'Literata', Georgia, serif; font-weight: 700; font-size: 1.9rem; color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--ai-acc, #4C5BD4) 88%, #fff), color-mix(in srgb, var(--ai-acc, #4C5BD4) 88%, #000)); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+.app-icon-prev.dark { color: var(--ai-acc); background: linear-gradient(180deg, var(--ai-top), var(--ai-bg)); border: 1.5px solid color-mix(in srgb, var(--ai-acc) 45%, var(--ai-bg)); }
