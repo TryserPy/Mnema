@@ -24,7 +24,8 @@ const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g,
 
 /** «Название | ключ: значение | ключ: значение» → название и свойства. */
 function head(rest: string): { name: string; props: Record<string, string> } {
-  const parts = rest.split('|').map((x) => x.trim());
+  // «\|» — это палочка внутри названия, а не разделитель свойств.
+  const parts = rest.split(/(?<!\\)\|/).map((x) => x.replace(/\\\|/g, '|').trim());
   const props: Record<string, string> = {};
   for (const p of parts.slice(1)) {
     const m = /^([^:]+):\s*(.*)$/.exec(p);
@@ -50,14 +51,26 @@ function cardLine(line: string): Record<string, string> | null {
   return /\{\{.+?\}\}/.test(t) ? { front: t, back: '' } : null;
 }
 
+/** Разделить «слово — значение» по первому тире в пробелах. Без регулярки: длинная строка не подвесит разбор. */
+export function splitDash(t: string): [string, string] | null {
+  for (let i = 1; i < t.length - 1; i++) {
+    const ch = t[i];
+    if ((ch === '—' || ch === '–' || ch === '-') && /\s/.test(t[i - 1]) && /\s/.test(t[i + 1])) {
+      const a = t.slice(0, i).trim();
+      const b = t.slice(i + 1).trim();
+      if (a && b) return [a, b];
+    }
+  }
+  return null;
+}
+
 /** Строка словаря/терминов: «a :: b :: c», иначе «a — b» (делим только по первому тире: в определении тоже бывают тире). */
 function rowLine(line: string): string[] | null {
   const t = line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim();
   if (!t) return null;
   if (t.includes('::')) return t.split('::').map((x) => x.trim());
   if (t.includes('\t')) return t.split('\t').map((x) => x.trim());
-  const m = /^(.+?)\s+[—–-]\s+(.+)$/.exec(t);
-  return m ? [m[1].trim(), m[2].trim()] : [t];
+  return splitDash(t) ?? [t];
 }
 
 const LIST_WORDS: Record<string, string> = { термины: 'terms', словарь: 'vocab', слова: 'vocab', даты: 'dates', формулы: 'formulas', список: 'custom' };
@@ -94,7 +107,8 @@ export function parseMnemaText(text: string): ChangePack {
     const cmd = /^\s*@(общие\s+термины|[a-zа-яё]+)(?:\s*(\|.*|\s.*))?$/i.exec(raw.trimEnd());
     const known = cmd && /^(название|папка|предмет|тема|карточки|термины|словарь|слова|даты|формулы|список|общие термины|правило|стих|стихотворение|домашка|расписание|удалить|конспект)$/i.test(norm(cmd[1]));
     if (!cmd || !known) {
-      block.buf.push(raw);
+      // «\@…» в начале строки — обычный текст, который начинается с @ (так его сохраняет выгрузка).
+      block.buf.push(raw.replace(/^(\s*)\\(\\*@)/, '$1$2'));
       continue;
     }
     block.flush();
@@ -239,7 +253,7 @@ export function parseMnemaText(text: string): ChangePack {
       };
     } else if (word === 'удалить') {
       const m = /^(\S+)\s+(.+)$/.exec(name);
-      const what = m ? DELETE_WORDS[norm(m[1])] : undefined;
+      const what = m && Object.prototype.hasOwnProperty.call(DELETE_WORDS, norm(m[1])) ? DELETE_WORDS[norm(m[1])] : undefined;
       if (!m || !what) {
         warnings.push(`«@удалить ${name}»: напиши, что удалить — тему, предмет, правило, карточку, термин, стих, папку`);
         continue;
@@ -254,30 +268,34 @@ export function parseMnemaText(text: string): ChangePack {
 // ---------- Запись (выгрузка для нейросети) ----------
 
 const esc = (s: string) => s.replace(/\n+/g, ' ').replace(/::/g, ':').trim();
+/** Название в строке «@…»: палочка — «\|», чтобы не стать свойством. */
+const nm = (s: unknown) => String(s ?? '').replace(/\|/g, '\\|');
+/** Текст конспекта, правила, стиха: строка с @ в начале не должна стать командой — ставим перед ней «\». */
+const bodyText = (s: unknown) => String(s).replace(/^(\s*)(\\*@)/gm, '$1\\$2');
 
 /** Пакет изменений → Мнема-текст: так нейросети проще прочитать и поправить готовое. */
 export function toMnemaText(pack: ChangePack): string {
   const out: string[] = [];
-  if (pack.title) out.push(`@название ${pack.title}`, '');
+  if (pack.title) out.push(`@название ${nm(pack.title)}`, '');
   let subject: string | undefined;
   for (const c of pack.changes) {
     const s = String(c.subject ?? (c.do === 'subject' ? c.name : '') ?? '');
     if (c.do === 'subject') {
       const props = [c.folder ? `папка: ${c.folder}` : '', c.color ? `цвет: ${c.color}` : '', c.icon ? `значок: ${c.icon}` : ''].filter(Boolean);
-      if (c.folder) out.push(`@папка ${c.folder}`);
-      out.push(`@предмет ${c.name}${props.filter((p) => !p.startsWith('папка')).length ? ' | ' + props.filter((p) => !p.startsWith('папка')).join(' | ') : ''}`, '');
+      if (c.folder) out.push(`@папка ${nm(c.folder)}`);
+      out.push(`@предмет ${nm(c.name)}${props.filter((p) => !p.startsWith('папка')).length ? ' | ' + props.filter((p) => !p.startsWith('папка')).join(' | ') : ''}`, '');
       subject = String(c.name);
       continue;
     }
     if (s && s !== subject) {
-      out.push(`@предмет ${s}`, '');
+      out.push(`@предмет ${nm(s)}`, '');
       subject = s;
     }
     const tp = c.parent ? ` | глава: ${c.parent}` : '';
     if (c.do === 'topic') {
-      const props = [c.parent ? `глава: ${c.parent}` : '', c.examDate ? `контрольная: ${c.examDate}` : '', c.important ? 'важная: да' : ''].filter(Boolean);
-      out.push(`@тема ${c.topic}${props.length ? ' | ' + props.join(' | ') : ''}`);
-      if (c.note) out.push(String(c.note));
+      const props = [c.parent ? `глава: ${nm(c.parent)}` : '', c.examDate ? `контрольная: ${c.examDate}` : '', c.important ? 'важная: да' : ''].filter(Boolean);
+      out.push(`@тема ${nm(c.topic)}${props.length ? ' | ' + props.join(' | ') : ''}`);
+      if (c.note) out.push(bodyText(c.note));
       out.push('');
     } else if (c.do === 'cards') {
       out.push(`@карточки${tp ? '' : ''}`);
@@ -286,7 +304,7 @@ export function toMnemaText(pack: ChangePack): string {
     } else if (c.do === 'list') {
       const word = Object.entries(LIST_WORDS).find(([, v]) => v === c.kind)?.[0] ?? 'список';
       const cols = Array.isArray(c.columns) ? ` | столбцы: ${(c.columns as string[]).join(', ')}` : '';
-      out.push(`@${word}${c.title ? ' ' + c.title : ''}${cols}`);
+      out.push(`@${word}${c.title ? ' ' + nm(c.title) : ''}${cols}`);
       for (const r of (c.rows as string[][]) ?? []) out.push(r.map((x) => esc(String(x ?? ''))).filter((x, i) => i < 2 || x).join(' :: '));
       out.push('');
     } else if (c.do === 'glossary') {
@@ -295,12 +313,12 @@ export function toMnemaText(pack: ChangePack): string {
       out.push('');
     } else if (c.do === 'rule') {
       const words = Array.isArray(c.words) && c.words.length ? ` | слова: ${(c.words as string[]).join(', ')}` : '';
-      out.push(`@правило ${c.name}${words}`);
-      if (c.text) out.push(String(c.text));
+      out.push(`@правило ${nm(c.name)}${words}`);
+      if (c.text) out.push(bodyText(c.text));
       out.push('');
     } else if (c.do === 'poem') {
-      out.push(`@стих ${c.title}${c.author ? ` | автор: ${c.author}` : ''}`);
-      if (c.text) out.push(String(c.text));
+      out.push(`@стих ${nm(c.title)}${c.author ? ` | автор: ${nm(c.author)}` : ''}`);
+      if (c.text) out.push(bodyText(c.text));
       out.push('');
     }
   }

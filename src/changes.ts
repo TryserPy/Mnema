@@ -2,7 +2,7 @@
 // «замени конспект темы», «добавь термины», «удали карточку»… Мнема показывает, что поменяется,
 // и применяет одним нажатием (с кнопкой «Вернуть»). Всё находится по названиям, а не по внутренним номерам,
 // поэтому такой файл легко написать руками или попросить у любой нейросети.
-import { looksLikeMnemaText, MNEMA_TEXT_GUIDE, parseMnemaText, toMnemaText } from './mnemaText';
+import { looksLikeMnemaText, MNEMA_TEXT_GUIDE, parseMnemaText, splitDash, toMnemaText } from './mnemaText';
 import { autoChunk } from './poem';
 import { itemKey, itemOrds } from './srs';
 import { LIST_PRESETS } from './store';
@@ -38,6 +38,8 @@ export interface Plan {
 
 /** Разобрать текст файла. Понимает и ответ нейросети целиком: достаёт JSON из ```json … ```, прощает висячие запятые. */
 export function parseChangeFile(text: string): { ok: true; pack: ChangePack } | { ok: false; error: string } {
+  // Настоящий файл изменений — десятки килобайт; огромный файл только подвесит окно.
+  if (text.length > 3_000_000) return { ok: false, error: 'Файл слишком большой — раздели его на несколько поменьше' };
   let src = text.replace(/^﻿/, '').trim();
   // Простой формат (@предмет, @тема, @карточки…) — его нейросети пишут быстрее и без ошибок.
   if (looksLikeMnemaText(src)) {
@@ -122,8 +124,9 @@ const DAYS: Record<string, string> = { '1': '1', '2': '2', '3': '3', '4': '4', '
 function row(v: unknown): { a: string; b: string; c: string } | null {
   if (Array.isArray(v)) return v.length && str(v[0])?.trim() ? { a: str(v[0])!.trim(), b: (str(v[1]) ?? '').trim(), c: (str(v[2]) ?? '').trim() } : null;
   if (typeof v === 'string') {
-    const m = /^(.+?)\s+[—–-]\s+(.+?)(?:\s+[—–-]\s+(.+))?$/.exec(v.trim());
-    return m ? { a: m[1], b: m[2], c: m[3] ?? '' } : v.trim() ? { a: v.trim(), b: '', c: '' } : null;
+    const ab = splitDash(v.trim());
+    const bc = ab && splitDash(ab[1]);
+    return ab ? { a: ab[0], b: bc ? bc[0] : ab[1], c: bc ? bc[1] : '' } : v.trim() ? { a: v.trim(), b: '', c: '' } : null;
   }
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>;
@@ -382,7 +385,7 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
           const next = how === 'append' || how === 'добавить' ? (topic.note.trim() ? topic.note.trimEnd() + '\n\n' : '') + md : how === 'prepend' ? md + (topic.note.trim() ? '\n\n' + topic.note : '') : md;
           if (next.trim() !== topic.note.trim()) {
             patch.note = next;
-            edit(`Конспект ${q(topic.name)}: ${how === 'append' || how === 'добавить' ? 'дописан' : how === 'prepend' ? 'дописан в начало' : topic.note.trim() ? 'заменён' : 'написан'} (${next.length} знаков)`);
+            edit(`Конспект ${q(topic.name)}: ${how === 'append' || how === 'добавить' ? 'дописан' : how === 'prepend' ? 'дописан в начало' : topic.note.trim() ? `заменён, было ${topic.note.length} знаков, станет` : 'написан'} ${next.length} знаков`);
           }
         }
         const rn = str(c.rename)?.trim();

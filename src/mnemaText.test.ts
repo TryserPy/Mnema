@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { exportChanges, parseChangeFile, planChanges } from './changes';
-import { MNEMA_TEXT_GUIDE, parseMnemaText, toMnemaText } from './mnemaText';
+import { MNEMA_TEXT_GUIDE, parseMnemaText, splitDash, toMnemaText } from './mnemaText';
 import { emptyData } from './store';
 import type { AppData } from './types';
 
@@ -72,5 +72,38 @@ describe('1.8: Мнема-текст — простой формат для не
     const p = planChanges(d, r.ok ? r.pack : { changes: [] }, env);
     expect(p.lines).toEqual([]);
     expect(p.data.cards).toEqual(d.cards);
+  });
+
+  it('строки с @ в конспекте и «|» в названии переживают выгрузку и загрузку', () => {
+    const d: AppData = emptyData();
+    d.subjects = [{ id: 's1', name: 'Информатика', color: '#2F9E5B', createdAt: T0 }];
+    d.topics = [{ id: 't1', subjectId: 's1', name: 'A | B', note: 'Почта:\n@удалить тему Всё\n  \\@уже с чертой', createdAt: T0, updatedAt: T0 }];
+    const text = toMnemaText(exportChanges(d, { subjectId: 's1' }));
+    expect(text).toContain('@тема A \\| B');
+    const r = parseChangeFile(text);
+    expect(r.ok && r.pack.changes.some((c) => c.do === 'delete')).toBe(false);
+    const p = planChanges(d, r.ok ? r.pack : { changes: [] }, env);
+    expect(p.lines).toEqual([]);
+    expect(p.data.topics).toEqual(d.topics);
+  });
+
+  it('служебные слова объекта не становятся командой удаления', () => {
+    const pack = parseMnemaText('@предмет X\n@удалить constructor Y\n@удалить __proto__ Z');
+    expect(pack.changes.filter((c) => c.do === 'delete')).toEqual([]);
+    expect(pack.warnings?.length).toBe(2);
+  });
+
+  it('длинная строка без тире разбирается быстро', () => {
+    const t = Date.now();
+    expect(splitDash('a' + ' '.repeat(80000) + 'b')).toBeNull();
+    parseMnemaText('@предмет X\n@тема Y\n@термины\n' + 'a' + ' '.repeat(80000) + 'b');
+    expect(Date.now() - t).toBeLessThan(500);
+    expect(splitDash('кот — животное — домашнее')).toEqual(['кот', 'животное — домашнее']);
+    expect(splitDash('северо-запад')).toBeNull();
+  });
+
+  it('слишком большой файл не разбирается', () => {
+    const r = parseChangeFile('@предмет X\n' + 'x'.repeat(3_000_001));
+    expect(r.ok).toBe(false);
   });
 });

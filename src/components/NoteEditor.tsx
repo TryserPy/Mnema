@@ -298,14 +298,15 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     if (!editor) return;
     const onKey = (e: KeyboardEvent) => {
       // Уже обработано самим редактором (например, Ctrl+Shift+H — маркер): не делать второй раз.
-      if (e.defaultPrevented || document.querySelector('.modal-back')) return;
-      const st = getData().settings;
-      const inEditor = editor.view.dom.contains(e.target as Node) || e.target === document.body;
-      if (e.key === 'Escape' && bubbleAt.current) {
+      // Esc прячет панель выделения — даже если редактор уже «съел» клавишу (он отменяет её по умолчанию).
+      if (e.key === 'Escape' && bubbleAt.current && !document.querySelector('.modal-back')) {
         bubbleAt.current = null;
         editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'hide'));
         return;
       }
+      if (e.defaultPrevented || document.querySelector('.modal-back')) return;
+      const st = getData().settings;
+      const inEditor = editor.view.dom.contains(e.target as Node) || e.target === document.body;
       if (!inEditor && !(e.target as HTMLElement)?.closest?.('.hand-pad')) return;
       if (matches(e, st, 'insertFormula')) {
         e.preventDefault();

@@ -127,6 +127,19 @@ function PlanView({ plan, onBack, onApply }: { plan: Plan; onBack: () => void; o
           </div>
         )}
       </div>
+      {/* Удаления видны всегда, в любом виде: файл не может их спрятать за красивым конспектом. */}
+      {view === 'look' && counts.del > 0 && (
+        <div className="chg-dels small" role="alert">
+          <strong>Будет удалено:</strong>
+          <ul>
+            {plan.lines
+              .filter((l) => l.kind === 'del')
+              .map((l, i) => (
+                <li key={i}>{l.text}</li>
+              ))}
+          </ul>
+        </div>
+      )}
       {view === 'look' ? (
         <PlanLook plan={plan} />
       ) : (
@@ -154,8 +167,8 @@ function PlanView({ plan, onBack, onApply }: { plan: Plan; onBack: () => void; o
         <button className="btn ghost" onClick={onBack}>
           Назад
         </button>
-        <button className="btn primary" disabled={!plan.lines.length} onClick={onApply}>
-          Применить
+        <button className={'btn ' + (counts.del ? 'danger-solid' : 'primary')} disabled={!plan.lines.length} onClick={onApply}>
+          {counts.del ? `Применить и удалить (${counts.del})` : 'Применить'}
         </button>
       </div>
     </div>

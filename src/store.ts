@@ -202,6 +202,11 @@ export function normalizeData(raw: unknown): AppData {
       customMods: Array.isArray(r.settings?.customMods) ? r.settings!.customMods : [],
       awardsSeen: Array.isArray(r.settings?.awardsSeen) ? r.settings!.awardsSeen : [],
       userCss: typeof r.settings?.userCss === 'string' ? r.settings.userCss : '',
+      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
+      bgImage:
+        typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
+          ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
+          : undefined,
       schedule: { ...(r.settings?.schedule ?? {}) },
       keys: { ...(r.settings?.keys ?? {}) },
       treeOpen: Array.isArray(r.settings?.treeOpen) ? r.settings!.treeOpen : [],
