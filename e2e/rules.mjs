@@ -1,0 +1,65 @@
+import { _electron as electron } from 'playwright';
+import fs from 'fs';
+const OUT = 'rules'; fs.mkdirSync(OUT, { recursive: true });
+const dir = '/tmp/mnemaRules'; fs.rmSync(dir, { recursive: true, force: true });
+const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'], env: { ...process.env, MNEMA_USER_DATA: dir } });
+const win = await app.firstWindow();
+const errors = []; win.on('pageerror', (e) => errors.push(e.message)); win.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+const shot = async (n) => { await win.waitForTimeout(400); await win.screenshot({ path: `${OUT}/${n}.png` }); };
+const step = (s) => console.log('•', s);
+await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
+await win.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.twisty').click();
+await win.locator('.tree-row', { hasText: 'Закон Ома' }).locator('.tree-label').click();
+await win.waitForTimeout(900);
+const selectWord = async (word) => {
+  await win.evaluate((w) => {
+    const pm = document.querySelector('.ProseMirror');
+    const walker = document.createTreeWalker(pm, NodeFilter.SHOW_TEXT);
+    let n; while ((n = walker.nextNode())) { const i = n.data.indexOf(w); if (i >= 0) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + w.length); const s = getSelection(); s.removeAllRanges(); s.addRange(r); break; } }
+  }, word);
+  await win.locator('.ProseMirror').focus();
+  await win.waitForTimeout(400);
+};
+await selectWord('сопротивлению');
+await shot('r1-bubble');
+await win.locator('.bubble button', { hasText: 'Правило' }).click();
+await win.waitForTimeout(300);
+step('dialog title: ' + (await win.locator('.modal h2').innerText()) + ' | name=' + (await win.locator('.modal input.input').first().inputValue()) + ' | words=' + (await win.locator('.modal .rw-chip').allInnerTexts()).join(','));
+await win.locator('.modal input.input').first().fill('Сопротивление');
+await win.locator('.modal textarea').fill('**Сопротивление** — свойство проводника мешать току. Обозначают $R$, измеряют в омах (Ом).\n\n$R = \\frac{U}{I}$');
+await shot('r2-dialog');
+await win.locator('.modal').getByRole('button', { name: 'Создать правило' }).click();
+await win.waitForTimeout(700);
+const words = await win.locator('.ProseMirror .rule-word').allInnerTexts();
+step('rule words in note: ' + words.join(' | '));
+await win.locator('.ProseMirror .rule-word').first().hover();
+await win.waitForTimeout(700);
+step('tip: ' + ((await win.locator('.rule-tip').count()) ? (await win.locator('.rule-tip').innerText()).replace(/\n+/g, ' / ').slice(0, 120) : 'НЕТ'));
+await shot('r3-tip');
+await win.mouse.move(5, 700);
+await win.waitForTimeout(600);
+step('tip after leave: ' + (await win.locator('.rule-tip').count()));
+// второе слово — к существующему правилу
+await selectWord('напряжению');
+await win.locator('.bubble button', { hasText: 'Правило' }).click();
+await win.waitForTimeout(300);
+await shot('r4-pick');
+await win.locator('.modal .rule-pick', { hasText: 'Сопротивление' }).click();
+await win.waitForTimeout(600);
+step('rule words now: ' + (await win.locator('.ProseMirror .rule-word').allInnerTexts()).join(' | '));
+// вкладка правил предмета
+await win.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.tree-label').click();
+await win.waitForTimeout(400);
+await win.getByRole('radio', { name: /Правила/ }).click();
+await win.waitForTimeout(400);
+await shot('r5-grid');
+await win.locator('.rule-card', { hasText: 'Сопротивление' }).click();
+await win.waitForTimeout(400);
+await shot('r6-view');
+await win.keyboard.press('Escape');
+await win.locator('.rule-card.add').click();
+await win.waitForTimeout(300);
+await shot('r7-new');
+await win.keyboard.press('Escape');
+console.log('errors', JSON.stringify(errors));
+await app.close();

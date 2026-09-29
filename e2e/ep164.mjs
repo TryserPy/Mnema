@@ -1,0 +1,28 @@
+import { _electron as electron } from 'playwright';
+import fs from 'fs';
+const dir = '/tmp/mnema164'; fs.rmSync(dir, { recursive: true, force: true });
+const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'], env: { ...process.env, MNEMA_USER_DATA: dir } });
+const win = await app.firstWindow();
+const errors = []; win.on('pageerror', (e) => errors.push(e.message));
+await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
+await win.waitForTimeout(400);
+await win.locator('.tree-row.subject', { hasText: 'История' }).locator('.twisty').click();
+await win.locator('.tree-row', { hasText: 'Отмена' }).locator('.tree-label').click();
+await win.waitForTimeout(500);
+await win.getByRole('button', { name: 'Добавить словарь или список' }).click();
+await win.getByRole('menuitem', { name: /Стихотворение/ }).click();
+await win.locator('.poem-textarea').fill('Белеет парус одинокой\nВ тумане моря голубом!\nЧто ищет он в стране далекой?\nЧто кинул он в краю родном?');
+await win.getByRole('button', { name: 'Готово — учить' }).click();
+await win.waitForTimeout(300);
+console.log('title auto:', await win.locator('.otab.on').innerText());
+await win.getByRole('button', { name: 'Начать учить' }).click();
+for (let i = 0; i < 3; i++) { await win.locator('.poem-stage .btn.primary').click(); await win.waitForTimeout(100); }
+console.log('voice btn:', await win.getByRole('button', { name: 'Рассказать вслух' }).count(), '| hint:', await win.locator('.poem-recall > .small.muted').innerText());
+await win.getByRole('button', { name: 'Подсказка' }).click();
+await win.getByRole('button', { name: 'Подсказка' }).click();
+console.log('hinted:', await win.locator('.pw-hinted').allInnerTexts());
+await win.screenshot({ path: 'out163p/electron-recall.png' });
+await win.getByRole('button', { name: /Рассказал — проверить/ }).click();
+console.log('after hints pass?', await win.locator('.poem-stage .btn.primary').innerText());
+console.log('errors', JSON.stringify(errors));
+await app.close();
