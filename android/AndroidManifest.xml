@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.mnema.study">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Обновление из выпусков на GitHub: Мнема скачивает APK и просит систему его поставить. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- Android 11+: без этого телефон «не видит» службу распознавания речи. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
+        android:supportsRtl="false">
+        <activity
+            android:name=".AppActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
+        <!-- Значок на рабочем столе. Главный ярлык сохраняет старое имя MainActivity, чтобы после обновления
+             значок не пропал с рабочего стола. Остальные — значки под темы, включается один (Icons.java). -->
+        <activity-alias
+            android:name=".MainActivity"
+            android:targetActivity=".AppActivity"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_air" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_air" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_paper" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_paper" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_snow" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_snow" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_sky" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_sky" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_mint" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_mint" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_sakura" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_sakura" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_sand" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_sand" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_contrast" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_contrast" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_night" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_night" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_graphite" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_graphite" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_midnight" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_midnight" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_ocean" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_ocean" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_forest" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_forest" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_plum" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_plum" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".Icon_coffee" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_coffee" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <receiver android:name=".MnemaWidget" android:exported="true" android:label="Мнема">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
+        </receiver>
+        <receiver android:name=".Widgets$Small" android:exported="true" android:label="Мнема · Повторить">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info" />
+        </receiver>
+        <receiver android:name=".Widgets$Homework" android:exported="true" android:label="Мнема · Домашка">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_hw_info" />
+        </receiver>
+        <receiver android:name=".Widgets$Lessons" android:exported="true" android:label="Мнема · Уроки">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_lessons_info" />
+        </receiver>
+        <receiver android:name=".Reminders" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".Updater" android:exported="false" />
+    </application>
+</manifest>

@@ -1,0 +1,24 @@
+import { _electron as electron } from 'playwright';
+import fs from 'fs';
+const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'] });
+const win = await app.firstWindow();
+const errors = [];
+win.on('pageerror', (e) => errors.push(e.message));
+win.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+await win.waitForSelector('text=Мнема');
+const hasApi = await win.evaluate(() => Boolean(window.mnemaApi));
+await win.getByRole('button', { name: /Добавить пример/ }).click();
+await win.waitForTimeout(1000);
+const userData = await app.evaluate(({ app }) => app.getPath('userData'));
+await win.screenshot({ path: process.env.OUT + '/electron-today.png' });
+await app.close();
+const file = userData + '/mnema-data.json';
+const d = JSON.parse(fs.readFileSync(file, 'utf8'));
+console.log('api', hasApi, 'subjects', d.subjects.length, 'cards', d.cards.length, 'errors', JSON.stringify(errors));
+// Повторный запуск: данные на месте
+const app2 = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'] });
+const w2 = await app2.firstWindow();
+await w2.waitForTimeout(800);
+console.log('tree after restart', await w2.locator('.tree-item').count(), 'backups', fs.existsSync(userData + '/backups') ? fs.readdirSync(userData + '/backups') : []);
+await app2.close();
+fs.rmSync(userData, { recursive: true, force: true });

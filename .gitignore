@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release/
+android/build/
+out*/
+*.log
+.DS_Store
+# Ключ подписи APK хранится только в секретах GitHub (ANDROID_KEYSTORE_B64), в репозиторий его не кладём.
+*.jks
+*.keystore

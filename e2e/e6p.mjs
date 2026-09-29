@@ -1,0 +1,25 @@
+import { _electron as electron } from 'playwright';
+import fs from 'fs';
+const PAGE = process.env.PAGE || process.cwd() + '/test-fixtures/page47.jpg';
+const app = await electron.launch({ executablePath: process.cwd() + '/release/linux-unpacked/mnema', args: ['--no-sandbox'] });
+const userData = await app.evaluate(({ app }) => app.getPath('userData'));
+const win = await app.firstWindow();
+await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
+await win.locator('.tree-row.subject', { hasText: 'История' }).locator('.tree-label').click();
+await win.locator('.topic-row').first().click();
+await win.getByRole('button', { name: 'Из учебника' }).click();
+await win.locator('.modal input[type=file]').setInputFiles(PAGE);
+await win.locator('.tb-page img').waitFor();
+await win.getByRole('radio', { name: 'Без интернета' }).click();
+await win.getByRole('button', { name: /^Распознать/ }).click();
+await win.locator('.tb-review').waitFor({ timeout: 120000 });
+await win.getByRole('button', { name: 'Править текст' }).click();
+const md = await win.locator('.tb-edit').inputValue();
+console.log(md.replace(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/g, 'DATA'));
+const _x = await win.evaluate(async () => {
+  const c = document.createElement('canvas');
+  const img = document.querySelector('.tb-photo img');
+  return null;
+});
+await app.close();
+fs.rmSync(userData, { recursive: true, force: true });
