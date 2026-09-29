@@ -1,6 +1,7 @@
 // Обновление Мнемы из выпусков на GitHub (electron-updater): проверить, скачать, установить при перезапуске.
 const { app, ipcMain } = require('electron');
 
+const REPO = { owner: 'TryserPy', repo: 'Mnema' };
 let updater = null;
 function get() {
   if (!updater) {
@@ -17,13 +18,11 @@ function register(getWin) {
     const w = getWin();
     if (w && !w.isDestroyed()) w.webContents.send('update:event', payload);
   };
-  ipcMain.handle('update:check', async (_e, src) => {
-    const owner = String(src?.owner || '').trim();
-    const repo = String(src?.repo || '').trim();
-    if (!/^[\w.-]+$/.test(owner) || !/^[\w.-]+$/.test(repo)) return { ok: false, error: 'Не указан репозиторий GitHub' };
+  // Репозиторий зашит здесь, а не приходит из окна: иначе чужой файл резервной копии мог бы подсунуть «обновление».
+  ipcMain.handle('update:check', async () => {
     try {
       const u = get();
-      u.setFeedURL({ provider: 'github', owner, repo });
+      u.setFeedURL({ provider: 'github', owner: REPO.owner, repo: REPO.repo });
       u.removeAllListeners('download-progress');
       u.removeAllListeners('update-downloaded');
       u.on('download-progress', (p) => send({ type: 'progress', percent: Math.round(p.percent || 0) }));

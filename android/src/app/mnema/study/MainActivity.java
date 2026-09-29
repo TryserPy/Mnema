@@ -17,7 +17,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,9 +85,15 @@ public class MainActivity extends Activity {
                 Map<String, String> headers = new HashMap<String, String>();
                 headers.put("Cache-Control", "no-cache");
                 try {
+                    if (path.equals("/index.html")) {
+                        // Ключ моста — только нашей странице (чужие фреймы не видят её разметку).
+                        String html = Bridge.readAll(getAssets().open("www/index.html"));
+                        html = html.replaceFirst("<head>", "<head><meta name=\"mnema-k\" content=\"" + bridge.token + "\">");
+                        return new WebResourceResponse("text/html", "utf-8", 200, "OK", headers, new ByteArrayInputStream(html.getBytes(Bridge.UTF8)));
+                    }
                     InputStream in = getAssets().open("www" + path);
                     return new WebResourceResponse(mime(path), mime(path).startsWith("text/") || path.endsWith(".js") ? "utf-8" : null, 200, "OK", headers, in);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", headers, new ByteArrayInputStream(new byte[0]));
                 }
             }
@@ -159,6 +164,12 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        // Камера и микрофон — только нашей странице, не встроенным плеерам.
+                        Uri origin = request.getOrigin();
+                        if (origin == null || !HOST.equals(origin.getHost())) {
+                            request.deny();
+                            return;
+                        }
                         List<String> need = new ArrayList<String>();
                         for (String r : request.getResources()) {
                             if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
@@ -279,6 +290,8 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        // Вернулись из настроек (например, дали разрешение ставить обновления) — пусть окно продолжит.
+        web.evaluateJavascript("window.__mnemaResume && window.__mnemaResume()", null);
     }
 
     @Override

@@ -17,7 +17,8 @@ import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
 import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
 import { normalizeAnswer } from '../srs';
-import { APP_VERSION, checkUpdate, parseRepo, type UpdateInfo } from '../update';
+import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
+import { UpdateFlow } from '../components/UpdateFlow';
 import { emptyData, exportJson, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
@@ -661,85 +662,41 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
   );
 }
 
-/** Обновления: откуда брать, проверить, скачать и поставить. */
+/** Обновления: проверить, скачать и поставить. Берутся из выпусков Мнемы на GitHub. */
 function UpdatesGroup() {
   const data = useData();
   const u = data.settings.update;
-  const [repoText, setRepoText] = useState(u.owner ? `${u.owner}/${u.repo}` : '');
-  const [state, setState] = useState<{ phase: 'idle' | 'checking' | 'result' | 'downloading' | 'ready'; info?: UpdateInfo; percent?: number }>({ phase: 'idle' });
-  const api = window.mnemaApi;
-  useEffect(() => api?.onUpdateEvent?.((e) => (e.type === 'progress' ? setState((s) => ({ ...s, phase: 'downloading', percent: e.percent })) : setState((s) => ({ ...s, phase: 'ready' })))), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const saveRepo = () => {
-    const r = parseRepo(repoText);
-    updateSettings({ update: { ...u, owner: r?.owner ?? '', repo: r?.repo ?? 'mnema' } });
-    return r;
-  };
+  const [state, setState] = useState<{ phase: 'idle' | 'checking' | 'result'; info?: UpdateInfo }>({ phase: 'idle' });
   const check = async () => {
-    if (!saveRepo()) return setState({ phase: 'result', info: { ok: false, error: 'Напиши репозиторий так: имя/mnema' } });
     setState({ phase: 'checking' });
     setState({ phase: 'result', info: await checkUpdate() });
   };
   const info = state.info;
   return (
     <Group title="Обновления" id="update">
-      <SRow label="Где лежат новые версии" hint="Репозиторий на GitHub, например: имя/mnema">
-        <input className="input" style={{ width: 220 }} value={repoText} placeholder="имя/mnema" onChange={(e) => setRepoText(e.target.value)} onBlur={saveRepo} aria-label="Репозиторий GitHub" />
-      </SRow>
-      <SRow label="Проверять раз в день" hint="При запуске; если есть новая версия — Мнема скажет">
+      <SRow label="Проверять раз в день" hint="При запуске; если вышла новая версия — Мнема скажет">
         <Switch label="Проверять обновления" checked={u.auto} onChange={(auto) => updateSettings({ update: { ...u, auto } })} />
       </SRow>
       <div className="srow stack-row">
         <div className="row gap12 wrap">
-          <button className="btn" disabled={state.phase === 'checking' || state.phase === 'downloading'} onClick={() => void check()}>
+          <button className="btn" disabled={state.phase === 'checking'} onClick={() => void check()}>
             <Icon name="sync" size={16} /> {state.phase === 'checking' ? 'Проверяю…' : 'Проверить обновления'}
           </button>
           <span className="small muted">Сейчас: {APP_VERSION}</span>
         </div>
-        {state.phase !== 'idle' && state.phase !== 'checking' && info && (
-          <div className={'update-box' + (info.available ? ' on' : '')}>
-            {!info.ok ? (
-              <span className="small">{info.error}</span>
-            ) : !info.available ? (
-              <span className="small">У тебя последняя версия{info.latest ? ` (${info.latest})` : ''} ✓</span>
-            ) : (
-              <>
-                <strong>Доступна Мнема {info.latest}</strong>
-                {info.notes && <p className="small muted update-notes">{info.notes}</p>}
-                {api?.updateDownload ? (
-                  state.phase === 'ready' ? (
-                    <button className="btn primary" onClick={() => void api.updateInstall?.()}>
-                      Перезапустить и обновить
-                    </button>
-                  ) : state.phase === 'downloading' ? (
-                    <div className="update-progress">
-                      <span style={{ width: (state.percent ?? 0) + '%' }} />
-                      <b className="small">Скачиваю… {state.percent ?? 0}%</b>
-                    </div>
-                  ) : (
-                    <button
-                      className="btn primary"
-                      onClick={async () => {
-                        setState((s) => ({ ...s, phase: 'downloading', percent: 0 }));
-                        const r = await api.updateDownload!();
-                        if (!r.ok) setState({ phase: 'result', info: { ok: false, error: 'Не получилось скачать: ' + r.error } });
-                        else setState((s) => ({ ...s, phase: 'ready' }));
-                      }}
-                    >
-                      Скачать и установить
-                    </button>
-                  )
-                ) : info.apk ? (
-                  <a className="btn primary" href={info.apk} target="_blank" rel="noreferrer">
-                    Скачать APK
-                  </a>
-                ) : (
-                  <span className="small muted">В выпуске нет файла для этого устройства.</span>
-                )}
-                <span className="small muted">Твои предметы, карточки и настройки останутся — обновление ставится поверх.</span>
-              </>
-            )}
+        {state.phase === 'result' && info && (info.ok && info.available ? (
+          <UpdateFlow info={info} />
+        ) : (
+          <div className="update-box">
+            <span className="small">{info.ok ? `У тебя последняя версия${info.latest ? ` (${info.latest})` : ''} ✓` : info.error}</span>
           </div>
-        )}
+        ))}
+        <span className="small muted">
+          Новые версии выходят на GitHub:{' '}
+          <a href={`https://github.com/${UPDATE_REPO.owner}/${UPDATE_REPO.repo}/releases`} target="_blank" rel="noreferrer">
+            {UPDATE_REPO.owner}/{UPDATE_REPO.repo}
+          </a>
+        </span>
       </div>
     </Group>
   );

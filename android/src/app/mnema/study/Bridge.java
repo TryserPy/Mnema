@@ -68,10 +68,22 @@ public class Bridge {
     boolean ttsReady;
     String[] ttsPending;
 
+    /**
+     * Ключ моста. Объект MnemaAndroid Android подставляет во все фреймы страницы, в том числе во встроенные
+     * плееры (YouTube, Rutube, VK) и их рекламу. Поэтому каждый вызов несёт ключ, который получает только
+     * наша страница (meta в index.html, см. MainActivity) — без него мост ничего не делает.
+     */
+    final String token = new java.math.BigInteger(130, new java.security.SecureRandom()).toString(32);
+
     Bridge(MainActivity activity, WebView web) {
         this.activity = activity;
         this.web = web;
         this.prefs = activity.getSharedPreferences("mnema", Context.MODE_PRIVATE);
+        Updater.bridge = this;
+    }
+
+    boolean allowed(String k) {
+        return k != null && java.security.MessageDigest.isEqual(k.getBytes(UTF8), token.getBytes(UTF8));
     }
 
     // ---------- доставка ответов в JS ----------
@@ -96,13 +108,15 @@ public class Bridge {
     }
 
     @JavascriptInterface
-    public String take(String id) {
+    public String take(String k, String id) {
+        if (!allowed(k)) return null;
         String r = results.remove(id);
         return r == null ? "null" : r;
     }
 
     @JavascriptInterface
-    public String appVersion() {
+    public String appVersion(String k) {
+        if (!allowed(k)) return null;
         try {
             return activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
         } catch (Exception e) {
@@ -126,7 +140,8 @@ public class Bridge {
     }
 
     @JavascriptInterface
-    public String load() {
+    public String load(String k) {
+        if (!allowed(k)) return null;
         synchronized (saveLock) {
             File f = dataFile();
             if (!f.exists()) return null;
@@ -140,7 +155,8 @@ public class Bridge {
 
     /** Надёжная запись: сначала во временный файл, потом замена. Раз в день — копия в backups (храним 8 последних). */
     @JavascriptInterface
-    public boolean save(String json) {
+    public boolean save(String k, String json) {
+        if (!allowed(k)) return false;
         if (json == null) return false;
         synchronized (saveLock) {
             File f = dataFile();
@@ -192,12 +208,14 @@ public class Bridge {
     // ---------- настройки и секреты ----------
 
     @JavascriptInterface
-    public String prefGet(String name) {
+    public String prefGet(String k, String name) {
+        if (!allowed(k)) return null;
         return prefs.getString(name, null);
     }
 
     @JavascriptInterface
-    public void prefSet(String name, String value) {
+    public void prefSet(String k, String name, String value) {
+        if (!allowed(k)) return;
         if (value == null || value.isEmpty()) prefs.edit().remove(name).apply();
         else prefs.edit().putString(name, value).apply();
     }
@@ -217,7 +235,8 @@ public class Bridge {
 
     /** Шифрует ключом из защищённого хранилища телефона (ключ нельзя вытащить из устройства). */
     @JavascriptInterface
-    public String encrypt(String text) {
+    public String encrypt(String k, String text) {
+        if (!allowed(k)) return null;
         if (text == null || text.isEmpty()) return "";
         try {
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
@@ -235,7 +254,8 @@ public class Bridge {
     }
 
     @JavascriptInterface
-    public String decrypt(String text) {
+    public String decrypt(String k, String text) {
+        if (!allowed(k)) return null;
         if (text == null || text.isEmpty()) return "";
         try {
             byte[] all = Base64.decode(text, Base64.NO_WRAP);
@@ -253,7 +273,8 @@ public class Bridge {
 
     /** Запрос без ограничений браузера (CORS): ИИ, облако, синхронизация по Wi-Fi. Ответ приходит через __mnemaNative.done(id). */
     @JavascriptInterface
-    public void http(final String id, final String reqJson) {
+    public void http(String k, final String id, final String reqJson) {
+        if (!allowed(k)) return;
         pool.execute(new Runnable() {
             @Override
             public void run() {
@@ -362,7 +383,8 @@ public class Bridge {
     // ---------- сохранение файлов (резервная копия, экспорт) ----------
 
     @JavascriptInterface
-    public void saveFile(final String id, final String name, final String mime, final String base64) {
+    public void saveFile(String k, final String id, final String name, final String mime, final String base64) {
+        if (!allowed(k)) return;
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -427,7 +449,8 @@ public class Bridge {
     }
 
     @JavascriptInterface
-    public String speechStart(final String lang) {
+    public String speechStart(String k, final String lang) {
+        if (!allowed(k)) return null;
         if (!SpeechRecognizer.isRecognitionAvailable(activity))
             return "{\"ok\":false,\"error\":\"На телефоне нет распознавания речи. Установи или включи приложение Google (голосовой ввод).\"}";
         activity.runOnUiThread(new Runnable() {
@@ -552,7 +575,8 @@ public class Bridge {
 
     /** Остановить запись: телефон дораспознает сказанное и пришлёт итог (final). */
     @JavascriptInterface
-    public void speechStop() {
+    public void speechStop(String k) {
+        if (!allowed(k)) return;
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -565,7 +589,8 @@ public class Bridge {
     // ---------- печать карточек ----------
 
     @JavascriptInterface
-    public void print() {
+    public void print(String k) {
+        if (!allowed(k)) return;
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -583,19 +608,22 @@ public class Bridge {
     String notifyId;
 
     @JavascriptInterface
-    public void setReminders(String json) {
+    public void setReminders(String k, String json) {
+        if (!allowed(k)) return;
         Reminders.set(activity, json == null ? "[]" : json);
     }
 
     /** Данные для виджета на рабочем столе (на неделю вперёд). */
     @JavascriptInterface
-    public void setWidget(String json) {
+    public void setWidget(String k, String json) {
+        if (!allowed(k)) return;
         if (json != null) MnemaWidget.save(activity, json);
     }
 
     /** Разрешение на уведомления (Android 13+ спрашивает у человека). */
     @JavascriptInterface
-    public void notifyPermission(final String id) {
+    public void notifyPermission(String k, final String id) {
+        if (!allowed(k)) return;
         if (android.os.Build.VERSION.SDK_INT < 33 || activity.checkSelfPermission("android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED) {
             deliver(id, "{\"ok\":true}");
             return;
@@ -617,7 +645,8 @@ public class Bridge {
     // ---------- озвучка слов (словари) ----------
 
     @JavascriptInterface
-    public void speak(final String text, final String lang) {
+    public void speak(String k, final String text, final String lang) {
+        if (!allowed(k)) return;
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -647,6 +676,37 @@ public class Bridge {
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "mnema");
         } catch (Exception ignored) {
         }
+    }
+
+    // ---------- обновление приложения ----------
+
+    /** Скачать APK новой версии (только с GitHub). Ход скачивания — в window.__mnemaUpdate({type:'progress'}). */
+    @JavascriptInterface
+    public void apkDownload(String k, final String id, final String url) {
+        if (!allowed(k)) return;
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                deliver(id, Updater.download(activity, url, new Updater.Progress() {
+                    @Override
+                    public void on(int percent) {
+                        js("window.__mnemaUpdate && window.__mnemaUpdate('{\"type\":\"progress\",\"percent\":" + percent + "}')");
+                    }
+                }));
+            }
+        });
+    }
+
+    /** Поставить скачанное обновление: Android покажет «Обновить приложение?». */
+    @JavascriptInterface
+    public void apkInstall(String k, final String id) {
+        if (!allowed(k)) return;
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                deliver(id, Updater.install(activity));
+            }
+        });
     }
 
     void destroy() {

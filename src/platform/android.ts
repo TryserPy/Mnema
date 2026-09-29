@@ -2,6 +2,7 @@
 // файл данных, сеть без ограничений браузера, шифрование ключей, сохранение файлов, речь.
 // Здесь из моста собирается такой же window.mnemaApi, как на Windows.
 import { createAiService } from '../../shared/aiCore.mjs';
+import { bridgeKey } from './bridgeKey';
 
 interface AndroidBridge {
   load(): string | null;
@@ -21,18 +22,32 @@ interface AndroidBridge {
   setWidget?(json: string): void;
   notifyPermission?(id: string): void;
   print?(): void;
+  apkDownload?(id: string, url: string): void;
+  apkInstall?(id: string): void;
+  setIcon?(name: string): void;
+}
+
+/** Каждый вызов моста несёт ключ (см. bridgeKey.ts): оборачиваем, чтобы остальной код его не видел. */
+function withKey(raw: Record<string, unknown>): AndroidBridge {
+  const k = bridgeKey();
+  return new Proxy({} as AndroidBridge, {
+    get: (_t, name) => (typeof raw[name as string] === 'function' ? (...args: unknown[]) => (raw[name as string] as (...a: unknown[]) => unknown).call(raw, k, ...args) : undefined)
+  });
 }
 
 declare global {
   interface Window {
-    MnemaAndroid?: AndroidBridge;
+    MnemaAndroid?: unknown;
     __mnemaNative?: { done: (id: string) => void };
     __mnemaBack?: () => boolean;
+    __mnemaUpdate?: (json: string) => void;
+    __mnemaResume?: () => void;
   }
 }
 
-const A = window.MnemaAndroid;
-if (A) {
+const RAW = window.MnemaAndroid as Record<string, unknown> | undefined;
+if (RAW) {
+  const A = withKey(RAW);
   const pending = new Map<string, (r: unknown) => void>();
   let n = 0;
   const call = <T>(start: (id: string) => void): Promise<T> =>
@@ -53,6 +68,19 @@ if (A) {
       }
       cb?.(r);
     }
+  };
+
+  // События обновления из Java (ход скачивания, ошибка установки) — всем, кто подписан.
+  type UpdateEvent = Parameters<NonNullable<NonNullable<Window['mnemaApi']>['onUpdateEvent']>>[0] extends (e: infer E) => void ? E : never;
+  const updateListeners = new Set<(e: UpdateEvent) => void>();
+  window.__mnemaUpdate = (json: string) => {
+    let e: UpdateEvent;
+    try {
+      e = JSON.parse(json);
+    } catch {
+      return;
+    }
+    for (const cb of updateListeners) cb(e);
   };
 
   type HttpRes = { status: number; text: string; error?: string };
@@ -129,6 +157,14 @@ if (A) {
     notifyPermission: A.notifyPermission ? () => call<{ ok: boolean }>((id) => A.notifyPermission!(id)).then((r) => r.ok) : undefined,
     speak: A.speak ? (text: string, lang: string) => A.speak!(text, lang) : undefined,
     print: A.print ? () => A.print!() : undefined,
+    // Обновление: скачать APK из выпуска на GitHub и отдать Android на установку.
+    updateDownload: A.apkDownload ? (url?: string) => call<{ ok: boolean; error?: string }>((id) => A.apkDownload!(id, url ?? '')) : undefined,
+    updateInstall: A.apkInstall ? () => call<{ ok: boolean; permission?: boolean; error?: string }>((id) => A.apkInstall!(id)) : undefined,
+    onUpdateEvent: (cb) => {
+      updateListeners.add(cb);
+      return () => void updateListeners.delete(cb);
+    },
+    setAppIcon: A.setIcon ? (name: string) => A.setIcon!(name) : undefined,
     ocrRecognize: async (bytes) => (await import('./ocrWeb')).recognize(bytes)
   };
 }
