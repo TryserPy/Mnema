@@ -8,7 +8,7 @@ import { ObsidianImport } from '../components/ObsidianImport';
 import { DeleteSubject, EditSubject } from '../components/SubjectDialogs';
 import { Icon, MoreMenu, plural, Segmented, SubjectMark } from '../components/ui';
 import { todayCounts, topicMastery } from '../srs';
-import { addTopic, childTopics, subjectRules, updateSettings, useData } from '../store';
+import { addTopic, childTopics, subjectRules, updateSubject, useData } from '../store';
 import type { Route, Topic } from '../types';
 
 type View = 'topics' | 'rules' | 'terms' | 'timeline';
@@ -74,9 +74,9 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
               { label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
               { label: 'Импорт из Obsidian', icon: 'folder', onClick: () => setObsidian(true), hidden: !data.settings.features.obsidian },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setExportKind('print') },
-              (data.settings.topicSort ?? 'name') === 'name'
-                ? { label: 'Темы — в своём порядке', icon: 'sort', hint: 'Тогда их можно расставить перетаскиванием', onClick: () => updateSettings({ topicSort: 'manual' }) }
-                : { label: 'Темы — по названию', icon: 'sort', hint: '§1, §2 … §10 — по номерам и алфавиту', onClick: () => updateSettings({ topicSort: 'name' }) },
+              subject.topicSort !== 'manual'
+                ? { label: 'Темы — в своём порядке', icon: 'sort', hint: 'Тогда их можно расставить перетаскиванием', onClick: () => updateSubject(id, { topicSort: 'manual' }) }
+                : { label: 'Темы — по названию', icon: 'sort', hint: '§1, §2 … §10 — по номерам и алфавиту', onClick: () => updateSubject(id, { topicSort: 'name' }) },
               { label: 'Экспорт в Anki', icon: 'share', onClick: () => setExportKind('anki') },
               { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ subjectId: id }) },
               { label: 'Удалить предмет', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }

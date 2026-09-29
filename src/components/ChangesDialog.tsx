@@ -175,6 +175,17 @@ function PlanView({ plan, onBack, onApply }: { plan: Plan; onBack: () => void; o
   );
 }
 
+/** Что стало с конспектом: дописан в конец или в начало, заменён целиком или написан впервые. */
+function noteHow(before: string, after: string): string {
+  const a = before.trim();
+  const b = after.trim();
+  if (a === b) return '';
+  if (!a) return ' · новый';
+  if (b.startsWith(a)) return ' · дописан';
+  if (b.endsWith(a)) return ' · дописан в начало';
+  return ' · заменён';
+}
+
 /** «Как будет»: каждая затронутая тема так, как она будет выглядеть в Мнеме, — конспект, карточки, термины. */
 function PlanLook({ plan }: { plan: Plan }) {
   const before = getData();
@@ -211,7 +222,7 @@ function PlanLook({ plan }: { plan: Plan }) {
               <div className="pl-body">
                 {t.note.trim() && (
                   <div className="pl-block">
-                    <span className="label">{t.kind === 'rule' ? 'Правило' : 'Конспект'}{was && was.note.trim() !== t.note.trim() ? (was.note.trim() ? ' · заменён' : ' · новый') : ''}</span>
+                    <span className="label">{t.kind === 'rule' ? 'Правило' : 'Конспект'}{was ? noteHow(was.note, t.note) : ''}</span>
                     <div className="pl-note note-page">
                       <Markdown text={t.note} className="note-doc" />
                     </div>

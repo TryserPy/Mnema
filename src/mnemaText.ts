@@ -40,25 +40,54 @@ const yes = (v?: string) => v !== undefined && /^(да|yes|true|1|\+)$/i.test(v.
 function cardLine(line: string): Record<string, string> | null {
   const t = line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim();
   if (!t) return null;
-  const parts = t.includes('::') ? t.split('::') : t.includes('\t') ? t.split('\t') : null;
+  const cols = splitCols(t);
+  const parts = cols.length > 1 ? cols.map((x) => x.trim()) : t.includes('\t') ? t.split('\t') : null;
   if (parts) {
     const [front, back = '', why = ''] = parts.map((x) => x.trim());
     return front ? { front, back, ...(why ? { why } : {}) } : null;
   }
   // «Вопрос? — ответ» — тоже карточка (нейросети часто пишут через тире).
-  const q = /^(.+\?)\s+[—–-]\s+(.+)$/.exec(t);
-  if (q) return { front: q[1].trim(), back: q[2].trim() };
+  const q = splitDash(t, (a) => a.endsWith('?'));
+  if (q) return { front: q[0], back: q[1] };
   return /\{\{.+?\}\}/.test(t) ? { front: t, back: '' } : null;
 }
 
-/** Разделить «слово — значение» по первому тире в пробелах. Без регулярки: длинная строка не подвесит разбор. */
-export function splitDash(t: string): [string, string] | null {
+/** Разделить строку на столбцы по «::» вне пропусков {{…}} (внутри пропуска «::» — подсказка: {{49 лет::сколько?}}).
+ *  Если есть « :: » с пробелами — делим только по нему: в тексте бывает std::cout или a[::2]. */
+export function splitCols(t: string): string[] {
+  const spaced = scanCols(t, true);
+  return spaced.length > 1 || /\{\{/.test(t) ? spaced : scanCols(t, false);
+}
+function scanCols(t: string, spaced: boolean): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t.startsWith('{{', i)) {
+      depth++;
+      i++;
+    } else if (depth && t.startsWith('}}', i)) {
+      depth--;
+      i++;
+    } else if (!depth && t.startsWith('::', i) && (!spaced || (/\s/.test(t[i - 1] ?? '') && /\s/.test(t[i + 2] ?? '')))) {
+      out.push(t.slice(start, i));
+      start = i + 2;
+      i++;
+    }
+  }
+  out.push(t.slice(start));
+  return out;
+}
+
+/** Разделить «слово — значение» по первому тире в пробелах (accept — какая левая часть подходит).
+ *  Без регулярки: длинная строка не подвесит разбор. */
+export function splitDash(t: string, accept: (left: string) => boolean = () => true): [string, string] | null {
   for (let i = 1; i < t.length - 1; i++) {
     const ch = t[i];
     if ((ch === '—' || ch === '–' || ch === '-') && /\s/.test(t[i - 1]) && /\s/.test(t[i + 1])) {
       const a = t.slice(0, i).trim();
       const b = t.slice(i + 1).trim();
-      if (a && b) return [a, b];
+      if (a && b && accept(a)) return [a, b];
     }
   }
   return null;
@@ -68,7 +97,8 @@ export function splitDash(t: string): [string, string] | null {
 function rowLine(line: string): string[] | null {
   const t = line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim();
   if (!t) return null;
-  if (t.includes('::')) return t.split('::').map((x) => x.trim());
+  const cols = splitCols(t);
+  if (cols.length > 1) return cols.map((x) => x.trim());
   if (t.includes('\t')) return t.split('\t').map((x) => x.trim());
   return splitDash(t) ?? [t];
 }
@@ -267,7 +297,13 @@ export function parseMnemaText(text: string): ChangePack {
 
 // ---------- Запись (выгрузка для нейросети) ----------
 
-const esc = (s: string) => s.replace(/\n+/g, ' ').replace(/::/g, ':').trim();
+/** Поле карточки или строки списка: « :: » вне пропуска стал бы новым столбцом — делаем « : »;
+ *  std::cout и подсказку внутри {{…}} оставляем как есть. */
+const esc = (s: string) => {
+  const one = s.replace(/\n+/g, ' ').trim();
+  return scanCols(one, true).join(':').trim();
+};
+const escCard = esc;
 /** Название в строке «@…»: палочка — «\|», чтобы не стать свойством. */
 const nm = (s: unknown) => String(s ?? '').replace(/\|/g, '\\|');
 /** Текст конспекта, правила, стиха: строка с @ в начале не должна стать командой — ставим перед ней «\». */
@@ -299,7 +335,11 @@ export function toMnemaText(pack: ChangePack): string {
       out.push('');
     } else if (c.do === 'cards') {
       out.push(`@карточки${tp ? '' : ''}`);
-      for (const k of (c.cards as Record<string, string>[]) ?? []) out.push([esc(k.front ?? ''), esc(k.back ?? ''), k.why ? esc(k.why) : ''].filter((x, i) => i < 2 || x).join(' :: '));
+      for (const k of (c.cards as Record<string, string>[]) ?? []) {
+        const [front, back, why] = [escCard(k.front ?? ''), escCard(k.back ?? ''), k.why ? escCard(k.why) : ''];
+        // Карточка-пропуск без ответа — одной строкой, как её и пишут: «Столица — {{Москва::город}}».
+        out.push(!back && !why && /\{\{.+?\}\}/.test(front) ? front : [front, back, why].filter((x, i) => i < 2 || x).join(' :: '));
+      }
       out.push('');
     } else if (c.do === 'list') {
       const word = Object.entries(LIST_WORDS).find(([, v]) => v === c.kind)?.[0] ?? 'список';

@@ -483,26 +483,41 @@ export function moveTopic(id: string, to: { subjectId: string; parentId?: string
   const topic = data.topics.find((t) => t.id === id);
   if (!topic) return false;
   const parentId = to.parentId || undefined;
-  // Порядок считаем от того, что видно на экране (по названию или свой).
-  const siblings = data.topics
-    .filter((t) => t.id !== id && t.subjectId === to.subjectId && (t.parentId ?? undefined) === parentId)
-    .sort(topicOrder(data));
-  // Перетащил тему между соседями, а темы стоят по названию, — дальше порядок твой.
+  // Перетащил тему между соседями, а темы стоят по названию, — дальше порядок твой (только в этом предмете).
+  // Сначала закрепляем порядок, который сейчас на экране, во ВСЕХ группах предмета — иначе подтемы у других
+  // разделов перестроились бы по дате создания.
   const reorder = Boolean(to.beforeId || to.afterId);
-  const topicSort = reorder ? 'manual' : data.settings.topicSort;
+  const target = data.subjects.find((x) => x.id === to.subjectId);
+  let base = data;
+  if (reorder && target && target.topicSort !== 'manual') {
+    const cmp = topicOrder(data, to.subjectId);
+    const groups = new Map<string, Topic[]>();
+    for (const t of data.topics) if (t.subjectId === to.subjectId && !t.kind) groups.set(t.parentId ?? '', [...(groups.get(t.parentId ?? '') ?? []), t]);
+    const fixed = new Map<string, number>();
+    for (const g of groups.values()) g.sort(cmp).forEach((t, i) => fixed.set(t.id, i + 1));
+    base = {
+      ...data,
+      topics: data.topics.map((t) => (fixed.has(t.id) ? { ...t, order: fixed.get(t.id) } : t)),
+      subjects: data.subjects.map((x) => (x.id === to.subjectId ? { ...x, topicSort: 'manual' as const, updatedAt: nowIso() } : x))
+    };
+  }
+  // Порядок считаем от того, что видно на экране (по названию или свой). Правила и словарь предмета — не соседи темы.
+  const siblings = base.topics
+    .filter((t) => t.id !== id && t.subjectId === to.subjectId && (t.parentId ?? undefined) === parentId && (t.kind ?? undefined) === (topic.kind ?? undefined))
+    .sort(topicOrder(base, to.subjectId));
   let idx = siblings.length;
   if (to.beforeId) idx = Math.max(0, siblings.findIndex((t) => t.id === to.beforeId));
   else if (to.afterId) idx = siblings.findIndex((t) => t.id === to.afterId) + 1;
   const ordered = [...siblings.slice(0, idx), topic, ...siblings.slice(idx)];
   const orderOf = new Map(ordered.map((t, i) => [t.id, i + 1]));
-  const topics = data.topics.map((t) => {
+  const topics = base.topics.map((t) => {
     if (t.id === id) return { ...t, subjectId: to.subjectId, parentId, order: orderOf.get(t.id), updatedAt: nowIso() };
     if (moving.has(t.id)) return { ...t, subjectId: to.subjectId };
     if (orderOf.has(t.id)) return { ...t, order: orderOf.get(t.id) };
     return t;
   });
   const treeOpen = parentId && !data.settings.treeOpen.includes(parentId) ? [...data.settings.treeOpen, parentId] : data.settings.treeOpen;
-  commit({ ...data, topics, settings: { ...data.settings, treeOpen, ...(topicSort ? { topicSort } : {}) } });
+  commit({ ...base, topics, settings: { ...data.settings, treeOpen } });
   return true;
 }
 
@@ -522,17 +537,20 @@ export function byOrder(a: { order?: number; createdAt: string }, b: { order?: n
 
 /** Темы предмета (или подтемы темы) по порядку. */
 /** Темы предмета на одном уровне (без правил — они живут отдельно). */
-/** Сравнение названий «как у людей»: «§2» раньше «§10», «1. Введение» — первым; регистр и ё не важны. */
+/** Сравнение названий «как у людей»: «§2» раньше «§10», номера — раньше слов, «1. Введение» — рядом с «§1»;
+ *  знак «§», «№», «#» в начале и пробел после него не мешают; регистр и ё не важны. */
 const nameCollator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' });
-export const byName = (a: { name: string }, b: { name: string }) => nameCollator.compare(a.name.trim(), b.name.trim());
+const sortKey = (name: string) => name.trim().replace(/^[§№#]\s*/, '');
+export const byName = (a: { name: string }, b: { name: string }) => nameCollator.compare(sortKey(a.name), sortKey(b.name)) || nameCollator.compare(a.name.trim(), b.name.trim());
 
-/** Порядок тем: по названию (по умолчанию) или как расставил сам (перетаскиванием). */
-export function topicOrder(d: AppData): (a: Topic, b: Topic) => number {
-  return (d.settings.topicSort ?? 'name') === 'name' ? (a, b) => byName(a, b) || byOrder(a, b) : byOrder;
+/** Порядок тем предмета: по названию (по умолчанию) или как расставил сам (перетаскиванием). */
+export function topicOrder(d: AppData, subjectId: string): (a: Topic, b: Topic) => number {
+  const sort = d.subjects.find((s) => s.id === subjectId)?.topicSort;
+  return sort === 'manual' ? byOrder : (a, b) => byName(a, b) || byOrder(a, b);
 }
 
 export function childTopics(d: AppData, subjectId: string, parentId?: string): Topic[] {
-  return d.topics.filter((t) => t.subjectId === subjectId && !t.kind && (t.parentId ?? undefined) === (parentId ?? undefined)).sort(topicOrder(d));
+  return d.topics.filter((t) => t.subjectId === subjectId && !t.kind && (t.parentId ?? undefined) === (parentId ?? undefined)).sort(topicOrder(d, subjectId));
 }
 
 /** Правила предмета (верхний уровень). */

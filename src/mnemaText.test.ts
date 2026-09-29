@@ -87,6 +87,22 @@ describe('1.8: Мнема-текст — простой формат для не
     expect(p.data.topics).toEqual(d.topics);
   });
 
+  it('карточка-пропуск с подсказкой не портится и не удваивается при выгрузке и загрузке', () => {
+    const d: AppData = emptyData();
+    d.subjects = [{ id: 's1', name: 'История', color: '#2F9E5B', createdAt: T0 }];
+    d.topics = [{ id: 't1', subjectId: 's1', name: 'Пётр I', note: '', createdAt: T0, updatedAt: T0 }];
+    d.cards = [
+      { id: 'c1', topicId: 't1', type: 'cloze', front: 'Правил {{49 лет::сколько лет?}}', back: '', createdAt: T0, updatedAt: T0 },
+      { id: 'c2', topicId: 't1', type: 'basic', front: 'Кто — «a::b»?', back: 'x', createdAt: T0, updatedAt: T0 }
+    ];
+    const text = toMnemaText(exportChanges(d, { subjectId: 's1' }));
+    expect(text).toContain('Правил {{49 лет::сколько лет?}}\n');
+    const r = parseChangeFile(text);
+    const p = planChanges(d, r.ok ? r.pack : { changes: [] }, env);
+    expect(p.data.cards.filter((c) => c.topicId === 't1')).toHaveLength(2);
+    expect(p.data.cards.find((c) => c.id === 'c1')?.front).toBe('Правил {{49 лет::сколько лет?}}');
+  });
+
   it('служебные слова объекта не становятся командой удаления', () => {
     const pack = parseMnemaText('@предмет X\n@удалить constructor Y\n@удалить __proto__ Z');
     expect(pack.changes.filter((c) => c.do === 'delete')).toEqual([]);

@@ -335,7 +335,7 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .inline-md, .inline-md p { display: inline; margin: 0; }
 
 /* ---------- Окно ---------- */
-.modal-back { position: fixed; inset: 0; background: rgba(20, 22, 30, 0.45); display: grid; place-items: center; z-index: 50; padding: 24px; }
+.modal-back { position: fixed; inset: 0; background: rgba(20, 22, 30, 0.45); display: grid; place-items: center; z-index: 65; padding: 24px; } /* выше выдвижной панели телефона (60) */
 .modal { max-width: 100%; max-height: calc(100vh - 48px); overflow-y: auto; background: var(--surface); border-radius: 22px; padding: 22px 24px 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
 .modal-head h2 { font-family: var(--display); font-size: 1.4rem; font-weight: 600; }

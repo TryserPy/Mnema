@@ -37,14 +37,25 @@ export interface Plan {
 // ---------- Чтение файла ----------
 
 /** Разобрать текст файла. Понимает и ответ нейросети целиком: достаёт JSON из ```json … ```, прощает висячие запятые. */
+/** Текст внутри рамки ```…``` (или ````…````). Закрывающая рамка — ПОСЛЕДНЯЯ строка из стольких же обратных кавычек:
+ *  внутри конспекта бывает свой код в ```, и на нём ответ обрываться не должен. */
+function fencedBody(src: string): string | null {
+  const open = /^(`{3,})[^\n`]*\n/m.exec(src);
+  if (!open) return null;
+  const lines = src.slice(open.index + open[0].length).split('\n');
+  const close = new RegExp('^\\s*`{' + open[1].length + ',}\\s*$');
+  for (let i = lines.length - 1; i >= 0; i--) if (close.test(lines[i])) return lines.slice(0, i).join('\n');
+  return null;
+}
+
 export function parseChangeFile(text: string): { ok: true; pack: ChangePack } | { ok: false; error: string } {
   // Настоящий файл изменений — десятки килобайт; огромный файл только подвесит окно.
   if (text.length > 3_000_000) return { ok: false, error: 'Файл слишком большой — раздели его на несколько поменьше' };
   let src = text.replace(/^﻿/, '').trim();
   // Простой формат (@предмет, @тема, @карточки…) — его нейросети пишут быстрее и без ошибок.
   if (looksLikeMnemaText(src)) {
-    const fenced = /```[a-zA-Zа-я]*\s*\n([\s\S]*?)```/.exec(src);
-    const pack = parseMnemaText(fenced && looksLikeMnemaText(fenced[1]) ? fenced[1] : src);
+    const fenced = fencedBody(src);
+    const pack = parseMnemaText(fenced !== null && looksLikeMnemaText(fenced) ? fenced : src);
     return pack.changes.length ? { ok: true, pack } : { ok: false, error: 'В файле нет ни одного изменения — проверь строки «@предмет» и «@тема»' };
   }
   const fence = /```(?:json|JSON)?\s*\n([\s\S]*?)```/.exec(src);
