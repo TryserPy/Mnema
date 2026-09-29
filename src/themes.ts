@@ -106,4 +106,13 @@ export function applyLook(root: HTMLElement, s: Settings, dark: boolean) {
   root.dataset.radius = look.radius;
   root.dataset.bg = look.background;
   root.dataset.font = look.font;
+  // Свой фон картинкой: картинка под полупрозрачным цветом темы — текст остаётся читаемым.
+  if (s.bgImage?.src) {
+    root.style.setProperty('--bg-img', `url("${s.bgImage.src}")`);
+    root.style.setProperty('--bg-fade', String(Math.min(0.95, Math.max(0.3, s.bgImage.fade))));
+    root.dataset.bgimg = '1';
+  } else {
+    root.style.removeProperty('--bg-img');
+    delete root.dataset.bgimg;
+  }
 }

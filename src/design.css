@@ -842,3 +842,20 @@ html[data-touch] .bubble.sel-panel .sel-actions button { min-height: 46px; }
   .topic-tabs > .otabs, .topic-tabs > .tabs-scroll { flex: 1 1 220px; min-width: 220px; }
   .topic-tabs > .more, .topic-tabs > .rules-btn { flex-shrink: 0; }
 }
+
+/* ---------- 1.8: значок на выбор ---------- */
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.icon-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; border-radius: 14px; border: 1.5px solid transparent; background: var(--surface-2); cursor: pointer; min-width: 0; color: var(--ink); }
+.icon-tile:hover { background: var(--sunken); }
+.icon-tile.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+.icon-tile .app-icon-prev { width: 48px; height: 48px; flex-basis: 48px; font-size: 1.6rem; border-radius: 12px; }
+.app-icon-prev.auto { background: conic-gradient(from 200deg, #4C5BD4, #1F7A6B, #C2417A, #A4591A, #4C5BD4); color: #fff; }
+.icon-tile-name { font-size: 0.74rem; line-height: 1.15; text-align: center; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-width: 100%; }
+
+/* ---------- 1.8: свой фон картинкой ---------- */
+html[data-bgimg] body::before { content: ''; position: fixed; inset: 0; z-index: -1; background: var(--bg-img) center / cover no-repeat; }
+html[data-bgimg] body { background: transparent; }
+html[data-bgimg] .app { background: color-mix(in srgb, var(--bg) calc(var(--bg-fade, 0.78) * 100%), transparent); }
+html[data-bgimg] .sidebar { background: color-mix(in srgb, var(--side) calc(var(--bg-fade, 0.78) * 100% + 10%), transparent); backdrop-filter: blur(6px); }
+.bg-fade-row { align-items: center; }
+.bg-thumb { width: 64px; height: 44px; border-radius: 10px; background-size: cover; background-position: center; box-shadow: 0 0 0 1px var(--line); flex-shrink: 0; }

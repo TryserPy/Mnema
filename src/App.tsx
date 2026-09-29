@@ -102,7 +102,7 @@ export function App() {
     else apply();
     root.dataset.look = lookKey(s.look);
     firstTheme.current = false;
-  }, [dark, s.accent, s.density, s.fontScale, s.motion, s.motionOff.join(), JSON.stringify(s.look)]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dark, s.accent, s.density, s.fontScale, s.motion, s.motionOff.join(), JSON.stringify(s.look), s.bgImage?.src, s.bgImage?.fade]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Моды: стили включённых модов и свой CSS.
   const modsStyle = modsCss(s.modsOn, s.customMods, s.userCss);
@@ -160,7 +160,8 @@ export function App() {
   // Значок на рабочем столе телефона — под тему (если так выбрано в «Оформлении»).
   const iconTheme = dark ? s.look.dark : s.look.light;
   useEffect(() => {
-    window.mnemaApi?.setAppIcon?.(s.appIcon === 'theme' ? iconTheme : 'default');
+    // 'theme' — под текущую тему, 'default' — обычный, иначе выбранный значок (id темы).
+    window.mnemaApi?.setAppIcon?.(s.appIcon === 'theme' ? iconTheme : s.appIcon || 'default');
   }, [s.appIcon, iconTheme]);
 
   // «Файл изменений» можно открыть откуда угодно: настройки, поиск, меню предмета.
