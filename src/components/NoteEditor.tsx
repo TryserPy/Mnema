@@ -111,12 +111,14 @@ export function selectionText(editor: Editor): string {
 }
 
 /** Несколько строк конспекта до и после места рисунка — чтобы предпросмотр был «как в конспекте». */
-function drawingContext(editor: Editor, pos: number): { before: string; after: string } {
+function drawingContext(editor: Editor, pos: number, isNode: boolean): { before: string; after: string } {
   const doc = editor.state.doc;
   const p = Math.max(0, Math.min(pos, doc.content.size));
   const leaf = (node: PMNode) => (node.type.name === 'inlineMath' || node.type.name === 'blockMath' ? node.attrs.latex : '');
   const before = doc.textBetween(Math.max(0, p - 400), p, '\n', leaf).split('\n').slice(-3).join('\n');
-  const after = doc.textBetween(Math.min(doc.content.size, p + 1), Math.min(doc.content.size, p + 400), '\n', leaf).split('\n').slice(0, 3).join('\n');
+  // p + 1 — пропустить сам рисунок (правка); для нового рисунка текст начинается прямо с курсора.
+  const from = Math.min(doc.content.size, isNode ? p + 1 : p);
+  const after = doc.textBetween(from, Math.min(doc.content.size, from + 400), '\n', leaf).split('\n').slice(0, 3).join('\n');
   return { before: before.slice(-280), after: after.slice(0, 280) };
 }
 
@@ -278,8 +280,9 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
         editor.chain().focus().setTextSelection(r).scrollIntoView().run();
         const dom = editor.view.domAtPos(r.from).node as HTMLElement;
         const el = (dom.nodeType === 3 ? dom.parentElement : dom) as HTMLElement | null;
+        // Прокрутить после фокуса: иначе фокус прерывает плавную прокрутку и строка остаётся под панелью.
         // На телефоне снизу открыта панель «Важное» — показываем строку в верхней части экрана.
-        el?.scrollIntoView({ block: window.innerWidth <= 720 ? 'start' : 'center', behavior: 'smooth' });
+        requestAnimationFrame(() => el?.scrollIntoView({ block: window.innerWidth <= 720 ? 'start' : 'center', behavior: 'smooth' }));
         el?.classList.add('flash');
         setTimeout(() => el?.classList.remove('flash'), 1200);
       }
@@ -655,7 +658,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
       )}
       {drawing && (
         <Modal title="Рисунок" onClose={() => setDrawing(null)} width={980} sticky>
-          <DrawingEditor initial={drawing.mode === 'edit' ? drawing.data : null} onCancel={() => setDrawing(null)} onSave={saveDrawing} context={drawingContext(editor, drawing.mode === 'edit' ? drawing.pos : editor.state.selection.from)} />
+          <DrawingEditor initial={drawing.mode === 'edit' ? drawing.data : null} onCancel={() => setDrawing(null)} onSave={saveDrawing} context={drawingContext(editor, drawing.mode === 'edit' ? drawing.pos : editor.state.selection.from, drawing.mode === 'edit')} />
         </Modal>
       )}
     </div>

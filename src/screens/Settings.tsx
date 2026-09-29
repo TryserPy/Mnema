@@ -19,6 +19,7 @@ import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
 import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
+import { openChanges } from '../components/ChangesDialog';
 import { emptyData, exportJson, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
@@ -62,6 +63,7 @@ const INDEX: IndexItem[] = [
   { label: 'Сохранить копию', section: 'data', anchor: 'backup', words: 'резервная бэкап' },
   { label: 'Синхронизация с телефоном по Wi-Fi', section: 'data', anchor: 'sync', words: 'qr перенос' },
   { label: 'Облако (Яндекс Диск, Nextcloud)', section: 'data', anchor: 'sync', words: 'webdav' },
+  { label: 'Файл изменений от нейросети', section: 'data', anchor: 'changes', words: 'нейросеть chatgpt ии gpt json загрузить создать изменить' },
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
@@ -454,6 +456,18 @@ function DataPane({ go }: { go: (r: Route) => void }) {
           )}
         </Group>
       )}
+      <Group title="Нейросеть и файлы изменений" id="changes">
+        <SRow label="Загрузить файл изменений" hint="Создаёт и меняет что угодно: предметы, темы, конспекты, карточки, словари, правила, домашку">
+          <button className="btn small primary" onClick={() => openChanges()}>
+            <Icon name="upload" size={16} /> Загрузить
+          </button>
+        </SRow>
+        <SRow label="Как попросить нейросеть" hint="Готовая инструкция: вставь её в чат вместе со своей просьбой">
+          <button className="btn small" onClick={() => openChanges('#guide')}>
+            <Icon name="bot" size={16} /> Инструкция
+          </button>
+        </SRow>
+      </Group>
       <Group title="Импорт" id="import">
         <SRow label="Из Anki" hint=".apkg, .colpkg, текстовый экспорт">
           <button className="btn small" onClick={() => setAnki(true)}>
@@ -597,7 +611,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </div>
       </div>
       <Group>
-        <SRow label="Справка" hint="С чего начать, формулы, клавиши, моды">
+        <SRow label="Справка" hint={touchUI() ? 'С чего начать, формулы, моды' : 'С чего начать, формулы, клавиши, моды'}>
           <button className="btn small" onClick={() => go({ name: 'help' })}>
             Открыть
           </button>
@@ -614,7 +628,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
       </Group>
       <Group title="Новое в 1.6.3">
         <ul className="whats-new">
-          <li>Панель «Жирный · Маркер · В карточку · Ссылка · Правило» — по правой кнопке мыши, а не сама при каждом выделении. Правая кнопка по слову без выделения — выделит слово</li>
+          <li className="desk-only">Панель «Жирный · Маркер · В карточку · Ссылка · Правило» — по правой кнопке мыши, а не сама при каждом выделении. Правая кнопка по слову без выделения — выделит слово</li>
           <li>Жирный и маркер больше не «прилипают»: поставил курсор после жирного слова — дальше пишется обычный текст</li>
           <li>Термины всего предмета: вкладка «Термины» у предмета — общие термины и термины всех тем, по темам</li>
           <li>Правило из подсказки открывается окошком — с текстом и словами-подсказками, без ухода из конспекта</li>
@@ -622,7 +636,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
       </Group>
       <Group title="Новое в 1.6.2">
         <ul className="whats-new">
-          <li>Ссылки в конспекте на термины, темы и правила: выдели слово → «Ссылка» (или правая кнопка мыши). Наведи — увидишь, что там; Ctrl+щелчок — перейти</li>
+          <li className="desk-only">Ссылки в конспекте на термины, темы и правила: выдели слово → «Ссылка» (или правая кнопка мыши). Наведи — увидишь, что там; Ctrl+щелчок — перейти</li>
           <li>Словари и списки: ширина столбцов меняется перетаскиванием, можно записать просто термин без определения, длинный текст сразу переносится по словам</li>
           <li>Вкладки темы можно переставлять</li>
         </ul>
@@ -631,7 +645,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         <ul className="whats-new">
           <li>Рисунок: фон «как у конспекта», клетка, линейка, бумага; свои цвета ручки и маркера; холст на весь экран; размер в конспекте и предпросмотр</li>
           <li>Расписание: один предмет можно поставить несколько раз, уроки перетаскиваются, список предметов больше не обрезается</li>
-          <li>Фото к домашке можно вставить через Ctrl+V</li>
+          <li className="desk-only">Фото к домашке можно вставить через Ctrl+V</li>
         </ul>
       </Group>
       <Group title="Новое в 1.6">
@@ -652,7 +666,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
           <li>Видео по ссылке прямо в конспекте</li>
           <li>Правила: выдели слово — и правило всплывёт при наведении</li>
           <li>Моды, которые добавляют новые возможности</li>
-          <li>Быстрый поиск по Ctrl+P</li>
+          <li className="desk-only">Быстрый поиск по Ctrl+P</li>
           <li>Живой сад: восемь стадий роста, растения можно поливать и гладить</li>
           <li>Уроки на сегодня и завтра, простое расписание недели</li>
           <li>Новый стиль, настройки по разделам, плавная смена темы</li>

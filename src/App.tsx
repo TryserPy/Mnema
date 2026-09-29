@@ -4,6 +4,8 @@ import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
 import { RuleView } from './components/Rules';
 import { UpdateDialog } from './components/UpdateFlow';
+import { ChangesDialog } from './components/ChangesDialog';
+import { parseChangeFile } from './changes';
 import type { UpdateInfo } from './update';
 import { PluginScreen } from './screens/PluginScreen';
 import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
@@ -69,6 +71,7 @@ export function App() {
   const [ankiFile, setAnkiFile] = useState<File | null>(null);
   const [adding, setAdding] = useState<AddingAt>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [changes, setChanges] = useState<string | null>(null); // окно «Файл изменений» (текст файла или '')
   const systemDark = useSystemDark();
   const s = data.settings;
   const dark = s.theme === 'dark' || (s.theme === 'system' && systemDark);
@@ -159,6 +162,13 @@ export function App() {
   useEffect(() => {
     window.mnemaApi?.setAppIcon?.(s.appIcon === 'theme' ? iconTheme : 'default');
   }, [s.appIcon, iconTheme]);
+
+  // «Файл изменений» можно открыть откуда угодно: настройки, поиск, меню предмета.
+  useEffect(() => {
+    const h = (e: Event) => setChanges((e as CustomEvent<string>).detail ?? '');
+    window.addEventListener('mnema:changes', h);
+    return () => window.removeEventListener('mnema:changes', h);
+  }, []);
 
   // Файл данных есть, но не прочитался — честно сказать, что сейчас ничего не сохранится.
   useEffect(() => {
@@ -397,19 +407,34 @@ export function App() {
       showToast('Фото страниц перетащи в открытую тему — Мнема сделает из них конспект');
       return;
     }
+    // Ответ нейросети, сохранённый как .txt или .md, — это файл изменений, а не колода Anki.
+    if (/\.(txt|md)$/i.test(f.name) && parseChangeFile(await f.text()).ok) {
+      setChanges(await f.text());
+      return;
+    }
     if (/\.(apkg|colpkg|anki2|anki21|txt|tsv|csv)$/i.test(f.name)) {
       setAnkiFile(f);
       return;
     }
+    const text = await f.text();
+    let pkg: unknown = null;
     try {
-      const pkg = JSON.parse(await f.text());
-      if (!isTopicPackage(pkg)) throw new Error();
+      pkg = JSON.parse(text);
+    } catch {
+      /* может быть ответ нейросети с текстом вокруг JSON */
+    }
+    if (isTopicPackage(pkg)) {
       const r = importTopicPackage(pkg);
       showToast(`Добавлена тема «${pkg.topic.name}»`);
       if (r.firstTopicId) go({ name: 'topic', id: r.firstTopicId });
-    } catch {
-      showToast('Сюда можно перетащить тему Мнемы (.mnema) или колоду Anki (.apkg)');
+      return;
     }
+    // Файл изменений (например, от нейросети) — показать, что поменяется.
+    if (parseChangeFile(text).ok) {
+      setChanges(text);
+      return;
+    }
+    showToast('Сюда можно перетащить тему Мнемы (.mnema), файл изменений (.json) или колоду Anki (.apkg)');
   }
 
   const dropProps = {
@@ -509,6 +534,7 @@ export function App() {
         />
       )}
 
+      {changes !== null && <ChangesDialog key={changes.length} initial={changes} onClose={() => setChanges(null)} />}
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />

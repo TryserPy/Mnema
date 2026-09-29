@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RulesList } from '../components/Rules';
+import { exportForAi } from '../components/ChangesDialog';
 import { SubjectTerms, termGroups } from '../components/SubjectTerms';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { Timeline, timelineEvents } from '../components/Timeline';
@@ -74,6 +75,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
               { label: 'Импорт из Obsidian', icon: 'folder', onClick: () => setObsidian(true), hidden: !data.settings.features.obsidian },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setExportKind('print') },
               { label: 'Экспорт в Anki', icon: 'share', onClick: () => setExportKind('anki') },
+              { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ subjectId: id }) },
               { label: 'Удалить предмет', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
             ]}
           />

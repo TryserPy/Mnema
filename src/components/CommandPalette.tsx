@@ -1,6 +1,7 @@
 // Быстрый поиск и команды (Ctrl+P): темы, конспекты, карточки, правила, домашка, предметы и команды приложения и модов.
 // «>» в начале — только команды.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { openChanges } from './ChangesDialog';
 import { dueLabel } from '../homework';
 import { texPlain } from '../rules';
 import { registry, usePlugins } from '../plugins/host';
@@ -79,6 +80,8 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
       ...(f.awards ? ([['Достижения', 'chart', () => go({ name: 'stats', tab: 'awards' })]] as [string, string, () => void][]) : []),
       ...(f.garden ? ([['Сад знаний', 'chart', () => go({ name: 'stats', tab: 'garden' })]] as [string, string, () => void][]) : []),
       ...(f.map ? ([['Карта знаний', 'map', () => go({ name: 'stats', tab: 'map' })]] as [string, string, () => void][]) : []),
+      ['Загрузить файл изменений (от нейросети)', 'upload', () => openChanges()],
+      ['Инструкция для нейросети', 'bot', () => openChanges('#guide')],
       ['Настройки', 'sliders', () => go({ name: 'settings' })],
       ['Возможности', 'puzzle', () => go({ name: 'features' })],
       ['Справка', 'help', () => go({ name: 'help' })],

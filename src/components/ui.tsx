@@ -169,6 +169,26 @@ const paths: Record<string, ReactNode> = {
     </>
   ),
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  upload: (
+    <>
+      <path d="M12 15V4" />
+      <path d="M7.5 8.5L12 4l4.5 4.5" />
+      <path d="M5 15v4.5h14V15" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+      <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+    </>
+  ),
+  magic: (
+    <>
+      <path d="M5 19L15.5 8.5" />
+      <path d="M14 5.5l1.5-1.5M18.5 10l1.5-1.5M16.5 3.5V5.5M20.5 7.5H18.5" />
+      <path d="M13.5 7l3.5 3.5" />
+    </>
+  ),
   right: <path d="M9 6l6 6-6 6" />,
   homework: (
     <>
@@ -795,7 +815,14 @@ export function fitInView(el: HTMLElement, margin = 8) {
   el.style.maxHeight = '';
   el.style.maxWidth = '';
   el.style.overflowY = '';
-  const r = el.getBoundingClientRect();
+  // Меню ещё «вырастает» (анимация scale): считаем его настоящий размер и положение без масштаба.
+  const vis = el.getBoundingClientRect();
+  const w0 = el.offsetWidth || vis.width;
+  const k = w0 ? vis.width / w0 : 1;
+  const [ox, oy] = getComputedStyle(el).transformOrigin.split(' ').map((v) => parseFloat(v) || 0);
+  const left = vis.left - ox * (1 - k);
+  const top = vis.top - oy * (1 - k);
+  const r = { left, top, width: w0, right: left + w0, bottom: top + (el.offsetHeight || vis.height) };
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   let dx = 0;

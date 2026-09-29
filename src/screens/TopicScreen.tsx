@@ -1,5 +1,6 @@
 import { deleteTopicWithUndo } from '../components/SubjectDialogs';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { exportForAi } from '../components/ChangesDialog';
 import { ImportantPanel, NoteToCards } from '../components/ImportantPanel';
 import { PageViewer } from '../components/PageViewer';
 import { TextbookImport } from '../components/lazy';
@@ -172,6 +173,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: !f.test || cards.length < 2 },
               { label: 'Повторить всю тему', icon: 'repeat', onClick: () => go({ name: 'review', topicId: id, cram: true }), hidden: cards.length === 0 },
               { label: 'Поделиться темой (файл)', icon: 'share', onClick: () => exportTopic(data, id) },
+              { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 },
               ...plugins.topicActions.map((a) => ({ label: a.title, icon: 'puzzle', onClick: () => a.run({ id: topic.id, name: topic.name, note: topic.note, subjectId: topic.subjectId }) })),
               { label: 'Удалить тему', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
