@@ -86,9 +86,36 @@ const md = new Marked({
   }
 });
 
+// Адреса, которым можно доверять в конспекте: ссылки на сайты, почта, якоря и картинки внутри данных.
+// Всё остальное (//сервер/…, file:, ../../файл) убираем — иначе на Windows такая ссылка или картинка
+// ведёт в чужую папку или открывает чужую страницу прямо в окне Мнемы.
+const SAFE_URL = /^(#|https?:|mailto:|data:image\/|blob:)/i;
+const LOCAL_REL = /^(?![\\/])(?!.*\.\.)[\w\-./%]+$/;
+let markdownPass = false;
+// В тестах без браузера DOMPurify — заглушка без хуков.
+if (DOMPurify.isSupported) DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  for (const a of ['href', 'xlink:href', 'src', 'poster', 'background', 'action', 'formaction']) {
+    const v = node.getAttribute(a);
+    if (v != null && !SAFE_URL.test(v.trim()) && !LOCAL_REL.test(v.trim())) node.removeAttribute(a);
+  }
+  node.removeAttribute('srcset');
+  // Свои стили в конспекте не нужны (поддельные кнопки поверх окна, скрытие частей окна), кроме формул KaTeX.
+  if (markdownPass && node.hasAttribute('style') && !node.closest('.katex, .math-block')) node.removeAttribute('style');
+});
+
 export function renderMarkdown(src: string): string {
-  const html = md.parse(src, { async: false }) as string;
-  return DOMPurify.sanitize(html, { ADD_ATTR: ['aria-hidden', 'data-page', 'data-src', 'data-mlink'] });
+  const html = (md.parse(src, { async: false }) as string)
+    // Флажки списка задач — значками: поля ввода в конспекте запрещены.
+    .replace(/<input (checked="" )?disabled="" type="checkbox">/g, (_m, on) => `<span class="md-check">${on ? '☑' : '☐'}</span>`);
+  markdownPass = true;
+  try {
+    return DOMPurify.sanitize(html, {
+      ADD_ATTR: ['aria-hidden', 'data-page', 'data-src', 'data-mlink'],
+      FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select', 'option', 'video', 'audio', 'source', 'track', 'object', 'embed', 'link', 'meta', 'base', 'iframe', 'frame', 'dialog']
+    });
+  } finally {
+    markdownPass = false;
+  }
 }
 
 export function Markdown({ text, className, onPage }: { text: string; className?: string; onPage?: (n: number) => void }) {

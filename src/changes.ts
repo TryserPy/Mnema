@@ -2,6 +2,7 @@
 // «замени конспект темы», «добавь термины», «удали карточку»… Мнема показывает, что поменяется,
 // и применяет одним нажатием (с кнопкой «Вернуть»). Всё находится по названиям, а не по внутренним номерам,
 // поэтому такой файл легко написать руками или попросить у любой нейросети.
+import { looksLikeMnemaText, MNEMA_TEXT_GUIDE, parseMnemaText, splitDash, toMnemaText } from './mnemaText';
 import { autoChunk } from './poem';
 import { itemKey, itemOrds } from './srs';
 import { LIST_PRESETS } from './store';
@@ -15,6 +16,8 @@ export type Change = { do: string; [k: string]: unknown };
 export interface ChangePack {
   title?: string;
   changes: Change[];
+  /** Что не удалось прочитать в самом файле (строки Мнема-текста без «::» и т. п.). */
+  warnings?: string[];
 }
 
 export interface PlanLine {
@@ -27,13 +30,34 @@ export interface Plan {
   data: AppData;
   lines: PlanLine[];
   warnings: string[];
+  /** Какие темы и правила затронуты — для наглядного предпросмотра «как будет». */
+  touched: string[];
 }
 
 // ---------- Чтение файла ----------
 
 /** Разобрать текст файла. Понимает и ответ нейросети целиком: достаёт JSON из ```json … ```, прощает висячие запятые. */
+/** Текст внутри рамки ```…``` (или ````…````). Закрывающая рамка — ПОСЛЕДНЯЯ строка из стольких же обратных кавычек:
+ *  внутри конспекта бывает свой код в ```, и на нём ответ обрываться не должен. */
+function fencedBody(src: string): string | null {
+  const open = /^(`{3,})[^\n`]*\n/m.exec(src);
+  if (!open) return null;
+  const lines = src.slice(open.index + open[0].length).split('\n');
+  const close = new RegExp('^\\s*`{' + open[1].length + ',}\\s*$');
+  for (let i = lines.length - 1; i >= 0; i--) if (close.test(lines[i])) return lines.slice(0, i).join('\n');
+  return null;
+}
+
 export function parseChangeFile(text: string): { ok: true; pack: ChangePack } | { ok: false; error: string } {
+  // Настоящий файл изменений — десятки килобайт; огромный файл только подвесит окно.
+  if (text.length > 3_000_000) return { ok: false, error: 'Файл слишком большой — раздели его на несколько поменьше' };
   let src = text.replace(/^﻿/, '').trim();
+  // Простой формат (@предмет, @тема, @карточки…) — его нейросети пишут быстрее и без ошибок.
+  if (looksLikeMnemaText(src)) {
+    const fenced = fencedBody(src);
+    const pack = parseMnemaText(fenced !== null && looksLikeMnemaText(fenced) ? fenced : src);
+    return pack.changes.length ? { ok: true, pack } : { ok: false, error: 'В файле нет ни одного изменения — проверь строки «@предмет» и «@тема»' };
+  }
   const fence = /```(?:json|JSON)?\s*\n([\s\S]*?)```/.exec(src);
   if (fence) src = fence[1].trim();
   else {
@@ -49,12 +73,12 @@ export function parseChangeFile(text: string): { ok: true; pack: ChangePack } | 
     try {
       raw = JSON.parse(src.replace(/,\s*([}\]])/g, '$1').replace(/[“”«»]/g, (q) => (q === '«' || q === '»' ? q : '"')));
     } catch (e) {
-      return { ok: false, error: 'Это не похоже на файл изменений Мнемы (не получилось прочитать JSON: ' + String((e as Error).message).slice(0, 120) + ')' };
+      return { ok: false, error: 'Это не похоже на файл изменений Мнемы: нужны строки «@предмет …», «@тема …». (Как JSON тоже не читается: ' + String((e as Error).message).slice(0, 100) + ')' };
     }
   }
   const obj = raw as { changes?: unknown; title?: unknown } | unknown[];
   const list = Array.isArray(obj) ? obj : Array.isArray((obj as { changes?: unknown }).changes) ? ((obj as { changes: unknown[] }).changes) : null;
-  if (!list) return { ok: false, error: 'В файле нет списка изменений (поле "changes")' };
+  if (!list) return { ok: false, error: 'Это не похоже на файл изменений Мнемы: нужны строки «@предмет …», «@тема …» (или JSON с полем "changes")' };
   const changes = list.filter((c): c is Change => Boolean(c) && typeof c === 'object' && typeof (c as Change).do === 'string');
   if (!changes.length) return { ok: false, error: 'Список изменений пустой — нечего применять' };
   const title = !Array.isArray(obj) && typeof (obj as { title?: unknown }).title === 'string' ? ((obj as { title: string }).title) : undefined;
@@ -111,8 +135,9 @@ const DAYS: Record<string, string> = { '1': '1', '2': '2', '3': '3', '4': '4', '
 function row(v: unknown): { a: string; b: string; c: string } | null {
   if (Array.isArray(v)) return v.length && str(v[0])?.trim() ? { a: str(v[0])!.trim(), b: (str(v[1]) ?? '').trim(), c: (str(v[2]) ?? '').trim() } : null;
   if (typeof v === 'string') {
-    const m = /^(.+?)\s+[—–-]\s+(.+?)(?:\s+[—–-]\s+(.+))?$/.exec(v.trim());
-    return m ? { a: m[1], b: m[2], c: m[3] ?? '' } : v.trim() ? { a: v.trim(), b: '', c: '' } : null;
+    const ab = splitDash(v.trim());
+    const bc = ab && splitDash(ab[1]);
+    return ab ? { a: ab[0], b: bc ? bc[0] : ab[1], c: bc ? bc[1] : '' } : v.trim() ? { a: v.trim(), b: '', c: '' } : null;
   }
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>;
@@ -149,7 +174,8 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
   const uid = env.uid ?? (() => crypto.randomUUID());
   const d: AppData = { ...src, folders: [...src.folders], subjects: [...src.subjects], topics: [...src.topics], cards: [...src.cards], homework: [...(src.homework ?? [])], states: src.states, logs: src.logs, deleted: { ...(src.deleted ?? {}) }, settings: src.settings };
   const lines: PlanLine[] = [];
-  const warnings: string[] = [];
+  const warnings: string[] = [...(pack.warnings ?? [])];
+  const touched = new Set<string>(); // темы и правила, которые файл создал или поменял
   const add = (text: string) => lines.push({ kind: 'add', text });
   const edit = (text: string) => lines.push({ kind: 'edit', text });
   const del = (text: string) => lines.push({ kind: 'del', text });
@@ -161,6 +187,7 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
   const restoreImages = (md: string) => md.replace(/(!\[[^\]]*\]\()(mnema-img:[a-z0-9]+)(\))/g, (all, a, tok, b) => (images.has(tok) ? a + images.get(tok) + b : all));
 
   const setTopic = (id: string, patch: Partial<Topic>) => {
+    touched.add(id);
     d.topics = d.topics.map((t) => (t.id === id ? { ...t, ...patch, updatedAt: stamp } : t));
     return d.topics.find((t) => t.id === id)!;
   };
@@ -369,7 +396,7 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
           const next = how === 'append' || how === 'добавить' ? (topic.note.trim() ? topic.note.trimEnd() + '\n\n' : '') + md : how === 'prepend' ? md + (topic.note.trim() ? '\n\n' + topic.note : '') : md;
           if (next.trim() !== topic.note.trim()) {
             patch.note = next;
-            edit(`Конспект ${q(topic.name)}: ${how === 'append' || how === 'добавить' ? 'дописан' : how === 'prepend' ? 'дописан в начало' : topic.note.trim() ? 'заменён' : 'написан'} (${next.length} знаков)`);
+            edit(`Конспект ${q(topic.name)}: ${how === 'append' || how === 'добавить' ? 'дописан' : how === 'prepend' ? 'дописан в начало' : topic.note.trim() ? `заменён, было ${topic.note.length} знаков, станет` : 'написан'} ${next.length} знаков`);
           }
         }
         const rn = str(c.rename)?.trim();
@@ -633,7 +660,11 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
     d.states = states;
     d.logs = d.logs.filter((l) => !removed.has(l.cardId));
   }
-  return { title: pack.title, data: d, lines, warnings };
+  // Карточки, которые добавлены или изменены, — их темы тоже в предпросмотр.
+  const oldCards = new Map(src.cards.map((c) => [c.id, c]));
+  for (const c of d.cards) if (oldCards.get(c.id) !== c) touched.add(c.topicId);
+  for (const t of d.topics) if (!src.topics.some((x) => x.id === t.id)) touched.add(t.id);
+  return { title: pack.title, data: d, lines, warnings, touched: [...touched].filter((id) => d.topics.some((t) => t.id === id)) };
 }
 
 function plural(n: number, one: string, few: string, many: string): string {
@@ -684,6 +715,11 @@ export function exportChanges(data: AppData, scope: { subjectId?: string; topicI
   return { title: scope.topicId ? `Тема «${topics[0]?.name ?? ''}»` : `Предмет «${subject.name}»`, changes };
 }
 
+/** Выгрузка для нейросети — простым текстом (его легче читать и править). */
+export function packToMnemaText(pack: ChangePack): string {
+  return toMnemaText(pack);
+}
+
 export function packToText(pack: ChangePack): string {
   return JSON.stringify({ [CHANGES_MARK]: 1, ...pack }, null, 2);
 }
@@ -704,7 +740,7 @@ export const CHANGES_GUIDE = `Ты помогаешь ученику с прил
 Действия ("do"):
 • "folder" — папка предметов: {"do":"folder","name":"8 класс","color":"синий","rename":"новое имя"}
 • "subject" — предмет: {"do":"subject","name":"Биология","color":"зелёный","icon":"🌿","folder":"8 класс","rename":"…"}
-• "topic" — тема и её конспект: {"do":"topic","subject":"Биология","topic":"§12 Фотосинтез","parent":"Глава 3 (необязательно — сделает подтему)","note":"Конспект в Markdown","noteMode":"replace | append | prepend","examDate":"2026-10-20","important":true,"rename":"…"}
+• "topic" — тема и её конспект: {"do":"topic","subject":"Биология","topic":"§12 Фотосинтез","parent":"Глава 3 (необязательно — сделает подтему)","note":"Конспект в Markdown","noteMode":"replace | append | prepend","examDate":"2026-10-20","rename":"…"}
    Конспект — Markdown: **жирное** (станет «важным»), ==маркер==, заголовки ##, списки, формулы $E=mc^2$ и $$…$$. Картинки вида ![Рисунок](mnema-img:…) не трогай — Мнема вернёт их на место.
 • "cards" — карточки темы: {"do":"cards","subject":"…","topic":"…","mode":"add | replace","cards":[{"front":"Вопрос","back":"Ответ","why":"почему так (необязательно)","type":"basic | reverse | cloze | typing"}]}
    add — добавить новые и обновить совпадающие по вопросу; replace — оставить только эти (прогресс совпадающих сохранится).
@@ -723,7 +759,7 @@ export const CHANGES_GUIDE = `Ты помогаешь ученику с прил
 
 /** Инструкция + что уже есть у ученика (названия), чтобы нейросеть правила существующее, а не плодила дубли. */
 export function aiInstructions(data: AppData, withStructure = true): string {
-  if (!withStructure || !data.subjects.length) return CHANGES_GUIDE;
+  if (!withStructure || !data.subjects.length) return MNEMA_TEXT_GUIDE;
   const lines: string[] = [];
   for (const s of data.subjects) {
     const folder = data.folders.find((f) => f.id === s.folderId);
@@ -733,7 +769,7 @@ export function aiInstructions(data: AppData, withStructure = true): string {
       lines.push(`  - ${t.kind === 'rule' ? 'правило: ' : t.kind === 'glossary' ? '' : ''}${t.name}${extra ? ` [${extra}]` : ''}`);
     }
   }
-  return CHANGES_GUIDE + '\n\nЧто уже есть у ученика (используй эти названия):\n' + lines.join('\n').slice(0, 6000);
+  return MNEMA_TEXT_GUIDE + '\n\nЧто уже есть у ученика (используй эти названия, чтобы дополнять, а не создавать заново):\n' + lines.join('\n').slice(0, 6000);
 }
 
 // ---------- «Вернуть» ----------

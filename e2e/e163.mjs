@@ -60,7 +60,7 @@ step('after Esc bubble: ' + (await bubbleVisible()));
 // 5. Правило из выделения → подсказка → окошко
 await win.mouse.click(pc.x, pc.y, { button: 'right' });
 await win.waitForTimeout(400);
-await win.locator('.bubble button', { hasText: 'Правило' }).click();
+await win.locator('.bubble button', { hasText: 'Слово будет подсказывать' }).click();
 await win.waitForTimeout(400);
 await win.locator('.modal textarea').fill('Сила тока обратно пропорциональна сопротивлению участка цепи.');
 await win.locator('.modal').getByRole('button', { name: 'Создать правило' }).click();

@@ -1,9 +1,9 @@
 // Настройки: «Оформление» (стиль, тема, цвет), «Текст и форма», «Анимации».
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { updateSettings, useData } from '../store';
 import { BACKGROUNDS, DEFAULT_ACCENT, DEFAULT_LOOK, FONTS, HEAD_FONTS, presetFor, STYLES, THEMES, type Palette, type ThemePreset } from '../themes';
 import type { Look, MotionKind, MotionLevel } from '../types';
-import { Collapse, ColorPicker, Segmented, Switch } from './ui';
+import { Collapse, ColorPicker, Icon, Segmented, Switch, toast } from './ui';
 import { Group, PaneHead, SRow } from './SettingsKit';
 
 const ACCENTS = ['#4C5BD4', '#3F51D8', '#1F7A6B', '#B4452F', '#6B3FC4', '#2A5BB8', '#3A3F4E', '#C2417A', '#2F8F5B', '#A4591A', '#0E8FA3'];
@@ -124,35 +124,97 @@ export function LookPane({ dark }: { dark: boolean }) {
   );
 }
 
-/** Значок Мнемы на рабочем столе телефона: обычный или в цветах темы. */
+/** Значок Мнемы на рабочем столе телефона: обычный, под тему или любой на выбор. */
 function AppIconGroup({ dark }: { dark: boolean }) {
   const s = useData().settings;
   const mode = s.appIcon ?? 'default';
-  const t = presetFor(s.look, dark);
-  return (
-    <Group title="Значок на рабочем столе" id="appicon">
-      <SRow label="Какой значок" hint="Меняется, когда выходишь из Мнемы">
-        <div className="ctl-seg">
-          <Segmented
-            ariaLabel="Значок приложения"
-            value={mode}
-            onChange={(v) => updateSettings({ appIcon: v })}
-            options={[
-              { value: 'default', label: 'Обычный' },
-              { value: 'theme', label: 'Как тема' }
-            ]}
-          />
-        </div>
-      </SRow>
-      <div className="srow app-icon-row">
-        <span className={'app-icon-prev' + (mode === 'theme' && t.dark ? ' dark' : '')} style={mode === 'theme' ? ({ '--ai-acc': t.accent, '--ai-bg': t.p.bg, '--ai-top': t.p.surface } as React.CSSProperties) : undefined}>
+  const current = presetFor(s.look, dark);
+  const tile = (t: ThemePreset | null, value: string, label: string) => (
+    <button key={value} type="button" className={'icon-tile' + (mode === value ? ' on' : '')} onClick={() => updateSettings({ appIcon: value })} aria-pressed={mode === value} title={label}>
+      {t ? (
+        <span className={'app-icon-prev' + (t.dark ? ' dark' : '')} style={{ '--ai-acc': t.accent, '--ai-bg': t.p.bg, '--ai-top': t.p.surface } as React.CSSProperties}>
           М
         </span>
-        <span className="small muted">
-          {mode === 'theme' ? `Сейчас — «${t.name}». Сменишь тему — сменится и значок.` : 'Синий значок с буквой «М».'} На некоторых телефонах после смены значок пропадает с рабочего стола — тогда перетащи его заново из списка приложений.
+      ) : value === 'theme' ? (
+        <span className="app-icon-prev auto">
+          <Icon name="palette" size={24} />
         </span>
+      ) : (
+        <span className="app-icon-prev">М</span>
+      )}
+      <span className="icon-tile-name">{label}</span>
+    </button>
+  );
+  return (
+    <Group title="Значок на рабочем столе" id="appicon">
+      <div className="srow stack-row">
+        <span className="small muted">Меняется, когда выходишь из Мнемы. На некоторых телефонах после смены значок пропадает с рабочего стола — тогда перетащи его заново из списка приложений.</span>
+        <div className="icon-grid">
+          {tile(null, 'theme', `Как тема (${current.name})`)}
+          {tile(null, 'default', 'Обычный')}
+          {THEMES.map((t) => tile(t, t.id, t.name))}
+        </div>
       </div>
     </Group>
+  );
+}
+
+/** Свой фон картинкой: выбрать файл, сжать, настроить, насколько её видно. */
+function BgImageRow() {
+  const s = useData().settings;
+  const img = s.bgImage;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  async function pick(f?: File) {
+    if (!f) return;
+    setBusy(true);
+    try {
+      // Старый WebView не знает imageOrientation — тогда без него.
+      const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(f));
+      const k = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * k);
+      c.height = Math.round(bmp.height * k);
+      const g = c.getContext('2d')!;
+      // Прозрачные места PNG в JPEG стали бы чёрными — подкладываем белый.
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(bmp, 0, 0, c.width, c.height);
+      bmp.close();
+      updateSettings({ bgImage: { src: c.toDataURL('image/jpeg', 0.8), fade: img?.fade ?? 0.78 } });
+    } catch {
+      toast('Не получилось открыть картинку — попробуй другой файл (JPG или PNG)');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="srow stack-row" data-set="bgimage">
+      <div className="row between gap8 wrap">
+        <span className="srow-label">Своя картинка</span>
+        <div className="row gap8">
+          <button type="button" className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
+            <Icon name="upload" size={16} /> {img ? 'Другая' : 'Выбрать файл'}
+          </button>
+          {img && (
+            <button type="button" className="btn small ghost" onClick={() => updateSettings({ bgImage: undefined })}>
+              Убрать
+            </button>
+          )}
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0])} />
+      </div>
+      {img && (
+        <label className="row gap12 bg-fade-row">
+          <span className="bg-thumb" style={{ backgroundImage: `url("${img.src}")` }} />
+          <span className="grow stack gap4">
+            <span className="small">Насколько видно картинку</span>
+            <input type="range" min={5} max={50} step={5} value={Math.min(50, Math.round((1 - img.fade) * 100))} onChange={(e) => updateSettings({ bgImage: { ...img, fade: 1 - Number(e.target.value) / 100 } })} aria-label="Насколько видно картинку" />
+          </span>
+        </label>
+      )}
+      <span className="small muted">Картинка встанет под всё окно, а сверху — полупрозрачный цвет темы, чтобы текст читался.</span>
+    </div>
   );
 }
 
@@ -238,6 +300,7 @@ export function TextPane({ dark }: { dark: boolean }) {
             ))}
           </div>
         </div>
+        <BgImageRow />
       </Group>
       <Group id="colors">
         <button className="srow srow-btn" aria-expanded={colorsOpen} onClick={() => setColorsOpen(!colorsOpen)}>

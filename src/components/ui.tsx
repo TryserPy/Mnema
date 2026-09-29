@@ -169,6 +169,12 @@ const paths: Record<string, ReactNode> = {
     </>
   ),
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  sort: (
+    <>
+      <path d="M7 5v14M4 16l3 3 3-3" />
+      <path d="M13 7h7M13 12h5M13 17h3" />
+    </>
+  ),
   upload: (
     <>
       <path d="M12 15V4" />
@@ -458,11 +464,18 @@ export function Segmented<T extends string | number>({ value, options, onChange,
     if (!box) return;
     const measure = () => {
       const btns = Array.from(box.querySelectorAll<HTMLButtonElement>(':scope > button'));
-      const widest = Math.max(0, ...btns.map((b) => (b.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0)) * 1.08 + 20; // выбранная — жирнее
-      const avail = box.clientWidth - 8;
+      // На компьютере — всегда один ряд, как раньше. Только на узком экране телефона, если 4+ подписи
+      // не помещаются, — два ряда (2 + 2). Три и меньше — один ряд, подпись переносится внутри кнопки.
       let c = options.length;
-      while (c > 1 && widest > (avail - (c - 1) * 4) / c) c--;
-      c = Math.ceil(options.length / Math.ceil(options.length / c)); // ряды поровну: 4 → 2+2, а не 3+1
+      if (window.innerWidth <= 720 && options.length >= 4) {
+        // Настоящие отступы кнопки (у разных переключателей они разные) + запас на жирную подпись выбранной.
+        const cs = btns[0] ? getComputedStyle(btns[0]) : null;
+        const pad = cs ? parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2 : 20;
+        const widest = Math.max(0, ...btns.map((b) => (b.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0)) * 1.08 + pad;
+        // Ширину берём у места, где стоит переключатель, а не у него самого: его ширина зависит от числа колонок.
+        const avail = Math.min(box.parentElement?.clientWidth ?? window.innerWidth, window.innerWidth - 24) - 8;
+        if (widest * options.length + (options.length - 1) * 4 > avail) c = Math.ceil(options.length / 2);
+      }
       setCols(c);
       const b = btns[idx];
       if (b) {
@@ -504,7 +517,7 @@ export function OverflowTabs<T extends string>({ items, value, onChange, ariaLab
     if (!el || !m) return;
     const calc = () => {
       const widths = [...m.children].map((c) => (c as HTMLElement).offsetWidth + 4);
-      const moreW = 96;
+      const moreW = 112; // «Ещё» с числом
       const avail = el.clientWidth;
       let used = 0;
       let n = 0;
