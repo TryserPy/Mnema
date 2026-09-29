@@ -2,6 +2,7 @@ import '../katexCache';
 // Редактор конспекта «как в Word»: без значков разметки на экране, но хранится всё в Markdown.
 import { Extension, InputRule } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
+import { renderTableToMarkdown, Table, TableKit } from '@tiptap/extension-table';
 import { BlockMath, InlineMath } from '@tiptap/extension-mathematics';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from '@tiptap/markdown';
@@ -10,7 +11,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { HighlightSettings } from '../types';
 import { AutoHighlight, autoHighlightKey, findTextRange } from './autoHighlight';
 import type { RuleMatcher } from '../rules';
@@ -81,7 +82,7 @@ function wordAt(editor: Editor, pos: number): { from: number; to: number } | nul
 const coarse = () => touchUI();
 
 /** Действия над выделенным текстом: из панели выделения, из меню Android и с клавиатуры. */
-export type SelAction = 'bold' | 'italic' | 'mark' | 'heading' | 'card' | 'link' | 'rule';
+export type SelAction = 'bold' | 'italic' | 'mark' | 'heading' | 'list' | 'quote' | 'copy' | 'card' | 'link' | 'rule';
 
 /** Пункты для меню выделения Android — в порядке важности (первые видны сразу, остальные — под «⋮»). */
 const SEL_MENU: { id: SelAction; title: string }[] = [
@@ -147,6 +148,16 @@ interface Props {
   topicId?: string;
 }
 
+
+/** Таблица, которая не ломается от «|» в ячейке (|x|, «A | B»): в Markdown он пишется как «\|». */
+const PipeSafeTable = Table.extend({
+  renderMarkdown: (node, h) =>
+    renderTableToMarkdown(node, {
+      ...h,
+      renderChildren: (...args: Parameters<typeof h.renderChildren>) => h.renderChildren(...args).replace(/(?<!\\)\|/g, '\\|')
+    })
+});
+
 export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, onPage, tools, onReady, rules = null, onRuleHover, onAddRule, onLinkHover, topicId }: Props) {
   const linkHoverRef = useRef(onLinkHover);
   linkHoverRef.current = onLinkHover;
@@ -155,6 +166,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   // Панель выделения на компьютере появляется только по правой кнопке мыши (на телефоне — сразу при выделении).
   const bubbleAt = useRef<{ from: number; to: number } | null>(null);
   const bubbleKey = useRef(new PluginKey('noteBubble')).current;
+  const tableKey = useRef(new PluginKey('noteTable')).current;
   const hlRef = useRef(highlight);
   hlRef.current = highlight;
   const rulesRef = useRef(rules);
@@ -180,6 +192,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   const selActionRef = useRef<(a: SelAction) => void>(() => {});
   // Есть ли сейчас выделенный текст (на телефоне — кнопка «Выделенное» в панели инструментов).
   const [hasSel, setHasSel] = useState(false);
+  // Панель выделения показывает, что уже включено (жирный, маркер…) — перерисовываем её, пока она открыта.
+  const [, repaint] = useReducer((x: number) => x + 1, 0);
 
   const editor = useEditor({
     extensions: [
@@ -194,6 +208,9 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
         katexOptions: { throwOnError: false, displayMode: true },
         onClick: (node, pos) => setFormula({ mode: 'edit', pos, latex: node.attrs.latex, block: true })
       }),
+      // Таблицы (в Markdown — | a | b |): вставка через «Вставить → Таблица», строки и столбцы — кнопками над таблицей.
+      TableKit.configure({ table: false }),
+      PipeSafeTable.configure({ resizable: false }),
       DollarMath,
       NoStickyMarks,
       AutoHighlight(
@@ -254,11 +271,15 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     window.__mnemaSelAction = (a: string) => {
       if (editor.isFocused || editor.view.hasFocus()) selActionRef.current(a as SelAction);
     };
+    // Нажал «Жирный» в открытой панели — подсветка кнопки должна поменяться сразу.
+    const onTr = () => bubbleAt.current && repaint();
     editor.on('selectionUpdate', onSel);
+    editor.on('transaction', onTr);
     editor.on('focus', onFocus);
     editor.on('blur', onBlur);
     return () => {
       editor.off('selectionUpdate', onSel);
+      editor.off('transaction', onTr);
       editor.off('focus', onFocus);
       editor.off('blur', onBlur);
       api?.setSelMenu?.([]);
@@ -294,14 +315,15 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     if (!editor) return;
     const onKey = (e: KeyboardEvent) => {
       // Уже обработано самим редактором (например, Ctrl+Shift+H — маркер): не делать второй раз.
-      if (e.defaultPrevented || document.querySelector('.modal-back')) return;
-      const st = getData().settings;
-      const inEditor = editor.view.dom.contains(e.target as Node) || e.target === document.body;
-      if (e.key === 'Escape' && bubbleAt.current) {
+      // Esc прячет панель выделения — даже если редактор уже «съел» клавишу (он отменяет её по умолчанию).
+      if (e.key === 'Escape' && bubbleAt.current && !document.querySelector('.modal-back')) {
         bubbleAt.current = null;
         editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'hide'));
         return;
       }
+      if (e.defaultPrevented || document.querySelector('.modal-back')) return;
+      const st = getData().settings;
+      const inEditor = editor.view.dom.contains(e.target as Node) || e.target === document.body;
       if (!inEditor && !(e.target as HTMLElement)?.closest?.('.hand-pad')) return;
       if (matches(e, st, 'insertFormula')) {
         e.preventDefault();
@@ -414,7 +436,13 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     else if (a === 'italic') c.toggleItalic().run();
     else if (a === 'mark') c.toggleHighlight().run();
     else if (a === 'heading') c.toggleHeading({ level: 2 }).run();
-    else if (a === 'link') askLink();
+    else if (a === 'list') c.toggleBulletList().run();
+    else if (a === 'quote') c.toggleBlockquote().run();
+    else if (a === 'copy') {
+      void navigator.clipboard?.writeText(selectionText(editor)).catch(() => document.execCommand('copy'));
+      bubbleAt.current = null;
+      editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'hide'));
+    } else if (a === 'link') askLink();
     else {
       const text = selectionText(editor);
       // Снять выделение, чтобы после закрытия окна клик в тексте ставил курсор, а не возвращал старое выделение.
@@ -431,6 +459,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     if (!editor || editor.state.selection.empty) return;
     const sel = editor.state.selection;
     bubbleAt.current = { from: sel.from, to: sel.to };
+    repaint();
     editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'show'));
     // Позицию пересчитать, когда панель уже на странице (иначе она считается от пустого места).
     requestAnimationFrame(() => !editor.isDestroyed && editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'updatePosition')));
@@ -469,7 +498,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
               showBubble();
             }}
           >
-            <Icon name="edit" size={16} /> <span className="tl">Выделенное</span>
+            <Icon name="magic" size={16} /> <span className="tl">Выделенное</span>
           </button>
         )}
         <button type="button" className={'btn small' + (pad ? ' on-tool' : '')} aria-pressed={pad} title={'Формула от руки' + hint('handFormula')} onClick={() => setPad(!pad)}>
@@ -488,6 +517,9 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
             </button>
             <button role="menuitem" onClick={insert(() => setDrawing({ mode: 'new' }))}>
               <span className="menu-ico">✎</span> Рисунок<span className="menu-key">{hint('insertDrawing', true)}</span>
+            </button>
+            <button role="menuitem" onClick={insert(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}>
+              <span className="menu-ico">▦</span> Таблица
             </button>
             <button role="menuitem" onClick={insert(() => setVideoAsk(true))}>
               <span className="menu-ico">▶</span> Видео по ссылке
@@ -536,10 +568,41 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
         </div>
       )}
 
+      {/* Курсор в таблице — кнопки строк и столбцов над ней. */}
+      <BubbleMenu
+        editor={editor}
+        pluginKey={tableKey}
+        className="table-tools"
+        options={{ placement: 'top-start', offset: 8, flip: { padding: 12 }, shift: { padding: 8 } }}
+        shouldShow={({ editor: ed, from, to }) => from === to && ed.isEditable && ed.isActive('table')}
+        getReferencedVirtualElement={() => {
+          const cell = editor.view.domAtPos(editor.state.selection.from).node as HTMLElement;
+          const table = (cell.nodeType === 3 ? cell.parentElement : cell)?.closest?.('table');
+          return table ? { getBoundingClientRect: () => table.getBoundingClientRect(), getClientRects: () => [table.getBoundingClientRect()] as unknown as DOMRectList } : null;
+        }}
+      >
+        <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} title="Добавить строку ниже">
+          <Icon name="plus" size={14} /> Строка
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} title="Добавить столбец справа">
+          <Icon name="plus" size={14} /> Столбец
+        </button>
+        <span className="bubble-sep" />
+        <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} title="Убрать строку с курсором">
+          − Строка
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} title="Убрать столбец с курсором">
+          − Столбец
+        </button>
+        <button type="button" className="danger" onClick={() => editor.chain().focus().deleteTable().run()} title="Удалить всю таблицу">
+          <Icon name="trash" size={14} />
+        </button>
+      </BubbleMenu>
+
       <BubbleMenu
         editor={editor}
         pluginKey={bubbleKey}
-        className="bubble"
+        className="bubble sel-panel"
         // Под выделением: так панель не закрывает кнопки инструментов сверху (если внизу нет места — перепрыгнет наверх).
         options={{ placement: 'bottom', offset: 10, flip: { padding: 12 }, shift: { padding: 8 }, scrollTarget: (document.querySelector('.note-layout.full') as HTMLElement) ?? (document.querySelector('.main') as HTMLElement) ?? window }}
         shouldShow={({ editor: ed, from, to }) => {
@@ -550,30 +613,56 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
           bubbleAt.current = null;
           return false;
         }}>
-        <button type="button" className={editor.isActive('bold') ? 'on' : ''} onClick={() => runSel('bold')} aria-label="Жирный" title={'Жирный' + (touchUI() ? '' : ' (Ctrl+B)')}>
-          <b>Ж</b>
-        </button>
-        <button type="button" className={editor.isActive('italic') ? 'on' : ''} onClick={() => runSel('italic')} aria-label="Курсив" title={'Курсив' + (touchUI() ? '' : ' (Ctrl+I)')}>
-          <i>К</i>
-        </button>
-        <button type="button" className={editor.isActive('highlight') ? 'on' : ''} onClick={() => runSel('mark')} aria-label="Маркер" title={'Маркер' + hint('markText')}>
-          <span className="mark-ico">М</span>
-        </button>
-        <button type="button" className={editor.isActive('heading', { level: 2 }) ? 'on' : ''} onClick={() => runSel('heading')} title="Заголовок" aria-label="Заголовок">
-          <span className="head-ico">Заг</span>
-        </button>
-        <span className="bubble-sep" />
-        <button type="button" className="accent" onClick={() => runSel('card')} title={'Карточка из выделенного' + hint('makeCard')}>
-          <Icon name="cardPlus" size={16} /> В карточку
-        </button>
-        <button type="button" className={editor.isActive('link') ? 'on' : ''} title={'Ссылка на термин, тему или правило' + hint('linkText')} onClick={() => runSel('link')}>
-          <Icon name="link" size={16} /> Ссылка
-        </button>
-        {onAddRule && (
-          <button type="button" title="Сделать правило или привязать слово к правилу предмета" onClick={() => runSel('rule')}>
-            <Icon name="rules" size={16} /> Правило
+        {/* Сверху — оформление (значок и подпись), ниже — что сделать с выделенным. */}
+        <div className="sel-fmt">
+          {(
+            [
+              ['bold', 'bold', <b key="b">Ж</b>, 'Жирный'],
+              ['italic', 'italic', <i key="i">К</i>, 'Курсив'],
+              ['mark', 'highlight', <span key="m" className="mark-ico">М</span>, 'Маркер'],
+              ['heading', 'heading', <span key="h" className="head-ico">H</span>, 'Заголовок'],
+              ['list', 'bulletList', <span key="l">•≡</span>, 'Список'],
+              ['quote', 'blockquote', <span key="q">❝</span>, 'Рамка']
+            ] as [SelAction, string, ReactNode, string][]
+          ).map(([a, mark, ico, label]) => (
+            <button key={a} type="button" className={editor.isActive(mark, mark === 'heading' ? { level: 2 } : undefined) ? 'on' : ''} onClick={() => runSel(a)} aria-label={label} title={label + (a === 'bold' && !touchUI() ? ' (Ctrl+B)' : a === 'italic' && !touchUI() ? ' (Ctrl+I)' : a === 'mark' ? hint('markText') : '')}>
+              <span className="sel-ico">{ico}</span>
+              <span className="sel-cap">{label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="sel-actions">
+          <button type="button" className="sel-card" onClick={() => runSel('card')}>
+            <Icon name="cardPlus" size={20} />
+            <span className="sel-text">
+              <b>В карточку</b>
+              <small>Сделать вопрос из выделенного</small>
+            </span>
+            {!touchUI() && <span className="menu-key">{hint('makeCard', true)}</span>}
           </button>
-        )}
+          <button type="button" className={editor.isActive('link') ? 'on' : ''} onClick={() => runSel('link')}>
+            <Icon name="link" size={18} />
+            <span className="sel-text">
+              <b>{editor.isActive('link') ? 'Изменить ссылку' : 'Ссылка'}</b>
+              <small>На тему, термин или правило</small>
+            </span>
+          </button>
+          {onAddRule && (
+            <button type="button" onClick={() => runSel('rule')}>
+              <Icon name="rules" size={18} />
+              <span className="sel-text">
+                <b>Правило</b>
+                <small>Слово будет подсказывать правило</small>
+              </span>
+            </button>
+          )}
+          <button type="button" onClick={() => runSel('copy')}>
+            <Icon name="copy" size={18} />
+            <span className="sel-text">
+              <b>Копировать</b>
+            </span>
+          </button>
+        </div>
       </BubbleMenu>
 
       <div

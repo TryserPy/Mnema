@@ -202,6 +202,11 @@ export function normalizeData(raw: unknown): AppData {
       customMods: Array.isArray(r.settings?.customMods) ? r.settings!.customMods : [],
       awardsSeen: Array.isArray(r.settings?.awardsSeen) ? r.settings!.awardsSeen : [],
       userCss: typeof r.settings?.userCss === 'string' ? r.settings.userCss : '',
+      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
+      bgImage:
+        typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
+          ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
+          : undefined,
       schedule: { ...(r.settings?.schedule ?? {}) },
       keys: { ...(r.settings?.keys ?? {}) },
       treeOpen: Array.isArray(r.settings?.treeOpen) ? r.settings!.treeOpen : [],
@@ -382,6 +387,54 @@ export function deleteSubject(id: string): Removed {
   return removed;
 }
 
+/**
+ * Удалить сразу несколько папок, предметов и тем (выбранных в левой панели).
+ * Предметы — со всеми темами и карточками, темы — с подтемами, папки — предметы остаются без папки.
+ * Возвращает «Вернуть»: всё удалённое встаёт на место.
+ */
+export function deleteMany(sel: { folders?: string[]; subjects?: string[]; topics?: string[] }): () => void {
+  const subjectIds = new Set(sel.subjects ?? []);
+  const topicIds = new Set<string>();
+  for (const t of data.topics) if (subjectIds.has(t.subjectId)) topicIds.add(t.id);
+  for (const id of sel.topics ?? []) for (const x of topicWithDescendants(data, id)) topicIds.add(x);
+  const cardIds = new Set(data.cards.filter((c) => topicIds.has(c.topicId)).map((c) => c.id));
+  const folderIds = new Set(sel.folders ?? []);
+  const folders = data.folders.filter((f) => folderIds.has(f.id));
+  const inFolders = data.subjects.filter((x) => x.folderId && folderIds.has(x.folderId) && !subjectIds.has(x.id)).map((x) => ({ id: x.id, folderId: x.folderId! }));
+  const marks = [...[...subjectIds].map((id) => 'subj:' + id), ...[...topicIds].map((id) => 'topic:' + id), ...[...cardIds].map((id) => 'card:' + id), ...[...folderIds].map((id) => 'folder:' + id)];
+  const removed = captureRemoved(data, subjectIds, topicIds, cardIds, marks);
+  const stamp = nowIso();
+  commit(
+    removeCards(
+      tomb(
+        {
+          ...data,
+          folders: data.folders.filter((f) => !folderIds.has(f.id)),
+          subjects: data.subjects.filter((x) => !subjectIds.has(x.id)).map((x) => (x.folderId && folderIds.has(x.folderId) ? { ...x, folderId: undefined, updatedAt: stamp } : x)),
+          topics: data.topics.filter((t) => !topicIds.has(t.id))
+        },
+        marks
+      ),
+      cardIds
+    )
+  );
+  return () => {
+    restoreRemoved(removed);
+    if (!folders.length) return;
+    const back = nowIso();
+    const have = new Set(data.folders.map((f) => f.id));
+    const deleted = { ...(data.deleted ?? {}) };
+    for (const f of folders) delete deleted['folder:' + f.id];
+    const fOf = new Map(inFolders.map((x) => [x.id, x.folderId]));
+    commit({
+      ...data,
+      deleted,
+      folders: [...data.folders, ...folders.filter((f) => !have.has(f.id)).map((f) => ({ ...f, updatedAt: back }))],
+      subjects: data.subjects.map((x) => (fOf.has(x.id) && !x.folderId ? { ...x, folderId: fOf.get(x.id), updatedAt: back } : x))
+    });
+  };
+}
+
 // ---------- Темы ----------
 
 export function addTopic(subjectId: string, name: string, parentId?: string, kind?: 'rule' | 'glossary'): Topic {
@@ -430,22 +483,41 @@ export function moveTopic(id: string, to: { subjectId: string; parentId?: string
   const topic = data.topics.find((t) => t.id === id);
   if (!topic) return false;
   const parentId = to.parentId || undefined;
-  const siblings = data.topics
-    .filter((t) => t.id !== id && t.subjectId === to.subjectId && (t.parentId ?? undefined) === parentId)
-    .sort(byOrder);
+  // Перетащил тему между соседями, а темы стоят по названию, — дальше порядок твой (только в этом предмете).
+  // Сначала закрепляем порядок, который сейчас на экране, во ВСЕХ группах предмета — иначе подтемы у других
+  // разделов перестроились бы по дате создания.
+  const reorder = Boolean(to.beforeId || to.afterId);
+  const target = data.subjects.find((x) => x.id === to.subjectId);
+  let base = data;
+  if (reorder && target && target.topicSort !== 'manual') {
+    const cmp = topicOrder(data, to.subjectId);
+    const groups = new Map<string, Topic[]>();
+    for (const t of data.topics) if (t.subjectId === to.subjectId && !t.kind) groups.set(t.parentId ?? '', [...(groups.get(t.parentId ?? '') ?? []), t]);
+    const fixed = new Map<string, number>();
+    for (const g of groups.values()) g.sort(cmp).forEach((t, i) => fixed.set(t.id, i + 1));
+    base = {
+      ...data,
+      topics: data.topics.map((t) => (fixed.has(t.id) ? { ...t, order: fixed.get(t.id) } : t)),
+      subjects: data.subjects.map((x) => (x.id === to.subjectId ? { ...x, topicSort: 'manual' as const, updatedAt: nowIso() } : x))
+    };
+  }
+  // Порядок считаем от того, что видно на экране (по названию или свой). Правила и словарь предмета — не соседи темы.
+  const siblings = base.topics
+    .filter((t) => t.id !== id && t.subjectId === to.subjectId && (t.parentId ?? undefined) === parentId && (t.kind ?? undefined) === (topic.kind ?? undefined))
+    .sort(topicOrder(base, to.subjectId));
   let idx = siblings.length;
   if (to.beforeId) idx = Math.max(0, siblings.findIndex((t) => t.id === to.beforeId));
   else if (to.afterId) idx = siblings.findIndex((t) => t.id === to.afterId) + 1;
   const ordered = [...siblings.slice(0, idx), topic, ...siblings.slice(idx)];
   const orderOf = new Map(ordered.map((t, i) => [t.id, i + 1]));
-  const topics = data.topics.map((t) => {
+  const topics = base.topics.map((t) => {
     if (t.id === id) return { ...t, subjectId: to.subjectId, parentId, order: orderOf.get(t.id), updatedAt: nowIso() };
     if (moving.has(t.id)) return { ...t, subjectId: to.subjectId };
     if (orderOf.has(t.id)) return { ...t, order: orderOf.get(t.id) };
     return t;
   });
   const treeOpen = parentId && !data.settings.treeOpen.includes(parentId) ? [...data.settings.treeOpen, parentId] : data.settings.treeOpen;
-  commit({ ...data, topics, settings: { ...data.settings, treeOpen } });
+  commit({ ...base, topics, settings: { ...data.settings, treeOpen } });
   return true;
 }
 
@@ -465,8 +537,20 @@ export function byOrder(a: { order?: number; createdAt: string }, b: { order?: n
 
 /** Темы предмета (или подтемы темы) по порядку. */
 /** Темы предмета на одном уровне (без правил — они живут отдельно). */
+/** Сравнение названий «как у людей»: «§2» раньше «§10», номера — раньше слов, «1. Введение» — рядом с «§1»;
+ *  знак «§», «№», «#» в начале и пробел после него не мешают; регистр и ё не важны. */
+const nameCollator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' });
+const sortKey = (name: string) => name.trim().replace(/^[§№#]\s*/, '');
+export const byName = (a: { name: string }, b: { name: string }) => nameCollator.compare(sortKey(a.name), sortKey(b.name)) || nameCollator.compare(a.name.trim(), b.name.trim());
+
+/** Порядок тем предмета: по названию (по умолчанию) или как расставил сам (перетаскиванием). */
+export function topicOrder(d: AppData, subjectId: string): (a: Topic, b: Topic) => number {
+  const sort = d.subjects.find((s) => s.id === subjectId)?.topicSort;
+  return sort === 'manual' ? byOrder : (a, b) => byName(a, b) || byOrder(a, b);
+}
+
 export function childTopics(d: AppData, subjectId: string, parentId?: string): Topic[] {
-  return d.topics.filter((t) => t.subjectId === subjectId && !t.kind && (t.parentId ?? undefined) === (parentId ?? undefined)).sort(byOrder);
+  return d.topics.filter((t) => t.subjectId === subjectId && !t.kind && (t.parentId ?? undefined) === (parentId ?? undefined)).sort(topicOrder(d, subjectId));
 }
 
 /** Правила предмета (верхний уровень). */

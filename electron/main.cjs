@@ -2,6 +2,29 @@
 const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+// Вызовы моста принимаем только от главной страницы Мнемы (file:///…/dist/index.html), не от встроенных
+// видео и не от чужой страницы. Обёртка ставится до подключения остальных модулей — они тоже под ней.
+function fromApp(e) {
+  try {
+    const f = e.senderFrame;
+    if (!f || f.parent) return false;
+    const u = new URL(f.url);
+    return u.protocol === 'file:' && !u.host && u.pathname.endsWith('/dist/index.html');
+  } catch {
+    return false;
+  }
+}
+for (const m of ['handle', 'on', 'once']) {
+  const orig = ipcMain[m].bind(ipcMain);
+  ipcMain[m] = (channel, fn) =>
+    orig(channel, (e, ...args) => {
+      if (fromApp(e)) return fn(e, ...args);
+      console.warn('mnema: вызов', channel, 'не от окна Мнемы — отклонён');
+      if (m === 'handle') throw new Error('Недоступно');
+      e.returnValue = null;
+    });
+}
 const ai = require('./ai.cjs');
 const tray = require('./tray.cjs');
 const notify = require('./notify.cjs');
@@ -83,11 +106,11 @@ function createWindow() {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  // Окно никогда не уходит со страницы Мнемы: сайты открываем в браузере, остальное (чужой файл,
+  // //сервер/папка) запрещаем — иначе чужая страница получила бы доступ к данным через мост.
   win.webContents.on('will-navigate', (e, url) => {
-    if (!url.startsWith('file://')) {
-      e.preventDefault();
-      if (/^https?:\/\//.test(url)) shell.openExternal(url);
-    }
+    e.preventDefault();
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
   });
 }
 
@@ -270,6 +293,9 @@ if (!single) {
       if (!d.requestHeaders.Referer) d.requestHeaders.Referer = 'https://mnema.app/';
       cb({ requestHeaders: d.requestHeaders });
     });
+    // Картинки и ссылки вида //сервер/папка (file://сервер/…) на Windows идут в сетевую папку —
+    // это утечка (адрес, данные входа Windows). Такие запросы отменяем.
+    session.defaultSession.webRequest.onBeforeRequest((d, cb) => cb({ cancel: /^file:\/\/[^/]/i.test(d.url) }));
     try {
       dailyBackup();
     } catch (err) {

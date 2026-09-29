@@ -52,6 +52,7 @@ export interface Subject {
   icon?: string; // эмодзи-значок
   folderId?: string;
   order?: number;
+  topicSort?: 'name' | 'manual'; // темы: по названию с учётом чисел (по умолчанию) или как расставил сам
   createdAt: string;
   updatedAt?: string;
 }
@@ -217,7 +218,8 @@ export interface Settings {
   homeworkRemind: { on: boolean; time: string; when: 'dayBefore' | 'sameDay' }; // напоминания о ДЗ по умолчанию
   lessonsRemind: { on: boolean; time: string }; // вечером: «завтра такие-то уроки — повтори»
   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
-  appIcon?: 'default' | 'theme'; // значок на рабочем столе телефона: обычный или под тему
+  appIcon?: string; // значок на рабочем столе телефона: 'default', 'theme' (под тему) или id темы (свой выбор)
+  bgImage?: { src: string; fade: number }; // свой фон картинкой (JPEG data:); fade 0.5–0.95 — насколько её прикрывает цвет темы
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов

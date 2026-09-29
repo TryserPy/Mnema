@@ -32,10 +32,15 @@ NODE_PATH=$(npm root -g) xvfb-run -a node e2e/e163.mjs
 
 ## Выпуск
 1. Версия в `package.json` и `src/update.ts` (`APP_VERSION`), «Новое в X» в `src/screens/Settings.tsx`, раздел в `README.md`, запись в `CHANGELOG.md`.
-2. Тег `vX.Y.Z` → `.github/workflows/release.yml` собирает APK и установщик Windows и публикует выпуск на GitHub.
+2. Pull request ветки в `main` → после зелёных проверок влить → запустить workflow «Выпуск» (`release.yml`) на `main`: он ставит метку `vX.Y.Z`, собирает APK и установщик и публикует выпуск (метки и `main` из песочницы не пушатся).
 3. Приложение само берёт обновления из выпусков `TryserPy/Mnema` (репозиторий должен быть публичным).
 4. Ключ подписи APK — только в секрете `ANDROID_KEYSTORE_B64`, в репозиторий не класть. Ключ один на все версии.
 
-## Агенты
-В `.claude/agents/` — помощники: `security-reviewer`, `test-runner`, `design-reviewer`, `mobile-tester`, `code-reviewer`,
-`android-engineer`, `data-guardian`, `perf-auditor`, `copy-editor`, `idea-generator`, `release-manager`.
+## Агенты и контекст
+Сначала прочитай `.claude/context/CONTEXT.md` — там главное о авторе, решения, как выпускать и открытые просьбы.
+Его ведёт агент `context-keeper`: новые просьбы автора и итоги работы — через него.
+Команда в `.claude/agents/` (агенты независимы и не читают отчёты друг друга):
+`context-keeper` (контекст), `security-reviewer` (безопасность), `test-runner` (код и тесты), `design-reviewer` (визуал),
+`verifier` (независимо перепроверяет тесты и визуал), `idea-generator` (идеи), `builder` (сборка APK и установщика),
+`publisher` (GitHub: PR, выпуск, оформление), `desktop-engineer` (Windows), `android-engineer` (телефон).
+Главный — Claude в чате: раздаёт задачи, собирает результат, отвечает автору.
