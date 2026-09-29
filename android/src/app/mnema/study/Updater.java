@@ -51,12 +51,17 @@ public class Updater extends BroadcastReceiver {
         }
     }
 
-    /** Скачать APK. Разрешены только ссылки на выпуски GitHub. */
+    static final java.util.concurrent.atomic.AtomicBoolean downloading = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    /** Скачать APK. Разрешены только ссылки на выпуски GitHub. Одновременно — только одно скачивание. */
     static String download(Context ctx, String url, Progress progress) {
         if (url == null || !url.startsWith("https://github.com/")) return err("Обновления скачиваются только с GitHub");
+        if (!downloading.compareAndSet(false, true)) return err("Обновление уже скачивается");
         File out = apkFile(ctx);
         File part = new File(out.getPath() + ".part");
         HttpURLConnection conn = null;
+        InputStream in = null;
+        OutputStream os = null;
         try {
             String current = url;
             for (int hop = 0; ; hop++) {
@@ -78,8 +83,8 @@ public class Updater extends BroadcastReceiver {
                 break;
             }
             long total = conn.getContentLength();
-            InputStream in = conn.getInputStream();
-            OutputStream os = new FileOutputStream(part);
+            in = conn.getInputStream();
+            os = new FileOutputStream(part);
             byte[] buf = new byte[65536];
             long done = 0;
             int last = -1;
@@ -96,17 +101,38 @@ public class Updater extends BroadcastReceiver {
                 }
             }
             os.close();
-            in.close();
+            os = null;
             if (total > 0 && done != total) return err("Файл скачался не полностью — попробуй ещё раз");
             if (out.exists()) out.delete();
             if (!part.renameTo(out)) return err("Не получилось сохранить файл");
             return check(ctx, out);
-        } catch (Exception e) {
+        } catch (java.net.UnknownHostException e) {
             return err("Нет интернета или GitHub недоступен");
+        } catch (java.net.SocketTimeoutException e) {
+            return err("GitHub долго не отвечает — попробуй ещё раз");
+        } catch (Exception e) {
+            String m = String.valueOf(e.getMessage());
+            return err(m.contains("ENOSPC") || m.contains("No space") ? "Не хватает места на телефоне" : "Не получилось скачать: " + m);
         } finally {
+            closeQuietly(in);
+            closeQuietly(os);
             if (conn != null) conn.disconnect();
             if (part.exists()) part.delete();
+            downloading.set(false);
         }
+    }
+
+    static void closeQuietly(java.io.Closeable c) {
+        if (c == null) return;
+        try {
+            c.close();
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Можно ли Мнеме ставить приложения (Android 8+ спрашивает у человека). */
+    static boolean canInstall(Context ctx) {
+        return Build.VERSION.SDK_INT < 26 || ctx.getPackageManager().canRequestPackageInstalls();
     }
 
     @SuppressWarnings("deprecation")
@@ -145,41 +171,57 @@ public class Updater extends BroadcastReceiver {
         }
     }
 
-    /** Отдать скачанный APK системе. Если Мнеме ещё не разрешено ставить приложения — открыть это разрешение. */
-    static String install(Activity a) {
+    /**
+     * Отдать скачанный APK системе. Если Мнеме ещё не разрешено ставить приложения — открыть это разрешение
+     * (только когда ask = true: после возврата из настроек без разрешения второй раз не открываем — иначе петля).
+     * Копирует файл (~13 МБ), поэтому вызывать не в главном потоке.
+     */
+    static String install(final Activity a, boolean ask) {
         File apk = apkFile(a);
         if (!apk.exists()) return err("Сначала скачай обновление");
-        if (Build.VERSION.SDK_INT >= 26 && !a.getPackageManager().canRequestPackageInstalls()) {
-            try {
-                a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName())));
-            } catch (Exception ignored) {
-            }
+        if (!canInstall(a)) {
+            if (ask)
+                a.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName())));
+                        } catch (Exception ignored) {
+                        }
+                    }
+                });
             return "{\"ok\":false,\"permission\":true}";
         }
         PackageInstaller.Session session = null;
+        InputStream in = null;
+        OutputStream out = null;
         try {
             PackageInstaller pi = a.getPackageManager().getPackageInstaller();
             PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
             params.setAppPackageName(a.getPackageName());
             int id = pi.createSession(params);
             session = pi.openSession(id);
-            OutputStream out = session.openWrite("mnema.apk", 0, apk.length());
-            InputStream in = new FileInputStream(apk);
+            out = session.openWrite("mnema.apk", 0, apk.length());
+            in = new FileInputStream(apk);
             byte[] buf = new byte[65536];
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            in.close();
             session.fsync(out);
             out.close();
+            out = null;
             Intent cb = new Intent(a, Updater.class);
             int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? FLAG_MUTABLE : 0);
             PendingIntent pending = PendingIntent.getBroadcast(a, 7301, cb, flags);
             session.commit(pending.getIntentSender());
             session.close();
+            session = null;
             return "{\"ok\":true}";
         } catch (Exception e) {
-            if (session != null) session.abandon();
             return err("Не получилось начать установку");
+        } finally {
+            closeQuietly(in);
+            closeQuietly(out);
+            if (session != null) session.abandon();
         }
     }
 
@@ -200,7 +242,8 @@ public class Updater extends BroadcastReceiver {
         }
         if (status == PackageInstaller.STATUS_SUCCESS) return; // Мнема сейчас перезапустится уже новой
         String message = status == PackageInstaller.STATUS_FAILURE_ABORTED ? "Установка отменена"
-                : status == PackageInstaller.STATUS_FAILURE_CONFLICT || status == PackageInstaller.STATUS_FAILURE_INCOMPATIBLE ? "Обновление не подходит к этой Мнеме (другой ключ подписи)"
+                : status == PackageInstaller.STATUS_FAILURE_CONFLICT ? "Обновление подписано другим ключом — такое не встанет поверх"
+                : status == PackageInstaller.STATUS_FAILURE_INCOMPATIBLE ? "Эта версия не подходит к твоему телефону"
                 : status == PackageInstaller.STATUS_FAILURE_STORAGE ? "Не хватает места на телефоне"
                 : "Не получилось установить";
         Bridge b = bridge;

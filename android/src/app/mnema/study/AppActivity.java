@@ -86,7 +86,7 @@ public class AppActivity extends Activity {
                 Map<String, String> headers = new HashMap<String, String>();
                 headers.put("Cache-Control", "no-cache");
                 try {
-                    if (path.equals("/index.html")) {
+                    if (path.equals("/index.html") && request.isForMainFrame()) {
                         // Ключ моста — только нашей странице (чужие фреймы не видят её разметку).
                         String html = Bridge.readAll(getAssets().open("www/index.html"));
                         html = html.replaceFirst("<head>", "<head><meta name=\"mnema-k\" content=\"" + bridge.token + "\">");

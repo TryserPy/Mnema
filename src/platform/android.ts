@@ -23,7 +23,7 @@ interface AndroidBridge {
   notifyPermission?(id: string): void;
   print?(): void;
   apkDownload?(id: string, url: string): void;
-  apkInstall?(id: string): void;
+  apkInstall?(id: string, ask: boolean): void;
   setIcon?(name: string): void;
   setSelMenu?(json: string): void;
 }
@@ -70,6 +70,9 @@ if (RAW) {
       cb?.(r);
     }
   };
+
+  // Вернулись в Мнему (например, из настроек Android) — событие для всех, кому нужно.
+  window.__mnemaResume = () => window.dispatchEvent(new Event('mnema:resume'));
 
   // События обновления из Java (ход скачивания, ошибка установки) — всем, кто подписан.
   type UpdateEvent = Parameters<NonNullable<NonNullable<Window['mnemaApi']>['onUpdateEvent']>>[0] extends (e: infer E) => void ? E : never;
@@ -160,7 +163,7 @@ if (RAW) {
     print: A.print ? () => A.print!() : undefined,
     // Обновление: скачать APK из выпуска на GitHub и отдать Android на установку.
     updateDownload: A.apkDownload ? (url?: string) => call<{ ok: boolean; error?: string }>((id) => A.apkDownload!(id, url ?? '')) : undefined,
-    updateInstall: A.apkInstall ? () => call<{ ok: boolean; permission?: boolean; error?: string }>((id) => A.apkInstall!(id)) : undefined,
+    updateInstall: A.apkInstall ? (ask = true) => call<{ ok: boolean; permission?: boolean; error?: string }>((id) => A.apkInstall!(id, ask)) : undefined,
     onUpdateEvent: (cb) => {
       updateListeners.add(cb);
       return () => void updateListeners.delete(cb);

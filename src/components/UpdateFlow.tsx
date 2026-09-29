@@ -25,41 +25,43 @@ export function UpdateFlow({ info }: { info: UpdateInfo }) {
         if (e.type === 'progress') {
           setPercent(e.percent);
           if (phaseRef.current === 'idle') setPhase('downloading');
-        } else if (e.type === 'ready') setPhase('ready');
+        } else if (e.type === 'ready') setPhase((p) => (p === 'downloading' || p === 'idle' ? 'ready' : p));
         else if (e.type === 'error') {
+          // Ошибка пришла от установки (файл уже скачан) — «ещё раз» = поставить снова, не качать заново.
           setError(e.message);
+          setFailedAt('install');
           setPhase('error');
         }
       }),
     [] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  const install = async () => {
-    const r = await api?.updateInstall?.();
+  const [failedAt, setFailedAt] = useState<'download' | 'install'>('download');
+  const install = async (ask = true) => {
+    const r = await api?.updateInstall?.(ask);
     if (typeof r === 'object' && r) {
       if (r.ok) setPhase('installing');
       else if (r.permission) setPhase('permission');
       else {
         setError(r.error ?? 'Не получилось установить');
+        setFailedAt('install');
         setPhase('error');
       }
     }
   };
 
-  // Телефон: вернулись из настроек с разрешением — ставим сами, второй раз нажимать не нужно.
+  // Телефон: вернулись из настроек — если разрешение дали, ставим сами. Не дали — настройки второй раз не открываем.
   useEffect(() => {
     if (!android) return;
-    const prev = window.__mnemaResume;
-    window.__mnemaResume = () => {
-      prev?.();
-      if (phaseRef.current === 'permission') void install();
+    const onResume = () => {
+      if (phaseRef.current === 'permission') void install(false);
     };
-    return () => {
-      window.__mnemaResume = prev;
-    };
+    window.addEventListener('mnema:resume', onResume);
+    return () => window.removeEventListener('mnema:resume', onResume);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const download = async () => {
+    setFailedAt('download');
     setError('');
     setPercent(0);
     setPhase('downloading');
@@ -115,7 +117,7 @@ export function UpdateFlow({ info }: { info: UpdateInfo }) {
       ) : (
         <>
           {phase === 'error' && <span className="small update-error">{error}</span>}
-          <button className="btn primary" onClick={() => void download()}>
+          <button className="btn primary" onClick={() => void (phase === 'error' && failedAt === 'install' ? install() : download())}>
             {phase === 'error' ? 'Попробовать ещё раз' : `Скачать и установить${android ? mb(info.size) : ''}`}
           </button>
         </>

@@ -445,13 +445,16 @@ export function Segmented<T extends string | number>({ value, options, onChange,
       c = Math.ceil(options.length / Math.ceil(options.length / c)); // ряды поровну: 4 → 2+2, а не 3+1
       setCols(c);
       const b = btns[idx];
-      if (b) setPill({ x: b.offsetLeft, w: b.offsetWidth, y: b.offsetTop, h: b.offsetHeight });
+      if (b) {
+        const next = { x: b.offsetLeft, w: b.offsetWidth, y: b.offsetTop, h: b.offsetHeight };
+        setPill((p) => (p && p.x === next.x && p.w === next.w && p.y === next.y && p.h === next.h ? p : next));
+      }
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(box);
     return () => ro.disconnect();
-  }, [idx, options.length, cols]);
+  }, [idx, options.map((o) => o.label).join('|'), cols]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div ref={ref} className={'seg' + (cols < options.length ? ' seg-rows' : '')} role="radiogroup" aria-label={ariaLabel} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {pill && <span className="seg-pill" aria-hidden style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }} />}
@@ -790,6 +793,8 @@ export function selHow(action: string): string {
 export function fitInView(el: HTMLElement, margin = 8) {
   el.style.translate = '';
   el.style.maxHeight = '';
+  el.style.maxWidth = '';
+  el.style.overflowY = '';
   const r = el.getBoundingClientRect();
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -810,7 +815,11 @@ export function keepMenusInView(): () => void {
   const fit = (n: Node) => {
     if (!(n instanceof HTMLElement)) return;
     const menus = n.matches('.menu') ? [n] : Array.from(n.querySelectorAll<HTMLElement>('.menu'));
-    for (const m of menus) requestAnimationFrame(() => m.isConnected && fitInView(m));
+    // Второй раз — когда закончится анимация появления (она немного уменьшает меню).
+    for (const m of menus) {
+      requestAnimationFrame(() => m.isConnected && fitInView(m));
+      setTimeout(() => m.isConnected && fitInView(m), 200);
+    }
   };
   const obs = new MutationObserver((list) => {
     for (const rec of list) rec.addedNodes.forEach(fit);
