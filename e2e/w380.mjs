@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const p = await b.newPage({ viewport: { width: 380, height: 800 }, isMobile: true, hasTouch: true });
+await p.goto('http://localhost:4174');
+await p.getByRole('button', { name: 'Посмотреть на примере' }).click();
+await p.waitForTimeout(400);
+await p.locator('button[aria-label="Меню"], button[aria-label="Открыть меню"]').first().click(); await p.waitForTimeout(300);
+await p.locator('.tree-row.subject', { hasText: 'История' }).locator('.twisty').click();
+await p.locator('.tree-row', { hasText: 'Отмена' }).locator('.tree-label').click();
+await p.waitForTimeout(600);
+console.log(JSON.stringify(await p.evaluate(() => { const m = document.querySelector('.main'); return { sw: m.scrollWidth, cw: m.clientWidth, out: [...document.querySelectorAll('.main *')].filter((e) => e.getBoundingClientRect().right > m.clientWidth + 1).map((e) => (e.className?.baseVal ?? e.className) + ':' + Math.round(e.getBoundingClientRect().width) + '/' + Math.round(e.getBoundingClientRect().right)).slice(0, 12) }; })));
+await b.close();
