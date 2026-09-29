@@ -54,7 +54,7 @@ public class Bridge {
     static final int MAX_RESPONSE = 64 * 1024 * 1024;
 
     final MainActivity activity;
-    final WebView web;
+    final MnemaWebView web;
     final SharedPreferences prefs;
     final ExecutorService pool = Executors.newFixedThreadPool(4);
     final ConcurrentHashMap<String, String> results = new ConcurrentHashMap<String, String>();
@@ -75,7 +75,7 @@ public class Bridge {
      */
     final String token = new java.math.BigInteger(130, new java.security.SecureRandom()).toString(32);
 
-    Bridge(MainActivity activity, WebView web) {
+    Bridge(MainActivity activity, MnemaWebView web) {
         this.activity = activity;
         this.web = web;
         this.prefs = activity.getSharedPreferences("mnema", Context.MODE_PRIVATE);
@@ -676,6 +676,20 @@ public class Bridge {
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "mnema");
         } catch (Exception ignored) {
         }
+    }
+
+    // ---------- меню выделения текста ----------
+
+    /** Какие пункты Мнемы добавить в меню выделения Android (см. MnemaWebView). */
+    @JavascriptInterface
+    public void setSelMenu(String k, final String json) {
+        if (!allowed(k)) return;
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                web.setItems(json);
+            }
+        });
     }
 
     // ---------- обновление приложения ----------

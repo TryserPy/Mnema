@@ -171,7 +171,13 @@ export function drawingBgOf(src: string): DrawingBg | null {
   }
 }
 
-export function DrawingEditor({ initial, onSave, onCancel }: { initial?: DrawingData | null; onSave: (d: DrawingData) => void; onCancel: () => void }) {
+/** Текст конспекта до и после рисунка — для предпросмотра «Как будет в конспекте». */
+export interface DrawingContext {
+  before: string;
+  after: string;
+}
+
+export function DrawingEditor({ initial, onSave, onCancel, context }: { initial?: DrawingData | null; onSave: (d: DrawingData) => void; onCancel: () => void; context?: DrawingContext }) {
   const [data, setData] = useState<DrawingData>(() => ({ bg: 'theme', display: 70, ...(initial ?? { width: 900, height: 500, strokes: [] }) }));
   const [redo, setRedo] = useState<Stroke[]>([]);
   const [tool, setTool] = useState<'pen' | 'marker' | 'eraser'>('pen');
@@ -354,11 +360,23 @@ export function DrawingEditor({ initial, onSave, onCancel }: { initial?: Drawing
       {preview && (
         <div className="draw-preview" aria-label="Предпросмотр">
           <div className="note-page dp-page">
-            <div className="dp-line" style={{ width: '46%' }} />
-            <div className="dp-line" />
+            {context?.before.trim() ? (
+              context.before.trim().split('\n').filter(Boolean).map((p, i) => <p key={'b' + i} className="dp-text">{p}</p>)
+            ) : (
+              <>
+                <div className="dp-line" style={{ width: '46%' }} />
+                <div className="dp-line" />
+              </>
+            )}
             {bg === 'theme' ? <span className="dp-img-inline" ref={(el) => { if (el) { el.innerHTML = ''; const n = inlineDrawing(previewSrc); if (n) el.appendChild(n); } }} /> : <img src={previewSrc} alt="Рисунок" className="dp-img" />}
-            <div className="dp-line" style={{ width: '82%' }} />
-            <div className="dp-line" style={{ width: '64%' }} />
+            {context?.after.trim() ? (
+              context.after.trim().split('\n').filter(Boolean).map((p, i) => <p key={'a' + i} className="dp-text">{p}</p>)
+            ) : (
+              <>
+                <div className="dp-line" style={{ width: '82%' }} />
+                <div className="dp-line" style={{ width: '64%' }} />
+              </>
+            )}
           </div>
         </div>
       )}

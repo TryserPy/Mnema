@@ -399,7 +399,7 @@ function NoteTab({ topicId, importOpen, setImportOpen, droppedFiles, go }: { top
         <div key="full-bar" className="note-full-bar">
           <strong className="clamp1 grow">{topic.name}</strong>
           <button className="btn small" onClick={() => setFull(false)}>
-            <Icon name="shrink" size={16} /> Свернуть <span className="muted small">Esc</span>
+            <Icon name="shrink" size={16} /> Свернуть <span className="muted small key-hint">Esc</span>
           </button>
         </div>
       )}

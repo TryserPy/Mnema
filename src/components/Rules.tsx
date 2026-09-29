@@ -8,7 +8,7 @@ import { addTopic, getData, subjectRules, updateTopic, useData } from '../store'
 import type { Route, Topic } from '../types';
 import { Markdown } from './Markdown';
 import { deleteTopicWithUndo } from './SubjectDialogs';
-import { ConfirmButton, Icon, Modal, plural, toast, usePresence } from './ui';
+import { ConfirmButton, Icon, Modal, plural, toast, usePresence, selHow, touchUI } from './ui';
 
 /* ---------- Слова-подсказки ---------- */
 
@@ -262,7 +262,7 @@ export function RulesList({ subjectId, go }: { subjectId: string; go: (r: Route)
       {rules.length === 0 ? (
         <div className="empty">
           <strong>Правил пока нет</strong>
-          <span>Сюда — правила, к которым возвращаешься: грамматика, законы, алгоритмы решения. Выдели слово в конспекте, нажми правую кнопку мыши → «Правило» — при наведении на это слово правило будет всплывать само.</span>
+          <span>Сюда — правила, к которым возвращаешься: грамматика, законы, алгоритмы решения. В конспекте {selHow('Правило')} — {touchUI() ? 'нажми на это слово, и' : 'при наведении на это слово'} правило будет всплывать само.</span>
           <button className="btn primary" onClick={() => setAdding(true)}>
             Добавить первое правило
           </button>

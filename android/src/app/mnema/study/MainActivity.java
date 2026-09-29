@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
     android.view.View fullView;
     WebChromeClient.CustomViewCallback fullCallback;
 
-    WebView web;
+    MnemaWebView web;
     Bridge bridge;
     ValueCallback<Uri[]> fileCallback;
     PermissionRequest pendingWebPermission;
@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        web = new WebView(this);
+        web = new MnemaWebView(this);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);

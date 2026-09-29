@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { buildQueue, topicMastery } from '../srs';
 import { childTopics, sortedSubjects } from '../store';
 import type { AppData, Route } from '../types';
-import { Icon, plural } from './ui';
+import { Icon, plural, selHow } from './ui';
 
 type Stage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -50,6 +50,29 @@ const DRY2 = '#A28F45';
 
 /** Лист: основание в (0,0), смотрит вправо; дальше его поворачивают и масштабируют. */
 const LEAF_D = 'M0 0 C 6 -7, 16 -8, 22 -2 C 15 3, 6 4, 0 0 Z';
+
+const PET_SAY = ['Приятно! 💚', 'Растению нравится 🌱', 'Мур… то есть шелест 🍃', 'Ещё! 💚', 'Растёт с удовольствием ✨'];
+
+/** Поглаживание: ладошка проводит по растению, вылетают сердечки и искорки. */
+function PetEffect() {
+  return (
+    <span className="pet-fx-layer" aria-hidden="true">
+      <span className="pet-hand">🖐️</span>
+      <span className="hearts">
+        <i>♥</i>
+        <i>♥</i>
+        <i>♥</i>
+        <i>♥</i>
+        <i>♥</i>
+      </span>
+      <span className="sparks">
+        <i>✦</i>
+        <i>✦</i>
+        <i>✦</i>
+      </span>
+    </span>
+  );
+}
 
 function Flower({ x, y, r, petals, color, dry, delay = 0 }: { x: number; y: number; r: number; petals: number; color: string; dry: boolean; delay?: number }) {
   return (
@@ -282,15 +305,9 @@ export function Garden({ data, go }: { data: AppData; go: (r: Route) => void }) 
                   aria-pressed={sel === p.id}
                   title={p.name}
                 >
-                  <span className="plant-box" key={sel === p.id ? 'pet' + pet : 'p'}>
+                  <span className={'plant-box pet-fx' + (sel === p.id && pet > 0 ? ' petting' : '')} key={sel === p.id ? 'pet' + pet : 'p'}>
                     <PlantSvg stage={p.stage} thirsty={p.thirsty} color={s.color} seed={i} />
-                    {sel === p.id && pet > 0 && (
-                      <span className="hearts" aria-hidden="true">
-                        <i>♥</i>
-                        <i>♥</i>
-                        <i>♥</i>
-                      </span>
-                    )}
+                    {sel === p.id && pet > 0 && <PetEffect />}
                     {p.thirsty && <span className="drop-badge">💧</span>}
                     {grown.current.has(p.id) && <span className="grew">подрос!</span>}
                   </span>
@@ -305,8 +322,11 @@ export function Garden({ data, go }: { data: AppData; go: (r: Route) => void }) 
       <div className="garden-detail on" key={selected.id}>
         {(
           <>
-            <div className="gd-plant">
-              <PlantSvg stage={selected.stage} thirsty={selected.thirsty} color={selected.color} />
+            <div className="gd-plant pet-fx" key={'gd' + pet}>
+              <span className={pet > 0 ? 'pet-body petting' : 'pet-body'}>
+                <PlantSvg stage={selected.stage} thirsty={selected.thirsty} color={selected.color} />
+              </span>
+              {pet > 0 && <PetEffect />}
             </div>
             <div className="grow stack gap6 gd-text">
               <strong className="gd-name">{selected.name}</strong>
@@ -322,7 +342,7 @@ export function Garden({ data, go }: { data: AppData; go: (r: Route) => void }) 
               </div>
               <span className="small muted">
                 {selected.total === 0
-                  ? 'В теме нет карточек — посади их: выдели главное в конспекте, правая кнопка мыши → «В карточку».'
+                  ? `В теме нет карточек — посади их: в конспекте ${selHow('В карточку')}.`
                   : selected.stage === 0
                     ? 'Семечко проснётся после первого повторения.'
                     : selected.stage === 7
@@ -341,6 +361,11 @@ export function Garden({ data, go }: { data: AppData; go: (r: Route) => void }) 
                 <button className="btn small ghost" onClick={() => setPet((x) => x + 1)} title="Растениям приятно">
                   ♥ Погладить
                 </button>
+                {pet > 0 && (
+                  <span className="pet-say small" key={'say' + pet}>
+                    {PET_SAY[pet % PET_SAY.length]}
+                  </span>
+                )}
               </div>
             </div>
           </>

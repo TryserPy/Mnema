@@ -23,7 +23,12 @@ export type KeyAction =
   | 'makeCard'
   | 'toggleImportant'
   | 'miniReview'
-  | 'palette';
+  | 'palette'
+  | 'goHomework'
+  | 'goStats'
+  | 'goSettings'
+  | 'markText'
+  | 'linkText';
 
 export interface KeyDef {
   id: KeyAction;
@@ -46,6 +51,9 @@ export const KEY_DEFS: KeyDef[] = [
   { id: 'palette', group: 'Везде', label: 'Поиск и команды', def: 'Ctrl+P' },
   { id: 'learnToday', group: 'Везде', label: 'Начать повторение на сегодня', def: 'Ctrl+L' },
   { id: 'goToday', group: 'Везде', label: 'Перейти на «Сегодня»', def: 'Ctrl+1' },
+  { id: 'goHomework', group: 'Везде', label: 'Открыть «Домашку»', def: 'Ctrl+2' },
+  { id: 'goStats', group: 'Везде', label: 'Открыть статистику', def: 'Ctrl+3' },
+  { id: 'goSettings', group: 'Везде', label: 'Открыть настройки', def: 'Ctrl+,' },
   { id: 'newTopic', group: 'Везде', label: 'Новая тема (в открытом предмете)', def: 'Ctrl+N' },
   { id: 'toggleSidebar', group: 'Везде', label: 'Скрыть или показать левую панель', def: 'Ctrl+\\' },
   { id: 'toggleImportant', group: 'Везде', label: 'Отметить тему важной ★', def: 'Ctrl+D' },
@@ -54,6 +62,8 @@ export const KEY_DEFS: KeyDef[] = [
   { id: 'insertDrawing', group: 'Конспект', label: 'Вставить рисунок', def: 'Ctrl+Shift+D' },
   { id: 'noteFull', group: 'Конспект', label: 'Конспект на весь экран', def: 'Ctrl+Shift+F' },
   { id: 'makeCard', group: 'Конспект', label: 'Карточка из выделенного', def: 'Ctrl+K' },
+  { id: 'markText', group: 'Конспект', label: 'Маркер на выделенном', def: 'Ctrl+Shift+H' },
+  { id: 'linkText', group: 'Конспект', label: 'Ссылка из выделенного', def: 'Ctrl+Shift+L' },
   { id: 'miniReview', group: 'Из любой программы', label: 'Быстро повторить 5 карточек', def: 'Ctrl+Alt+M', needs: 'tray' }
 ];
 

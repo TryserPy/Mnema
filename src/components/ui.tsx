@@ -430,21 +430,30 @@ export function ConfirmButton({ onConfirm, children, className = 'btn ghost dang
 export function Segmented<T extends string | number>({ value, options, onChange, ariaLabel }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; ariaLabel?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pill, setPill] = useState<{ x: number; w: number; y: number; h: number } | null>(null);
+  // Сколько кнопок в ряду: все в одном, а если подписи не влезают (узкий экран) — в два ряда и т. д.
+  const [cols, setCols] = useState(options.length);
   const idx = options.findIndex((o) => o.value === value);
   useLayoutEffect(() => {
     const box = ref.current;
     if (!box) return;
     const measure = () => {
-      const b = box.querySelectorAll<HTMLButtonElement>(':scope > button')[idx];
+      const btns = Array.from(box.querySelectorAll<HTMLButtonElement>(':scope > button'));
+      const widest = Math.max(0, ...btns.map((b) => (b.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0)) * 1.08 + 20; // выбранная — жирнее
+      const avail = box.clientWidth - 8;
+      let c = options.length;
+      while (c > 1 && widest > (avail - (c - 1) * 4) / c) c--;
+      c = Math.ceil(options.length / Math.ceil(options.length / c)); // ряды поровну: 4 → 2+2, а не 3+1
+      setCols(c);
+      const b = btns[idx];
       if (b) setPill({ x: b.offsetLeft, w: b.offsetWidth, y: b.offsetTop, h: b.offsetHeight });
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(box);
     return () => ro.disconnect();
-  }, [idx, options.length]);
+  }, [idx, options.length, cols]);
   return (
-    <div ref={ref} className="seg" role="radiogroup" aria-label={ariaLabel} style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+    <div ref={ref} className={'seg' + (cols < options.length ? ' seg-rows' : '')} role="radiogroup" aria-label={ariaLabel} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {pill && <span className="seg-pill" aria-hidden style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }} />}
       {options.map((o) => (
         <button key={String(o.value)} type="button" role="radio" aria-checked={o.value === value} className={o.value === value ? 'on' : ''} onClick={() => onChange(o.value)}>
@@ -760,6 +769,54 @@ export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align 
       )}
     </div>
   );
+}
+
+// ---------- Телефон или компьютер ----------
+
+/** Сенсорный экран (телефон, планшет): нет мыши и клавиатуры — не показываем подсказки про них. */
+export function touchUI(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.mnemaApi?.platform === 'android' || Boolean(window.matchMedia?.('(pointer: coarse)').matches);
+}
+
+/** Как вызвать действие над выделенным текстом — по-разному для мыши и для пальца. */
+export function selHow(action: string): string {
+  return touchUI() ? `выдели и выбери «${action}» в меню над текстом` : `выдели, нажми правую кнопку мыши → «${action}»`;
+}
+
+// ---------- Меню всегда целиком на экране ----------
+
+/** Сдвинуть открытое меню так, чтобы оно не выходило за края окна (по горизонтали — сдвиг, по вертикали — прокрутка). */
+export function fitInView(el: HTMLElement, margin = 8) {
+  el.style.translate = '';
+  el.style.maxHeight = '';
+  const r = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let dx = 0;
+  if (r.width > vw - margin * 2) el.style.maxWidth = vw - margin * 2 + 'px';
+  const w = Math.min(r.width, vw - margin * 2);
+  if (r.left < margin) dx = margin - r.left;
+  else if (r.left + w > vw - margin) dx = vw - margin - (r.left + w);
+  if (dx) el.style.translate = `${Math.round(dx)}px 0`;
+  if (r.bottom > vh - margin && r.top < vh - 120) {
+    el.style.maxHeight = Math.max(120, vh - margin - r.top) + 'px';
+    el.style.overflowY = 'auto';
+  }
+}
+
+/** Следить за всеми меню (.menu), которые появляются на странице, и подвинуть их внутрь окна. */
+export function keepMenusInView(): () => void {
+  const fit = (n: Node) => {
+    if (!(n instanceof HTMLElement)) return;
+    const menus = n.matches('.menu') ? [n] : Array.from(n.querySelectorAll<HTMLElement>('.menu'));
+    for (const m of menus) requestAnimationFrame(() => m.isConnected && fitInView(m));
+  };
+  const obs = new MutationObserver((list) => {
+    for (const rec of list) rec.addedNodes.forEach(fit);
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+  return () => obs.disconnect();
 }
 
 // ---------- Всплывающее сообщение внизу (с кнопкой, например «Вернуть») ----------

@@ -25,6 +25,7 @@ interface AndroidBridge {
   apkDownload?(id: string, url: string): void;
   apkInstall?(id: string): void;
   setIcon?(name: string): void;
+  setSelMenu?(json: string): void;
 }
 
 /** Каждый вызов моста несёт ключ (см. bridgeKey.ts): оборачиваем, чтобы остальной код его не видел. */
@@ -165,6 +166,7 @@ if (RAW) {
       return () => void updateListeners.delete(cb);
     },
     setAppIcon: A.setIcon ? (name: string) => A.setIcon!(name) : undefined,
+    setSelMenu: A.setSelMenu ? (items) => A.setSelMenu!(JSON.stringify(items)) : undefined,
     ocrRecognize: async (bytes) => (await import('./ocrWeb')).recognize(bytes)
   };
 }
