@@ -45,3 +45,37 @@ describe('1.8: порядок тем', () => {
     expect(childTopics({ ...d, settings: { ...d.settings, topicSort: 'manual' } }, 's').map((x) => x.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 });
+
+import { deleteMany, getData, replaceData } from './store';
+describe('1.8: удалить несколько сразу', () => {
+  const T0 = '2026-09-01T10:00:00.000Z';
+  it('папка, предмет и тема удаляются разом и возвращаются', () => {
+    const d = emptyData();
+    d.folders = [{ id: 'f', name: '7 класс', color: '#000', createdAt: T0 }];
+    d.subjects = [
+      { id: 's1', name: 'Русский', color: '#000', folderId: 'f', createdAt: T0 },
+      { id: 's2', name: 'Физика', color: '#000', createdAt: T0 }
+    ];
+    d.topics = [
+      { id: 't1', subjectId: 's1', name: 'А', note: '', createdAt: T0, updatedAt: T0 },
+      { id: 't2', subjectId: 's2', name: 'Б', note: '', createdAt: T0, updatedAt: T0 },
+      { id: 't3', subjectId: 's2', name: 'В', parentId: 't2', note: '', createdAt: T0, updatedAt: T0 }
+    ];
+    d.cards = [{ id: 'c3', topicId: 't3', type: 'basic', front: 'q', back: 'a', createdAt: T0, updatedAt: T0 }];
+    replaceData(d);
+    const undo = deleteMany({ folders: ['f'], topics: ['t2'] });
+    const after = getData();
+    expect(after.folders).toHaveLength(0);
+    expect(after.subjects.find((x) => x.id === 's1')?.folderId).toBeUndefined(); // предмет остался, просто без папки
+    expect(after.topics.map((t) => t.id)).toEqual(['t1']); // Б удалена вместе с подтемой В
+    expect(after.cards).toHaveLength(0);
+    expect(after.deleted?.['folder:f'] && after.deleted?.['topic:t3'] && after.deleted?.['card:c3']).toBeTruthy();
+    undo();
+    const back = getData();
+    expect(back.folders.map((f) => f.id)).toEqual(['f']);
+    expect(back.subjects.find((x) => x.id === 's1')?.folderId).toBe('f');
+    expect(back.topics.map((t) => t.id).sort()).toEqual(['t1', 't2', 't3']);
+    expect(back.cards).toHaveLength(1);
+    expect(back.deleted?.['folder:f']).toBeUndefined();
+  });
+});

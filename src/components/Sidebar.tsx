@@ -4,10 +4,10 @@ import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPoin
 import { keyFor, prettyCombo } from '../keys';
 import { groupOf } from '../homework';
 import { usePlugins } from '../plugins/host';
-import { addTopic, childTopics, getData, setSubjectFolder, sortedFolders, subjectRules, moveSubject, moveTopic, sortedSubjects, toggleTreeOpen, updateSettings, updateTopic, useData } from '../store';
+import { addTopic, childTopics, deleteMany, getData, setSubjectFolder, sortedFolders, subjectRules, moveSubject, moveTopic, sortedSubjects, toggleTreeOpen, updateSettings, updateTopic, useData } from '../store';
 import type { AppData, Folder, Route, Subject, Topic } from '../types';
 import { DeleteSubject, deleteTopicWithUndo, EditFolder, EditSubject } from './SubjectDialogs';
-import { Collapse, Icon, SubjectMark, usePresence } from './ui';
+import { Collapse, Icon, Modal, SubjectMark, toast, usePresence } from './ui';
 
 type Drop = { id: string; where: 'before' | 'after' | 'inside' } | null;
 type Drag = { kind: 'topic' | 'subject'; id: string } | null;
@@ -63,6 +63,33 @@ export function Sidebar({
   const [editSubj, setEditSubj] = useState<string | null>(null);
   const [editFolder, setEditFolder] = useState<string | null>(null);
   const [delSubj, setDelSubj] = useState<string | null>(null);
+  // Выбор нескольких: 'f:<id>' папка, 's:<id>' предмет, 't:<id>' тема.
+  const [sel, setSel] = useState<Set<string>>(() => new Set());
+  const [askDelete, setAskDelete] = useState(false);
+  const picking = sel.size > 0;
+  const toggleSel = (key: string) =>
+    setSel((old) => {
+      const next = new Set(old);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  /** Щелчок по строке: с Ctrl/Shift или когда уже выбираешь — отметить, иначе открыть. */
+  const pickOr = (key: string, open: () => void) => (e: React.MouseEvent) => {
+    if (picking || e.ctrlKey || e.metaKey || e.shiftKey) {
+      e.preventDefault();
+      toggleSel(key);
+      return;
+    }
+    open();
+  };
+  const pickBox = (key: string) => picking && <span className={'pick-box' + (sel.has(key) ? ' on' : '')} aria-hidden="true">{sel.has(key) && <Icon name="check" size={12} />}</span>;
+  useEffect(() => {
+    if (!picking) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setSel(new Set());
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [picking]);
   const openMenuAt = (el: HTMLElement, m: { topic?: Topic; subject?: Subject; folder?: Folder }) => {
     const r = el.getBoundingClientRect();
     setMenu({ x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 4, ...m });
@@ -181,7 +208,7 @@ export function Sidebar({
     return (
       <div key={t.id} className="tree-node">
         <div
-          className={'tree-row' + (on ? ' on' : '') + (drag?.id === t.id ? ' dragging' : '') + dropCls(t.id)}
+          className={'tree-row' + (on && !picking ? ' on' : '') + (sel.has('t:' + t.id) ? ' picked' : '') + (drag?.id === t.id ? ' dragging' : '') + dropCls(t.id)}
           style={{ paddingLeft: 10 + depth * 16 }}
           draggable
           onDragStart={(e) => {
@@ -205,7 +232,8 @@ export function Sidebar({
           >
             <Icon name="chevron" size={14} />
           </button>
-          <button className="tree-label" onClick={() => go({ name: 'topic', id: t.id })} title={t.name}>
+          <button className="tree-label" onClick={pickOr('t:' + t.id, () => go({ name: 'topic', id: t.id }))} title={t.name}>
+            {pickBox('t:' + t.id)}
             <span className="grow clamp1">{t.name}</span>
           </button>
           <button
@@ -241,7 +269,7 @@ export function Sidebar({
             <div key={sub.id} className="tree-group">
               <div
                 style={level ? { paddingLeft: 10 + level * 16 } : undefined}
-                className={'tree-row subject' + (on ? ' on' : '') + (drag?.id === sub.id ? ' dragging' : '') + dropCls(sub.id)}
+                className={'tree-row subject' + (on && !picking ? ' on' : '') + (sel.has('s:' + sub.id) ? ' picked' : '') + (drag?.id === sub.id ? ' dragging' : '') + dropCls(sub.id)}
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.effectAllowed = 'move';
@@ -259,7 +287,8 @@ export function Sidebar({
                 <button className={'twisty' + (open ? ' open' : '') + (roots.length ? '' : ' leaf')} aria-label={open ? 'Свернуть' : 'Развернуть'} onClick={() => toggleTreeOpen(sub.id, !open)}>
                   <Icon name="chevron" size={14} />
                 </button>
-                <button className="tree-label" onClick={() => go({ name: 'subject', id: sub.id })}>
+                <button className="tree-label" onClick={pickOr('s:' + sub.id, () => go({ name: 'subject', id: sub.id }))}>
+                  {pickBox('s:' + sub.id)}
                   <SubjectMark color={sub.color} icon={sub.icon} />
                   <span className="grow clamp1">{sub.name}</span>
                   <span className="muted small count">{roots.length || ''}</span>
@@ -307,7 +336,7 @@ export function Sidebar({
     return (
       <div key={f.id} className="tree-group folder-group">
         <div
-          className={'tree-row folder' + (on ? ' on' : '') + dropCls(f.id)}
+          className={'tree-row folder' + (on && !picking ? ' on' : '') + (sel.has('f:' + f.id) ? ' picked' : '') + dropCls(f.id)}
           onDragOver={(e) => {
             if (drag?.kind !== 'subject') return;
             e.preventDefault();
@@ -329,7 +358,8 @@ export function Sidebar({
           <button className={'twisty' + (open ? ' open' : '') + (inside.length ? '' : ' leaf')} aria-label={open ? 'Свернуть' : 'Развернуть'} onClick={() => toggleTreeOpen(f.id, !open)}>
             <Icon name="chevron" size={14} />
           </button>
-          <button className="tree-label" onClick={() => (toggleTreeOpen(f.id, true), go({ name: 'folder', id: f.id }))}>
+          <button className="tree-label" onClick={pickOr('f:' + f.id, () => (toggleTreeOpen(f.id, true), go({ name: 'folder', id: f.id })))}>
+            {pickBox('f:' + f.id)}
             {f.icon ? <SubjectMark color={f.color} icon={f.icon} /> : <Icon name="folder" size={16} />}
             <span className="grow clamp1 folder-name">{f.name}</span>
             <span className="muted small count">{inside.length || ''}</span>
@@ -470,6 +500,19 @@ export function Sidebar({
           </button>
         </span>
       </div>
+      {picking && (
+        <div className="pick-bar" role="toolbar" aria-label="Выбранное">
+          <span className="grow small">
+            Выбрано: <b>{sel.size}</b>
+          </span>
+          <button className="btn small danger" onClick={() => setAskDelete(true)}>
+            <Icon name="trash" size={15} /> Удалить
+          </button>
+          <button className="btn small ghost" onClick={() => setSel(new Set())}>
+            Отмена
+          </button>
+        </div>
+      )}
       <div className="tree" onDragLeave={(e) => e.currentTarget === e.target && setDrop(null)}>
         {sortedFolders(data).map((f) => renderFolder(f))}
         {subjects.filter((x) => !x.folderId || !data.folders.some((f) => f.id === x.folderId)).map((sub) => renderSubject(sub, 0))}
@@ -503,6 +546,15 @@ export function Sidebar({
             }}
           >
             <Icon name="edit" size={18} /> Изменить или удалить папку
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              toggleSel('f:' + shownMenu.folder!.id);
+              setMenu(null);
+            }}
+          >
+            <Icon name="check" size={18} /> Выбрать несколько
           </button>
         </div>
       )}
@@ -548,6 +600,15 @@ export function Sidebar({
             }}
           >
             <Icon name="edit" size={18} /> Изменить название и цвет
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              toggleSel('s:' + shownMenu.subject!.id);
+              setMenu(null);
+            }}
+          >
+            <Icon name="check" size={18} /> Выбрать несколько
           </button>
           <button
             role="menuitem"
@@ -602,8 +663,29 @@ export function Sidebar({
               <Icon name="left" size={18} /> Сделать отдельной темой
             </button>
           )}
+          <button
+            role="menuitem"
+            onClick={() => {
+              toggleSel('t:' + shownMenu.topic!.id);
+              setMenu(null);
+            }}
+          >
+            <Icon name="check" size={18} /> Выбрать несколько
+          </button>
           <DeleteItem topic={shownMenu.topic} onDone={() => setMenu(null)} onDeleted={(t) => route.name === 'topic' && route.id === t.id && go({ name: 'subject', id: t.subjectId })} />
         </div>
+      )}
+      {askDelete && (
+        <DeleteManyDialog
+          keys={sel}
+          onClose={() => setAskDelete(false)}
+          onDeleted={() => {
+            setAskDelete(false);
+            setSel(new Set());
+            const d = getData();
+            if ((route.name === 'topic' && !d.topics.some((t) => t.id === route.id)) || (route.name === 'subject' && !d.subjects.some((x) => x.id === route.id)) || (route.name === 'folder' && !d.folders.some((f) => f.id === route.id))) go({ name: 'today' });
+          }}
+        />
       )}
       {editFolder && <EditFolder id={editFolder} onClose={() => setEditFolder(null)} />}
       {editSubj && (
@@ -679,5 +761,49 @@ function AddRow({ depth, placeholder, adding, setAdding, go }: { depth: number; 
         onBlur={() => !name.trim() && setAdding(null)}
       />
     </form>
+  );
+}
+
+/** «Удалить выбранное?» — со списком, что именно уйдёт, и «Вернуть» после. */
+function DeleteManyDialog({ keys, onClose, onDeleted }: { keys: Set<string>; onClose: () => void; onDeleted: () => void }) {
+  const d = getData();
+  const ids = (p: string) => [...keys].filter((k) => k.startsWith(p)).map((k) => k.slice(2));
+  const folders = d.folders.filter((f) => ids('f:').includes(f.id));
+  const subjects = d.subjects.filter((x) => ids('s:').includes(x.id));
+  // Темы внутри выбранных предметов и так удалятся вместе с предметом.
+  const topics = d.topics.filter((t) => ids('t:').includes(t.id) && !subjects.some((x) => x.id === t.subjectId));
+  const names = [...folders.map((f) => `папка «${f.name}»`), ...subjects.map((x) => `предмет «${x.name}»`), ...topics.map((t) => `тема «${t.name}»`)];
+  return (
+    <Modal title="Удалить выбранное?" onClose={onClose} width={440}>
+      <div className="stack gap12">
+        <ul className="del-list small">
+          {names.slice(0, 8).map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+          {names.length > 8 && <li className="muted">…и ещё {names.length - 8}</li>}
+        </ul>
+        <span className="small muted">
+          {subjects.length > 0 && 'Предметы — вместе со всеми темами и карточками. '}
+          {topics.length > 0 && 'Темы — вместе с подтемами и карточками. '}
+          {folders.length > 0 && 'Предметы из папок останутся. '}
+          Сразу после удаления можно нажать «Вернуть».
+        </span>
+        <div className="row end gap8">
+          <button className="btn ghost" onClick={onClose}>
+            Отмена
+          </button>
+          <button
+            className="btn danger-solid"
+            onClick={() => {
+              const undo = deleteMany({ folders: folders.map((f) => f.id), subjects: subjects.map((x) => x.id), topics: topics.map((t) => t.id) });
+              onDeleted();
+              toast(`Удалено: ${names.length}`, { label: 'Вернуть', run: undo });
+            }}
+          >
+            Удалить {names.length}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

@@ -382,6 +382,54 @@ export function deleteSubject(id: string): Removed {
   return removed;
 }
 
+/**
+ * Удалить сразу несколько папок, предметов и тем (выбранных в левой панели).
+ * Предметы — со всеми темами и карточками, темы — с подтемами, папки — предметы остаются без папки.
+ * Возвращает «Вернуть»: всё удалённое встаёт на место.
+ */
+export function deleteMany(sel: { folders?: string[]; subjects?: string[]; topics?: string[] }): () => void {
+  const subjectIds = new Set(sel.subjects ?? []);
+  const topicIds = new Set<string>();
+  for (const t of data.topics) if (subjectIds.has(t.subjectId)) topicIds.add(t.id);
+  for (const id of sel.topics ?? []) for (const x of topicWithDescendants(data, id)) topicIds.add(x);
+  const cardIds = new Set(data.cards.filter((c) => topicIds.has(c.topicId)).map((c) => c.id));
+  const folderIds = new Set(sel.folders ?? []);
+  const folders = data.folders.filter((f) => folderIds.has(f.id));
+  const inFolders = data.subjects.filter((x) => x.folderId && folderIds.has(x.folderId) && !subjectIds.has(x.id)).map((x) => ({ id: x.id, folderId: x.folderId! }));
+  const marks = [...[...subjectIds].map((id) => 'subj:' + id), ...[...topicIds].map((id) => 'topic:' + id), ...[...cardIds].map((id) => 'card:' + id), ...[...folderIds].map((id) => 'folder:' + id)];
+  const removed = captureRemoved(data, subjectIds, topicIds, cardIds, marks);
+  const stamp = nowIso();
+  commit(
+    removeCards(
+      tomb(
+        {
+          ...data,
+          folders: data.folders.filter((f) => !folderIds.has(f.id)),
+          subjects: data.subjects.filter((x) => !subjectIds.has(x.id)).map((x) => (x.folderId && folderIds.has(x.folderId) ? { ...x, folderId: undefined, updatedAt: stamp } : x)),
+          topics: data.topics.filter((t) => !topicIds.has(t.id))
+        },
+        marks
+      ),
+      cardIds
+    )
+  );
+  return () => {
+    restoreRemoved(removed);
+    if (!folders.length) return;
+    const back = nowIso();
+    const have = new Set(data.folders.map((f) => f.id));
+    const deleted = { ...(data.deleted ?? {}) };
+    for (const f of folders) delete deleted['folder:' + f.id];
+    const fOf = new Map(inFolders.map((x) => [x.id, x.folderId]));
+    commit({
+      ...data,
+      deleted,
+      folders: [...data.folders, ...folders.filter((f) => !have.has(f.id)).map((f) => ({ ...f, updatedAt: back }))],
+      subjects: data.subjects.map((x) => (fOf.has(x.id) && !x.folderId ? { ...x, folderId: fOf.get(x.id), updatedAt: back } : x))
+    });
+  };
+}
+
 // ---------- Темы ----------
 
 export function addTopic(subjectId: string, name: string, parentId?: string, kind?: 'rule' | 'glossary'): Topic {

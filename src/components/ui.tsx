@@ -514,7 +514,7 @@ export function OverflowTabs<T extends string>({ items, value, onChange, ariaLab
     if (!el || !m) return;
     const calc = () => {
       const widths = [...m.children].map((c) => (c as HTMLElement).offsetWidth + 4);
-      const moreW = 96;
+      const moreW = 112; // «Ещё» с числом
       const avail = el.clientWidth;
       let used = 0;
       let n = 0;
