@@ -1,15 +1,16 @@
 // Окно «Файл изменений»: выбрать файл (или вставить ответ нейросети) → посмотреть, что поменяется → применить.
 import { useMemo, useRef, useState } from 'react';
-import { aiInstructions, exportChanges, packToText, parseChangeFile, planChanges, revertChanges, type ChangePack, type Plan } from '../changes';
+import { aiInstructions, exportChanges, packToMnemaText, parseChangeFile, planChanges, revertChanges, type ChangePack, type Plan } from '../changes';
 import { downloadFile } from '../share';
 import { getData, replaceData } from '../store';
-import { Icon, Modal, toast } from './ui';
+import { Markdown } from './Markdown';
+import { Icon, Modal, Segmented, toast } from './ui';
 
 /** Предмет или тема — файлом для нейросети (картинки заменены короткими подписями, потом вернутся). */
 export function exportForAi(scope: { subjectId?: string; topicId?: string }) {
   const pack = exportChanges(getData(), scope);
   const name = (pack.title ?? 'Мнема').replace(/[«»"<>:/\\|?*]/g, '').trim();
-  downloadFile(`${name} — для нейросети.json`, packToText(pack));
+  downloadFile(`${name} — для нейросети.txt`, packToMnemaText(pack), 'text/plain');
   toast('Файл сохранён. Отдай его нейросети вместе с инструкцией — «Настройки → Данные → Инструкция».', { label: 'Инструкция', run: () => openChanges('#guide') });
 }
 
@@ -63,7 +64,7 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
   if (guide) return <GuideDialog onBack={() => setGuide(false)} onClose={onClose} />;
 
   return (
-    <Modal title="Файл изменений" onClose={onClose} width={620}>
+    <Modal title="Файл изменений" onClose={onClose} width={plan ? 760 : 620}>
       {!plan ? (
         <div className="stack gap12">
           <p className="small muted" style={{ margin: 0 }}>
@@ -80,7 +81,7 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
           </div>
           <label className="field">
             <span>…или вставь сюда ответ нейросети</span>
-            <textarea className="input changes-text" value={text} onChange={(e) => setText(e.target.value)} placeholder='{"changes": [ … ]}' rows={6} />
+            <textarea className="input changes-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={'@предмет Русский язык\n@тема §1. …\nконспект…\n@карточки\nВопрос :: Ответ'} rows={6} />
           </label>
           {error && <span className="small hint warn">{error}</span>}
           <div className="row end gap8">
@@ -101,23 +102,43 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
 
 function PlanView({ plan, onBack, onApply }: { plan: Plan; onBack: () => void; onApply: () => void }) {
   const counts = useMemo(() => ({ add: plan.lines.filter((l) => l.kind === 'add').length, edit: plan.lines.filter((l) => l.kind === 'edit').length, del: plan.lines.filter((l) => l.kind === 'del').length }), [plan]);
+  const [view, setView] = useState<'look' | 'list'>(plan.touched.length ? 'look' : 'list');
   return (
     <div className="stack gap12">
       {plan.title && <strong>{plan.title}</strong>}
-      <div className="row gap8 wrap small">
-        {counts.add > 0 && <span className="chg-chip add">+ {counts.add} новое</span>}
-        {counts.edit > 0 && <span className="chg-chip edit">✎ {counts.edit} изменено</span>}
-        {counts.del > 0 && <span className="chg-chip del">− {counts.del} удалено</span>}
-        {!plan.lines.length && <span className="muted">Ничего не поменяется — всё уже так.</span>}
+      <div className="row between gap8 wrap">
+        <div className="row gap8 wrap small">
+          {counts.add > 0 && <span className="chg-chip add">+ {counts.add} новое</span>}
+          {counts.edit > 0 && <span className="chg-chip edit">✎ {counts.edit} изменено</span>}
+          {counts.del > 0 && <span className="chg-chip del">− {counts.del} удалено</span>}
+          {!plan.lines.length && <span className="muted">Ничего не поменяется — всё уже так.</span>}
+        </div>
+        {plan.touched.length > 0 && (
+          <div className="ctl-seg small-seg">
+            <Segmented
+              ariaLabel="Как показать изменения"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'look', label: 'Как будет' },
+                { value: 'list', label: 'Списком' }
+              ]}
+            />
+          </div>
+        )}
       </div>
-      <ul className="chg-list">
-        {plan.lines.map((l, i) => (
-          <li key={i} className={'chg-' + l.kind}>
-            <span className="chg-mark">{l.kind === 'add' ? '+' : l.kind === 'edit' ? '✎' : '−'}</span>
-            <span>{l.text}</span>
-          </li>
-        ))}
-      </ul>
+      {view === 'look' ? (
+        <PlanLook plan={plan} />
+      ) : (
+        <ul className="chg-list">
+          {plan.lines.map((l, i) => (
+            <li key={i} className={'chg-' + l.kind}>
+              <span className="chg-mark">{l.kind === 'add' ? '+' : l.kind === 'edit' ? '✎' : '−'}</span>
+              <span>{l.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {plan.warnings.length > 0 && (
         <div className="chg-warn small">
           <strong>Пропущено:</strong>
@@ -137,6 +158,120 @@ function PlanView({ plan, onBack, onApply }: { plan: Plan; onBack: () => void; o
           Применить
         </button>
       </div>
+    </div>
+  );
+}
+
+/** «Как будет»: каждая затронутая тема так, как она будет выглядеть в Мнеме, — конспект, карточки, термины. */
+function PlanLook({ plan }: { plan: Plan }) {
+  const before = getData();
+  const d = plan.data;
+  const topics = plan.touched.map((id) => d.topics.find((t) => t.id === id)!).filter(Boolean);
+  const [open, setOpen] = useState<string | null>(topics[0]?.id ?? null);
+  return (
+    <div className="plan-look">
+      {topics.map((t) => {
+        const subject = d.subjects.find((s) => s.id === t.subjectId);
+        const was = before.topics.find((x) => x.id === t.id);
+        const oldCards = new Map(before.cards.filter((c) => c.topicId === t.id).map((c) => [c.id, c]));
+        const cards = d.cards.filter((c) => c.topicId === t.id && !c.listId);
+        const fresh = (id: string) => !oldCards.has(id);
+        const changed = (c: (typeof cards)[number]) => oldCards.has(c.id) && oldCards.get(c.id) !== c;
+        const isOpen = open === t.id;
+        const parent = t.parentId ? d.topics.find((x) => x.id === t.parentId) : undefined;
+        return (
+          <section key={t.id} className={'pl-topic' + (isOpen ? ' open' : '')} style={{ ['--c' as string]: subject?.color ?? 'var(--accent)' }}>
+            <button className="pl-head" onClick={() => setOpen(isOpen ? null : t.id)} aria-expanded={isOpen}>
+              <span className="pl-dot" />
+              <span className="pl-path">
+                <span className="small muted">
+                  {subject?.name}
+                  {parent ? ` › ${parent.name}` : ''}
+                  {t.kind === 'rule' ? ' › Правила' : t.kind === 'glossary' ? ' › Термины' : ''}
+                </span>
+                <strong>{t.name}</strong>
+              </span>
+              <span className={'pl-badge ' + (was ? 'edit' : 'add')}>{was ? 'изменится' : 'новая'}</span>
+              <Icon name="right" size={16} />
+            </button>
+            {isOpen && (
+              <div className="pl-body">
+                {t.note.trim() && (
+                  <div className="pl-block">
+                    <span className="label">{t.kind === 'rule' ? 'Правило' : 'Конспект'}{was && was.note.trim() !== t.note.trim() ? (was.note.trim() ? ' · заменён' : ' · новый') : ''}</span>
+                    <div className="pl-note note-page">
+                      <Markdown text={t.note} className="note-doc" />
+                    </div>
+                  </div>
+                )}
+                {t.kind === 'rule' && (t.ruleWords?.length ?? 0) > 0 && (
+                  <div className="row gap6 wrap">
+                    {t.ruleWords!.map((w) => (
+                      <span key={w} className="tag">
+                        {w}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {cards.length > 0 && (
+                  <div className="pl-block">
+                    <span className="label">Карточки · {cards.length}</span>
+                    <div className="pl-cards">
+                      {cards.slice(0, 12).map((c) => (
+                        <div key={c.id} className={'pl-card' + (fresh(c.id) ? ' add' : changed(c) ? ' edit' : '')}>
+                          <Markdown text={c.front} className="pl-q" />
+                          <div className="pl-a">
+                            <Markdown text={c.back || '—'} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {cards.length > 12 && <span className="small muted">…и ещё {cards.length - 12}</span>}
+                  </div>
+                )}
+                {(t.lists ?? []).map((l) => {
+                  const rows = d.cards.filter((c) => c.topicId === t.id && c.listId === l.id);
+                  if (!rows.length) return null;
+                  return (
+                    <div key={l.id} className="pl-block">
+                      <span className="label">
+                        {l.title} · {rows.length}
+                      </span>
+                      <table className="pl-table">
+                        <thead>
+                          <tr>
+                            <th>{l.cols[0]}</th>
+                            <th>{l.cols[1]}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.slice(0, 10).map((r) => (
+                            <tr key={r.id} className={fresh(r.id) ? 'add' : changed(r) ? 'edit' : ''}>
+                              <td>{r.front}</td>
+                              <td>{r.back}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {rows.length > 10 && <span className="small muted">…и ещё {rows.length - 10}</span>}
+                    </div>
+                  );
+                })}
+                {(t.poems ?? []).map((p) => (
+                  <div key={p.id} className="pl-block">
+                    <span className="label">Стихотворение</span>
+                    <div className="pl-poem">
+                      <strong>{p.title}</strong>
+                      {p.author && <span className="small muted"> — {p.author}</span>}
+                      <pre>{p.text.split('\n').slice(0, 6).join('\n')}{p.text.split('\n').length > 6 ? '\n…' : ''}</pre>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
