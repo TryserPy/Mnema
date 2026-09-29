@@ -468,7 +468,10 @@ export function Segmented<T extends string | number>({ value, options, onChange,
       // не помещаются, — два ряда (2 + 2). Три и меньше — один ряд, подпись переносится внутри кнопки.
       let c = options.length;
       if (window.innerWidth <= 720 && options.length >= 4) {
-        const widest = Math.max(0, ...btns.map((b) => (b.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0)) * 1.08 + 20; // выбранная — жирнее
+        // Настоящие отступы кнопки (у разных переключателей они разные) + запас на жирную подпись выбранной.
+        const cs = btns[0] ? getComputedStyle(btns[0]) : null;
+        const pad = cs ? parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2 : 20;
+        const widest = Math.max(0, ...btns.map((b) => (b.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0)) * 1.08 + pad;
         // Ширину берём у места, где стоит переключатель, а не у него самого: его ширина зависит от числа колонок.
         const avail = Math.min(box.parentElement?.clientWidth ?? window.innerWidth, window.innerWidth - 24) - 8;
         if (widest * options.length + (options.length - 1) * 4 > avail) c = Math.ceil(options.length / 2);

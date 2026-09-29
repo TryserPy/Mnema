@@ -2,6 +2,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { aiInstructions, exportChanges, packToMnemaText, parseChangeFile, planChanges, revertChanges, type ChangePack, type Plan } from '../changes';
 import { downloadFile } from '../share';
+import { buildPrompt } from '../srs';
 import { getData, replaceData } from '../store';
 import { Markdown } from './Markdown';
 import { Icon, Modal, Segmented, toast } from './ui';
@@ -241,14 +242,18 @@ function PlanLook({ plan }: { plan: Plan }) {
                   <div className="pl-block">
                     <span className="label">Карточки · {cards.length}</span>
                     <div className="pl-cards">
-                      {cards.slice(0, 12).map((c) => (
-                        <div key={c.id} className={'pl-card' + (fresh(c.id) ? ' add' : changed(c) ? ' edit' : '')}>
-                          <Markdown text={c.front} className="pl-q" />
-                          <div className="pl-a">
-                            <Markdown text={c.back || '—'} />
+                      {cards.slice(0, 12).map((c) => {
+                        // Карточка с пропуском — как в повторении: «[…]» в вопросе, ответ — пропущенное слово.
+                        const pr = c.type === 'cloze' ? buildPrompt(c, 0) : null;
+                        return (
+                          <div key={c.id} className={'pl-card' + (fresh(c.id) ? ' add' : changed(c) ? ' edit' : '')}>
+                            <Markdown text={pr ? pr.question : c.front} className="pl-q" />
+                            <div className="pl-a">
+                              <Markdown text={(pr ? pr.answer : c.back) || '—'} />
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     {cards.length > 12 && <span className="small muted">…и ещё {cards.length - 12}</span>}
                   </div>

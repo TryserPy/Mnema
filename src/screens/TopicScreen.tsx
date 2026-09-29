@@ -8,7 +8,7 @@ import { findImportant } from '../important';
 import { CardEditor } from '../components/CardEditor';
 import { Markdown } from '../components/Markdown';
 import { NoteEditor, type NoteApi } from '../components/NoteEditor';
-import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, usePresence, AnimText } from '../components/ui';
+import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, selHow, usePresence, AnimText } from '../components/ui';
 import { boldTerms, mentioned, suggestFromSelection } from '../noteTools';
 import { exportTopic } from '../share';
 import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer, todayCounts } from '../srs';
@@ -554,7 +554,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
     return (
       <div className="empty">
         <strong>Карточек пока нет</strong>
-        <span>Мнема может сама сделать черновики из конспекта: жирное, определения, даты, «Запомни». Или выдели фразу, правая кнопка мыши → «В карточку».</span>
+        <span>Мнема может сама сделать черновики из конспекта: жирное, определения, даты, «Запомни». Или {selHow('В карточку')}.</span>
         <div className="row gap8 wrap">
           <button className="btn primary" onClick={() => setFromNote(true)}>
             <Icon name="sparkle" size={18} /> Сделать из конспекта

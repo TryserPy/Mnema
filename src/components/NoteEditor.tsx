@@ -11,7 +11,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { HighlightSettings } from '../types';
 import { AutoHighlight, autoHighlightKey, findTextRange } from './autoHighlight';
 import type { RuleMatcher } from '../rules';
@@ -192,6 +192,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   const selActionRef = useRef<(a: SelAction) => void>(() => {});
   // Есть ли сейчас выделенный текст (на телефоне — кнопка «Выделенное» в панели инструментов).
   const [hasSel, setHasSel] = useState(false);
+  // Панель выделения показывает, что уже включено (жирный, маркер…) — перерисовываем её, пока она открыта.
+  const [, repaint] = useReducer((x: number) => x + 1, 0);
 
   const editor = useEditor({
     extensions: [
@@ -269,11 +271,15 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     window.__mnemaSelAction = (a: string) => {
       if (editor.isFocused || editor.view.hasFocus()) selActionRef.current(a as SelAction);
     };
+    // Нажал «Жирный» в открытой панели — подсветка кнопки должна поменяться сразу.
+    const onTr = () => bubbleAt.current && repaint();
     editor.on('selectionUpdate', onSel);
+    editor.on('transaction', onTr);
     editor.on('focus', onFocus);
     editor.on('blur', onBlur);
     return () => {
       editor.off('selectionUpdate', onSel);
+      editor.off('transaction', onTr);
       editor.off('focus', onFocus);
       editor.off('blur', onBlur);
       api?.setSelMenu?.([]);
@@ -453,6 +459,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     if (!editor || editor.state.selection.empty) return;
     const sel = editor.state.selection;
     bubbleAt.current = { from: sel.from, to: sel.to };
+    repaint();
     editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'show'));
     // Позицию пересчитать, когда панель уже на странице (иначе она считается от пустого места).
     requestAnimationFrame(() => !editor.isDestroyed && editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'updatePosition')));

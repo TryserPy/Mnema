@@ -435,7 +435,7 @@ export function App() {
       setChanges(text);
       return;
     }
-    showToast('Сюда можно перетащить тему Мнемы (.mnema), файл изменений (.json) или колоду Anki (.apkg)');
+    showToast('Сюда можно перетащить ответ нейросети (файл изменений), тему Мнемы (.mnema) или колоду Anki (.apkg)');
   }
 
   const dropProps = {
