@@ -740,3 +740,23 @@ html[data-motion='off'] .pet-fx-layer, html[data-motion='off'] .pet-say { displa
 .app-icon-row { display: flex; align-items: center; gap: 14px; }
 .app-icon-prev { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font-family: 'Literata', Georgia, serif; font-weight: 700; font-size: 1.9rem; color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--ai-acc, #4C5BD4) 88%, #fff), color-mix(in srgb, var(--ai-acc, #4C5BD4) 88%, #000)); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
 .app-icon-prev.dark { color: var(--ai-acc); background: linear-gradient(180deg, var(--ai-top), var(--ai-bg)); border: 1.5px solid color-mix(in srgb, var(--ai-acc) 45%, var(--ai-bg)); }
+
+/* ---------- 1.7: на телефоне — без подсказок для мыши; панель выделения переносится ---------- */
+html[data-touch] .desk-only { display: none !important; }
+html[data-touch] .bubble { flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 16px); row-gap: 2px; }
+html[data-touch] .bubble .bubble-sep { display: none; }
+
+/* ---------- 1.7: файл изменений ---------- */
+.changes-text { width: 100%; min-height: 110px; resize: vertical; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.82rem; line-height: 1.45; }
+.chg-chip { padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+.chg-chip.add { background: var(--good-bg); color: var(--good-ink); }
+.chg-chip.edit { background: var(--hard-bg); color: var(--hard-ink); }
+.chg-chip.del { background: var(--again-bg); color: var(--again-ink); }
+.chg-list { list-style: none; margin: 0; padding: 4px; max-height: min(46vh, 380px); overflow-y: auto; border-radius: 12px; background: var(--sunken); display: flex; flex-direction: column; gap: 2px; }
+.chg-list li { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 8px; background: var(--surface); font-size: 0.92rem; min-width: 0; overflow-wrap: anywhere; animation: rowIn 0.2s ease both; }
+.chg-mark { flex: 0 0 1em; font-weight: 700; text-align: center; }
+.chg-add .chg-mark { color: var(--good-ink); }
+.chg-edit .chg-mark { color: var(--hard-ink); }
+.chg-del .chg-mark { color: var(--again-ink); }
+.chg-warn { padding: 10px 12px; border-radius: 12px; background: var(--tip-bg); border: 1px solid var(--tip-line); color: var(--tip-ink); }
+.chg-warn ul { margin: 4px 0 0; padding-left: 18px; }
