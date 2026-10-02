@@ -38,6 +38,7 @@ await page.locator('.tree-row.subject', { hasText: 'Предмет 2' }).locator
 await page.locator('.tree-row', { hasText: '§3 Тема 3' }).locator('.tree-label').click();
 await page.locator('.ProseMirror').waitFor();
 await page.waitForTimeout(800);
+if (process.env.TODAY) { await page.locator('.nav-item, .sidebar button, a', { hasText: 'Сегодня' }).first().click(); await page.waitForTimeout(800); }
 if (process.env.NOANIM) await page.evaluate(() => document.documentElement.setAttribute('data-no-windows', ''));
 if (process.env.CSS) await page.addStyleTag({ content: process.env.CSS });
 const cdp = await ctx.newCDPSession(page);
@@ -45,6 +46,7 @@ await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE });
 console.log(`карточек: ${SUBJ * 300}, процессор ×${RATE} медленнее`);
 
 async function measure(label, open, close) {
+  let traceLine = '';
   await page.evaluate(() => {
     window.__fr = [];
     window.__loaf = [];
@@ -88,22 +90,36 @@ async function measure(label, open, close) {
       const pt = ev.filter((e) => e.ph === 'X' && e.name === 'Paint' && e.tid === mainTid?.tid && e.dur > 500).map((e) => { const c = e.args?.data?.clip; const w = c ? Math.round(Math.hypot(c[2] - c[0], c[3] - c[1]) * 0.7) : '?'; return `${(e.dur / 1000).toFixed(1)}мс клип≈${c ? Math.round(c[2] - c[0]) + '×' + Math.round(c[5] - c[1]) : '?'} слой ${e.args?.data?.layerId ?? '?'}`; });
       console.log('   отрисовка: ' + pt.slice(0, 8).join(' | '));
     }
-    console.log('   трасса: ' + [...by.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(0)}мс`).join(', '));
+    traceLine = '   трасса: ' + [...by.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(0)}мс`).join(', ');
   }
   const r = await page.evaluate(() => { window.__go = false; return { fr: window.__fr.slice(), loaf: window.__loaf.slice() }; });
   const fr = r.fr.filter((x) => x > 0);
   const max = Math.max(...fr);
   const slow = fr.filter((x) => x > 24).length;
   console.log(`${label.padEnd(34)} кадров ${String(fr.length).padStart(3)}, самый долгий ${max.toFixed(0).padStart(4)} мс, медленных (>24 мс) ${slow}, длинных задач ${r.loaf.length}${r.loaf.length ? ' [' + r.loaf.map((x) => `${x.d.toFixed(0)}мс ${x.s}`).join(' | ').slice(0, 220) + ']' : ''}`);
+  if (traceLine) console.log(traceLine);
   await close();
   await page.waitForTimeout(500);
 }
 const esc = async () => { await page.keyboard.press('Escape'); };
 
+if (process.env.PROBEVARS) {
+  const variants = {
+    'весь экран (как у окон)': 'position:fixed;inset:0;background:rgba(20,22,30,.45);z-index:65',
+    'весь экран ещё раз': 'position:fixed;inset:0;background:rgba(20,22,30,.45);z-index:65',
+    'весь экран, третий раз': 'position:fixed;inset:0;background:rgba(20,22,30,.45);z-index:65'
+  };
+
+
+  for (const [name, css] of Object.entries(variants)) await measure('вставка: ' + name, () => page.evaluate((c) => { const d = document.createElement('div'); d.id = '__probe'; d.style.cssText = c; document.body.appendChild(d); }, css), () => page.evaluate(() => document.getElementById('__probe')?.remove()));
+  await browser.close();
+  process.exit(0);
+}
+await measure('ПУСТОЙ fixed-блок (без React)', () => page.evaluate(() => { const d = document.createElement('div'); d.id = '__probe'; d.style.cssText = 'position:fixed;inset:0;background:rgba(20,22,30,.45);z-index:65'; document.body.appendChild(d); }), () => page.evaluate(() => document.getElementById('__probe')?.remove()));
 await measure('Ctrl+P: поиск', () => page.keyboard.press('Control+p'), esc);
-await measure('Вставить (меню в конспекте)', () => page.getByRole('button', { name: 'Вставить' }).first().click(), esc);
-await measure('Дата контрольной (окно)', () => page.getByText('Дата контрольной').first().click(), async () => { await page.getByRole('button', { name: 'Отмена' }).first().click().catch(() => esc()); });
-await measure('Правая кнопка по теме (меню)', () => page.locator('.tree-row', { hasText: '§3 Тема 3' }).click({ button: 'right' }), esc);
+await measure('Вставить (меню в конспекте)', () => page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Вставить').click()), esc);
+await measure('Дата контрольной (окно)', () => page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Дата контрольной')).click()), async () => { await page.getByRole('button', { name: 'Отмена' }).first().click().catch(() => esc()); });
+await measure('Правая кнопка по теме (меню)', () => page.evaluate(() => { const r = [...document.querySelectorAll('.tree-row')].find((x) => x.textContent.includes('§3 Тема 3')); const b = r.getBoundingClientRect(); r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: b.x + 40, clientY: b.y + 10, button: 2 })); }), esc);
 await measure('Значок «⋯» у темы', () => page.locator('.page .icon-btn', { has: page.locator('svg') }).filter({ hasText: '' }).nth(1).click().catch(() => {}), esc);
 await measure('Настройки (кнопка слева)', () => page.locator('.rail-foot button, .sidebar-foot button').nth(2).click().catch(() => {}), async () => { await page.getByRole('button', { name: 'Сегодня' }).first().click().catch(() => {}); });
 await browser.close();

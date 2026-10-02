@@ -159,6 +159,15 @@ const PipeSafeTable = Table.extend({
     })
 });
 
+/** Длинный конспект (много блоков) помечаем: у него блоки вне экрана не раскладываются и не перерисовываются (см. .note-doc[data-long] в styles.css). */
+const LONG_NOTE_BLOCKS = 40;
+function markLong(ed: Editor) {
+  if (ed.isDestroyed) return;
+  const dom = ed.view.dom;
+  if (ed.state.doc.childCount >= LONG_NOTE_BLOCKS) dom.setAttribute('data-long', '');
+  else dom.removeAttribute('data-long');
+}
+
 export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, onPage, tools, onReady, rules = null, onRuleHover, onAddRule, onLinkHover, topicId }: Props) {
   const linkHoverRef = useRef(onLinkHover);
   linkHoverRef.current = onLinkHover;
@@ -246,10 +255,15 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
       }
     },
     onUpdate: ({ editor: ed }) => {
+      markLong(ed);
       clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => onChangeRef.current(ed.getMarkdown()), 300);
     }
   });
+
+  useEffect(() => {
+    if (editor) markLong(editor);
+  }, [editor]);
 
   // Сохранить несохранённое при уходе со страницы.
   useEffect(

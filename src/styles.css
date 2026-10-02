@@ -258,6 +258,8 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .note-doc img { max-width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; margin: 0.6em 0; cursor: default; }
 .note-doc img[alt='Рисунок'] { cursor: pointer; max-width: min(100%, 560px); }
 .note-doc img.ProseMirror-selectednode { outline: 3px solid var(--accent); }
+/* Длинный конспект: блоки вне экрана браузер не раскладывает и не перерисовывает. Окна и меню поверх такой страницы открываются заметно быстрее (перерисовка вдвое дешевле). Высота ещё не показанного блока — запомненная или примерно две строки. */
+.note-doc[data-long] > * { content-visibility: auto; contain-intrinsic-block-size: auto 3.4em; }
 .note-doc p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted); float: left; height: 0; pointer-events: none; }
 .note-doc .tiptap-mathematics-render { cursor: pointer; border-radius: 6px; padding: 0 2px; }
 .note-doc .tiptap-mathematics-render:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
