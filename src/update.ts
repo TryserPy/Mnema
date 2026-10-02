@@ -2,7 +2,7 @@
 // (electron-updater), на телефоне — скачать APK из выпуска и отдать Android на установку (Updater.java).
 import { getData, updateSettings } from './store';
 
-export const APP_VERSION = '1.12.0';
+export const APP_VERSION = '1.13.0';
 
 /**
  * Откуда брать обновления. Зашито в код, а не в настройки: иначе чужой файл резервной копии

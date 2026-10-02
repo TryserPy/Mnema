@@ -25,3 +25,8 @@
   .plan-steps li { grid-template-columns: 34px minmax(0, 1fr); }
   .plan-steps li .btn { grid-column: 2; justify-self: start; }
 }
+
+/* Повторение: «Ошибся? Отметь, что случилось» — необязательная пометка причины. */
+.err-chips { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; }
+.err-chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font-size: 0.92rem; transition: border-color 0.15s, background 0.15s; }
+.err-chip:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
