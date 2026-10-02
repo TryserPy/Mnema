@@ -181,7 +181,7 @@ function BgImageRow() {
       g.fillRect(0, 0, c.width, c.height);
       g.drawImage(bmp, 0, 0, c.width, c.height);
       bmp.close();
-      updateSettings({ bgImage: { src: c.toDataURL('image/jpeg', 0.8), fade: img?.fade ?? 0.78 } });
+      updateSettings({ bgImage: { src: c.toDataURL('image/jpeg', 0.8), fade: img?.fade ?? 0.82 } });
     } catch {
       toast('Не получилось открыть картинку — попробуй другой файл (JPG или PNG)');
     } finally {
@@ -209,7 +209,7 @@ function BgImageRow() {
           <span className="bg-thumb" style={{ backgroundImage: `url("${img.src}")` }} />
           <span className="grow stack gap4">
             <span className="small">Насколько видно картинку</span>
-            <input type="range" min={5} max={50} step={5} value={Math.min(50, Math.round((1 - img.fade) * 100))} onChange={(e) => updateSettings({ bgImage: { ...img, fade: 1 - Number(e.target.value) / 100 } })} aria-label="Насколько видно картинку" />
+            <input type="range" min={5} max={28} step={1} value={Math.min(28, Math.round((1 - img.fade) * 100))} onChange={(e) => updateSettings({ bgImage: { ...img, fade: 1 - Number(e.target.value) / 100 } })} aria-label="Насколько видно картинку" />
           </span>
         </label>
       )}

@@ -19,6 +19,7 @@ import { usePlugins } from '../plugins/host';
 import { AddToRule, RulesDrawer, RuleWordsEditor, useRuleTips } from '../components/Rules';
 import { useLinkTips } from '../components/Links';
 import { makeRuleMatcher } from '../rules';
+import { sameLook } from '../notePhantom';
 import { orderTabs, reorderTab } from '../tabs';
 import { ExamPlanLine } from './Today';
 import { PrintDialog } from '../components/ExportDialogs';
@@ -417,7 +418,8 @@ function NoteTab({ topicId, importOpen, setImportOpen, droppedFiles, go }: { top
         <NoteEditor
           key={topicId + ':' + version}
           markdown={topic.note}
-          onChange={(md) => md !== topic.note && updateTopic(topicId, { note: md })}
+          // Редактор при закрытии темы отдаёт текст в своей записи (отступы, «-» вместо «*»…) — если выглядит так же, это не правка.
+          onChange={(md) => md !== topic.note && !sameLook(md, topic.note) && updateTopic(topicId, { note: md })}
           onMakeCard={(t) => t.trim() && setDraft(suggestFromSelection(t))}
           highlight={highlight}
           onPage={setPage}

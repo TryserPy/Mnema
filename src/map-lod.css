@@ -1,0 +1,4 @@
+/* Карта знаний: строка про уровень детализации (когда тем слишком много) и недоступный переключатель. */
+.map-lod-note { position: absolute; left: 12px; top: 56px; max-width: min(720px, calc(100% - 24px)); padding: 6px 12px; border-radius: 12px; font-size: 0.82rem; line-height: 1.35; color: var(--muted); background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid var(--line); backdrop-filter: blur(6px); pointer-events: none; overflow-wrap: anywhere; }
+.gp-row.map-lod-off { opacity: 0.5; pointer-events: none; }
+@media (max-width: 720px), (pointer: coarse) { .map-lod-note { right: 12px; max-width: none; } }

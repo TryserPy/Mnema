@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { placeMenu } from '../menuPlace';
 
 const paths: Record<string, ReactNode> = {
   home: (
@@ -822,12 +823,43 @@ export function selHow(action: string): string {
 
 // ---------- Меню всегда целиком на экране ----------
 
-/** Сдвинуть открытое меню так, чтобы оно не выходило за края окна (по горизонтали — сдвиг, по вертикали — прокрутка). */
+// Меню, которые на телефоне становятся шторкой снизу (положение задаёт CSS, подгонять нечего).
+const SHEET_MENUS = '.topic-tabs .more .menu, .otab-more .menu, .note-insert .menu, .note-float-panel .menu';
+const isPhoneSheet = (el: HTMLElement) => el.matches(SHEET_MENUS) && window.matchMedia('(max-width: 720px), (pointer: coarse)').matches;
+
+/** Видимая область, в которой меню обязано поместиться: окно (с учётом экранной клавиатуры) и, если меню живёт в прокручиваемой
+ *  области, её видимая ширина без полосы прокрутки. */
+function viewBounds(el: HTMLElement) {
+  const vv = window.visualViewport;
+  const b = { left: vv?.offsetLeft ?? 0, top: vv?.offsetTop ?? 0, right: (vv?.offsetLeft ?? 0) + (vv?.width ?? window.innerWidth), bottom: (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight) };
+  // Полноэкранный конспект лежит поверх всего окна, остальное режется границей .main.
+  const sc = el.closest('.note-layout.full') ? null : el.closest<HTMLElement>('.main');
+  if (sc) {
+    const r = sc.getBoundingClientRect();
+    b.left = Math.max(b.left, r.left);
+    b.right = Math.min(b.right, r.left + sc.clientLeft + sc.clientWidth);
+  }
+  return b;
+}
+
+/** Поставить открытое меню так, чтобы оно целиком было на экране: прижать к нужному краю кнопки, открыть вверх, если внизу тесно,
+ *  а если нигде не помещается — ограничить высоту и включить прокрутку (с заметной тенью, чтобы было видно, что есть ещё). */
 export function fitInView(el: HTMLElement, margin = 8) {
-  el.style.translate = '';
-  el.style.maxHeight = '';
-  el.style.maxWidth = '';
-  el.style.overflowY = '';
+  const st = el.style;
+  st.translate = '';
+  st.maxHeight = '';
+  st.maxWidth = '';
+  st.overflowY = '';
+  st.left = '';
+  st.right = '';
+  st.top = '';
+  st.bottom = '';
+  el.classList.remove('scroll', 'flip-up');
+  if (isPhoneSheet(el)) {
+    // Шторка снизу: положение задаёт CSS, но если пунктов больше, чем влезает, показываем тени-подсказки «есть ещё».
+    el.classList.toggle('scroll', el.scrollHeight > el.clientHeight + 1);
+    return;
+  }
   // Меню ещё «вырастает» (анимация scale): считаем его настоящий размер и положение без масштаба.
   const vis = el.getBoundingClientRect();
   const w0 = el.offsetWidth || vis.width;
@@ -835,22 +867,35 @@ export function fitInView(el: HTMLElement, margin = 8) {
   const [ox, oy] = getComputedStyle(el).transformOrigin.split(' ').map((v) => parseFloat(v) || 0);
   const left = vis.left - ox * (1 - k);
   const top = vis.top - oy * (1 - k);
-  const r = { left, top, width: w0, right: left + w0, bottom: top + (el.offsetHeight || vis.height) };
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  let dx = 0;
-  if (r.width > vw - margin * 2) el.style.maxWidth = vw - margin * 2 + 'px';
-  const w = Math.min(r.width, vw - margin * 2);
-  if (r.left < margin) dx = margin - r.left;
-  else if (r.left + w > vw - margin) dx = vw - margin - (r.left + w);
-  if (dx) el.style.translate = `${Math.round(dx)}px 0`;
-  if (r.bottom > vh - margin && r.top < vh - 120) {
-    el.style.maxHeight = Math.max(120, vh - margin - r.top) + 'px';
-    el.style.overflowY = 'auto';
+  const rect = { left, top, right: left + w0, bottom: top + (el.offsetHeight || vis.height) };
+  const parent = getComputedStyle(el).position === 'absolute' ? el.offsetParent : null;
+  const pr = parent ? parent.getBoundingClientRect() : null;
+  const anchor = pr ? { left: pr.left, top: pr.top, right: pr.right, bottom: pr.bottom } : null;
+  const fix = placeMenu({ rect, anchor, bounds: viewBounds(el), margin });
+  if (fix.maxWidth != null) st.maxWidth = fix.maxWidth + 'px';
+  if (fix.side === 'left') {
+    st.left = '0';
+    st.right = 'auto';
+  } else if (fix.side === 'right') {
+    st.right = '0';
+    st.left = 'auto';
+  }
+  if (fix.flipUp) {
+    st.top = 'auto';
+    st.bottom = 'calc(100% + 6px)';
+    st.transformOrigin = fix.side === 'left' ? 'bottom left' : 'bottom right';
+    el.classList.add('flip-up');
+  }
+  if (fix.dx || fix.dy) st.translate = `${fix.dx}px ${fix.dy}px`;
+  if (fix.maxHeight != null) {
+    st.maxHeight = fix.maxHeight + 'px';
+    st.overflowY = 'auto';
+    el.classList.add('scroll');
   }
 }
 
-/** Следить за всеми меню (.menu), которые появляются на странице, и подвинуть их внутрь окна. */
+/** Следить за всеми меню (.menu), которые появляются на странице, и поставить их внутрь окна; пересчитывать при повороте экрана,
+ *  изменении размера окна и появлении экранной клавиатуры. */
 export function keepMenusInView(): () => void {
   const fit = (n: Node) => {
     if (!(n instanceof HTMLElement)) return;
@@ -865,7 +910,24 @@ export function keepMenusInView(): () => void {
     for (const rec of list) rec.addedNodes.forEach(fit);
   });
   obs.observe(document.body, { childList: true, subtree: true });
-  return () => obs.disconnect();
+  let raf = 0;
+  const refit = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      document.querySelectorAll<HTMLElement>('.menu:not(.closing)').forEach((m) => fitInView(m));
+    });
+  };
+  window.addEventListener('resize', refit);
+  window.addEventListener('orientationchange', refit);
+  window.visualViewport?.addEventListener('resize', refit);
+  return () => {
+    obs.disconnect();
+    window.removeEventListener('resize', refit);
+    window.removeEventListener('orientationchange', refit);
+    window.visualViewport?.removeEventListener('resize', refit);
+    if (raf) cancelAnimationFrame(raf);
+  };
 }
 
 // ---------- Всплывающее сообщение внизу (с кнопкой, например «Вернуть») ----------
