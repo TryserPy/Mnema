@@ -450,6 +450,7 @@ section.card h3 { margin-bottom: 2px; }
 @media (max-width: 1000px) {
   .stats-grid { grid-template-columns: minmax(0, 1fr); }
   .note-page { padding: 28px 24px 48px; }
+  .note-insert { margin-right: -18px; } /* поле карточки здесь 24 px, а не 48: панель не вылезает за край */
   .formula-row { grid-template-columns: 110px minmax(0, 1fr) auto; }
   .formula-row .f-code { display: none; }
 }
