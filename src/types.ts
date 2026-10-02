@@ -241,6 +241,8 @@ export interface Settings {
   density: Density;
   retention: number; // 0.80–0.95
   newPerDay: number;
+  sessionMinutes?: number; // «Учиться»: сколько минут есть (5, 10, 20); нет или 0 — всё на сегодня
+  sessionSkip?: { day: string; kinds: string[] }; // шаги плана, которые пропустили в этот день
   maxReviews: number;
   dayStartHour: number;
   showIntervals: boolean;
@@ -311,7 +313,7 @@ export type Route =
   | { name: 'plugin'; id: string }
   | { name: 'exam'; id: string } // экран подготовки к контрольной; id вида `topic:<id>` — контрольная из старой даты темы
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
-  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; ahead?: boolean; focus?: boolean; run?: number; limit?: number; mini?: boolean }
+  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean }
   | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
   | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'settings'; section?: SettingsSection }

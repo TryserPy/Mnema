@@ -26,13 +26,16 @@ await page.waitForTimeout(700);
 let bad = 0;
 const check = (ok, label) => { console.log(`${ok ? '✓' : '✗'} ${label}`); if (!ok) bad++; };
 
-// (2) «Сегодня»: плашки подготовки к контрольной не раздуты
-const plans = await page.evaluate(() => [...document.querySelectorAll('.exam-plan')].map((e) => Math.round(e.getBoundingClientRect().height)));
-check(plans.length > 0 && plans.every((h) => h < 200), `плашки плана на «Сегодня» невысокие: ${JSON.stringify(plans)} px`);
+// (2) «Сегодня»: одна строка про ближайшую контрольную; плашка плана — в шапке темы и невысокая
+check((await page.locator('.exam-line').count()) === 1, 'на «Сегодня» одна строка про контрольную');
 await page.screenshot({ path: `${OUT}/v1101-today.png` });
+await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();
+await page.locator('.tree-row', { hasText: 'Клетка' }).locator('.tree-label').click();
+await page.waitForTimeout(500);
+const plans = await page.evaluate(() => [...document.querySelectorAll('.topic-head .exam-plan')].map((e) => Math.round(e.getBoundingClientRect().height)));
+check(plans.length === 1 && plans[0] < 200, `плашка плана в шапке темы невысокая: ${JSON.stringify(plans)} px`);
 
 // (3) шапка темы: тема входит в контрольную по органам
-await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();
 await page.locator('.tree-row', { hasText: 'Органы' }).locator('.tree-label').click();
 await page.waitForTimeout(500);
 const head = await page.locator('.topic-head').innerText();

@@ -30,7 +30,7 @@ await page.evaluate((back) => {
 }, evilBack);
 await page.reload();
 await page.waitForTimeout(500);
-await page.getByRole('button', { name: /Начать/ }).first().click();
+await page.getByRole('button', { name: /Учиться/ }).first().click();
 await page.waitForTimeout(500);
 await page.getByRole('button', { name: 'Показать ответ' }).click();
 await page.waitForTimeout(500);

@@ -4,12 +4,13 @@ import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
 import { duePoems } from '../poem';
-import { allItems, dayStart, examPlanOf, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
-import { openExamDialog } from '../components/ExamDialog';
-import { daysLeftTo } from '../exams';
+import { dayStart, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
+import { buildSession, SESSION_MINUTES, sessionPrefs, toggledSkip } from '../session';
+import { daysLeftTo, readiness } from '../exams';
 import { examsOf } from '../examList';
 import { setScheduleDay, sortedSubjects, updateSettings, useData } from '../store';
 import type { Route } from '../types';
+import '../session.css';
 
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 const WEEKDAY_FULL = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
@@ -21,21 +22,26 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   const counts = todayCounts(data, now);
   const total = counts.learning + counts.review + counts.newCount;
 
-  const recent = data.logs.slice(-200);
-  const avgMs = recent.length ? recent.reduce((a, l) => a + l.ms, 0) / recent.length : 10_000;
-  const minutes = total === 0 ? 0 : Math.max(1, Math.round((total * avgMs * 1.1) / 60_000));
+  // «Учиться»: один план на сегодня. Время (5/10/20 минут) и пропущенные шаги выбирает человек.
+  const [planOpen, setPlanOpen] = useState(false);
+  const prefs = sessionPrefs(data, now);
+  const session = useMemo(() => buildSession(data, now, prefs), [data, now, prefs.minutes, prefs.skip.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nSteps = session.steps.filter((x) => !x.skipped).length;
 
-  // Контрольные (записанные и старые даты у тем), ближайшие три.
-  const exams = examsOf(data)
-    .map((e) => ({ e, days: daysLeftTo(e, now, data.settings.dayStartHour) }))
-    .filter((x) => x.days >= 0)
-    .slice(0, 3);
+  // Ближайшая контрольная — одной строкой (подробности и кнопки — на её экране).
+  const next = useMemo(() => {
+    const e = examsOf(data)
+      .map((x) => ({ e: x, days: daysLeftTo(x, now, data.settings.dayStartHour) }))
+      .find((x) => x.days >= 0);
+    if (!e) return null;
+    const r = readiness(data, e.e, now);
+    return { ...e, pct: r.items ? Math.round(r.recallOnDate * 100) : null };
+  }, [data, now]);
   const important = data.topics
     .filter((t) => t.important)
     .map((t) => {
-      const c = todayCounts(data, now, { topicId: t.id });
       const m = topicMastery(data, t.id);
-      return { t, due: c.learning + c.review + c.newCount, pct: m.total ? Math.round((m.learned / m.total) * 100) : 0 };
+      return { t, pct: m.total ? Math.round((m.learned / m.total) * 100) : 0 };
     })
     .slice(0, 6);
   const tomorrow = f.schedule ? tomorrowSubjects(data, now).map((id) => data.subjects.find((s) => s.id === id)!).filter(Boolean) : [];
@@ -97,15 +103,28 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
             <div className="hero-label">На сегодня</div>
             <div className="row gap12 end-align">
               <div className="hero-num">
-                <AnimatedNumber value={total} />
+                <AnimatedNumber value={session.items.length} />
               </div>
               <div className="hero-sub">
-                {plural(total, 'карточка', 'карточки', 'карточек')} · около {minutes} мин
+                <div>
+                  {plural(session.items.length, 'карточка', 'карточки', 'карточек')} · {session.items.length ? `около ${session.minutes} мин` : 'нечего повторять'}
+                </div>
+                <div className="hero-sub2">
+                  {nSteps} {plural(nSteps, 'шаг', 'шага', 'шагов')}
+                  {session.later > 0 && ` · ещё ${session.later} — на потом`}
+                </div>
               </div>
             </div>
-            <button className="hero-btn" onClick={() => go({ name: 'review' })}>
-              <Icon name="play" size={18} /> Начать
+            <button className="hero-btn" disabled={session.items.length === 0} onClick={() => go({ name: 'review', session: prefs, run: Date.now() })}>
+              <Icon name="play" size={18} /> Учиться
             </button>
+            <div className="hero-time" role="radiogroup" aria-label="Сколько времени есть">
+              {[...SESSION_MINUTES, 0].map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={prefs.minutes === m} className={'hero-chip' + (prefs.minutes === m ? ' on' : '')} onClick={() => updateSettings({ sessionMinutes: m })}>
+                  {m ? `${m} мин` : 'Всё'}
+                </button>
+              ))}
+            </div>
           </>
         ) : (
           <>
@@ -114,6 +133,47 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           </>
         )}
       </div>
+
+      {total > 0 && (
+        <div className="plan-why">
+          <button type="button" className="plan-why-toggle" aria-expanded={planOpen} onClick={() => setPlanOpen(!planOpen)}>
+            <span className={'plan-chev' + (planOpen ? ' open' : '')}>
+              <Icon name="chevron" size={16} />
+            </span>
+            Что в плане и почему
+          </button>
+          <Collapse open={planOpen}>
+            <ol className="plan-steps">
+              {session.steps.map((st) => (
+                <li key={st.kind} className={st.skipped ? 'skipped' : ''}>
+                  <span className="plan-n">{st.skipped ? st.total : st.count}</span>
+                  <span className="plan-text">
+                    <strong>{st.title}</strong>
+                    <span className="small muted">{st.skipped ? 'Пропущено на сегодня.' : st.why}</span>
+                  </span>
+                  {st.kind !== 'learning' && (
+                    <button type="button" className="btn small ghost" onClick={() => updateSettings({ sessionSkip: toggledSkip(data, now, st.kind) })}>
+                      {st.skipped ? 'Вернуть' : 'Пропустить'}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ol>
+            {session.later > 0 && <p className="small muted plan-later">Не поместилось по времени: {session.later}. Они останутся на потом — ничего не потеряется.</p>}
+          </Collapse>
+        </div>
+      )}
+
+      {next && (
+        <button type="button" className="note-line exam-line" onClick={() => go({ name: 'exam', id: next.e.id })}>
+          <Icon name="calendar" size={18} />
+          <span className="grow">
+            Ближайшая контрольная — «{next.e.name}», {next.days === 0 ? 'сегодня' : next.days === 1 ? 'завтра' : `через ${next.days} ${plural(next.days, 'день', 'дня', 'дней')}`}
+            {next.pct !== null && <span className="muted"> · помнишь около {next.pct}% (прогноз)</span>}
+          </span>
+          <Icon name="right" size={16} />
+        </button>
+      )}
 
       {dayStart(now, data.settings.dayStartHour).getDay() === 1 && <WeekCard data={data} go={go} compact />}
 
@@ -141,50 +201,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           </button>
         ))}
 
-      {exams.length > 0 && (
-        <div className="card exam-card">
-          <div className="row between gap8">
-            <h3>Контрольные</h3>
-            <button className="btn small ghost" onClick={() => openExamDialog()}>
-              <Icon name="plus" size={16} /> Контрольная
-            </button>
-          </div>
-          {exams.map(({ e, days }) => {
-            const subject = data.subjects.find((x) => x.id === e.subjectId);
-            const plan = examPlanOf(data, now, e.id);
-            const todo = plan ? plan.todayNew + plan.todayAhead + plan.todayDue : 0;
-            const m = e.topicIds.map((id) => topicMastery(data, id)).reduce((a, b) => ({ total: a.total + b.total, learned: a.learned + b.learned }), { total: 0, learned: 0 });
-            const pct = m.total ? Math.round((m.learned / m.total) * 100) : 0;
-            const single = e.topicIds.length === 1;
-            return (
-              <div key={e.id} className="exam-row">
-                <div className="exam-top">
-                  <span className="dot" style={{ background: subject?.color }} />
-                  <button className="grow exam-main" onClick={() => go({ name: 'exam', id: e.id })}>
-                    <strong>{e.name}</strong>
-                    <span className="muted small block">
-                      {days === 0 ? 'сегодня' : days === 1 ? 'завтра' : `через ${days} ${plural(days, 'день', 'дня', 'дней')}`} · выучено {pct}%{single ? '' : ` · тем: ${e.topicIds.length}`}
-                    </span>
-                  </button>
-                  {todo > 0 ? (
-                    <button className="btn small primary" onClick={() => go(single ? { name: 'review', topicId: e.topicIds[0] } : { name: 'review', cardIds: [...new Set(e.topicIds.flatMap((id) => allItems(data, { topicId: id }).map((it) => it.cardId)))] })}>
-                      Готовиться · {todo}
-                    </button>
-                  ) : (
-                    m.total >= 2 && (
-                      <button className="btn small" onClick={() => go({ name: 'test', topicId: e.topicIds[0], examId: e.id })}>
-                        Проверить себя
-                      </button>
-                    )
-                  )}
-                </div>
-                {plan && plan.total > 0 && <ExamPlanLine plan={plan} />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {important.length > 0 && (
         <div className="card stack gap8">
           <h3 className="row gap8">
@@ -193,7 +209,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
             </span>
             Важные темы
           </h3>
-          {important.map(({ t, due, pct }) => {
+          {important.map(({ t, pct }) => {
             const subject = data.subjects.find((x) => x.id === t.subjectId);
             return (
               <div key={t.id} className="exam">
@@ -204,11 +220,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
                     {subject?.name} · выучено {pct}%
                   </span>
                 </button>
-                {due > 0 && (
-                  <button className="btn small" onClick={() => go({ name: 'review', topicId: t.id })}>
-                    Учить · {due}
-                  </button>
-                )}
               </div>
             );
           })}
@@ -250,11 +261,6 @@ function WeekSchedule({ now, go }: { now: Date; go: (r: Route) => void }) {
     const c = todayCounts(data, now, { subjectId: id });
     return c.learning + c.review + c.newCount;
   };
-  const tomorrowIds = lessons(tomorrowDow).map((s) => s.id);
-  const prepDue = tomorrowIds.length ? (() => {
-    const c = todayCounts(data, now, { subjectIds: tomorrowIds });
-    return c.learning + c.review + c.newCount;
-  })() : 0;
   // Утром (до 13:00), если сегодня есть уроки — разминка на 5 карточек.
   const warm = now.getHours() < 13 && todayDow !== 0 ? warmupCards(data, now, 5) : [];
   const col = (title: string, dow: number, withDue: boolean) => {
@@ -301,13 +307,8 @@ function WeekSchedule({ now, go }: { now: Date; go: (r: Route) => void }) {
           {col(tomorrowLabel, tomorrowDow, true)}
         </div>
       )}
-      {!empty && (prepDue > 0 || warm.length > 0) && (
+      {!empty && warm.length > 0 && (
         <div className="les-actions">
-          {prepDue > 0 && (
-            <button className="btn small primary" onClick={() => go({ name: 'review', subjectIds: tomorrowIds, run: Date.now() })} title="Повторить карточки предметов, которые будут на уроках">
-              <Icon name="play" size={14} /> Подготовиться к {tmr.getDay() === 0 ? 'понедельнику' : 'завтра'} · {prepDue}
-            </button>
-          )}
           {warm.length > 0 && (
             <button className="btn small" onClick={() => go({ name: 'review', cardIds: warm, cram: true, limit: warm.length, run: Date.now() })} title="5 самых подзабытых карточек сегодняшних уроков — расписание повторений не меняется">
               <Icon name="flame" size={14} /> Разминка перед уроками · {warm.length}
