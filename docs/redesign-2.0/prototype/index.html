@@ -123,11 +123,12 @@ mark{background:var(--mark);color:inherit;border-radius:4px;padding:0 2px}
 <body>
 <div class="ctl">
   <div class="grp"><b>Устройство</b><button data-dev="desktop" class="on">Компьютер</button><button data-dev="phone">Телефон</button></div>
-  <div class="grp"><b>Экран</b><button data-go="learn" class="on">Учусь</button><button data-go="know">Знания (тема)</button><button data-go="review">Повторение</button><button data-go="exam">Контрольная</button><button data-go="profile">Профиль</button></div>
+  <div class="grp"><b>Экран</b><button data-go="learn" class="on">Учусь</button><button data-go="subject">Предмет</button><button data-go="know">Знания (тема)</button><button data-go="review">Повторение</button><button data-go="exam">Контрольная</button><button data-go="profile">Профиль</button></div>
   <div class="grp"><b>Главный экран</b><button data-var="A" class="on">A — минимум</button><button data-var="B">B — с «Скоро»</button></div>
   <div class="grp"><b>Оформление (остаётся!)</b><button data-theme="light" class="on">Светлая</button><button data-theme="dark">Тёмная</button>
     <button class="dot on" data-acc="#3F51D8" style="background:#3F51D8" title="Индиго"></button><button class="dot" data-acc="#1F7A6B" style="background:#1F7A6B" title="Мята"></button><button class="dot" data-acc="#C2417A" style="background:#C2417A" title="Сакура"></button><button class="dot" data-acc="#A4591A" style="background:#A4591A" title="Песок"></button>
     <button data-dens="tight">Плотно</button><button data-dens="normal" class="on">Обычно</button><button data-dens="roomy">Просторно</button></div>
+  <div class="grp"><b>Главная кнопка темы</b><button data-ts="empty">нет конспекта</button><button data-ts="nocards">нет карточек</button><button data-ts="learn" class="on">есть что учить</button><button data-ts="exam">всё повторено, есть контрольная</button></div>
   <div class="grp"><b>ИИ</b><button data-ai="0" class="on">не настроен</button><button data-ai="1">настроен</button></div>
 </div>
 <div class="note">Это концепт для утверждения, не рабочее приложение: данные выдуманные, кнопки работают только там, где показан сценарий. Цвета и шрифты — настоящие, из Мнемы. Переключатели вверху показывают, что оформление остаётся настраиваемым и «ИИ не настроен» полностью прячет кнопки ИИ.</div>
@@ -135,7 +136,7 @@ mark{background:var(--mark);color:inherit;border-radius:4px;padding:0 2px}
 
 <script>
 const S = { dev:'desktop', screen:'learn', variant:'A', theme:'light', acc:'#3F51D8', dens:'normal', ai:false, budget:10, plus:false, skipped:new Set(), planOpen:false,
-  revShown:false, revRate:null, similar:false, similarOk:null, noteTab:'note', topicMenu:false, selOpen:true, period:'Неделя' };
+  revShown:false, revRate:null, similar:false, similarOk:null, noteTab:'note', ts:'learn', topicMenu:false, selOpen:true, period:'Неделя' };
 
 const STEPS = [
   { t:'Слабое: квадратные уравнения', m:3, d:'6 карточек', why:'Контрольная по алгебре через 3 дня, готовность 43 %' },
@@ -192,7 +193,7 @@ function vKnow() {
     <p>Корни находят по формуле <mark>x = (−b ± √D) / 2a</mark>.</p></div>`;
   const cards = `<div class="note-doc">${['Что такое дискриминант?','Когда у уравнения нет корней?','Формула корней','Сколько корней при D = 0?'].map(q=>`<div class="step"><div style="flex:1">${q}</div><span class="pill ${Math.random()>.5?'good':'bad'}">${['помню','слабо'][q.length%2]}</span></div>`).join('')}</div>`;
   const lists = `<div class="note-doc"><div class="step"><div style="flex:1"><b>Термины</b> · 6</div></div><div class="step"><div style="flex:1"><b>Формулы</b> · 4</div></div></div>`;
-  const body = S.noteTab==='note'?note:(S.noteTab==='cards'?cards:lists);
+  const body = S.ts==='empty' ? `<div class="card" style="text-align:center"><b>Здесь пока пусто</b><p class="muted" style="margin:6px 0 0">Напиши конспект своими словами или вставь текст — карточки сделаем сами.</p></div>` : (S.noteTab==='note'?note:(S.noteTab==='cards'?cards:lists));
   const menu = S.topicMenu?`<div class="menu" style="right:0;top:44px">${['Переименовать и цвет','Назначить контрольную','Проверить себя','Сделать набор из конспекта','История конспекта','Выгрузить для нейросети','Удалить тему'].map((x,i)=>`${i===6?'<hr>':''}<button>${x}</button>`).join('')}<hr><div class="hd">Меню короткое: не больше 8 строк, опасное — последним</div></div>`:'';
   return `<div class="muted small">‹ Алгебра</div><div class="row between" style="position:relative"><h1>Квадратные уравнения</h1><button class="btn small" data-topicmenu="1">⋯</button>${menu}</div>
     <div class="card" style="margin:10px 0">
@@ -200,8 +201,19 @@ function vKnow() {
       <div class="bar" style="margin:8px 0"><i class="cov" style="width:${8/13*100}%"></i><i class="mas" style="width:${62*8/13}%"></i></div>
       <div class="small muted">Светлая часть — места конспекта, по которым есть карточки; тёмная — то, что ты помнишь. Так «100 %» не обманывает, если карточек мало.</div>
     </div>
-    <div class="row"><button class="btn primary" data-go="review">Учить · 6</button><button class="btn" data-go="exam">Контрольная ›</button></div>
+    <div class="row"><button class="btn primary" data-go="${S.ts==='exam'?'exam':'review'}">${PRIMARY[S.ts]}</button>${S.ts==='learn'?'<button class="btn" data-go="exam">Контрольная ›</button>':''}</div>
+    <div class="small muted" style="margin-top:6px">Главная кнопка одна и зависит от состояния темы: «Написать конспект» → «Сделать карточки» → «Учить» → «Подготовиться».</div>
     <div class="tabs">${[['note','Конспект'],['cards','Карточки 13'],['lists','Списки 2']].map(t=>`<button class="${S.noteTab===t[0]?'on':''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>${body}`;
+}
+
+
+function vSubject() {
+  const rows = [['Квадратные уравнения',43,'8 из 13'],['Дискриминант',71,'6 из 6'],['Формулы Виета',38,'2 из 7'],['Теорема Виета: задачи',0,'нет карточек']];
+  return `<div class="muted small">‹ Знания</div><div class="row between"><h1><span class="dotc" style="background:#3F51D8;display:inline-block;margin-right:8px"></span>Алгебра</h1><button class="btn small">⋯</button></div>
+    <div class="row" style="margin:10px 0"><button class="btn primary" data-go="review">Учить · 9</button><button class="btn" data-go="exam">Контрольная · через 3 дня</button><button class="btn">＋ Тема</button></div>
+    <div class="small muted" style="margin-bottom:10px">Главная кнопка предмета — «Учить», если есть что; иначе «＋ Тема». Вкладки «Термины» и «Правила» не показываются, пока в них пусто.</div>
+    <div class="card" style="padding:6px 16px">${rows.map(r=>`<div class="step"><div style="flex:1"><b>${r[0]}</b> <span class="muted small">· ${r[1]===0?'карточек ещё нет':'охвачено '+r[2]}</span><div class="bar" style="margin-top:6px"><i class="cov" style="width:${Math.min(100,r[1]+25)}%"></i><i class="mas" style="width:${r[1]}%"></i></div></div><span class="pill ${r[1]===0?'':(r[1]<50?'bad':'good')}">${r[1]===0?'нет карточек':r[1]+' %'}</span></div>`).join('')}</div>
+    <div class="small muted" style="margin-top:8px">Экспорт, печать и «Выгрузить для нейросети» — в подменю «Поделиться» внутри «⋯», а не в общем списке.</div>`;
 }
 
 function vReview() {
@@ -258,7 +270,8 @@ function vProfile() {
     <div class="card" style="padding:6px 14px">${['Учёба и напоминания','ИИ-помощник','Возможности · 13','Корзина · 2','Данные и копии','Справка','О Мнеме · 2.0'].map(x=>`<div class="step" style="padding:11px 0"><div style="flex:1">${x}</div><span class="muted">›</span></div>`).join('')}</div>`;
 }
 
-const SCREENS = { learn:vLearn, know:vKnow, review:vReview, exam:vExam, profile:vProfile };
+const PRIMARY = { empty:'Написать конспект', nocards:'Сделать карточки из конспекта', learn:'Учить · 6', exam:'Подготовиться · через 3 дня' };
+const SCREENS = { learn:vLearn, subject:vSubject, know:vKnow, review:vReview, exam:vExam, profile:vProfile };
 
 /* ---------- Оболочка ---------- */
 function plusItems() {
@@ -272,7 +285,7 @@ function plusLayer() {
 }
 function shell() {
   const body = SCREENS[S.screen]();
-  const tabOn = (k)=> (S.screen===k || (k==='learn' && (S.screen==='review'||S.screen==='exam')) ) ? 'on' : '';
+  const tabOn = (k)=> (S.screen===k || (k==='know' && S.screen==='subject') || (k==='learn' && (S.screen==='review'||S.screen==='exam')) ) ? 'on' : '';
   if (isPhone()) {
     const hideBar = S.screen==='review';
     return `<div class="topbar"><div class="brand"><span class="logo">М</span> Мнема</div><span class="sp"></span><button class="btn ghost" style="font-size:1.2rem">${ic.search}</button></div>
@@ -287,7 +300,7 @@ function shell() {
       <button class="nav sub">Домашка <span class="n">2</span></button>
       <button class="nav sub" data-go="exam">Контрольные <span class="n">3 дн.</span></button>
       <div class="grp-h">Знания</div>
-      <button class="nav"><span class="dotc" style="background:#3F51D8"></span> Алгебра <span class="n">9</span></button>
+      <button class="nav ${S.screen==='subject'?'on':''}" data-go="subject"><span class="dotc" style="background:#3F51D8"></span> Алгебра <span class="n">9</span></button>
       <button class="nav sub ${S.screen==='know'?'on':''}" data-go="know">Квадратные уравнения</button>
       <button class="nav sub">Дискриминант</button>
       <button class="nav"><span class="dotc" style="background:#C2417A"></span> Физика <span class="n">5</span></button>
@@ -309,6 +322,7 @@ function paint() {
   document.querySelectorAll('.ctl [data-theme]').forEach(b=>b.classList.toggle('on', b.dataset.theme===S.theme));
   document.querySelectorAll('.ctl [data-acc]').forEach(b=>b.classList.toggle('on', b.dataset.acc===S.acc));
   document.querySelectorAll('.ctl [data-dens]').forEach(b=>b.classList.toggle('on', b.dataset.dens===S.dens));
+  document.querySelectorAll('.ctl [data-ts]').forEach(b=>b.classList.toggle('on', b.dataset.ts===S.ts));
   document.querySelectorAll('.ctl [data-ai]').forEach(b=>b.classList.toggle('on', (b.dataset.ai==='1')===S.ai));
   fit();
 }
@@ -327,6 +341,7 @@ document.addEventListener('click', (e) => {
   if (d.dev) S.dev = d.dev;
   if (d.go) { S.screen = d.go; S.plus = false; if (d.go==='review') { S.revShown=false; S.revRate=null; S.similar=false; S.similarOk=null; } if (d.go==='learn') S.skipped = new Set(); }
   if (d.var) { S.variant = d.var; S.screen = 'learn'; }
+  if (d.ts) { S.ts = d.ts; S.screen = 'know'; S.noteTab = 'note'; }
   if (d.theme) S.theme = d.theme;
   if (d.acc) S.acc = d.acc;
   if (d.dens) S.dens = d.dens;
