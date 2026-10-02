@@ -1,6 +1,9 @@
 // 1.8.1 — быстрые счётчики по всем темам: ответ тот же, что у старого пути «на каждую тему», только за один проход.
-import { describe, expect, it } from 'vitest';
-import { cardsByTopic, DAY, HOUR, itemKey, itemOrds, todayCounts, todayCountsByTopic, topicMastery, topicMasteryByTopic, topicStatsByTopic } from './srs';
+import { forceSimulation } from 'd3-force';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { buildGraph, planGraph } from './components/KnowledgeMap';
+import { clearLayouts, firstLinks, FORCE_LIMIT, getLayout, layoutCacheSize, layoutKey, LIVE_LIMIT, needsOneSubject, physicsPlan, putLayout, SUBJECT_LIMIT, termsVerdict, TERMS_LIMIT, ticksToCool } from './mapLod';
+import { cardsByTopic, DAY, HOUR, itemKey, itemOrds, todayCounts, todayCountsByTopic, topicMastery, topicMasteryByTopic, topicStatsByTopic, topicStatus } from './srs';
 import { emptyData } from './store';
 import type { AppData, Card, ItemState, Topic } from './types';
 
@@ -208,5 +211,178 @@ describe('быстрее старого пути', () => {
     const tOld = performance.now() - t1;
     for (const id of ids) expect(fast.get(id)).toEqual(old.get(id));
     expect(tFast).toBeLessThan(tOld / 2);
+  });
+});
+
+// ---------- Карта знаний: уровни детализации, шаги физики, кэш раскладки ----------
+
+// Слово только из букв и разное для разных n (цифры и конец слова карта отбрасывает при сравнении «понятий»).
+const word = (n: number) => {
+  const L = 'абвгдежзиклмнопрстуфхцчшэюя';
+  let w = '';
+  let x = n;
+  do {
+    w += L[x % L.length];
+    x = Math.floor(x / L.length);
+  } while (x > 0);
+  return w + 'ние';
+};
+
+/** Данные для карты: S предметов, T тем, у каждой темы `terms` жирных понятий (из них `shared` — общие на всех). */
+function graphData(S: number, T: number, terms: number, shared = 0): AppData {
+  const d = emptyData();
+  d.subjects = Array.from({ length: S }, (_, i) => ({ id: 's' + i, name: 'Предмет ' + i, color: '#' + (100000 + i * 7919).toString(16).slice(0, 6), createdAt: '' }));
+  d.topics = Array.from({ length: T }, (_, i) => {
+    const bold = Array.from({ length: terms }, (_, k) => `**${k < shared ? word(900000 + k) : word(i * 20 + k)}** — определение`).join('\n\n');
+    return { id: 't' + i, subjectId: 's' + (i % S), name: 'Тема ' + i, note: bold, createdAt: '', updatedAt: '', ...(i > 3 && i % 5 === 0 ? { parentId: 't' + (i - 4) } : {}) } as Topic;
+  });
+  d.cards = Array.from({ length: T * 2 }, (_, i) => ({ id: 'c' + i, topicId: 't' + (i % T), type: 'basic' as const, front: 'q' + i, back: 'a', createdAt: '', updatedAt: '' }));
+  return d;
+}
+
+describe('карта: уровни детализации', () => {
+  it('пороги и решения', () => {
+    expect(TERMS_LIMIT).toBe(700);
+    expect(SUBJECT_LIMIT).toBe(1500);
+    expect(termsVerdict(false, 99999, false)).toEqual({ show: false, hidden: false, canForce: false }); // пользователь сам выключил
+    expect(termsVerdict(true, 700, false).show).toBe(true);
+    expect(termsVerdict(true, 701, false)).toEqual({ show: false, hidden: true, canForce: true });
+    expect(termsVerdict(true, 2000, true).show).toBe(true); // «Все понятия» нажато вручную
+    expect(termsVerdict(true, FORCE_LIMIT + 1, true)).toEqual({ show: false, hidden: true, canForce: false }); // слишком тяжело даже по просьбе
+    expect(needsOneSubject(1501, 5, false)).toBe(true);
+    expect(needsOneSubject(1500, 5, false)).toBe(false);
+    expect(needsOneSubject(5000, 1, false)).toBe(false); // предмет один — делить нечего
+    expect(needsOneSubject(5000, 5, true)).toBe(false); // предмет уже выбран
+  });
+
+  it('мало узлов — всё как раньше, без строки', () => {
+    const d = graphData(3, 20, 3, 1);
+    const p = planGraph(d, true, null, false);
+    expect(p.termsHidden).toBe(false);
+    expect(p.shown).toBeNull();
+    expect(p.graph.nodes.length).toBe(buildGraph(d, true, null).nodes.length);
+    expect(p.graph.nodes.some((n) => n.kind === 'term' && n.color === '#8A8F9C')).toBe(true); // одиночные понятия на месте
+  });
+
+  it('много узлов — понятия скрыты, настройка в данных не тронута', () => {
+    const d = graphData(4, 150, 6, 1);
+    d.settings.graph.showTerms = true;
+    const full = buildGraph(d, true, null).nodes.length;
+    expect(full).toBeGreaterThan(TERMS_LIMIT);
+    const p = planGraph(d, true, null, false);
+    expect(p.termsHidden).toBe(true);
+    expect(p.canForce).toBe(true);
+    expect(p.shown).toBeNull();
+    expect(p.graph.nodes.length).toBe(buildGraph(d, false, null).nodes.length); // как при showTerms=false
+    expect(p.graph.nodes.some((n) => n.kind === 'term' && n.color === '#8A8F9C')).toBe(false);
+    expect(d.settings.graph.showTerms).toBe(true); // только ограничили показ
+    // вручную «Все понятия» — показываем всё
+    expect(planGraph(d, true, null, true).graph.nodes.length).toBe(full);
+    // выбрал предмет — узлов стало меньше порога, понятия вернулись сами
+    const one = planGraph(d, true, 's0', false);
+    expect(one.graph.nodes.length).toBe(buildGraph(d, true, 's0').nodes.length);
+    expect(one.termsHidden).toBe(buildGraph(d, true, 's0').nodes.length > TERMS_LIMIT);
+    // выключил сам — понятий нет и строки про «скрыты» нет
+    const off = planGraph(d, false, null, false);
+    expect(off.termsHidden).toBe(false);
+    expect(off.graph.nodes.length).toBe(buildGraph(d, false, null).nodes.length);
+  });
+
+  it('очень много узлов — один предмет, остальные кружками', () => {
+    const d = graphData(5, 1700, 1, 0);
+    expect(buildGraph(d, false, null).nodes.length).toBeGreaterThan(SUBJECT_LIMIT);
+    const p = planGraph(d, true, null, false);
+    expect(p.shown).toBe('Предмет 0');
+    const lone = p.graph.nodes.filter((n) => n.lone);
+    expect(lone.map((n) => n.label)).toEqual(['Предмет 1', 'Предмет 2', 'Предмет 3', 'Предмет 4']);
+    expect(lone.every((n) => n.kind === 'subject')).toBe(true);
+    // тем из других предметов на карте нет
+    const topicIds = new Set(p.graph.nodes.filter((n) => n.kind === 'topic').map((n) => n.topicId));
+    expect([...topicIds].every((id) => d.topics.find((t) => t.id === id)!.subjectId === 's0')).toBe(true);
+    expect(p.graph.nodes.length).toBeLessThan(SUBJECT_LIMIT);
+    // выбранный предмет показывается целиком, без кружков
+    const sel = planGraph(d, true, 's2', false);
+    expect(sel.shown).toBeNull();
+    expect(sel.graph.nodes.some((n) => n.lone)).toBe(false);
+    expect(sel.graph.nodes.filter((n) => n.kind === 'subject').length).toBe(1);
+  });
+
+  it('первый предмет без тем пропускается', () => {
+    const d = graphData(5, 1700, 1, 0);
+    d.topics = d.topics.filter((t) => t.subjectId !== 's0');
+    const p = planGraph(d, false, null, false);
+    if (p.shown) expect(p.shown).toBe('Предмет 1');
+  });
+
+  it('buildGraph: размер, статус и связи те же, что давала старая формула', () => {
+    const d = randomData(5, { topics: 40, cards: 500 });
+    d.topics = d.topics.filter((t) => !t.kind);
+    const g = buildGraph(d, true, null);
+    for (const n of g.nodes.filter((x) => x.kind === 'topic')) {
+      const cards = d.cards.filter((c) => c.topicId === n.topicId).length;
+      expect(n.size).toBeCloseTo(6 + Math.min(5, Math.sqrt(cards) * 1.2), 10);
+      expect(n.status).toBe(topicStatus(topicMastery(d, n.topicId!)));
+    }
+    expect(g.links.filter((l) => l.kind === 'st').length).toBe(d.topics.length);
+  });
+
+  it('firstLinks == links.find для каждого узла', () => {
+    const d = graphData(3, 60, 4, 2);
+    const g = buildGraph(d, true, null);
+    const first = firstLinks(g.links);
+    for (const n of g.nodes) expect(first.get(n.id)).toBe(g.links.find((l) => l.target === n.id || l.source === n.id));
+  });
+});
+
+describe('карта: шаги физики и кэш раскладки', () => {
+  beforeEach(() => clearLayouts());
+
+  it('чем больше узлов, тем меньше шагов; маленькие карты — как раньше', () => {
+    const small = physicsPlan(120);
+    expect(small).toMatchObject({ alphaDecay: 0.018, live: true });
+    expect(ticksToCool(0.018)).toBe(381);
+    let prev = Infinity;
+    for (const n of [100, 500, 1000, 3000]) {
+      const p = physicsPlan(n);
+      expect(p.maxTicks).toBeLessThanOrEqual(prev);
+      prev = p.maxTicks;
+    }
+    expect(physicsPlan(LIVE_LIMIT).live).toBe(true);
+    expect(physicsPlan(LIVE_LIMIT + 1).live).toBe(false);
+    expect(physicsPlan(3000).maxTicks).toBeLessThan(130);
+  });
+
+  it('d3-force с этим alphaDecay действительно успокаивается не дольше maxTicks', () => {
+    for (const n of [100, 500, 1000, 3000]) {
+      const p = physicsPlan(n);
+      const sim = forceSimulation([{}, {}, {}]).alphaDecay(p.alphaDecay).stop();
+      let ticks = 0;
+      while (sim.alpha() > sim.alphaMin() && ticks < 5000) {
+        sim.tick();
+        ticks++;
+      }
+      expect(ticks).toBeLessThanOrEqual(p.maxTicks);
+    }
+  });
+
+  it('ключ раскладки не зависит от порядка и чувствителен к составу, связям и настройкам', () => {
+    const ids = ['a', 'b', 'c', 'd'];
+    const edges: [string, string][] = [['a', 'b'], ['b', 'c'], ['c', 'd']];
+    const k = layoutKey(ids, edges, [1, 1, 1]);
+    expect(layoutKey([...ids].reverse(), [...edges].reverse(), [1, 1, 1])).toBe(k);
+    expect(layoutKey([...ids, 'e'], edges, [1, 1, 1])).not.toBe(k);
+    expect(layoutKey(ids, [['a', 'b'], ['b', 'c'], ['b', 'd']], [1, 1, 1])).not.toBe(k); // тему перенесли
+    expect(layoutKey(ids, edges, [1.5, 1, 1])).not.toBe(k);
+  });
+
+  it('кэш: берём то, что положили; старые вытесняются', () => {
+    const pos = new Map([['a', [1, 2] as [number, number]]]);
+    putLayout('k0', pos, true);
+    expect(getLayout('k0')).toEqual({ pos, done: true });
+    expect(getLayout('нет')).toBeUndefined();
+    for (let i = 1; i <= 8; i++) putLayout('k' + i, pos, false);
+    expect(layoutCacheSize()).toBe(6);
+    expect(getLayout('k0')).toBeUndefined();
+    expect(getLayout('k8')?.done).toBe(false);
   });
 });

@@ -3,10 +3,12 @@
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type Simulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { boldTerms } from '../noteTools';
-import { normalizeAnswer, topicMastery, topicStatus, type TopicStatus } from '../srs';
+import { firstLinks, getLayout, layoutKey, needsOneSubject, physicsPlan, putLayout, termsVerdict, type Layout } from '../mapLod';
+import { cardsByTopic, normalizeAnswer, topicMasteryByTopic, topicStatus, type TopicStatus } from '../srs';
 import { updateSettings } from '../store';
-import type { AppData, GraphSettings } from '../types';
+import type { AppData, GraphSettings, Topic } from '../types';
 import { Icon, Segmented, Switch, usePresence } from './ui';
+import '../map-lod.css';
 
 interface MapNode extends SimulationNodeDatum {
   id: string;
@@ -18,6 +20,7 @@ interface MapNode extends SimulationNodeDatum {
   important?: boolean;
   topicId?: string;
   degree: number;
+  lone?: boolean; // предмет, свёрнутый в кружок (когда тем слишком много): нажатие открывает его целиком
 }
 type MapLink = SimulationLinkDatum<MapNode> & { kind: 'st' | 'tt' | 'tk' };
 
@@ -27,32 +30,48 @@ const termKey = (t: string) =>
     .map((w) => (w.length > 5 ? w.slice(0, w.length - 2) : w))
     .join(' ');
 
+// Жирное в конспекте разбираем один раз на тему: объект темы заменяется при правке, так что кэш не устаревает.
+const termCache = new WeakMap<Topic, string[]>();
+function termsOf(t: Topic): string[] {
+  let r = termCache.get(t);
+  if (!r) {
+    r = boldTerms(t.note);
+    termCache.set(t, r);
+  }
+  return r;
+}
+
+/** extraTerms — сколько одиночных «понятий» не попало в карту (их показывает allTerms). */
 export function buildGraph(data: AppData, allTerms: boolean, subjectFilter: string | null) {
   const nodes: MapNode[] = [];
   const links: MapLink[] = [];
   const subjects = data.subjects.filter((s) => !subjectFilter || s.id === subjectFilter);
   const subjectSet = new Set(subjects.map((s) => s.id));
-  const topicIds = new Set(data.topics.filter((t) => subjectSet.has(t.subjectId)).map((t) => t.id));
+  const subjectById = new Map(data.subjects.map((s) => [s.id, s]));
+  const scoped = data.topics.filter((t) => subjectSet.has(t.subjectId));
+  const topicIds = new Set(scoped.map((t) => t.id));
+  // Карточки и освоение всех тем — одним проходом, а не заново на каждую тему.
+  const cardsOf = cardsByTopic(data);
+  const mastery = topicMasteryByTopic(data, topicIds);
   const termTopics = new Map<string, { label: string; topics: Set<string> }>();
   for (const s of subjects) nodes.push({ id: 's:' + s.id, kind: 'subject', label: s.name, color: s.color, size: 11, degree: 0 });
-  for (const t of data.topics) {
-    if (!topicIds.has(t.id)) continue;
-    const subj = data.subjects.find((s) => s.id === t.subjectId)!;
-    const cards = data.cards.filter((c) => c.topicId === t.id).length;
+  for (const t of scoped) {
+    const subj = subjectById.get(t.subjectId)!;
+    const cards = cardsOf.get(t.id)?.length ?? 0;
     nodes.push({
       id: 't:' + t.id,
       kind: 'topic',
       label: t.name,
       color: subj.color,
       size: 6 + Math.min(5, Math.sqrt(cards) * 1.2),
-      status: topicStatus(topicMastery(data, t.id)),
+      status: topicStatus(mastery.get(t.id)!),
       important: t.important,
       topicId: t.id,
       degree: 0
     });
     const parent = t.parentId && topicIds.has(t.parentId) ? 't:' + t.parentId : 's:' + t.subjectId;
     links.push({ source: parent, target: 't:' + t.id, kind: 'st' });
-    for (const term of boldTerms(t.note)) {
+    for (const term of termsOf(t)) {
       if (term.length > 40) continue;
       const k = termKey(term);
       const e = termTopics.get(k) ?? { label: term, topics: new Set<string>() };
@@ -60,9 +79,13 @@ export function buildGraph(data: AppData, allTerms: boolean, subjectFilter: stri
       termTopics.set(k, e);
     }
   }
+  let extraTerms = 0;
   for (const [k, e] of termTopics) {
     const shared = e.topics.size > 1;
-    if (!shared && !allTerms) continue;
+    if (!shared && !allTerms) {
+      extraTerms++;
+      continue;
+    }
     nodes.push({ id: 'k:' + k, kind: 'term', label: e.label, color: shared ? '#C9A227' : '#8A8F9C', size: shared ? 4.5 : 3.2, degree: 0 });
     for (const tid of e.topics) links.push({ source: 't:' + tid, target: 'k:' + k, kind: shared ? 'tt' : 'tk' });
   }
@@ -71,7 +94,35 @@ export function buildGraph(data: AppData, allTerms: boolean, subjectFilter: stri
     byId.get(l.source as string)!.degree++;
     byId.get(l.target as string)!.degree++;
   }
-  return { nodes, links };
+  return { nodes, links, extraTerms };
+}
+
+export interface GraphPlan {
+  graph: ReturnType<typeof buildGraph>;
+  termsHidden: boolean; // «понятия» скрыты из-за размера карты (настройка пользователя не тронута)
+  canForce: boolean; // можно показать их всё равно
+  shown: string | null; // имя предмета, если показан только он, а остальные — кружками
+}
+
+/**
+ * Что рисовать: автоматический уровень детализации. Много узлов — прячем «понятия»; ещё больше — один предмет
+ * (выбранный или первый с темами), остальные — кружками. Настройку showTerms в данных не трогаем.
+ */
+export function planGraph(data: AppData, showTerms: boolean, filter: string | null, forced: boolean): GraphPlan {
+  let scope = filter;
+  let base = buildGraph(data, false, scope);
+  let lone: AppData['subjects'] = [];
+  let shown: AppData['subjects'][number] | undefined;
+  if (needsOneSubject(base.nodes.length, data.subjects.length, filter !== null)) {
+    shown = data.subjects.find((s) => data.topics.some((t) => t.subjectId === s.id)) ?? data.subjects[0];
+    lone = data.subjects.filter((s) => s !== shown);
+    scope = shown.id;
+    base = buildGraph(data, false, scope);
+  }
+  const v = termsVerdict(showTerms, base.nodes.length + base.extraTerms + lone.length, forced);
+  const graph = v.show ? buildGraph(data, true, scope) : base;
+  for (const s of lone) graph.nodes.push({ id: 's:' + s.id, kind: 'subject', label: s.name, color: s.color, size: 11, degree: 0, lone: true });
+  return { graph, termsHidden: v.hidden, canForce: v.canForce, shown: shown?.name ?? null };
 }
 
 function statusColor(s: TopicStatus | undefined, css: Record<string, string>) {
@@ -79,6 +130,12 @@ function statusColor(s: TopicStatus | undefined, css: Record<string, string>) {
   if (s === 'progress') return css.hard;
   if (s === 'learned') return css.good;
   return '';
+}
+
+/** Названия через запятую; на большой карте — первые 12 и «и ещё N» (иначе под картой вырастает огромный абзац). */
+function namesList(nodes: { label: string }[], max = 12) {
+  const shown = nodes.slice(0, max).map((n) => n.label).join(', ');
+  return nodes.length > max ? `${shown} и ещё ${nodes.length - max}` : shown;
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -102,14 +159,20 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
   const [panel, setPanel] = useState(false);
   const [query, setQuery] = useState('');
   const [hoverLabel, setHoverLabel] = useState<string | null>(null);
+  const [forced, setForced] = useState(false); // «Все понятия» нажато на большой карте: показать, хоть и тяжело
   const panelPres = usePresence(panel, 150);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  const graph = useMemo(
-    () => buildGraph(data, gs.showTerms, filter),
-    [data.topics, data.subjects, data.cards, data.states, gs.showTerms, filter] // eslint-disable-line react-hooks/exhaustive-deps
+  const plan = useMemo(
+    () => planGraph(data, gs.showTerms, filter, forced),
+    [data.topics, data.subjects, data.cards, data.states, gs.showTerms, filter, forced] // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const graph = plan.graph;
+  const pick = (f: string | null) => {
+    setFilter(f);
+    setForced(false);
+  };
 
   // Всё, что меняется каждый кадр, живёт в ref — React не перерисовывается.
   const st = useRef({
@@ -133,7 +196,11 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     positions: new Map<string, { x: number; y: number; vx: number; vy: number }>(),
     gs,
     query: '',
-    appear: 1
+    appear: 1,
+    phys: physicsPlan(0), // сколько шагов физики и «живая» ли она — зависит от числа узлов
+    ticks: 0, // шагов с последнего нагрева
+    settled: false, // раскладка остыла (её можно запомнить)
+    sig: '' // с какими настройками физики считали последний раз
   });
   const S = st.current;
   S.gs = gs;
@@ -143,6 +210,38 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     const cs = getComputedStyle(document.documentElement);
     const v = (n: string) => cs.getPropertyValue(n).trim();
     S.css = { ink: v('--ink'), muted: v('--muted'), line: v('--line-2'), surface: v('--surface'), accent: v('--accent'), again: v('--again-ink'), hard: v('--hard-ink'), good: v('--good-ink'), body: v('--body') || 'sans-serif' };
+  }
+
+  /** Физика закончилась: раскладку запоминаем, больше шагов не будет, пока не нагреют снова. */
+  function settle() {
+    S.settled = true;
+    saveLayout();
+  }
+
+  /** Нагреть физику: считаем заново не больше phys.maxTicks шагов (у больших карт — меньше). */
+  function heat(a: number) {
+    if (!S.sim) return;
+    S.sim.alpha(a);
+    S.ticks = 0;
+    S.settled = false;
+  }
+
+  const layoutParams = () => [S.gs.repel, S.gs.linkDistance, S.gs.nodeSize];
+  const idOf = (x: string | number | MapNode) => (typeof x === 'object' ? x.id : String(x));
+  /** Запомнить раскладку в памяти окна: повторное открытие карты не пересчитывает физику. */
+  function saveLayout() {
+    if (!S.nodes.length) return;
+    const pos: Layout = new Map();
+    for (const n of S.nodes) pos.set(n.id, [n.x ?? 0, n.y ?? 0]);
+    putLayout(
+      layoutKey(
+        S.nodes.map((n) => n.id),
+        S.links.map((l) => [idOf(l.source), idOf(l.target)] as [string, string]),
+        layoutParams()
+      ),
+      pos,
+      S.settled
+    );
   }
 
   function applyForces() {
@@ -168,12 +267,29 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     for (const n of S.nodes) old.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, vx: n.vx ?? 0, vy: n.vy ?? 0 });
     const nodes = graph.nodes.map((n) => ({ ...n }));
     const fresh = S.nodes.length === 0;
+    const phys = physicsPlan(nodes.length);
+    // Раскладка этой же карты уже считалась (и успокоилась) — берём её и физику не гоняем.
+    const cached = getLayout(
+      layoutKey(
+        graph.nodes.map((n) => n.id),
+        graph.links.map((l) => [l.source as string, l.target as string] as [string, string]),
+        layoutParams()
+      )
+    );
+    // Первая связь каждого узла — один проход вместо поиска перебором на каждый новый узел.
+    const firstLink = cached ? new Map<string, MapLink>() : firstLinks(graph.links);
     for (const n of nodes) {
+      const c = cached?.pos.get(n.id);
       const p = old.get(n.id);
-      if (p) Object.assign(n, p);
+      if (c) {
+        n.x = c[0];
+        n.y = c[1];
+        n.vx = 0;
+        n.vy = 0;
+      } else if (p) Object.assign(n, p);
       else {
         // Новые узлы появляются рядом с соседом (или в центре) — и «разлетаются».
-        const link = graph.links.find((l) => l.target === n.id || l.source === n.id);
+        const link = firstLink.get(n.id);
         const other = link ? old.get((link.source === n.id ? link.target : link.source) as string) : undefined;
         n.x = (other?.x ?? 0) + (Math.random() - 0.5) * 30;
         n.y = (other?.y ?? 0) + (Math.random() - 0.5) * 30;
@@ -193,20 +309,28 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     S.nodes = nodes;
     S.links = links;
     S.neighbors = neighbors;
-    S.sim = forceSimulation<MapNode>(nodes).alphaDecay(0.018).velocityDecay(0.32).stop();
+    S.phys = phys;
+    S.sim = forceSimulation<MapNode>(nodes).alphaDecay(phys.alphaDecay).velocityDecay(0.32).stop();
     applyForces();
-    S.sim.alpha(fresh ? 1 : 0.5);
+    S.sig = layoutParams().join(',');
+    if (cached?.done) {
+      S.sim.alpha(0);
+      S.ticks = 0;
+      S.settled = true;
+    } else heat(cached ? (fresh ? 0.6 : 0.4) : fresh ? 1 : 0.5);
     if (fresh) S.appear = 0;
     kick();
     return () => {
+      saveLayout();
       S.sim?.stop();
     };
   }, [graph]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!S.sim) return;
+    if (!S.sim || S.sig === layoutParams().join(',')) return; // при открытии карты ничего не пересчитываем
+    S.sig = layoutParams().join(',');
     applyForces();
-    S.sim.alpha(Math.max(S.sim.alpha(), 0.4));
+    heat(Math.max(S.sim.alpha(), 0.4));
     kick();
   }, [gs.repel, gs.linkDistance, gs.nodeSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -269,9 +393,16 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     const sim = S.sim;
     let busy = false;
     if (sim && sim.alpha() > sim.alphaMin()) {
-      sim.tick();
-      busy = true;
-    }
+      // У больших карт число шагов ограничено: остыла (или шаги кончились) — физика останавливается совсем.
+      if (S.phys.live || S.ticks < S.phys.maxTicks) {
+        sim.tick();
+        S.ticks++;
+        busy = true;
+      } else {
+        sim.alpha(0);
+        settle();
+      }
+    } else if (sim && !S.settled && !S.drag?.node) settle();
     if (S.appear < 1) {
       S.appear = Math.min(1, S.appear + 0.025);
       busy = true;
@@ -484,7 +615,7 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
       const [wx, wy] = toWorld(sx, sy);
       node.fx = wx;
       node.fy = wy;
-      S.sim?.alphaTarget(0.25).restart().stop();
+      if (S.phys.live) S.sim?.alphaTarget(0.25).restart().stop(); // у больших карт физику не будим: узел просто двигается
     }
     kick();
   }
@@ -499,7 +630,9 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
         const [wx, wy] = toWorld(sx, sy);
         d.node.fx = wx;
         d.node.fy = wy;
-        if (S.sim && S.sim.alpha() < 0.25) S.sim.alpha(0.25);
+        d.node.x = wx; // если физика уже остановилась, шагов нет — узел двигаем сами
+        d.node.y = wy;
+        if (S.phys.live && S.sim && S.sim.alpha() < 0.25) heat(0.25);
       } else if (d.moved) {
         S.autoFit = false;
         S.target.x = d.cx - (sx - d.sx) / S.cam.k;
@@ -514,7 +647,7 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     if (n !== S.hover) {
       S.hover = n;
       setHoverLabel(n ? (n.kind === 'topic' ? 'Открыть тему' : n.kind === 'subject' ? 'Предмет' : 'Понятие') : null);
-      e.currentTarget.style.cursor = n ? (n.kind === 'topic' ? 'pointer' : 'grab') : 'default';
+      e.currentTarget.style.cursor = n ? (n.kind === 'topic' || n.lone ? 'pointer' : 'grab') : 'default';
       kick();
     }
   }
@@ -535,7 +668,11 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
       d.node.fy = null;
       S.sim?.alphaTarget(0);
       if (!d.moved && d.node.kind === 'topic') onOpenTopic(d.node.topicId!);
-      if (d.moved) S.autoFit = false;
+      else if (!d.moved && d.node.lone) pick(d.node.id.slice(2)); // предмет-кружок: показать его целиком
+      if (d.moved) {
+        S.autoFit = false;
+        if (S.settled) saveLayout(); // перетащил на остывшей карте — запомнить
+      }
     }
     kick();
   }
@@ -580,7 +717,7 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
       n.vx = (Math.random() - 0.5) * 40;
       n.vy = (Math.random() - 0.5) * 40;
     }
-    S.sim?.alpha(0.9);
+    heat(0.9);
     kick();
   }
   function replay() {
@@ -592,7 +729,7 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
     }
     S.appear = 0;
     S.autoFit = true;
-    S.sim?.alpha(1);
+    heat(1);
     kick();
     setTimeout(() => (S.autoFit = false), 2500);
   }
@@ -605,11 +742,11 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
   return (
     <div className="stack gap12">
       <div className="row gap8 wrap">
-        <button className={'chip-btn neutral' + (filter === null ? ' on' : '')} onClick={() => setFilter(null)}>
+        <button className={'chip-btn neutral' + (filter === null ? ' on' : '')} onClick={() => pick(null)}>
           Все предметы
         </button>
         {data.subjects.map((s) => (
-          <button key={s.id} className={'chip-btn neutral' + (filter === s.id ? ' on' : '')} onClick={() => setFilter(filter === s.id ? null : s.id)}>
+          <button key={s.id} className={'chip-btn neutral' + (filter === s.id ? ' on' : '')} onClick={() => pick(filter === s.id ? null : s.id)}>
             <span className="dot" style={{ background: s.color }} /> {s.name}
           </button>
         ))}
@@ -653,6 +790,15 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
             <Icon name="sliders" size={18} />
           </button>
         </div>
+        {(plan.shown || plan.termsHidden) && (
+          <div className="map-lod-note" role="status">
+            {plan.shown
+              ? `Тем очень много — показан предмет «${plan.shown}», остальные — кружками. Нажми на кружок.${plan.termsHidden ? ' Термины скрыты.' : ''}`
+              : plan.canForce
+                ? 'Тем много — термины скрыты. Выбери предмет или включи «Все понятия».'
+                : 'Тем много — термины скрыты. Выбери предмет.'}
+          </div>
+        )}
         {panelPres.mounted && (
           <div className={'graph-panel' + (panelPres.closing ? ' closing' : '')}>
             <strong>Карта</strong>
@@ -681,9 +827,20 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
                 ]}
               />
             </div>
-            <div className="gp-row">
+            <div className={'gp-row' + (plan.termsHidden && !plan.canForce ? ' map-lod-off' : '')}>
               <span>Все понятия из конспектов</span>
-              <Switch label="Все понятия" checked={gs.showTerms} onChange={(v) => setG({ showTerms: v })} />
+              <Switch
+                label="Все понятия"
+                checked={gs.showTerms && !plan.termsHidden}
+                onChange={(v) => {
+                  // Карта большая и понятия скрыты сами: «включить» = показать всё равно (настройка в данных уже включена).
+                  if (v && plan.termsHidden) setForced(true);
+                  else {
+                    setForced(false);
+                    setG({ showTerms: v });
+                  }
+                }}
+              />
             </div>
             <div className="row gap8">
               <button className="btn small" onClick={shake}>
@@ -718,8 +875,8 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
         </span>
         <span>Колесо — масштаб, перетаскивание — двигать.</span>
       </div>
-      {weak.length > 0 && <div className="hint warn">Слабые места: {weak.map((n) => n.label).join(', ')}. Здесь карточки забываются снова и снова — перечитай конспект и перепиши трудные карточки своими словами.</div>}
-      {important.length > 0 && weak.length === 0 && <p className="small muted">Важные темы обведены золотым: {important.map((n) => n.label).join(', ')}.</p>}
+      {weak.length > 0 && <div className="hint warn">Слабые места: {namesList(weak)}. Здесь карточки забываются снова и снова — перечитай конспект и перепиши трудные карточки своими словами.</div>}
+      {important.length > 0 && weak.length === 0 && <p className="small muted">Важные темы обведены золотым: {namesList(important)}.</p>}
     </div>
   );
 }
