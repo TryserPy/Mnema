@@ -108,7 +108,10 @@ npm run build          # сборка в dist/
 - Необязательные поля журнала `ReviewLogEntry.err/mix` («не помню / перепутал / не понял»), `tagLastAnswer`
 - Моды-программы возвращены (`src/plugins/*`); `neutralizeForeign` в `store.ts` — «Восстановить» не берёт облако и `pluginsSafe=false` из чужой копии
 - Защита: `src/safeCss.ts` (цвета, style формул, имя стиля), `sanitizeCss` раскрывает экранирование, рисунок только из svg/path/rect…, мост Electron/Android с белыми списками методов и имён секретов, CSP строже (`e2e/security.mjs`)
-- Заголовок «Настройки» не рвётся (`e2e/heading.mjs`)
+- Заголовок «Настройки» не рвётся (`e2e/heading.mjs`), колонка настроек ограничена 280 px
+- Панель выделения в конспекте после «Список»/«Рамка» запоминает выделение заново (`NoteEditor.tsx` → `runSel`, `e2e/selpanel.mjs`)
+- Длинные конспекты (≥ 40 блоков, `data-long`): `content-visibility: auto` у блоков — окна и меню над ними открываются быстрее (замер `e2e/winperf.mjs`, проверка `e2e/longnote.mjs`)
+- `src/safeData.ts`: петли `parentId` рвутся при загрузке и слиянии, `cleanExam`, `validExamDate`, предел `MAX_PLAN_DAYS`; `src/katexClasses.ts`: разрешённые `class` в конспектах; корневой `ErrorBoundary` в `main.tsx`; тесты `v1101-safety.test.ts`, сценарий `e2e/v1101.mjs`
 
 ## 1.9.0 — «вычитание»: проще и безопаснее
 - Убраны Сад, Достижения, «Совет дня», плашка серии на «Сегодня» (число — плиткой «Дней подряд» в `Stats.tsx`), справка «Формулы»/«Моды», моды-программы (`src/plugins/*`), 8 переключателей «Возможностей» (осталось 13: `featureList.ts`)
