@@ -294,13 +294,24 @@ function StudyPane() {
             ))}
           </select>
         </SRow>
-        {s.dismissedTips.length > 0 && (
-          <SRow label="Скрытые советы" hint={`Скрыто: ${s.dismissedTips.length}`}>
-            <button className="btn small" onClick={() => updateSettings({ dismissedTips: [] })}>
-              Показать снова
-            </button>
-          </SRow>
-        )}
+        <SRow label="Фокус-режим: заниматься" hint="Запуск — в поиске (Ctrl+P): «Фокус». Потом перерыв.">
+          <select className="input" value={s.focusMinutes} onChange={(e) => updateSettings({ focusMinutes: Number(e.target.value) })} aria-label="Сколько минут заниматься в фокус-режиме">
+            {[10, 15, 20, 25, 30, 45].map((m) => (
+              <option key={m} value={m}>
+                {m} мин
+              </option>
+            ))}
+          </select>
+        </SRow>
+        <SRow label="Фокус-режим: перерыв">
+          <select className="input" value={s.breakMinutes} onChange={(e) => updateSettings({ breakMinutes: Number(e.target.value) })} aria-label="Сколько минут длится перерыв">
+            {[3, 5, 10, 15].map((m) => (
+              <option key={m} value={m}>
+                {m} мин
+              </option>
+            ))}
+          </select>
+        </SRow>
       </Group>
     </div>
   );

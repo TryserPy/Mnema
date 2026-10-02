@@ -70,6 +70,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
     // Команды
     const cmds: [string, string, () => void][] = [
       ['Начать повторение на сегодня', 'play', () => go({ name: 'review', run: Date.now() })],
+      [`Фокус: ${data.settings.focusMinutes} минут, потом перерыв`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
       ...(f.homework ? ([['Записать домашнее задание', 'homework', () => go({ name: 'homework' })], ['Открыть домашку', 'homework', () => go({ name: 'homework' })]] as [string, string, () => void][]) : []),
       ['Новый предмет', 'plus', () => onNew()],

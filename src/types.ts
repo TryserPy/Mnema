@@ -163,7 +163,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type Density = 'compact' | 'normal' | 'comfy';
 
 /** Возможности, которые включаются на экране «Возможности». */
-export type FeatureId = 'leeches' | 'test' | 'focus' | 'schedule' | 'obsidian' | 'confidence' | 'tips' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'weekly' | 'homework' | 'why' | 'poems';
+export type FeatureId = 'schedule' | 'obsidian' | 'confidence' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'homework' | 'why' | 'poems';
 
 export type MotionLevel = 'all' | 'essential' | 'off' | 'custom';
 export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover';
@@ -227,8 +227,6 @@ export interface Settings {
   showIntervals: boolean;
   simpleButtons: boolean; // две кнопки: «Не помню» / «Помню»
   askConfidence: boolean; // устарело, заменено features.confidence
-  tips: boolean; // устарело, заменено features.tips
-  dismissedTips: string[];
   features: Record<FeatureId, boolean>;
   schedule: Record<string, string[]>; // '1'…'6' (пн…сб) → id предметов
   focusMinutes: number;

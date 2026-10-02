@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { FEATURES } from './featureList';
 import { dropRemoved, emptyData, normalizeData } from './store';
 
+const REMOVED = ['mods', 'awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly'];
+
 /** Данные, какими их сохраняла Мнема 1.8: с плагинами, достижениями и возможностями «Сад», «Достижения», «Моды». */
 function oldFile() {
   const d = emptyData();
@@ -11,7 +13,9 @@ function oldFile() {
   s.pluginsSafe = false;
   s.pluginData = { p1: { n: 3 } };
   s.awardsSeen = ['streak3', 'answers100'];
-  Object.assign(s.features as object, { mods: true, awards: true, garden: true });
+  Object.assign(s.features as object, { mods: true, awards: true, garden: true, leeches: true, test: true, focus: true, tips: true, weekly: true });
+  s.tips = true;
+  s.dismissedTips = ['g-mix'];
   d.settings.modsOn = ['notebook', 'm-1'];
   d.settings.customMods = [{ id: 'm-1', name: 'Мой', description: '', css: '.btn { color: red; }' }];
   d.settings.userCss = '.hero { opacity: .9; }';
@@ -25,11 +29,11 @@ describe('2.0, этап 2: старые данные', () => {
     expect(d.subjects.map((s) => s.name)).toEqual(['Физика']);
   });
 
-  it('мёртвые поля выбрасываются: плагины, их данные, «о каких достижениях сказали», возможности «Сад», «Достижения», «Моды»', () => {
+  it('мёртвые поля выбрасываются: плагины, их данные, достижения, советы; возможности «Сад», «Достижения», «Моды», «Совет дня» и пять переключателей ядра', () => {
     const d = normalizeData(oldFile());
     const s = d.settings as unknown as Record<string, unknown>;
-    for (const k of ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen']) expect(k in s).toBe(false);
-    for (const k of ['mods', 'awards', 'garden']) expect(k in d.settings.features).toBe(false);
+    for (const k of ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen', 'tips', 'dismissedTips']) expect(k in s).toBe(false);
+    for (const k of REMOVED) expect(k in d.settings.features).toBe(false);
   });
 
   it('стили, свои стили и свой CSS остаются — они переехали в «Оформление», а не пропали', () => {
@@ -41,8 +45,8 @@ describe('2.0, этап 2: старые данные', () => {
 
   it('остальные возможности не задеты', () => {
     const d = normalizeData(oldFile());
-    expect(d.settings.features.leeches).toBe(true);
-    expect(d.settings.features.weekly).toBe(true);
+    expect(d.settings.features.homework).toBe(true);
+    expect(d.settings.features.lists).toBe(true);
     expect(d.settings.features.map).toBe(false);
   });
 
@@ -54,12 +58,13 @@ describe('2.0, этап 2: старые данные', () => {
 
   it('новые данные не содержат убранных возможностей', () => {
     const f = emptyData().settings.features as unknown as Record<string, unknown>;
-    for (const k of ['mods', 'awards', 'garden']) expect(k in f).toBe(false);
+    for (const k of REMOVED) expect(k in f).toBe(false);
   });
 
   it('в списке «Возможностей» их тоже нет', () => {
     const ids = FEATURES.map((f) => f.id as string);
-    for (const k of ['mods', 'awards', 'garden']) expect(ids).not.toContain(k);
+    for (const k of REMOVED) expect(ids).not.toContain(k);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toHaveLength(13);
   });
 });

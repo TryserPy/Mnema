@@ -148,7 +148,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         const due = new Date(next.due).getTime();
         if (due - Date.now() < 30 * MINUTE) w = [...w, { item: { ...current, isNew: false }, due }];
         // «Трудная» карточка: предложить переписать один раз.
-        if (rating === Rating.Again && settings.features.leeches && !card.leechSeen && cardLapses(getData(), card) >= settings.leechThreshold) {
+        if (rating === Rating.Again && !card.leechSeen && cardLapses(getData(), card) >= settings.leechThreshold) {
           setLeechCard(card.id);
         }
       }

@@ -135,9 +135,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showIntervals: true,
   simpleButtons: false,
   askConfidence: false,
-  tips: true,
-  dismissedTips: [],
-  features: { leeches: true, test: true, focus: false, schedule: false, obsidian: false, confidence: false, tips: true, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, weekly: true, homework: true, why: true, poems: true },
+  features: { schedule: false, obsidian: false, confidence: false, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, homework: true, why: true, poems: true },
   schedule: {},
   focusMinutes: 25,
   breakMinutes: 5,
@@ -162,9 +160,9 @@ export function emptyData(): AppData {
 }
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
-/** Возможности и поля, которых в 2.0 больше нет (код-плагины, достижения, сад): из старых файлов не переносим, чтобы мёртвые данные не копились. */
-const REMOVED_SETTINGS = ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen'];
-const REMOVED_FEATURES = ['mods', 'awards', 'garden'];
+/** Возможности и поля, которых в 2.0 больше нет (код-плагины, достижения, сад, совет дня, переключатели ядра): из старых файлов не переносим, чтобы мёртвые данные не копились. */
+const REMOVED_SETTINGS = ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen', 'tips', 'dismissedTips'];
+const REMOVED_FEATURES = ['mods', 'awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly']; // последние пять стали частью ядра: всегда включены (кроме focus — теперь в поиске Ctrl+P)
 export function dropRemoved(d: AppData): AppData {
   const st = d.settings as unknown as Record<string, unknown>;
   for (const k of REMOVED_SETTINGS) delete st[k];
@@ -884,11 +882,6 @@ export function importTopics(
   }
   commit(d);
   return { topics, cards, firstTopicId };
-}
-
-export function dismissTip(id: string) {
-  if (data.settings.dismissedTips.includes(id)) return;
-  updateSettings({ dismissedTips: [...data.settings.dismissedTips, id] });
 }
 
 export function replaceData(next: AppData) {

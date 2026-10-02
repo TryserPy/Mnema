@@ -224,16 +224,10 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .hero-sub { opacity: 0.92; padding-bottom: 8px; font-size: 1.05rem; }
 .hero-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 58px; border-radius: 14px; border: none; background: var(--on-accent); color: var(--accent); font-size: 1.12rem; font-weight: 600; margin-top: 4px; }
 .hero-btn:hover { filter: brightness(0.97); }
-.hero-link { align-self: center; display: inline-flex; gap: 6px; align-items: center; border: none; background: none; color: var(--on-accent); opacity: 0.9; font-weight: 500; }
-.hero-link:hover { opacity: 1; text-decoration: underline; }
 .note-line { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); }
 .exam { display: flex; align-items: center; gap: 12px; padding: 8px 4px; border-radius: 12px; }
 .exam-main { border: none; background: none; text-align: left; padding: 4px 0; }
 .exam-main:hover strong { color: var(--accent-text, var(--accent)); }
-.tip { display: flex; gap: 12px; padding: 14px 12px 14px 16px; border-radius: var(--radius); background: var(--tip-bg); border: 1px solid var(--tip-line); color: var(--tip-ink); align-items: flex-start; }
-.tip .why { opacity: 0.9; }
-.tip-link { color: var(--tip-ink); font-size: 0.86rem; }
-.tip-close { color: var(--tip-ink); }
 
 /* ---------- Предмет и тема ---------- */
 .topic-list { display: flex; flex-direction: column; gap: 8px; }
@@ -1047,7 +1041,6 @@ textarea.cell { resize: none; field-sizing: content; min-height: 0; line-height:
 
 /* «Сегодня»: совет — внизу экрана */
 .today-page { min-height: calc(100vh - 40px); }
-.today-page .tip-bottom { margin-top: auto; }
 @media (max-width: 720px) { .today-page { min-height: calc(100dvh - 130px); } }
 
 /* ================= 1.4: анимации для каждого действия ================= */
@@ -1116,10 +1109,10 @@ html[data-no-hover] .card-row, html[data-no-hover] .exam, html[data-no-hover] .f
 /* ================= 1.4: оформление ================= */
 /* Скругления */
 html[data-radius='sharp'] { --radius: 6px; }
-html[data-radius='sharp'] :is(.card, .feature, .topic-row, .card-row, .review-card, .hero, .note-page, .modal, .menu, .list-table, .rule-item, .imp-panel, .day, .map-box, .empty, .tip, .rules-drawer, .note-float-panel, .hand-pad, .sync-qr, .toast) { border-radius: 6px !important; }
+html[data-radius='sharp'] :is(.card, .feature, .topic-row, .card-row, .review-card, .hero, .note-page, .modal, .menu, .list-table, .rule-item, .imp-panel, .day, .map-box, .empty, .rules-drawer, .note-float-panel, .hand-pad, .sync-qr, .toast) { border-radius: 6px !important; }
 html[data-radius='sharp'] :is(.btn, .input, .icon-btn, .seg, .seg button, .seg-pill, .grade, .tree-row, .nav-item, .lesson, .note-fab, .foot-btn, .chip-btn, .subtopic-chip, .page-ref, .badge, .tag, .pill, .hero-btn) { border-radius: 4px !important; }
 html[data-radius='round'] { --radius: 24px; }
-html[data-radius='round'] :is(.card, .feature, .review-card, .hero, .note-page, .modal, .list-table, .imp-panel, .map-box, .empty, .tip) { border-radius: 28px !important; }
+html[data-radius='round'] :is(.card, .feature, .review-card, .hero, .note-page, .modal, .list-table, .imp-panel, .map-box, .empty) { border-radius: 28px !important; }
 html[data-radius='round'] :is(.topic-row, .card-row, .rule-item, .day, .menu, .note-float-panel, .hand-pad) { border-radius: 22px !important; }
 html[data-radius='round'] :is(.btn, .seg, .seg button, .seg-pill, .icon-btn.bordered, .hero-btn, .toast, .note-fab) { border-radius: 999px !important; }
 html[data-radius='round'] :is(.input, .grade, .tree-row, .nav-item, .lesson) { border-radius: 16px !important; }

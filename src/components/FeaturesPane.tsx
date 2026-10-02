@@ -1,7 +1,7 @@
 // «Возможности»: плитки по группам — видно всё сразу, без длинной ленты. Подробности — в окне.
 import { useState } from 'react';
 import { FEATURES, GROUPS, type FeatureInfo } from '../featureList';
-import { setFeature, updateSettings, useData } from '../store';
+import { setFeature, useData } from '../store';
 import { Icon, Modal, Segmented, Switch } from './ui';
 import { PaneHead } from './SettingsKit';
 
@@ -23,30 +23,6 @@ function FeatureDetail({ f, onClose, openSection }: { f: FeatureInfo; onClose: (
         <div className="feat-where">
           <Icon name="info" size={16} /> <span>Где: {f.where}</span>
         </div>
-        {f.id === 'focus' && on && (
-          <div className="row gap12 wrap">
-            <label className="row gap6 small">
-              Заниматься
-              <select className="input" value={s.focusMinutes} onChange={(e) => updateSettings({ focusMinutes: Number(e.target.value) })}>
-                {[10, 15, 20, 25, 30, 45].map((m) => (
-                  <option key={m} value={m}>
-                    {m} мин
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="row gap6 small">
-              Перерыв
-              <select className="input" value={s.breakMinutes} onChange={(e) => updateSettings({ breakMinutes: Number(e.target.value) })}>
-                {[3, 5, 10, 15].map((m) => (
-                  <option key={m} value={m}>
-                    {m} мин
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        )}
         <div className="row gap12 feat-detail-foot">
           <Switch label={f.title} checked={on} onChange={(v) => setFeature(f.id, v)} />
           <span className="grow">{on ? 'Включено' : 'Выключено'}</span>

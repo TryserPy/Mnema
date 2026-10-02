@@ -241,7 +241,7 @@ function Numbers({ data, go, tabs, period, onPeriod }: { data: AppData; go: (r: 
           </div>
         </div>
 
-        {f.weekly && <WeekCard data={data} go={go} />}
+        <WeekCard data={data} go={go} />
 
         <div className="stats-grid">
           <div className="card stack gap12">

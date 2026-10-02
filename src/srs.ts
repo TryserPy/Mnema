@@ -530,7 +530,7 @@ export function cardLapses(data: AppData, card: Card): number {
 }
 
 export function isLeech(data: AppData, card: Card): boolean {
-  return data.settings.features.leeches && cardLapses(data, card) >= data.settings.leechThreshold;
+  return cardLapses(data, card) >= data.settings.leechThreshold;
 }
 
 // ---------- План до контрольной ----------
