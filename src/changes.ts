@@ -4,6 +4,7 @@
 // поэтому такой файл легко написать руками или попросить у любой нейросети.
 import { looksLikeMnemaText, MNEMA_TEXT_GUIDE, parseMnemaText, splitDash, toMnemaText } from './mnemaText';
 import { autoChunk } from './poem';
+import { noteEdit } from './noteText';
 import { itemKey, itemOrds } from './srs';
 import { LIST_PRESETS } from './store';
 import type { AppData, Card, CardType, Folder, Homework, ListKind, ListMode, Poem, StudyList, Subject, Topic } from './types';
@@ -188,7 +189,8 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
 
   const setTopic = (id: string, patch: Partial<Topic>) => {
     touched.add(id);
-    d.topics = d.topics.map((t) => (t.id === id ? { ...t, ...patch, updatedAt: stamp } : t));
+    // Текст конспекта поменялся — запоминаем когда и где (noteAt), чтобы синхронизация не потеряла эту правку.
+    d.topics = d.topics.map((t) => (t.id === id ? { ...t, ...(patch.note !== undefined && patch.note !== t.note ? noteEdit(t, src.deviceId, stamp) : {}), ...patch, updatedAt: stamp } : t));
     return d.topics.find((t) => t.id === id)!;
   };
 
@@ -801,8 +803,14 @@ export function revertChanges(before: AppData, applied: AppData, current: AppDat
       list = list.filter((x) => !created.has(x.id));
       for (const id of created) out.deleted![prefix + id] = stamp;
     }
-    // изменённое — вернуть как было
-    list = list.map((x) => (b.has(x.id) && a.has(x.id) && a.get(x.id) !== b.get(x.id) ? { ...b.get(x.id)!, updatedAt: stamp } : x));
+    // изменённое — вернуть как было (если вернулся другой текст конспекта — это правка текста со свежим noteAt, иначе другое устройство вернуло бы файл обратно)
+    list = list.map((x) => {
+      if (!(b.has(x.id) && a.has(x.id) && a.get(x.id) !== b.get(x.id))) return x;
+      const old = b.get(x.id)!;
+      const cur = x as unknown as Topic;
+      const noteBack = key === 'topics' && (old as unknown as Topic).note !== cur.note ? noteEdit(cur, current.deviceId, stamp) : {};
+      return { ...old, ...noteBack, updatedAt: stamp };
+    });
     // удалённое — вернуть
     const have = new Set(list.map((x) => x.id));
     for (const [id, x] of b) {

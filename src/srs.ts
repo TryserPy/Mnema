@@ -664,3 +664,153 @@ export function warmupCards(data: AppData, now: Date, n = 5): string[] {
     .slice(0, n)
     .map((x) => x.cardId);
 }
+
+// ---------- Счётчики сразу для всех тем (один проход) ----------
+// Экран предмета спрашивал `todayCounts` и `topicMastery` отдельно на каждую тему: на 500 темах и 10 000 карточек это
+// ≈0,6 с, на 2000 темах — ≈7–9 с. Здесь карточки каждой темы просматриваются один раз, а для темы с подтемами
+// счётчики складываются. Результат ТОЧНО такой же, как у `todayCounts(data, now, { topicId })` и `topicMastery`
+// (это проверяет src/v181-perf.test.ts); редкие случаи, где точный ответ зависит от порядка очереди, считаются старым путём.
+
+/** Что набирается по карточкам одной темы (без подтем); подтемы потом складываются. */
+interface TopicBucket {
+  total: number; // все элементы (для topicMastery)
+  started: number;
+  learned: number;
+  struggling: number;
+  learn: number; // в очереди «учу»: срок наступил, состояние 1 или 3
+  revTotal: number; // в очереди «повторение»: срок наступил, состояние не 1 и не 3
+  rev2: number; // из них состояние 2 и не «контрольная»
+  revOther: number; // из них другое состояние и не «контрольная»
+  revExam: number; // из них те, что идут как «заранее» к контрольной
+  examNew: number; // новые «по плану контрольной» (сверх дневного лимита)
+  ahead2: number; // «заранее» к контрольной, состояние 2
+  aheadOther: number; // «заранее», другое состояние
+  aheadNew: number; // «заранее» без состояния (так не бывает, считаем для полноты)
+  freshCards: number; // карточки с новым элементом, которого сегодня ещё не касались (кандидаты на «новые»)
+  weird: number; // странности, при которых порядок очереди меняет ответ
+}
+
+const zeroBucket = (): TopicBucket => ({ total: 0, started: 0, learned: 0, struggling: 0, learn: 0, revTotal: 0, rev2: 0, revOther: 0, revExam: 0, examNew: 0, ahead2: 0, aheadOther: 0, aheadNew: 0, freshCards: 0, weird: 0 });
+
+export interface TopicStats {
+  counts: TodayCounts;
+  mastery: ReturnType<typeof topicMastery>;
+}
+
+function topicPass(data: AppData, now: Date | null, ids: Iterable<string> | undefined, withCounts: boolean): Map<string, TopicStats> {
+  const wanted = ids ? [...ids] : data.topics.map((t) => t.id);
+  const children = new Map<string, string[]>();
+  for (const t of data.topics)
+    if (t.parentId) {
+      const l = children.get(t.parentId);
+      if (l) l.push(t.id);
+      else children.set(t.parentId, [t.id]);
+    }
+  const byTopic = cardsByTopic(data);
+  const hour = data.settings.dayStartHour;
+  const at = now ?? new Date();
+  const end = dayEnd(at, hour).getTime();
+  const boost = withCounts ? examBoost(data, at) : new Map<string, 'new' | 'ahead'>();
+  const seen = withCounts ? new Set(logsSince(data, dayStart(at, hour).getTime()).map((l) => l.cardId)) : new Set<string>();
+  const newLeft = withCounts ? Math.max(0, data.settings.newPerDay - newIntroducedToday(data, at)) : 0;
+  const cap = Number.isNaN(newLeft) ? Infinity : Math.ceil(newLeft);
+  const lim = data.settings.maxReviews;
+  const limOk = Number.isInteger(lim) && lim >= 0;
+
+  const buckets = new Map<string, TopicBucket>();
+  const bucketOf = (id: string): TopicBucket => {
+    let b = buckets.get(id);
+    if (b) return b;
+    b = zeroBucket();
+    for (const c of byTopic.get(id) ?? []) {
+      let fresh = false;
+      for (const ord of itemOrds(c)) {
+        const key = itemKey(c.id, ord);
+        const s = data.states[key];
+        b.total++;
+        if (s && s.reps !== 0) {
+          b.started++;
+          if (s.state === 2 && s.stability >= 3) b.learned++;
+          if (s.state === 3 || s.lapses >= 2) b.struggling++;
+        }
+        if (!withCounts) continue;
+        const bo = boost.get(key);
+        if (!s) {
+          if (bo === 'new') b.examNew++;
+          else {
+            if (bo === 'ahead') b.weird++;
+            if (!seen.has(c.id)) fresh = true;
+          }
+        } else if (!(new Date(s.due).getTime() > end)) {
+          if (s.state === 1 || s.state === 3) b.learn++;
+          else {
+            b.revTotal++;
+            if (bo === 'ahead') b.revExam++;
+            else if (s.state === 2) b.rev2++;
+            else b.revOther++;
+          }
+        }
+        if (bo === 'ahead') {
+          if (!s) b.aheadNew++;
+          else if (s.state === 2) b.ahead2++;
+          else b.aheadOther++;
+        }
+      }
+      if (fresh) b.freshCards++;
+    }
+    buckets.set(id, b);
+    return b;
+  };
+
+  const out = new Map<string, TopicStats>();
+  for (const id of wanted) {
+    if (out.has(id)) continue;
+    // тема вместе с подтемами — как topicSubtree
+    const sum = zeroBucket();
+    const sub = new Set([id]);
+    const stack = [id];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      const b = bucketOf(cur);
+      for (const k in b) (sum as any)[k] += (b as any)[k];
+      for (const ch of children.get(cur) ?? []) if (!sub.has(ch)) { sub.add(ch); stack.push(ch); }
+    }
+    const mastery = { total: sum.total, learned: sum.learned, started: sum.started, struggling: sum.struggling };
+    let counts: TodayCounts = { learning: 0, review: 0, newCount: 0 };
+    if (withCounts) {
+      const truncated = limOk && sum.revTotal > lim;
+      if (!limOk || sum.weird > 0 || (truncated && sum.revOther + sum.revExam > 0)) {
+        // порядок очереди влияет на ответ — берём честный старый путь
+        counts = todayCounts(data, at, { topicId: id });
+      } else {
+        const review = (truncated ? lim : sum.rev2) + sum.ahead2;
+        const learning = sum.learn + (truncated ? 0 : sum.revOther) + sum.aheadOther;
+        counts = { learning, review, newCount: sum.examNew + sum.aheadNew + Math.min(sum.freshCards, cap) };
+      }
+    }
+    out.set(id, { counts, mastery });
+  }
+  return out;
+}
+
+/**
+ * Счётчики «на сегодня» для каждой темы (вместе с подтемами) за один проход по карточкам.
+ * Для темы совпадает с `todayCounts(data, now, { topicId })`. `topicIds` — какие темы нужны (по умолчанию все).
+ */
+export function todayCountsByTopic(data: AppData, now: Date, topicIds?: Iterable<string>): Map<string, TodayCounts> {
+  const out = new Map<string, TodayCounts>();
+  for (const [id, s] of topicPass(data, now, topicIds, true)) out.set(id, s.counts);
+  return out;
+}
+
+/** Освоение каждой темы (вместе с подтемами) за один проход; для темы совпадает с `topicMastery(data, id)`. */
+export function topicMasteryByTopic(data: AppData, topicIds?: Iterable<string>): Map<string, ReturnType<typeof topicMastery>> {
+  const out = new Map<string, ReturnType<typeof topicMastery>>();
+  for (const [id, s] of topicPass(data, null, topicIds, false)) out.set(id, s.mastery);
+  return out;
+}
+
+/** И счётчики на сегодня, и освоение — за один проход (экран предмета). */
+export function topicStatsByTopic(data: AppData, now: Date, topicIds?: Iterable<string>): Map<string, TopicStats> {
+  return topicPass(data, now, topicIds, true);
+}
