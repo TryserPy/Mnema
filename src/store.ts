@@ -174,6 +174,18 @@ export function dropRemoved(d: AppData): AppData {
   return d;
 }
 
+/** Данные пришли «со стороны» (копия из файла): то, что может запустить чужой код или увести пароль, берём у ЭТОГО устройства, а не из файла.
+ *  — моды из копии остаются в списке, но не запускаются, пока их не разрешат здесь (`pluginsSafe`);
+ *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Мнема сама отправила бы сохранённый пароль на чужой сервер. */
+export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; notes: string[] } {
+  const notes: string[] = [];
+  const ownCloud = local.settings.cloud ?? null;
+  const theirs = d.settings.cloud ?? null;
+  if (theirs && JSON.stringify(theirs) !== JSON.stringify(ownCloud)) notes.push('облако из копии не подключено — подключи его заново в «Настройки → Данные»');
+  if (d.settings.plugins?.length && !d.settings.pluginsSafe) notes.push('моды из копии выключены — включи их сам, если им доверяешь');
+  return { data: { ...d, settings: { ...d.settings, pluginsSafe: true, cloud: ownCloud } }, notes };
+}
+
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
 export function normalizeData(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Мнемы');

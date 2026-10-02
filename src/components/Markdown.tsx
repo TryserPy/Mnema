@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { parseVideo, VIDEO_ALT } from '../video';
 import { videoPlayer } from './videoNode';
 import { drawingBgOf, inlineDrawing } from './Drawing';
+import { safeStyleAttr } from '../safeCss';
 import { registry, runPostProcessors } from '../plugins/host';
 
 export function renderTex(tex: string, display: boolean): string {
@@ -100,7 +101,12 @@ if (DOMPurify.isSupported) DOMPurify.addHook('afterSanitizeAttributes', (node) =
   }
   node.removeAttribute('srcset');
   // Свои стили в конспекте не нужны (поддельные кнопки поверх окна, скрытие частей окна), кроме формул KaTeX.
-  if (markdownPass && node.hasAttribute('style') && !node.closest('.katex, .math-block')) node.removeAttribute('style');
+  if (markdownPass && node.hasAttribute('style')) {
+    // Внутри формулы оставляем только безопасное (размеры, сдвиги, цвет); класс math-block можно написать руками, поэтому position/z-index/inset/url не пропускаем никогда.
+    const st = node.closest('.katex, .math-block') ? safeStyleAttr(node.getAttribute('style') ?? '') : '';
+    if (st) node.setAttribute('style', st);
+    else node.removeAttribute('style');
+  }
 });
 
 export function renderMarkdown(src: string): string {

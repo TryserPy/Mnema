@@ -119,8 +119,11 @@ function register(winGetter) {
     else p.resolve({ data: msg.data, report: msg.report });
   });
   // Простой HTTP-запрос из окна (для синхронизации с другим устройством) — без ограничений CORS.
+  // Метод запроса — из списка того, что нужно приложению (облако, синхронизация, обновления) и модам; адрес — только http(s).
+  const HTTP_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'MKCOL', 'PROPFIND']);
   ipcMain.handle('net:http', async (_e, r) => {
     if (!r || !/^https?:\/\//i.test(r.url)) return { status: 0, text: 'Неверный адрес' };
+    if (r.method && !HTTP_METHODS.has(String(r.method).toUpperCase())) return { status: 0, text: 'Метод запроса не разрешён' };
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), Math.min(Number(r.timeout) || 30000, 300000));
     try {

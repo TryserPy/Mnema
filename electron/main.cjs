@@ -202,7 +202,10 @@ function readSecrets() {
     return {};
   }
 }
+// Окно (и моды в нём) читает и пишет только эти секреты; ключи ИИ читает главный процесс сам.
+const SECRET_NAMES = new Set(['cloud-pass', 'cloud-enc']);
 ipcMain.handle('secret:get', (_e, name) => {
+  if (!SECRET_NAMES.has(String(name))) return '';
   const v = readSecrets()[String(name)];
   if (!v) return '';
   try {
@@ -215,6 +218,7 @@ ipcMain.handle('secret:get', (_e, name) => {
   return '';
 });
 ipcMain.handle('secret:set', (_e, name, value) => {
+  if (!SECRET_NAMES.has(String(name))) return false;
   const { safeStorage } = require('electron');
   const all = readSecrets();
   if (!value) delete all[String(name)];

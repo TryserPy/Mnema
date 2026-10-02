@@ -208,15 +208,20 @@ public class Bridge {
 
     // ---------- настройки и секреты ----------
 
+    /** Страница (и моды в ней) читает и пишет только эти настройки; остальные — только сама оболочка. */
+    static boolean prefAllowed(String name) {
+        return "ai".equals(name) || "secret:cloud-pass".equals(name) || "secret:cloud-enc".equals(name);
+    }
+
     @JavascriptInterface
     public String prefGet(String k, String name) {
-        if (!allowed(k)) return null;
+        if (!allowed(k) || !prefAllowed(name)) return null;
         return prefs.getString(name, null);
     }
 
     @JavascriptInterface
     public void prefSet(String k, String name, String value) {
-        if (!allowed(k)) return;
+        if (!allowed(k) || !prefAllowed(name)) return;
         if (value == null || value.isEmpty()) prefs.edit().remove(name).apply();
         else prefs.edit().putString(name, value).apply();
     }
@@ -319,6 +324,7 @@ public class Bridge {
             String url = req.getString("url");
             if (!url.startsWith("http://") && !url.startsWith("https://")) throw new Exception("Неверный адрес");
             String method = req.optString("method", "GET").toUpperCase(Locale.US);
+            if (!Arrays.asList("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "MKCOL", "PROPFIND").contains(method)) throw new Exception("Метод запроса не разрешён");
             int timeout = req.optInt("timeout", 60000);
             conn = (HttpURLConnection) new URL(url).openConnection();
             conn.setConnectTimeout(Math.min(timeout, 30000));

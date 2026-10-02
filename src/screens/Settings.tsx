@@ -19,7 +19,7 @@ import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
 import { openChanges } from '../components/ChangesDialog';
-import { emptyData, exportJson, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
+import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
 
@@ -593,9 +593,10 @@ function DataPane({ go }: { go: (r: Route) => void }) {
               <button
                 className="btn primary"
                 onClick={() => {
-                  replaceData(pendingBackup);
+                  const { data: safe, notes } = neutralizeForeign(pendingBackup, getData());
+                  replaceData(safe);
                   setPendingBackup(null);
-                  setMsg('Данные восстановлены.');
+                  setMsg('Данные восстановлены.' + (notes.length ? ' Не перенесено: ' + notes.join('; ') + '.' : ''));
                 }}
               >
                 Восстановить

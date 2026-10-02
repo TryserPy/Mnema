@@ -1,5 +1,6 @@
 // Моды: наборы стилей, которые меняют вид Мнемы. Только оформление (CSS и настройки вида),
 // никаких программ — поэтому моды из файлов от друзей безопасны.
+import { cleanModName, decodeCssEscapes } from './safeCss';
 import type { Mod } from './types';
 
 export const MOD_EXT = '.mnemamod';
@@ -85,14 +86,17 @@ export function isMod(x: unknown): x is Mod & { kind: 'mnema-mod' } {
   return Boolean(m && m.kind === 'mnema-mod' && typeof m.name === 'string' && (typeof m.css === 'string' || typeof m.look === 'object'));
 }
 
-/** Проверка CSS из файла: убираем то, что может загрузить что-то из интернета или сломать окно. */
+/** Проверка CSS из файла: убираем всё, что может загрузить что-то из интернета, подставить чужую картинку или сломать окно.
+ *  Сначала раскрываем экранирование (\75rl( → url(), иначе проверки обходятся; проверяем уже раскрытый текст и его же отдаём. */
 export function sanitizeCss(css: string): string {
-  return css
-    .replace(/@import[^;]*;?/gi, '')
-    .replace(/url\(\s*(['"]?)(?!data:)[^)]*\1\s*\)/gi, 'none')
-    .replace(/expression\s*\(/gi, '')
-    .replace(/<\/?style[^>]*>/gi, '')
-    .slice(0, 40000);
+  return decodeCssEscapes(css.slice(0, 40000))
+    .replace(/\/\*[\s\S]*?\*\//g, '') // комментарии: ими разрывают слова (u/**/rl)
+    .replace(/@\s*import\b[^;]*;?/gi, '')
+    .replace(/@\s*(?:namespace|charset)\b[^;]*;?/gi, '')
+    .replace(/url\(\s*(?!['"]?data:image\/)[^)]*\)/gi, 'none')
+    .replace(/(?<![\w-])(?:-[a-z]+-)?(?:image-set|cross-fade|element|image|src|paint)\s*\(/gi, 'blocked-fn(') // функции, которые тоже умеют грузить картинки
+    .replace(/expression\s*\(|javascript:|-moz-binding|behavior\s*:/gi, '')
+    .replace(/<\/?style[^>]*>/gi, '');
 }
 
 export function allMods(custom: Mod[]): Mod[] {
@@ -103,7 +107,7 @@ export function allMods(custom: Mod[]): Mod[] {
 export function modsCss(on: string[], custom: Mod[], userCss: string): string {
   const parts = allMods(custom)
     .filter((m) => on.includes(m.id) && m.css)
-    .map((m) => `/* мод: ${m.name.replace(/\*\//g, '')} */\n${sanitizeCss(m.css!)}`);
+    .map((m) => `/* мод: ${cleanModName(m.name)} */\n${sanitizeCss(m.css!)}`);
   if (userCss.trim()) parts.push('/* свой CSS */\n' + sanitizeCss(userCss));
   return parts.join('\n\n');
 }
