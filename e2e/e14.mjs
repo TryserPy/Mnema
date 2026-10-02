@@ -65,6 +65,7 @@ await win.getByRole('radio', { name: 'Все', exact: true }).click();
 
 // Возможности
 await win.locator('.foot-btn[aria-label="Возможности"]').click();
+await win.getByRole('switch', { name: 'Моды' }).click();
 await win.getByRole('switch', { name: 'Карта знаний' }).click();
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
 await sect('Оформление');

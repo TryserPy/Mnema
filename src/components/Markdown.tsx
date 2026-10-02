@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { parseVideo, VIDEO_ALT } from '../video';
 import { videoPlayer } from './videoNode';
 import { drawingBgOf, inlineDrawing } from './Drawing';
+import { registry, runPostProcessors } from '../plugins/host';
 
 export function renderTex(tex: string, display: boolean): string {
   return katexHtml(tex, { displayMode: display, output: 'htmlAndMathml', strict: false });
@@ -129,6 +130,7 @@ export function Markdown({ text, className, onPage }: { text: string; className?
       const n = !el.firstChild && inlineDrawing(el.dataset.src ?? '');
       if (n) el.appendChild(n);
     }
+    if (ref.current && registry.postProcessors.length) runPostProcessors(ref.current, text);
   }, [html]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div

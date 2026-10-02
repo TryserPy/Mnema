@@ -15,6 +15,7 @@ import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, norm
 import { addList, addPoem, addTopic, childTopics, deleteCard, LIST_PRESETS, resetCardProgress, subjectRules, topicWithDescendants, updateTopic, useData, getData } from '../store';
 import { StudyListView } from '../components/StudyListView';
 import { PoemView } from '../components/PoemView';
+import { usePlugins } from '../plugins/host';
 import { AddToRule, RulesDrawer, RuleWordsEditor, useRuleTips } from '../components/Rules';
 import { useLinkTips } from '../components/Links';
 import { makeRuleMatcher } from '../rules';
@@ -44,6 +45,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [dropped, setDropped] = useState<File[] | null>(null);
   const [subName, setSubName] = useState('');
   const [rulesOpen, setRulesOpen] = useState(false);
+  const plugins = usePlugins();
   const [noteCards, setNoteCards] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   if (!topic) return <div className="page">Тема не найдена.</div>;
@@ -174,6 +176,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Поделиться темой (файл)', icon: 'share', onClick: () => exportTopic(data, id) },
               { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 },
+              ...plugins.topicActions.map((a) => ({ label: a.title, icon: 'puzzle', onClick: () => a.run({ id: topic.id, name: topic.name, note: topic.note, subjectId: topic.subjectId }) })),
               { label: 'Удалить тему', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
             ]}
           />
