@@ -297,6 +297,12 @@ export interface Removed {
   marks: string[];
 }
 
+/** Прежняя версия текста конспекта (история лежит только на этом устройстве). */
+export interface NoteVersion {
+  at: string; // когда этот текст перестал быть текущим (его заменили правкой)
+  note: string;
+}
+
 /** Корзина: недавно удалённое. Живёт только на этом устройстве (в облако и по Wi-Fi не уходит). */
 export interface TrashEntry {
   id: string;
@@ -311,6 +317,7 @@ export interface AppData {
   homework: Homework[];
   exams?: Exam[];
   trash?: TrashEntry[];
+  noteHistory?: Record<string, NoteVersion[]>; // id темы → прежние версии конспекта, свежие первыми
   subjects: Subject[];
   topics: Topic[];
   cards: Card[];

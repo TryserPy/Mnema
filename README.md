@@ -102,6 +102,10 @@ npm run build          # сборка в dist/
 - Конспект на весь экран, экран не «белеет» при ошибке (`ErrorBoundary`), починена пустая карта знаний
 - Быстрее: счётчики «на сегодня» кэшируются, журнал ответов читается с конца, редактор формул/граф/импорт учебника грузятся по требованию
 
+## 1.15.0 — история конспекта (часть этапа 7 плана 2.0)
+- `AppData.noteHistory?: Record<topicId, NoteVersion[]>` (`types.ts`): `updateTopic` → `historyWith` (снимок прежнего текста, если прошло 10+ минут или текст сократился больше чем на 40%; до 15 версий, 60 дней, общий потолок 1,5 млн знаков), `restoreNoteVersion` (текущий текст сам становится версией; `noteEdit` — синхронизация видит правку), `forSync` убирает историю из облака/Wi-Fi/копии, `cleanNoteHistory` в `safeData.ts` (только для существующих тем и тем из корзины)
+- Окно `components/NoteHistory.tsx`, пункт «История конспекта» в меню темы (только если версии есть), `reload` перечитывает редактор; тесты `noteHistory.test.ts` (10), сценарий `e2e/history.mjs`. Не сделано из этапа 7: экран автокопий
+
 ## 1.14.0 — корзина (часть этапа 7 плана 2.0)
 - `AppData.trash?: TrashEntry[]` (`types.ts`; `Removed` переехал в `types.ts`): `withTrash` кладёт запись при `deleteSubject/deleteTopic/deleteMany/deleteCardsUndoable/deleteCard` (30 дней, не больше 30 записей); `restoreFromTrash` (не возвращает тему без предмета и карточку без темы), `purgeTrash`, `restoreRemoved` не оставляет «сирот» и убирает запись из корзины; `forSync` — без корзины для облака (`cloud.ts`), Wi-Fi (`SyncDialog.tsx`) и копии (`exportJson`); `cleanTrash` в `safeData.ts`
 - Экран `screens/Trash.tsx`, маршрут `{ name: 'trash' }`; входы: «Профиль» (телефон), «Настройки → Данные», поиск

@@ -8,8 +8,8 @@ import { emit } from './plugins/bus';
 import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
-import { cleanExam, cleanTopics, cleanTrash, validExamDate } from './safeData';
-import type { AppData, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
+import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
+import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
 export type AiFormat = 'openai' | 'anthropic' | 'gemini';
@@ -256,6 +256,10 @@ export function normalizeData(raw: unknown): AppData {
       textbook: { ...DEFAULT_SETTINGS.textbook, ...(r.settings?.textbook ?? {}) }
     }
   };
+  // История конспектов — только для тем, которые есть (или лежат в корзине): иначе от удалённых навсегда тем копился бы мусор.
+  const known = new Set([...out.topics.map((t) => t.id), ...(out.trash ?? []).flatMap((x) => x.removed.topics.map((t) => t.id))]);
+  const hist = cleanNoteHistory(r.noteHistory, known);
+  if (hist) out.noteHistory = hist;
   return dropRemoved(out);
 }
 
@@ -426,9 +430,9 @@ export function restoreRemoved(r: Removed) {
 const TRASH_DAYS = 30;
 const TRASH_MAX = 30;
 
-/** Копия данных для облака, Wi-Fi-обмена и резервной копии: без корзины (она остаётся только на этом устройстве). */
+/** Копия данных для облака, Wi-Fi-обмена и резервной копии: без корзины и истории конспектов (они остаются только на этом устройстве). */
 export function forSync(d: AppData): AppData {
-  return d.trash ? { ...d, trash: undefined } : d;
+  return d.trash || d.noteHistory ? { ...d, trash: undefined, noteHistory: undefined } : d;
 }
 
 function withTrash(d: AppData, removed: Removed, label: string): AppData {
@@ -612,8 +616,11 @@ export function addTopic(subjectId: string, name: string, parentId?: string, kin
 
 export function updateTopic(id: string, patch: Partial<Omit<Topic, 'id'>>) {
   const stamp = nowIso();
+  const old = data.topics.find((t) => t.id === id);
+  const history = old && patch.note !== undefined ? historyWith(data, old, patch.note, stamp, false) : data.noteHistory;
   commit({
     ...data,
+    ...(history !== data.noteHistory ? { noteHistory: history } : {}),
     topics: data.topics.map((t) => {
       if (t.id !== id) return t;
       // noteAt — только когда текст конспекта правда поменялся: звёздочка, дата, порядок вкладок его не трогают (см. src/sync.ts).
@@ -621,6 +628,66 @@ export function updateTopic(id: string, patch: Partial<Omit<Topic, 'id'>>) {
       return { ...t, ...(edited ? noteEdit(t, data.deviceId, stamp) : {}), ...patch, updatedAt: stamp };
     })
   });
+}
+
+// ---------- История конспекта: прежние версии текста (только на этом устройстве) ----------
+
+const HIST_MAX = 15; // версий на тему
+const HIST_DAYS = 60;
+const HIST_GAP = 10 * 60_000; // новый снимок — не чаще, чем раз в 10 минут правки
+const HIST_CHARS = 1_500_000; // всего знаков по всем темам; сверх этого стираются самые старые
+
+/**
+ * Запомнить прежний текст перед правкой. Снимок делается, если прошло 10+ минут с прошлого, или текст резко сократился (случайно стёрли), или это первая правка.
+ * Возвращает новое значение `noteHistory` (тот же объект, если ничего не менялось). `force` — снимок обязателен (перед возвратом версии).
+ */
+function historyWith(d: AppData, topic: Topic, next: string, stamp: string, force: boolean): AppData['noteHistory'] {
+  const old = topic.note;
+  if (!old.trim() || old === next) return d.noteHistory;
+  const list = d.noteHistory?.[topic.id] ?? [];
+  const last = list[0];
+  if (last && last.note === old) return d.noteHistory;
+  const gapOk = !last || Date.parse(stamp) - Date.parse(last.at) >= HIST_GAP;
+  const shrunk = old.length >= 200 && next.length < old.length * 0.6;
+  if (!force && !gapOk && !shrunk) return d.noteHistory;
+  const cutoff = Date.parse(stamp) - HIST_DAYS * 86400000;
+  const kept = [{ at: stamp, note: old }, ...list].filter((v) => Date.parse(v.at) >= cutoff).slice(0, HIST_MAX);
+  return trimHistory({ ...(d.noteHistory ?? {}), [topic.id]: kept });
+}
+
+/** Общий потолок по размеру: убираем самые старые версии, пока всё не поместится. */
+function trimHistory(h: NonNullable<AppData['noteHistory']>): NonNullable<AppData['noteHistory']> {
+  let total = 0;
+  for (const l of Object.values(h)) for (const v of l) total += v.note.length;
+  if (total <= HIST_CHARS) return h;
+  const all = Object.entries(h).flatMap(([id, l]) => l.map((v) => ({ id, v })));
+  all.sort((a, b) => a.v.at.localeCompare(b.v.at));
+  const drop = new Set<NoteVersion>();
+  for (const x of all) {
+    if (total <= HIST_CHARS) break;
+    drop.add(x.v);
+    total -= x.v.note.length;
+  }
+  const out: NonNullable<AppData['noteHistory']> = {};
+  for (const [id, l] of Object.entries(h)) {
+    const keep = l.filter((v) => !drop.has(v));
+    if (keep.length) out[id] = keep;
+  }
+  return out;
+}
+
+/** Вернуть прежнюю версию конспекта. Текущий текст сам попадает в историю — шаг можно отменить. false — версии больше нет. */
+export function restoreNoteVersion(topicId: string, at: string): boolean {
+  const t = data.topics.find((x) => x.id === topicId);
+  const v = data.noteHistory?.[topicId]?.find((x) => x.at === at);
+  if (!t || !v) return false;
+  const stamp = nowIso();
+  commit({
+    ...data,
+    noteHistory: historyWith(data, t, v.note, stamp, true),
+    topics: data.topics.map((x) => (x.id === topicId ? { ...x, ...noteEdit(x, data.deviceId, stamp), note: v.note, updatedAt: stamp } : x))
+  });
+  return true;
 }
 
 /** id темы и всех её подтем. */
