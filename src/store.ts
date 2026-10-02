@@ -8,8 +8,8 @@ import { emit } from './plugins/bus';
 import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
-import { cleanExam, cleanTopics, validExamDate } from './safeData';
-import type { AppData, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
+import { cleanExam, cleanTopics, cleanTrash, validExamDate } from './safeData';
+import type { AppData, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
 export type AiFormat = 'openai' | 'anthropic' | 'gemini';
@@ -214,6 +214,7 @@ export function normalizeData(raw: unknown): AppData {
     homework: Array.isArray(r.homework) ? r.homework : [],
     exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
     subjects: r.subjects,
+    ...(Array.isArray(r.trash) && r.trash.length ? { trash: cleanTrash(r.trash) } : {}),
     topics: cleanTopics(r.topics),
     cards: r.cards,
     states: r.states && typeof r.states === 'object' ? r.states : {},
@@ -371,15 +372,7 @@ function tomb(d: AppData, keys: string[]): AppData {
   return { ...d, deleted };
 }
 
-/** Что удалено одним действием — чтобы можно было нажать «Вернуть». */
-export interface Removed {
-  subjects: Subject[];
-  topics: Topic[];
-  cards: Card[];
-  states: AppData['states'];
-  logs: AppData['logs'];
-  marks: string[];
-}
+export type { Removed };
 
 function captureRemoved(d: AppData, subjectIds: Set<string>, topicIds: Set<string>, cardIds: Set<string>, marks: string[]): Removed {
   const states: AppData['states'] = {};
@@ -403,15 +396,73 @@ export function restoreRemoved(r: Removed) {
   const tIds = has(data.topics);
   const cIds = has(data.cards);
   const stamp = nowIso();
+  const subjects = [...data.subjects, ...r.subjects.filter((x) => !sIds.has(x.id)).map((x) => ({ ...x, updatedAt: stamp }))];
+  const haveSubject = new Set(subjects.map((x) => x.id));
+  // Тема встаёт на место, только если её предмет есть (иначе она «осиротеет» и пропадёт с экрана); подтема без родителя — обычная тема.
+  const topicsAll = [...data.topics, ...r.topics.filter((x) => !tIds.has(x.id) && haveSubject.has(x.subjectId)).map((x) => ({ ...x, updatedAt: stamp }))];
+  const haveTopic = new Set(topicsAll.map((x) => x.id));
+  const topics = topicsAll.map((x) => (x.parentId && !haveTopic.has(x.parentId) ? { ...x, parentId: undefined } : x));
+  const cards = [...data.cards, ...r.cards.filter((x) => !cIds.has(x.id) && haveTopic.has(x.topicId)).map((x) => ({ ...x, updatedAt: stamp }))];
+  const haveCard = new Set(cards.map((x) => x.id));
+  const states = { ...data.states };
+  for (const [k, v] of Object.entries(r.states)) if (!states[k] && haveCard.has(k.split(':')[0])) states[k] = v;
+  const logSeen = new Set(data.logs.map((l) => l.key + '|' + l.at));
+  const key = r.marks.join('|');
   commit({
     ...data,
     deleted,
-    subjects: [...data.subjects, ...r.subjects.filter((x) => !sIds.has(x.id)).map((x) => ({ ...x, updatedAt: stamp }))],
-    topics: [...data.topics, ...r.topics.filter((x) => !tIds.has(x.id)).map((x) => ({ ...x, updatedAt: stamp }))],
-    cards: [...data.cards, ...r.cards.filter((x) => !cIds.has(x.id)).map((x) => ({ ...x, updatedAt: stamp }))],
-    states: { ...r.states, ...data.states },
-    logs: [...data.logs, ...r.logs]
+    subjects,
+    topics,
+    cards,
+    states,
+    logs: [...data.logs, ...r.logs.filter((l) => haveCard.has(l.cardId) && !logSeen.has(l.key + '|' + l.at))].sort((a, b) => a.at.localeCompare(b.at)),
+    // вернули нажатием «Вернуть» — в корзине эта запись больше не нужна
+    ...(data.trash?.length ? { trash: data.trash.filter((t) => t.removed.marks.join('|') !== key) } : {})
   });
+}
+
+// ---------- Корзина: недавно удалённое (только на этом устройстве) ----------
+
+const TRASH_DAYS = 30;
+const TRASH_MAX = 30;
+
+/** Копия данных для облака, Wi-Fi-обмена и резервной копии: без корзины (она остаётся только на этом устройстве). */
+export function forSync(d: AppData): AppData {
+  return d.trash ? { ...d, trash: undefined } : d;
+}
+
+function withTrash(d: AppData, removed: Removed, label: string): AppData {
+  if (!removed.subjects.length && !removed.topics.length && !removed.cards.length) return d;
+  const cutoff = Date.now() - TRASH_DAYS * 86400000;
+  const keep = (d.trash ?? []).filter((t) => Date.parse(t.at) >= cutoff);
+  const entry: TrashEntry = { id: uid(), at: nowIso(), label, removed };
+  return { ...d, trash: [entry, ...keep].slice(0, TRASH_MAX) };
+}
+
+const plural2 = (n: number, one: string, few: string, many: string) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many);
+/** Подпись записи в корзине: что именно удалено. */
+function labelOf(r: Removed, what: string): string {
+  const parts = [r.topics.length > 1 ? `${r.topics.length} ${plural2(r.topics.length, 'тема', 'темы', 'тем')}` : '', r.cards.length ? `${r.cards.length} ${plural2(r.cards.length, 'карточка', 'карточки', 'карточек')}` : ''].filter(Boolean);
+  return parts.length ? `${what} · ${parts.join(', ')}` : what;
+}
+
+/** Вернуть из корзины. false — запись уже исчезла. */
+export function restoreFromTrash(id: string): boolean {
+  const t = (data.trash ?? []).find((x) => x.id === id);
+  if (!t) return false;
+  // Тему нельзя вернуть без её предмета, карточку — без темы: сначала надо вернуть то, что выше (иначе она пропала бы с экрана). Запись остаётся в корзине.
+  const subjects = new Set([...data.subjects, ...t.removed.subjects].map((x) => x.id));
+  if (t.removed.topics.some((x) => !subjects.has(x.subjectId))) return false;
+  const topics = new Set([...data.topics, ...t.removed.topics].map((x) => x.id));
+  if (t.removed.cards.some((x) => !topics.has(x.topicId))) return false;
+  restoreRemoved(t.removed);
+  commit({ ...data, trash: (data.trash ?? []).filter((x) => x.id !== id) }); // на случай, если marks не совпали
+  return true;
+}
+
+/** Удалить из корзины навсегда: одну запись или (без id) все. */
+export function purgeTrash(id?: string) {
+  commit({ ...data, trash: id ? (data.trash ?? []).filter((x) => x.id !== id) : [] });
 }
 
 export function deleteSubject(id: string): Removed {
@@ -419,7 +470,8 @@ export function deleteSubject(id: string): Removed {
   const cardIds = new Set(data.cards.filter((c) => topicIds.has(c.topicId)).map((c) => c.id));
   const marks = ['subj:' + id, ...[...topicIds].map((t) => 'topic:' + t), ...[...cardIds].map((c) => 'card:' + c)];
   const removed = captureRemoved(data, new Set([id]), topicIds, cardIds, marks);
-  commit(removeCards(tomb({ ...data, subjects: data.subjects.filter((s) => s.id !== id), topics: data.topics.filter((t) => !topicIds.has(t.id)) }, marks), cardIds));
+  const sub = data.subjects.find((s) => s.id === id);
+  commit(withTrash(removeCards(tomb({ ...data, subjects: data.subjects.filter((s) => s.id !== id), topics: data.topics.filter((t) => !topicIds.has(t.id)) }, marks), cardIds), removed, labelOf(removed, `Предмет «${sub?.name ?? ''}»`)));
   return removed;
 }
 
@@ -440,18 +492,23 @@ export function deleteMany(sel: { folders?: string[]; subjects?: string[]; topic
   const marks = [...[...subjectIds].map((id) => 'subj:' + id), ...[...topicIds].map((id) => 'topic:' + id), ...[...cardIds].map((id) => 'card:' + id), ...[...folderIds].map((id) => 'folder:' + id)];
   const removed = captureRemoved(data, subjectIds, topicIds, cardIds, marks);
   const stamp = nowIso();
+  const total = subjectIds.size + (sel.topics?.length ?? 0) + folderIds.size;
   commit(
-    removeCards(
-      tomb(
-        {
-          ...data,
-          folders: data.folders.filter((f) => !folderIds.has(f.id)),
-          subjects: data.subjects.filter((x) => !subjectIds.has(x.id)).map((x) => (x.folderId && folderIds.has(x.folderId) ? { ...x, folderId: undefined, updatedAt: stamp } : x)),
-          topics: data.topics.filter((t) => !topicIds.has(t.id))
-        },
-        marks
+    withTrash(
+      removeCards(
+        tomb(
+          {
+            ...data,
+            folders: data.folders.filter((f) => !folderIds.has(f.id)),
+            subjects: data.subjects.filter((x) => !subjectIds.has(x.id)).map((x) => (x.folderId && folderIds.has(x.folderId) ? { ...x, folderId: undefined, updatedAt: stamp } : x)),
+            topics: data.topics.filter((t) => !topicIds.has(t.id))
+          },
+          marks
+        ),
+        cardIds
       ),
-      cardIds
+      removed,
+      labelOf(removed, `Выбрано и удалено: ${total}`)
     )
   );
   return () => {
@@ -585,7 +642,8 @@ export function deleteTopic(id: string): Removed {
   const cardIds = new Set(data.cards.filter((c) => ids.has(c.topicId)).map((c) => c.id));
   const marks = [...[...ids].map((t) => 'topic:' + t), ...[...cardIds].map((c) => 'card:' + c)];
   const removed = captureRemoved(data, new Set(), ids, cardIds, marks);
-  commit(removeCards(tomb({ ...data, topics: data.topics.filter((t) => !ids.has(t.id)) }, marks), cardIds));
+  const top = data.topics.find((t) => t.id === id);
+  commit(withTrash(removeCards(tomb({ ...data, topics: data.topics.filter((t) => !ids.has(t.id)) }, marks), cardIds), removed, labelOf(removed, `Тема «${top?.name ?? ''}»`)));
   return removed;
 }
 
@@ -859,12 +917,22 @@ export function deleteCardsUndoable(ids: string[]): Removed {
   const set = new Set(ids);
   const marks = ids.map((c) => 'card:' + c);
   const removed = captureRemoved(data, new Set(), new Set(), set, marks);
-  commit(removeCards(tomb(data, marks), set));
+  commit(withTrash(removeCards(tomb(data, marks), set), removed, cardsLabel(removed)));
   return removed;
 }
 
+/** Подпись для карточек в корзине: «Карточка «вопрос…»» или «Карточки: N». */
+function cardsLabel(r: Removed): string {
+  if (r.cards.length === 1) {
+    const f = r.cards[0].front.replace(/\{\{|\}\}/g, '…').replace(/\s+/g, ' ').trim();
+    return `Карточка «${f.length > 50 ? f.slice(0, 50) + '…' : f}»`;
+  }
+  return `Карточки: ${r.cards.length}`;
+}
+
 export function deleteCard(id: string) {
-  commit(removeCards(tomb(data, ['card:' + id]), new Set([id])));
+  const removed = captureRemoved(data, new Set(), new Set(), new Set([id]), ['card:' + id]);
+  commit(withTrash(removeCards(tomb(data, ['card:' + id]), new Set([id])), removed, cardsLabel(removed)));
 }
 
 function removeCards(d: AppData, ids: Set<string>): AppData {
@@ -996,5 +1064,5 @@ export function replaceData(next: AppData) {
 }
 
 export function exportJson(): string {
-  return JSON.stringify(data, null, 1);
+  return JSON.stringify(forSync(data), null, 1);
 }
