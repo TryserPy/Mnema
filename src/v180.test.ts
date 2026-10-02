@@ -499,14 +499,14 @@ describe('1.8: фон картинкой в окне', () => {
   };
   const withBg = (bg: unknown): AppData['settings'] => ({ ...emptyData().settings, bgImage: bg as never });
 
-  it('«насколько видно» ограничено 0,5–0,95 (как ползунок в настройках), флаг фона ставится и снимается', () => {
+  it('«насколько видно» ограничено 0,72–0,95 (как ползунок в настройках), флаг фона ставится и снимается', () => {
     const a = fakeRoot();
     applyLook(a.root, withBg({ src: PNG_1PX, fade: 2 }), false);
     expect(a.props.get('--bg-fade')).toBe('0.95');
     expect(a.props.get('--bg-img')).toBe(`url("${PNG_1PX}")`);
     expect(a.dataset.bgimg).toBe('1');
     applyLook(a.root, withBg({ src: PNG_1PX, fade: 0 }), true);
-    expect(a.props.get('--bg-fade')).toBe('0.5');
+    expect(a.props.get('--bg-fade')).toBe('0.72');
     applyLook(a.root, withBg(undefined), false);
     expect(a.props.has('--bg-img')).toBe(false);
     expect(a.dataset.bgimg).toBeUndefined();
@@ -517,7 +517,7 @@ describe('1.8: фон картинкой в окне', () => {
     applyLook(a.root, withBg({ src: 'https://evil.example/x.png', fade: 0.5 }), false);
     expect(a.props.has('--bg-img')).toBe(false);
     applyLook(a.root, withBg({ src: PNG_1PX, fade: 'много' }), false);
-    expect(a.props.get('--bg-fade')).toBe('0.78');
+    expect(a.props.get('--bg-fade')).toBe('0.82');
   });
 });
 

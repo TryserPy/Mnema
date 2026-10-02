@@ -6,7 +6,7 @@ import { SketchPad, type Stroke } from '../components/Drawing';
 import { canSpeak, speak } from '../speak';
 import { Markdown } from '../components/Markdown';
 import { PageViewer } from '../components/PageViewer';
-import { Icon, Modal, AnimText } from '../components/ui';
+import { Icon, Modal, AnimText, touchUI } from '../components/ui';
 import { checkNumber } from '../problems';
 import { compareSpoken, startVoice, voiceSupported, type VoiceSession } from '../voice';
 import { buildPrompt, buildQueue, cardLapses, checkTyped, formatInterval, GRADES, MINUTE, previewIntervals, type QueueItem } from '../srs';
@@ -365,7 +365,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           <input
             ref={typedRef}
             className={'input typed ' + (typedOk === true ? 'ok' : typedOk === false ? 'bad' : '')}
-            placeholder={prompt.numeric ? 'Реши и впиши число (можно пропустить — Enter)' : 'Напиши ответ и нажми Enter'}
+            placeholder={touchUI() ? (prompt.numeric ? 'Реши и впиши число' : 'Напиши ответ') : prompt.numeric ? 'Реши и впиши число (можно пропустить — Enter)' : 'Напиши ответ и нажми Enter'}
             inputMode={prompt.numeric ? 'decimal' : undefined}
             value={typed}
             readOnly={revealed}
