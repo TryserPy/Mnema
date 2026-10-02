@@ -127,7 +127,7 @@ await step('test', async () => {
   await shot('11-topic-menu');
   await page.getByRole('menuitem', { name: /Пробная контрольная/ }).click();
   await shot('12-test-setup');
-  await page.getByRole('button', { name: 'Начать' }).click();
+  await page.getByRole('button', { name: 'Учиться' }).click();
   for (let i = 0; i < 12; i++) {
     const choice = page.locator('.choice').first();
     if (await choice.count()) {
@@ -150,7 +150,7 @@ await step('test', async () => {
 });
 await step('review', async () => {
   await page.locator('.nav-item', { hasText: 'Сегодня' }).click();
-  await page.getByRole('button', { name: 'Начать' }).click();
+  await page.getByRole('button', { name: 'Учиться' }).click();
   for (let i = 0; i < 60; i++) {
     const show = page.getByRole('button', { name: 'Показать ответ' });
     if (!(await show.count())) break;

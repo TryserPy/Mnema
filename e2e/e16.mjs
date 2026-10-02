@@ -53,8 +53,8 @@ step('toast: ' + (await win.locator('.toast').innerText().catch(() => '—')));
 // 3. Сегодня: план контрольной
 await win.locator('.nav-item', { hasText: 'Сегодня' }).click();
 await win.waitForTimeout(500);
-step('today exam: ' + (await win.locator('.exam-card').innerText()).replace(/\n+/g, ' | ').slice(0, 220));
-await win.evaluate(() => document.querySelector('.exam-card')?.scrollIntoView());
+step('today exam: ' + (await win.locator('.exam-line').innerText()).replace(/\n+/g, ' | ').slice(0, 220));
+await win.evaluate(() => document.querySelector('.exam-line')?.scrollIntoView());
 await shot('p3-today-exam');
 
 // 4. Расписание: завтра Физика → «Подготовиться к завтра»

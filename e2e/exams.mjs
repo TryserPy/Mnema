@@ -98,9 +98,9 @@ await page.evaluate(() => {
 await page.reload(); await page.waitForTimeout(700);
 await page.locator('aside button', { hasText: 'Сегодня' }).first().click();
 await page.waitForTimeout(400);
-ok(await page.locator('.exam-card .exam-row').count() === 1, 'старая дата у темы показана на «Сегодня» как контрольная');
+ok(await page.locator('.exam-line').count() === 1, 'старая дата у темы показана на «Сегодня» одной строкой как контрольная');
 await page.screenshot({ path: `${OUT}/exam-today-1280.png` });
-await page.locator('.exam-card .exam-main').first().click();
+await page.locator('.exam-line').first().click();
 await page.waitForTimeout(600);
 ok(await page.locator('.exam-hero').count() === 1, 'по ней открывается экран подготовки');
 await page.getByRole('button', { name: 'Изменить' }).click();
@@ -112,7 +112,7 @@ await page.waitForTimeout(700);
 ok((await page.locator('h1.display').innerText()) === 'Теперь записанная', 'после изменения дата темы стала записанной контрольной');
 await page.locator('aside button', { hasText: 'Сегодня' }).first().click();
 await page.waitForTimeout(400);
-ok(await page.locator('.exam-card .exam-row').count() === 1, 'на «Сегодня» она одна, без двойника от старой даты');
+ok(await page.locator('.exam-line').count() === 1 && (await page.locator('.exam-line').innerText()).includes('Теперь записанная'), 'на «Сегодня» она одна, без двойника от старой даты');
 
 // ---------- 5. Размеры ----------
 for (const [w, h] of [[900, 700], [390, 844]]) {
@@ -130,7 +130,7 @@ for (const [w, h] of [[900, 700], [390, 844]]) {
   await page.reload(); await page.waitForTimeout(700);
   await page.evaluate(() => { location.hash = ''; });
   // открыть экран: через «Сегодня»
-  const row = page.locator('.exam-card .exam-main').first();
+  const row = page.locator('.exam-line').first();
   if (await row.count()) await row.click(); else console.log('    (блок контрольных не найден на «Сегодня»)');
   await page.waitForTimeout(600);
   ok(await page.locator('.exam-hero').count() === 1, `${w}px: экран контрольной открылся`);
