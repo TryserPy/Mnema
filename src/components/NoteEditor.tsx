@@ -12,6 +12,7 @@ import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { barUnreachable, visibleTopOf } from '../floatBar';
 import type { HighlightSettings } from '../types';
 import { AutoHighlight, autoHighlightKey, findTextRange } from './autoHighlight';
 import type { RuleMatcher } from '../rules';
@@ -358,18 +359,52 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   const [floating, setFloating] = useState(false);
   const [floatOpen, setFloatOpen] = useState(false);
   const menuPres = usePresence(menuOpen, 130);
+  // «Вставить» закрывается нажатием вне меню или Esc (раньше — только когда мышь уходила с меню: на телефоне оно не закрывалось,
+  // а при открытии «⋯» рядом оставалось второе меню).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const away = (e: Event) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('.note-insert .menu, [aria-haspopup="menu"][aria-expanded="true"]')) return;
+      setMenuOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false);
+    document.addEventListener('pointerdown', away, true);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away, true);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [menuOpen]);
   const floatPres = usePresence(floatOpen, 160);
   const padPres = usePresence(pad, 200);
   useEffect(() => {
     const el = barRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(([e]) => {
-      const gone = !e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0) + 4;
+    if (!el) return;
+    // Квадратик нужен, только когда ВСЯ панель ушла выше видимого верха области прокрутки
+    // (на компьютере это верх окна, на телефоне — под шапкой, в режиме «на весь экран» — под липкой полосой).
+    let gone = false;
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const next = barUnreachable(el.getBoundingClientRect().bottom, visibleTopOf(null, el), gone);
+      if (next === gone) return;
+      gone = next;
       setFloating(gone);
       if (!gone) setFloatOpen(false);
-    }, { rootMargin: '-72px 0px 0px 0px' }); // сверху может быть закреплённая полоса (режим «на весь экран»)
-    io.observe(el);
-    return () => io.disconnect();
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    // Прокручивается либо .main, либо полноэкранный слой — слушаем оба (scroll не всплывает, поэтому capture на документе).
+    document.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    schedule();
+    return () => {
+      document.removeEventListener('scroll', schedule, { capture: true });
+      window.removeEventListener('resize', schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [editor]);
   if (!editor) return null;
 
@@ -508,7 +543,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
           <Icon name="plus" size={16} /> <span className="tl">Вставить</span>
         </button>
         {menuHere && (
-          <div className={'menu' + (menuPres.closing ? ' closing' : '')} role="menu" onMouseLeave={() => setMenuOpen(false)}>
+          <div className={'menu' + (menuPres.closing ? ' closing' : '')} role="menu">
             <button role="menuitem" onClick={insert(() => setFormula({ mode: 'new' }))}>
               <span className="menu-ico">∑</span> Формула<span className="menu-key">{hint('insertFormula', true)}</span>
             </button>

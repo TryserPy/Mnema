@@ -209,7 +209,7 @@ html[data-no-hover] .otab-bar, html[data-motion='off'] .otab-bar { transition: n
 .otab-more { display: flex; }
 .otab-more .otab svg { transition: transform 0.2s; }
 .otab-more .otab.open svg { transform: rotate(90deg); }
-.otab-more .menu { left: auto; right: 0; min-width: 220px; max-width: 320px; }
+.otab-more .menu { min-width: 220px; max-width: 320px; } /* сторону выбирает JS (menuPlace.ts) по тому, что помещается */
 .topic-tabs .rules-btn, .topic-tabs > .more { align-self: center; margin-bottom: 4px; }
 
 /* ---------- Правила ---------- */
@@ -872,3 +872,24 @@ html[data-bgimg] .sidebar { background: color-mix(in srgb, var(--side) calc(var(
 .bg-thumb { width: 64px; height: 44px; border-radius: 10px; background-size: cover; background-position: center; box-shadow: 0 0 0 1px var(--line); flex-shrink: 0; }
 /* 1.8: флажки списка задач в конспекте — значками (поля ввода в Markdown запрещены) */
 .md .md-check { display: inline-block; width: 1.2em; color: var(--accent); }
+
+/* ---------- 2.0: меню всегда целиком на экране (баг «Ещё» за краем) ---------- */
+/* Меню, которое не поместилось и стало прокручиваемым: тени сверху/снизу показывают, что есть ещё пункты (на телефоне полос прокрутки нет). */
+.menu.scroll {
+  overscroll-behavior: contain;
+  background:
+    linear-gradient(var(--surface) 30%, transparent) center top / 100% 26px no-repeat local,
+    linear-gradient(transparent, var(--surface) 70%) center bottom / 100% 26px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.2), transparent) center top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.2), transparent) center bottom / 100% 10px no-repeat scroll,
+    var(--surface);
+}
+/* На телефоне длинные меню («Ещё», «Вставить») — шторка снизу: ничего не выходит за край и не обрезается. */
+@media (max-width: 720px), (pointer: coarse) {
+  .topic-tabs .more .menu, .otab-more .menu, .note-insert .menu, .note-float-panel .menu {
+    position: fixed; left: 8px !important; right: 8px !important; top: auto !important; bottom: calc(8px + env(safe-area-inset-bottom));
+    min-width: 0; max-width: none; max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain;
+    transform-origin: bottom center; z-index: 60; translate: none;
+  }
+  .topic-tabs .more .menu button, .otab-more .menu button, .note-insert .menu button, .note-float-panel .menu button { min-height: 48px; }
+}
