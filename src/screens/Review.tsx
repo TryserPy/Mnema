@@ -10,8 +10,9 @@ import { Icon, Modal, AnimText, touchUI } from '../components/ui';
 import { checkNumber } from '../problems';
 import { compareSpoken, startVoice, voiceSupported, type VoiceSession } from '../voice';
 import { buildSession } from '../session';
+import '../session.css';
 import { buildPrompt, buildQueue, cardLapses, checkTyped, formatInterval, GRADES, MINUTE, previewIntervals, type QueueItem } from '../srs';
-import { getData, markLeechSeen, recordReview, updateCard, useData } from '../store';
+import { getData, markLeechSeen, recordReview, tagLastAnswer, updateCard, useData } from '../store';
 import { keyFor, matches, prettyCombo, typingTarget } from '../keys';
 import type { Confidence, Route } from '../types';
 
@@ -53,6 +54,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const [stats, setStats] = useState({ done: 0, again: 0, ms: 0, overconf: 0 });
   const [leechCard, setLeechCard] = useState<string | null>(null);
   const [againByCard, setAgainByCard] = useState<Record<string, number>>({});
+  // Причины ошибок, которые человек отметил в этом занятии (по желанию): не помню / перепутал / не понял.
+  const [errCount, setErrCount] = useState({ forgot: 0, mixed: 0, lost: 0 });
   const [handOpen, setHandOpen] = useState(false);
   const [handStrokes, setHandStrokes] = useState<Stroke[]>([]);
   const [explain, setExplain] = useState<{ state: 'idle' | 'loading' | 'done' | 'error'; text: string; added?: boolean }>({ state: 'idle', text: '' });
@@ -168,6 +171,15 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
     },
     [current, revealed, card, confidence, waiting, queue, cram, advance, settings, state, route.mini]
   );
+
+  /** «Ошибся — и вот почему»: то же, что «Снова», плюс пометка причины в журнале (она помогает находить слабые места). */
+  const gradeWithReason = (err: 'forgot' | 'mixed' | 'lost') => {
+    if (!current || !revealed || !card || cram) return;
+    const key = current.key;
+    grade(Rating.Again);
+    tagLastAnswer(key, err);
+    setErrCount((c) => ({ ...c, [err]: c[err] + 1 }));
+  };
 
   const blocked = Boolean(leechCard) || onBreak !== null || pageView !== null || whyAsk !== null;
 
@@ -312,6 +324,11 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               <p className="lead">
                 Ответов: {stats.done} · вспомнил сразу: {correct}% · {Math.max(1, Math.round(stats.ms / 60_000))} мин
               </p>
+              {errCount.forgot + errCount.mixed + errCount.lost > 0 && (
+                <p className="muted">
+                  Что пошло не так: {[errCount.forgot && `не помню — ${errCount.forgot}`, errCount.mixed && `перепутал — ${errCount.mixed}`, errCount.lost && `не понял — ${errCount.lost}`].filter(Boolean).join(' · ')}.
+                </p>
+              )}
               {stats.overconf > 0 && <div className="hint warn">Ошибок «с уверенностью»: {stats.overconf}. Разбери их — такие ошибки исправляются особенно хорошо.</div>}
               {!cram && <p className="muted">Следующие повторения Мнема покажет сама, когда придёт время.</p>}
             </>
@@ -322,6 +339,11 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
             <button className="btn primary" onClick={exit}>
               {route.mini ? 'Закрыть' : 'На главную'}
             </button>
+            {!cram && !route.mini && Object.keys(againByCard).length > 0 && (
+              <button className="btn" onClick={() => go({ name: 'review', cardIds: Object.keys(againByCard), ahead: true, run: Date.now() })}>
+                Повторить ошибки · {Object.keys(againByCard).length}
+              </button>
+            )}
             {route.topicId && (
               <button className="btn" onClick={() => go({ name: 'topic', id: route.topicId! })}>
                 К теме
@@ -524,6 +546,24 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
                 {settings.showIntervals && !cram && <span className="small">{formatInterval(intervals[i])}</span>}
               </button>
             ))}
+          </div>
+        )}
+        {revealed && !cram && (
+          <div className="err-chips" role="group" aria-label="Если ошибся — что случилось?">
+            <span className="small muted">Ошибся? Отметь, что случилось:</span>
+            <span className="row gap6 wrap center-row">
+              {(
+                [
+                  ['forgot', 'Не помню'],
+                  ['mixed', 'Перепутал'],
+                  ['lost', 'Не понял']
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} type="button" className="err-chip" onClick={() => gradeWithReason(k)}>
+                  {label}
+                </button>
+              ))}
+            </span>
           </div>
         )}
       </div>
