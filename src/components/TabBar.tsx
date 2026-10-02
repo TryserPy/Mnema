@@ -11,7 +11,7 @@ export function TabBar({ route, go, dueAll, onKnowledge, knowledgeOpen }: { rout
   const [profile, setProfile] = useState(false);
   if (hidesTabBar(route)) return null;
   const inKnowledge = knowledgeOpen || route.name === 'subject' || route.name === 'topic' || route.name === 'folder';
-  const inProfile = route.name === 'stats' || route.name === 'settings' || route.name === 'features' || route.name === 'help';
+  const inProfile = route.name === 'trash' || route.name === 'stats' || route.name === 'settings' || route.name === 'features' || route.name === 'help';
   const learn = route.name === 'today' && !knowledgeOpen;
   return (
     <>
@@ -52,6 +52,7 @@ export function TabBar({ route, go, dueAll, onKnowledge, knowledgeOpen }: { rout
                 ['chart', 'Мой прогресс', 'Сколько выучено и как идёт учёба', { name: 'stats' }],
                 ['sliders', 'Настройки', 'Вид, напоминания, данные', { name: 'settings' }],
                 ['grid', 'Возможности', 'Что включено в Мнеме', { name: 'features' }],
+                ['trash', 'Корзина', 'Недавно удалённое — можно вернуть', { name: 'trash' }],
                 ['help', 'Справка', 'Как учиться и как пользоваться', { name: 'help' }]
               ] as [string, string, string, Route][]
             ).map(([icon, title, hint, to]) => (

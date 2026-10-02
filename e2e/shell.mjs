@@ -46,7 +46,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
     await page.locator('.tab', { hasText: 'Профиль' }).click();
     await page.waitForTimeout(400);
     const prof = await page.locator('.modal .create-item strong').allInnerTexts();
-    check(prof.join('|') === 'Мой прогресс|Настройки|Возможности|Справка', `${tag}: «Профиль»: ${prof.join(' | ')}`);
+    check(prof.join('|') === 'Мой прогресс|Настройки|Возможности|Корзина|Справка', `${tag}: «Профиль»: ${prof.join(' | ')}`);
     await page.screenshot({ path: `${OUT}/shell-${tag}-profile.png` });
     await page.locator('.modal .create-item', { hasText: 'Настройки' }).click();
     await page.waitForTimeout(500);

@@ -1,7 +1,7 @@
 // Облачная копия и синхронизация через WebDAV (Яндекс Диск, Nextcloud, любой WebDAV).
 // Скачиваем копию из облака, сливаем с данными на устройстве и кладём результат обратно.
 // По желанию шифруем паролем (AES-GCM, ключ из пароля через PBKDF2) — тогда облако видит только шифр.
-import { getData, normalizeData, replaceData, updateSettings } from './store';
+import { forSync, getData, normalizeData, replaceData, updateSettings } from './store';
 import { mergeData, type MergeReport } from './sync';
 import type { AppData } from './types';
 
@@ -112,7 +112,7 @@ export async function cloudSync(c: CloudSettings, pass: string, encPass: string,
   } else throw httpError(got.status, got.text);
 
   onStep?.('Загружаю в облако…');
-  const json = JSON.stringify(getData());
+  const json = JSON.stringify(forSync(getData()));
   const body = c.encrypt ? await encryptText(json, encPass) : json;
   const put = await http({ url: file, method: 'PUT', headers: { ...auth, 'content-type': 'application/json' }, body, timeout: 300000 });
   if (![200, 201, 204].includes(put.status)) throw httpError(put.status, put.text);

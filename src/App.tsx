@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CreateHost } from './components/CreateMenu';
+import { Trash } from './screens/Trash';
 import { hidesTabBar, TabBar } from './components/TabBar';
 import { sessionPrefs } from './session';
 import { NewSubjectDialog } from './components/SubjectDialogs';
@@ -483,6 +484,7 @@ export function App() {
         {route.name === 'subject' && <SubjectScreen key={route.id} id={route.id} view={route.view} filter={route.filter} go={go} />}
         {route.name === 'topic' && <TopicScreen key={route.id} id={route.id} tab={route.tab} go={go} />}
         {route.name === 'stats' && <Stats go={go} tab={route.tab} />}
+        {route.name === 'trash' && <Trash go={go} />}
         {route.name === 'exam' && <ExamScreen key={route.id} id={route.id} go={go} />}
         {(route.name === 'settings' || route.name === 'features') && <Settings go={go} section={route.name === 'features' ? 'features' : route.section} />}
         {route.name === 'help' && <Help section={route.section} go={go} />}

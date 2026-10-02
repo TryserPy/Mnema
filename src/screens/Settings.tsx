@@ -438,6 +438,11 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Выбрать файл
           </button>
         </SRow>
+        <SRow label="Корзина" hint={data.trash?.length ? `Недавно удалённого: ${data.trash.length}. Лежит 30 дней` : 'Недавно удалённое можно вернуть (30 дней)'}>
+          <button className="btn small" onClick={() => go({ name: 'trash' })}>
+            Открыть
+          </button>
+        </SRow>
         {api?.openDataFolder && (
           <SRow label="Папка с данными">
             <button className="btn small" onClick={() => void api.openDataFolder()}>
@@ -627,6 +632,11 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </SRow>
       </Group>
       <UpdatesGroup />
+      <Group title="Новое в 1.14.0">
+        <ul className="whats-new">
+          <li>Корзина: удалённые предметы, темы и карточки 30 дней лежат в «Корзине» — их можно вернуть вместе с конспектом и прогрессом. Корзина только на этом устройстве</li>
+        </ul>
+      </Group>
       <Group title="Новое в 1.13.0">
         <ul className="whats-new">
           <li>Повторение: если ошибся, отметь почему — «Не помню», «Перепутал» или «Не понял». Это по желанию и в один клик</li>

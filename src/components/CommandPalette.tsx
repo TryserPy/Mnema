@@ -76,6 +76,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
     // Команды
     const cmds: [string, string, () => void][] = [
       ['Создать…', 'plus', () => openCreate()],
+      ['Корзина — вернуть удалённое', 'trash', () => go({ name: 'trash' })],
       ['Начать повторение на сегодня', 'play', () => go({ name: 'review', session: sessionPrefs(data, new Date()), run: Date.now() })],
       [`Фокус: ${data.settings.focusMinutes} минут, потом перерыв`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
