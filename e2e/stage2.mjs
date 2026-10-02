@@ -17,7 +17,7 @@ for (const { w, h, phone } of SIZES) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => problems.push(`${w}: pageerror ${e.message}`));
   page.on('response', (r) => { if (r.status() >= 400) problems.push(`${w}: HTTP ${r.status()} ${r.url()}`); });
-  page.on('console', (m) => { if (m.type() === 'error') problems.push(`${w}: console.error ${m.text()}`); });
+  page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource.*404/.test(m.text())) problems.push(`${w}: console.error ${m.text()}`); });
   await page.goto(URL);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
@@ -78,6 +78,14 @@ for (const { w, h, phone } of SIZES) {
     const off = await page.evaluate(() => !document.getElementById('mnema-mods')?.textContent?.includes('Стикеры'));
     if (!off) problems.push(`${w}: стиль «Стикеры» не выключился`);
   } else problems.push(`${w}: нет переключателя «Стикеры»`);
+  // «Выключить все» должно выключить все включённые стили, а не один
+  for (const n of ['Тетрадь', 'Стикеры']) await page.getByRole('switch', { name: n }).click();
+  await page.waitForTimeout(200);
+  await page.getByRole('button', { name: 'Выключить все' }).click();
+  await page.waitForTimeout(300);
+  const left = await page.evaluate(() => document.getElementById('mnema-mods')?.textContent?.trim() ?? '');
+  console.log(`${w} после «Выключить все» стилей осталось: ${left ? 'да' : 'нет'}`);
+  if (left) problems.push(`${w}: «Выключить все» оставило стили: ${left.slice(0, 60)}`);
   await ctx.close();
 }
 await browser.close();

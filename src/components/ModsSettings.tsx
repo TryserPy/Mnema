@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { allMods, CATALOG, isMod, MOD_EXT, sanitizeCss } from '../mods';
 import { downloadFile } from '../share';
-import { updateSettings, useData } from '../store';
+import { getData, updateSettings, useData } from '../store';
 import { FONTS } from '../themes';
 import type { Mod } from '../types';
 import { Collapse, Icon, Switch, toast } from './ui';
@@ -59,6 +59,8 @@ export function StylesSettings({ embedded = false }: { embedded?: boolean } = {}
   const [err, setErr] = useState('');
 
   function toggle(m: Mod, on: boolean) {
+    // Свежие настройки, а не снимок при отрисовке: «Выключить все» вызывает toggle подряд, и каждый вызов должен видеть работу предыдущего.
+    const s = getData().settings;
     const modsOn = on ? [...s.modsOn, m.id] : s.modsOn.filter((x) => x !== m.id);
     if (m.font && on) void FONTS.find((f) => f.id === m.font)?.load?.();
     // Стиль из файла может менять оформление — запоминаем, как было, чтобы вернуть при выключении.

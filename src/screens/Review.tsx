@@ -180,7 +180,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
       }
       if (!current) return;
       if (!revealed) {
-        if ((matches(e, settings, 'reveal') && !inInput) || e.key === 'Enter') {
+        // Enter, которым в поиске (Ctrl+P) запустили повторение, уже обработан: он не должен ещё и открыть ответ.
+        if (!e.defaultPrevented && ((matches(e, settings, 'reveal') && !inInput) || e.key === 'Enter')) {
           e.preventDefault();
           setRevealed(true);
         } else if (!inInput && settings.features.voice && matches(e, settings, 'voiceAnswer')) {

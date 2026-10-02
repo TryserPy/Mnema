@@ -229,8 +229,8 @@
 - **Разделы:** Вид (`LookSettings`: стиль, темы, акцент, шрифты, углы, фон, свои цвета), Текст, Анимации, Возможности, Учёба (запоминание 80–95%, новых в день, лимит, начало дня, интервалы на кнопках, две кнопки), Напоминания, ИИ (`AiSettings`), Клавиши (`KeySettings`), Данные (копии, импорт/экспорт, синхронизация, облако, Anki, Obsidian), Стили, Моды, О Мнеме (версия, обновления с GitHub, «Новое в …»).
 - **Раскладка:** широкий экран — список разделов слева и один раздел справа; `.main` уже 860 px — сначала список, потом раздел с кнопкой «Назад».
 - **«Возможности»** — плитки по группам (Учёба, Повторение, Мотивация, Помощники); подробности в окне.
-  - Сейчас есть: homework, schedule, lists, rules, poems, test, focus, leeches, why, confidence, handwriting, voice, tips, weekly, ai, map, tray (только Windows), obsidian, mods.
-  - По умолчанию включены: leeches, test, tips, lists, rules, weekly, homework, why, poems.
+  - Сейчас 13 переключателей: homework, schedule, lists, rules, poems, why, confidence, handwriting, voice, ai, map, tray (только Windows), obsidian. Трудные карточки, «Пробная контрольная» и итоги недели работают всегда (в 2.0 это ядро), фокус-режим запускается из поиска Ctrl+P.
+  - По умолчанию включены: lists, rules, homework, why, poems.
 
 ### 4.9 Стихи наизусть (1.6.4) — `src/poem.ts`, `src/components/PoemView.tsx`
 - **Добавление:** «+» у вкладок → «Стихотворение».
@@ -379,7 +379,7 @@
 | `themes.ts`, `mods.ts`, `templates.ts`, `keys.ts`, `tips.ts`, `progress.ts`, `featureList.ts`, `update.ts`, `video.ts`, `noteTools.ts`, `seed.ts` (пример «Посмотреть на примере») | |
 | `platform/android.ts` | `window.mnemaApi` поверх моста `MnemaAndroid` |
 | `platform/ocrWeb.ts` | офлайн-распознавание на телефоне |
-| `components/*` | NoteEditor, Links, Rules, SubjectTerms, StudyListView, PoemView, Drawing, FormulaEditor, HandFormulaPad, Markdown, CardEditor, ImportantPanel, TextbookImport, Homework, KnowledgeMap, Sidebar, CommandPalette, LookSettings, AiSettings, ModsSettings, PluginsSettings, SyncDialog, CloudDialog, ExportDialogs, AnkiImport, ObsidianImport, Timeline, PageViewer, CameraCapture, SubjectDialogs, FeaturesPane, KeySettings, SettingsKit, ErrorBoundary, `ui.tsx` (Icon, Modal, Segmented, MoreMenu, OverflowTabs, Collapse, ConfirmButton, AnimText, toast, usePresence, motionOn, plural…), `autoHighlight.ts` (декорации ProseMirror: важное, слова правил, метки страниц), `videoNode.ts` |
+| `components/*` | NoteEditor, Links, Rules, SubjectTerms, StudyListView, PoemView, Drawing, FormulaEditor, HandFormulaPad, Markdown, CardEditor, ImportantPanel, TextbookImport, Homework, KnowledgeMap, Sidebar, CommandPalette, LookSettings, AiSettings, ModsSettings (стили), SyncDialog, CloudDialog, ExportDialogs, AnkiImport, ObsidianImport, Timeline, PageViewer, CameraCapture, SubjectDialogs, FeaturesPane, KeySettings, SettingsKit, ErrorBoundary, `ui.tsx` (Icon, Modal, Segmented, MoreMenu, OverflowTabs, Collapse, ConfirmButton, AnimText, toast, usePresence, motionOn, plural…), `autoHighlight.ts` (декорации ProseMirror: важное, слова правил, метки страниц), `videoNode.ts` |
 | `screens/*` | Today, SubjectScreen, FolderScreen, TopicScreen, Review, TestScreen, Stats, Settings, Help |
 
 ### 6.4 Electron (`electron/`)

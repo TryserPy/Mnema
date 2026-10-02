@@ -294,7 +294,7 @@ function StudyPane() {
             ))}
           </select>
         </SRow>
-        <SRow label="Фокус-режим: заниматься" hint="Запуск — в поиске (Ctrl+P): «Фокус». Потом перерыв.">
+        <SRow label="Фокус-режим: заниматься" hint={touchUI() ? 'Запуск — в поиске (лупа сверху): «Фокус». Потом перерыв.' : 'Запуск — в поиске (Ctrl+P): «Фокус». Потом перерыв.'}>
           <select className="input" value={s.focusMinutes} onChange={(e) => updateSettings({ focusMinutes: Number(e.target.value) })} aria-label="Сколько минут заниматься в фокус-режиме">
             {[10, 15, 20, 25, 30, 45].map((m) => (
               <option key={m} value={m}>
