@@ -4,7 +4,7 @@ import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
 import { duePoems } from '../poem';
-import { dayStart, DAY, examPlan, streak, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
+import { dayStart, DAY, examPlan, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
 import { dismissTip, setScheduleDay, sortedSubjects, updateSettings, useData } from '../store';
 import { pickTip } from '../tips';
 import type { Route } from '../types';
@@ -18,7 +18,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   const f = data.settings.features;
   const counts = todayCounts(data, now);
   const total = counts.learning + counts.review + counts.newCount;
-  const st = streak(data, now);
   const tip = pickTip(data, now);
   const [whyOpen, setWhyOpen] = useState(false);
 
@@ -92,12 +91,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           </div>
           <h1 className="display">Сегодня</h1>
         </div>
-        {st > 0 && (
-          <div className="pill streak" title="Дней подряд с повторениями">
-            <Icon name="flame" size={18} />
-            {st} {plural(st, 'день', 'дня', 'дней')} подряд
-          </div>
-        )}
       </div>
 
       <div className="hero">
