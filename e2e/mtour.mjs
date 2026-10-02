@@ -33,7 +33,7 @@ await menu();
 await shot('02-drawer');
 await p.locator('.side-foot button[aria-label="Настройки"], .side-foot button[title="Настройки"]').first().click().catch(async () => { await p.getByRole('button', { name: 'Настройки', exact: true }).click(); });
 await shot('03-settings');
-for (const sec of (process.env.SECS || 'Оформление,Возможности,Данные').split(',')) {
+for (const sec of (process.env.SECS || 'Оформление,Возможности,Моды,Данные').split(',')) {
   const it = p.locator('.set-nav-item', { hasText: sec }).first();
   if (!(await it.count())) { console.log('no section', sec); continue; }
   await it.click();

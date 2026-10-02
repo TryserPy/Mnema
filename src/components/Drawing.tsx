@@ -145,7 +145,12 @@ export function inlineDrawing(src: string): HTMLElement | null {
   try {
     const bin = atob(src.slice('data:image/svg+xml;base64,'.length));
     const svgText = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-    const clean = DOMPurify.sanitize(svgText, { USE_PROFILES: { svg: true }, ADD_ATTR: ['data-dark', 'data-mnema', 'data-bg'] });
+    // Рисунок Мнемы состоит только из этих элементов. <style> и атрибут style из чужого рисунка пропускать нельзя: глобальный CSS прячет кнопки и подделывает окна.
+    const clean = DOMPurify.sanitize(svgText, {
+      ALLOWED_TAGS: ['svg', 'g', 'path', 'rect', 'circle', 'defs', 'pattern'],
+      FORBID_ATTR: ['style', 'class', 'id', 'href', 'xlink:href'],
+      ADD_ATTR: ['data-dark', 'data-mnema', 'data-bg']
+    });
     if (!clean.includes('<svg')) return null;
     const span = document.createElement('span');
     span.className = 'drawing-inline';

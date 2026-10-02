@@ -201,7 +201,8 @@ export function ankiHtmlToMarkdown(html: string, media?: MediaCtx): string {
   s = s.replace(/<(mark)\b[^>]*>([\s\S]*?)<\/mark>/gi, (_, _t: string, inner: string) => `==${inner}==`);
   // Остальные теги убираем.
   s = s.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '');
-  s = decodeEntities(s);
+  // «&lt;div class=…&gt;» из колоды после раскрытия стало бы настоящим тегом; ставим перед ним обратную косую — Markdown покажет «<» буквой.
+  s = decodeEntities(s).replace(/<(?=[a-zA-Z/!?])/g, '\\<');
   s = s.replace(/\u0000(\d+)\u0000/g, (_, i: string) => math[Number(i)]);
   s = s
     .split('\n')

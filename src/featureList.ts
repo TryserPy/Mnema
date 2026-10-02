@@ -12,7 +12,7 @@ export interface FeatureInfo {
   icon: string;
   group: FeatureGroup;
   /** Раздел настроек, где у возможности есть свои параметры. */
-  settings?: 'reminders' | 'ai';
+  settings?: 'reminders' | 'ai' | 'mods';
   desktopOnly?: boolean;
 }
 
@@ -36,4 +36,5 @@ export const FEATURES: FeatureInfo[] = [
   { id: 'map', group: 'helpers', icon: 'map', title: 'Карта знаний', short: 'Что с чем связано и где слабые места', where: '«Статистика» → «Карта»', text: 'Картинка из тем и понятий: видно, что с чем связано и где слабые места.' },
   { id: 'tray', group: 'helpers', icon: 'bell', title: 'Значок у часов', short: 'Напоминание и быстрые 5 карточек', where: 'Значок у часов Windows', settings: 'reminders', desktopOnly: true, text: 'Число карточек на сегодня у часов, напоминание в выбранное время и быстрое повторение 5 карточек по Ctrl+Alt+M.' },
   { id: 'obsidian', group: 'helpers', icon: 'folder', title: 'Импорт из Obsidian', short: 'Заметки из хранилища Obsidian — в темы', where: 'Меню предмета', text: 'Импорт заметок из хранилища Obsidian в темы: формулы, картинки и жирный текст сохраняются.' },
+  { id: 'mods', group: 'helpers', icon: 'puzzle', title: 'Моды', short: 'Новые экраны, команды и кнопки от других', where: 'Настройки → «Моды»', settings: 'mods', text: 'Моды — маленькие программы, которые добавляют Мнеме новые возможности: свои экраны, команды, кнопки, действия с конспектами. Есть готовые, можно написать свой.' }
 ];

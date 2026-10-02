@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
 import { keyFor, prettyCombo } from '../keys';
 import { groupOf } from '../homework';
+import { usePlugins } from '../plugins/host';
 import { addTopic, childTopics, deleteMany, getData, setSubjectFolder, sortedFolders, subjectRules, moveSubject, moveTopic, sortedSubjects, toggleTreeOpen, updateSettings, updateTopic, useData } from '../store';
 import type { AppData, Folder, Route, Subject, Topic } from '../types';
 import { DeleteSubject, deleteTopicWithUndo, EditFolder, EditSubject } from './SubjectDialogs';
@@ -111,6 +112,15 @@ export function Sidebar({
   const isOpen = (id: string) => s.treeOpen.includes(id) || autoOpen.has(id);
   const nav = (name: Route['name']) => (route.name === name ? ' on' : '');
   const subjects = sortedSubjects(data);
+  const plugins = usePlugins();
+  const [modsOpen, setModsOpen] = useState(false);
+  const modsPres = usePresence(modsOpen, 140);
+  useEffect(() => {
+    if (!modsOpen) return;
+    const close = () => setModsOpen(false);
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, [modsOpen]);
   const hwSoon = data.homework.filter((h) => !h.done && ['overdue', 'today', 'tomorrow'].includes(groupOf(h))).length;
 
   // Ширина: тянем правый край.
@@ -410,6 +420,7 @@ export function Sidebar({
   }
 
   function FootButtons() {
+    const modItems = plugins.views.length + plugins.buttons.length;
     return (
       <>
         <button className={'foot-btn' + nav('stats')} title="Статистика" aria-label="Статистика" onClick={() => go({ name: 'stats' })}>
@@ -418,6 +429,28 @@ export function Sidebar({
         <button className={'foot-btn' + (route.name === 'features' || (route.name === 'settings' && route.section === 'features') ? ' on' : '')} title="Возможности" aria-label="Возможности" onClick={() => go({ name: 'features' })}>
           <Icon name="grid" />
         </button>
+        {modItems > 0 && (
+          <div className="more foot-more">
+            <button className={'foot-btn' + (route.name === 'plugin' || modsOpen ? ' on' : '')} title="Моды" aria-label="Моды" aria-expanded={modsOpen} onClick={() => setModsOpen(!modsOpen)}>
+              <Icon name="puzzle" />
+            </button>
+            {modsPres.mounted && (
+              <div className={'menu up' + (modsPres.closing ? ' closing' : '')} role="menu" onMouseDown={(e) => e.stopPropagation()}>
+                <span className="menu-title">Моды</span>
+                {plugins.views.map((v) => (
+                  <button key={v.id} role="menuitem" onClick={() => (setModsOpen(false), go({ name: 'plugin', id: v.id }))}>
+                    <span className="menu-ico">{v.icon}</span> <span className="clamp1">{v.title}</span>
+                  </button>
+                ))}
+                {plugins.buttons.map((b) => (
+                  <button key={b.id} role="menuitem" onClick={() => (setModsOpen(false), b.onClick())}>
+                    <span className="menu-ico">{b.icon}</span> <span className="clamp1">{b.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <button className={'foot-btn' + (route.name === 'settings' && route.section !== 'features' ? ' on' : '')} title="Настройки" aria-label="Настройки" onClick={() => go({ name: 'settings' })}>
           <Icon name="sliders" />
         </button>

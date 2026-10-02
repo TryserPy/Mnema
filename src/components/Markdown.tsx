@@ -5,6 +5,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import { parseVideo, VIDEO_ALT } from '../video';
 import { videoPlayer } from './videoNode';
 import { drawingBgOf, inlineDrawing } from './Drawing';
+import { safeStyleAttr } from '../safeCss';
+import { safeClassList } from '../katexClasses';
+import { registry, runPostProcessors } from '../plugins/host';
 
 export function renderTex(tex: string, display: boolean): string {
   return katexHtml(tex, { displayMode: display, output: 'htmlAndMathml', strict: false });
@@ -98,8 +101,22 @@ if (DOMPurify.isSupported) DOMPurify.addHook('afterSanitizeAttributes', (node) =
     if (v != null && !SAFE_URL.test(v.trim()) && !LOCAL_REL.test(v.trim())) node.removeAttribute(a);
   }
   node.removeAttribute('srcset');
+  // Свой class и id в тексте не нужны: класс .modal-back и подобные рисовали бы поверх приложения поддельное окно.
+  if (markdownPass) {
+    if (node.hasAttribute('class')) {
+      const cl = safeClassList(node.getAttribute('class') ?? '');
+      if (cl) node.setAttribute('class', cl);
+      else node.removeAttribute('class');
+    }
+    node.removeAttribute('id');
+  }
   // Свои стили в конспекте не нужны (поддельные кнопки поверх окна, скрытие частей окна), кроме формул KaTeX.
-  if (markdownPass && node.hasAttribute('style') && !node.closest('.katex, .math-block')) node.removeAttribute('style');
+  if (markdownPass && node.hasAttribute('style')) {
+    // Внутри формулы оставляем только безопасное (размеры, сдвиги, цвет); класс math-block можно написать руками, поэтому position/z-index/inset/url не пропускаем никогда.
+    const st = node.closest('.katex, .math-block') ? safeStyleAttr(node.getAttribute('style') ?? '') : '';
+    if (st) node.setAttribute('style', st);
+    else node.removeAttribute('style');
+  }
 });
 
 export function renderMarkdown(src: string): string {
@@ -129,6 +146,7 @@ export function Markdown({ text, className, onPage }: { text: string; className?
       const n = !el.firstChild && inlineDrawing(el.dataset.src ?? '');
       if (n) el.appendChild(n);
     }
+    if (ref.current && registry.postProcessors.length) runPostProcessors(ref.current, text);
   }, [html]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div

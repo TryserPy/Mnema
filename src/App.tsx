@@ -7,12 +7,14 @@ import { UpdateDialog } from './components/UpdateFlow';
 import { ChangesDialog } from './components/ChangesDialog';
 import { parseChangeFile } from './changes';
 import type { UpdateInfo } from './update';
+import { PluginScreen } from './screens/PluginScreen';
+import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
 import { applyLook, FONTS, lookKey } from './themes';
 import { allMods, modsCss } from './mods';
 import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
-import { keyFor, matches, toAccelerator, typingTarget } from './keys';
+import { comboFromEvent, keyFor, matches, toAccelerator, typingTarget } from './keys';
 import { Icon, keepMenusInView, onToast, usePresence } from './components/ui';
 import { Help } from './screens/Help';
 import { Review } from './screens/Review';
@@ -23,6 +25,8 @@ import { FolderScreen } from './screens/FolderScreen';
 import { HomeworkScreen } from './components/Homework';
 import { widgetState, notificationPlan } from './homework';
 import { TestScreen } from './screens/TestScreen';
+import { ExamScreen } from './screens/ExamScreen';
+import { ExamDialogHost } from './components/ExamDialog';
 import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
 import { importTopicPackage, isTopicPackage } from './share';
@@ -217,6 +221,14 @@ export function App() {
     });
   }, [s.features.tray, dueForTray, s.reminder, s.trayHotkey, s.closeToTray, s.autostart, s.keys]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Моды с кодом: запустить включённые, остановить выключенные.
+  const pluginKey = s.features.mods && !s.pluginsSafe ? s.plugins.map((p) => p.id + (p.enabled ? '+' : '-') + p.code.length).join('|') : 'off';
+  useEffect(() => {
+    setNavigator(go);
+    void syncPlugins();
+  }, [pluginKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => emit('route', route), [route]);
+
   // Синхронизация: другое устройство прислало данные — слить.
   useEffect(() => window.mnemaApi?.onSyncIncoming?.(acceptIncoming), []);
 
@@ -316,6 +328,13 @@ export function App() {
         return;
       }
       if (document.querySelector('.modal-back, .pal-back')) return;
+      const combo = comboFromEvent(e);
+      const pc = combo ? registry.commands.find((c) => c.hotkey && c.hotkey.replace(/\s+/g, '') === combo) : undefined;
+      if (pc) {
+        e.preventDefault();
+        pc.run();
+        return;
+      }
       const typing = typingTarget(e);
       const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
       if (typing && plain) return;
@@ -420,7 +439,7 @@ export function App() {
     return (
       <div className={'app review-mode' + (route.name === 'review' && route.mini ? ' mini' : '')}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
-          {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId} topicId={route.topicId} pretest={route.pretest} go={go} />}
+          {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId + (route.examId ?? '')} topicId={route.topicId} pretest={route.pretest} examId={route.examId} go={go} />}
         </ErrorBoundary>
       </div>
     );
@@ -459,10 +478,12 @@ export function App() {
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
         {route.name === 'today' && <Today go={go} onNewSubject={() => setAddingSubject({})} />}
         {route.name === 'homework' && <HomeworkScreen go={go} />}
+        {route.name === 'plugin' && <PluginScreen key={route.id} id={route.id} />}
         {route.name === 'folder' && <FolderScreen id={route.id} go={go} onNewSubject={(o) => setAddingSubject(o)} />}
         {route.name === 'subject' && <SubjectScreen key={route.id} id={route.id} view={route.view} filter={route.filter} go={go} />}
         {route.name === 'topic' && <TopicScreen key={route.id} id={route.id} tab={route.tab} go={go} />}
         {route.name === 'stats' && <Stats go={go} tab={route.tab} />}
+        {route.name === 'exam' && <ExamScreen key={route.id} id={route.id} go={go} />}
         {(route.name === 'settings' || route.name === 'features') && <Settings go={go} section={route.name === 'features' ? 'features' : route.section} />}
         {route.name === 'help' && <Help section={route.section} go={go} />}
         </ErrorBoundary>
@@ -501,6 +522,7 @@ export function App() {
       {changes !== null && <ChangesDialog key={changes.length} initial={changes} onClose={() => setChanges(null)} />}
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
+      <ExamDialogHost go={go} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />
       {addingSubject && (
         <NewSubjectDialog

@@ -4,6 +4,7 @@ import { Icon, Modal, Switch, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
+import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
 import { KeySettings } from '../components/KeySettings';
@@ -18,7 +19,7 @@ import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
 import { openChanges } from '../components/ChangesDialog';
-import { emptyData, exportJson, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
+import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
 
@@ -65,7 +66,8 @@ const INDEX: IndexItem[] = [
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
-  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'look', anchor: 'styles', words: 'css вид моды' },
+  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'look', anchor: 'styles', words: 'css вид' },
+  { label: 'Моды', section: 'mods', words: 'плагины расширения' },
   { label: 'Обновления', section: 'about', anchor: 'update', words: 'новая версия github обновить' },
   { label: 'Версия и справка', section: 'about', words: 'о программе' }
 ];
@@ -86,6 +88,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     { id: 'ai', title: 'ИИ-помощник', icon: 'bot', hidden: !s.features.ai },
     { id: 'keys', title: 'Клавиши', icon: 'keyboard', hidden: touchUI() },
     { id: 'data', title: 'Данные', icon: 'database' },
+    { id: 'mods', title: 'Моды', icon: 'puzzle', hidden: !s.features.mods },
     { id: 'about', title: 'О Мнеме', icon: 'info' }
   ];
   const visible = sections.filter((x) => !x.hidden);
@@ -186,6 +189,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     </div>
   );
   else if (current === 'data') pane = <DataPane go={go} />;
+  else if (current === 'mods') pane = <PluginsSettings go={go} />;
   else if (current === 'about') pane = <AboutPane go={go} />;
 
   if (narrow) {
@@ -589,9 +593,10 @@ function DataPane({ go }: { go: (r: Route) => void }) {
               <button
                 className="btn primary"
                 onClick={() => {
-                  replaceData(pendingBackup);
+                  const { data: safe, notes } = neutralizeForeign(pendingBackup, getData());
+                  replaceData(safe);
                   setPendingBackup(null);
-                  setMsg('Данные восстановлены.');
+                  setMsg('Данные восстановлены.' + (notes.length ? ' Не перенесено: ' + notes.join('; ') + '.' : ''));
                 }}
               >
                 Восстановить
@@ -622,12 +627,21 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </SRow>
       </Group>
       <UpdatesGroup />
+      <Group title="Новое в 1.10.0">
+        <ul className="whats-new">
+          <li>Контрольная из нескольких тем: «Назначить контрольную» в меню темы, «Новая контрольная» в меню предмета и в поиске. Старая дата у темы открывается как контрольная</li>
+          <li>Экран подготовки: «помнишь к дате» (прогноз по карточкам, не оценка), охват конспекта, слабые места и план по дням. «Исправить» повторяет самое слабое заранее</li>
+          <li>Моды вернулись: раздел «Моды» в настройках, кнопка в левой панели и вкладка в справке</li>
+          <li>Защита: чужая копия при «Восстановить» не подключит облако и не запустит моды; рисунок и формула из чужого конспекта не прячут части окна</li>
+          <li>Исправлено: заголовок «Настройки» не ломается посреди слова; панель выделения в конспекте не пропадает после «Список» и «Рамка»; окна над длинным конспектом открываются быстрее; приложение не зависает на кривых данных после синхронизации</li>
+        </ul>
+      </Group>
       <Group title="Новое в 1.9.0">
         <ul className="whats-new">
           <li>Проще: убраны «Сад знаний», «Достижения» и «Совет дня»; на «Сегодня» нет плашки с серией — число «Дней подряд» теперь тихо лежит в «Статистика → Всегда»</li>
           <li>«Возможности»: вместо 21 переключателя — 13. Трудные карточки, пробная контрольная и итоги недели работают всегда</li>
           <li>Стили («Тетрадь», «Крупные кнопки», «Стикеры»…) переехали в «Настройки → Оформление → Ещё стили». Фокус-режим запускается из поиска (Ctrl+P)</li>
-          <li>Справка короче: «Как учиться» и «Клавиши». Моды-программы убраны — теперь из файла нельзя запустить чужую программу</li>
+          <li>Справка короче: без вкладки «Формулы»</li>
           <li>Исправлено: Enter в поиске открывал ответ сразу; «Выключить все» выключало только один стиль</li>
         </ul>
       </Group>

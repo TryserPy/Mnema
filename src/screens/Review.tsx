@@ -37,8 +37,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const cram = Boolean(route.cram);
   const settings = data.settings;
   const initial = useMemo(
-    () => buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram }).slice(0, route.limit ?? Infinity),
-    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.limit]
+    () => buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead) }).slice(0, route.limit ?? Infinity),
+    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit]
   );
   const [queue, setQueue] = useState<QueueItem[]>(initial.slice(1));
   const [waiting, setWaiting] = useState<Waiting[]>([]);
@@ -356,6 +356,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           <span className="dot" style={{ background: subject?.color }} />
           <span>{topic?.name}</span>
           {cram && <span className="chip neutral">без изменения расписания</span>}
+          {route.ahead && <span className="chip neutral">заранее — слабые места</span>}
         </div>
         <div className="q-row">
           <Markdown text={prompt.question} className="question" />

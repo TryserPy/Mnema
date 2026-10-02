@@ -147,6 +147,9 @@ export interface ReviewLogEntry {
   rating: 1 | 2 | 3 | 4;
   prevState: number; // состояние FSRS до ответа
   confidence?: Confidence;
+  /** Ручная пометка ошибки (по желанию): не помню / перепутал / не понял. Тип ошибки автоматически не определить. */
+  err?: 'forgot' | 'mixed' | 'lost';
+  mix?: string; // с каким элементом (key) перепутал — для err: 'mixed'
   at: string;
   ms: number; // сколько думал над ответом
 }
@@ -163,7 +166,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type Density = 'compact' | 'normal' | 'comfy';
 
 /** Возможности, которые включаются на экране «Возможности». */
-export type FeatureId = 'schedule' | 'obsidian' | 'confidence' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'homework' | 'why' | 'poems';
+export type FeatureId = 'schedule' | 'obsidian' | 'confidence' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'homework' | 'why' | 'poems' | 'mods';
 
 export type MotionLevel = 'all' | 'essential' | 'off' | 'custom';
 export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover';
@@ -191,6 +194,19 @@ export interface Mod {
   font?: string; // шрифт, который нужно подгрузить (id из FONTS)
 }
 
+/** Мод с кодом: сохранённый текст программы и описание. */
+export interface PluginRec {
+  id: string;
+  name: string;
+  version: string;
+  author?: string;
+  description: string;
+  code: string;
+  enabled: boolean;
+  fromCatalog?: boolean;
+  icon?: string;
+}
+
 export interface Look {
   style?: 'modern' | 'classic'; // стиль интерфейса
   light: string; // id светлой темы
@@ -214,6 +230,9 @@ export interface Settings {
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов
   userCss: string; // свой CSS
+  plugins: PluginRec[]; // моды с кодом (как плагины Obsidian)
+  pluginsSafe: boolean; // безопасный режим: моды с кодом не запускаются
+  pluginData: Record<string, Record<string, unknown>>; // что моды сохранили
   motion: MotionLevel; // анимации: все, только важные, выключены, выборочно
   motionOff: MotionKind[]; // для «выборочно»: какие выключены
   theme: ThemeMode;
@@ -255,10 +274,22 @@ export interface GraphSettings {
   showTerms: boolean;
 }
 
+/** Контрольная: предмет, несколько тем, дата. Старые «даты контрольной» у тем (`Topic.examDate`) читаются как контрольные «на лету» (`src/exams.ts`), пока их не изменили. */
+export interface Exam {
+  id: string;
+  subjectId: string;
+  name: string;
+  date: string; // YYYY-MM-DD
+  topicIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppData {
   version: 1;
   folders: Folder[];
   homework: Homework[];
+  exams?: Exam[];
   subjects: Subject[];
   topics: Topic[];
   cards: Card[];
@@ -270,17 +301,19 @@ export interface AppData {
   deviceId?: string;
 }
 
-export type SettingsSection = 'look' | 'text' | 'motion' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'about';
+export type SettingsSection = 'look' | 'text' | 'motion' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'mods' | 'about';
 
 export type Route =
   | { name: 'today' }
   | { name: 'subject'; id: string; view?: 'topics' | 'rules' | 'terms' | 'timeline'; filter?: string }
   | { name: 'folder'; id: string }
   | { name: 'homework' }
+  | { name: 'plugin'; id: string }
+  | { name: 'exam'; id: string } // экран подготовки к контрольной; id вида `topic:<id>` — контрольная из старой даты темы
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
-  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; focus?: boolean; run?: number; limit?: number; mini?: boolean }
-  | { name: 'test'; topicId: string; pretest?: boolean }
+  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; ahead?: boolean; focus?: boolean; run?: number; limit?: number; mini?: boolean }
+  | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
   | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'settings'; section?: SettingsSection }
   | { name: 'features' }
-  | { name: 'help'; section?: 'start' | 'keys' };
+  | { name: 'help'; section?: 'start' | 'keys' | 'mods' };
