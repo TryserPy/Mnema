@@ -7,7 +7,7 @@ import { DEFAULT_ACCENT, DEFAULT_LOOK, migrateLook } from './themes';
 import { emit } from './plugins/bus';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
-import type { AppData, Card, CardType, Poem, Confidence, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
+import type { AppData, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
 export type AiFormat = 'openai' | 'anthropic' | 'gemini';
@@ -198,6 +198,7 @@ export function normalizeData(raw: unknown): AppData {
     version: 1,
     folders: Array.isArray(r.folders) ? r.folders : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
+    exams: Array.isArray(r.exams) ? r.exams.filter((e) => e && typeof e.id === 'string' && typeof e.date === 'string' && Array.isArray(e.topicIds)) : [],
     subjects: r.subjects,
     topics: r.topics,
     cards: r.cards,
@@ -454,6 +455,77 @@ export function deleteMany(sel: { folders?: string[]; subjects?: string[]; topic
       subjects: data.subjects.map((x) => (fOf.has(x.id) && !x.folderId ? { ...x, folderId: fOf.get(x.id), updatedAt: back } : x))
     });
   };
+}
+
+// ---------- Контрольные ----------
+
+export interface ExamInput {
+  id?: string; // не задан — новая; `topic:<id>` — контрольная из старой даты темы (станет записанной)
+  subjectId: string;
+  name: string;
+  date: string; // YYYY-MM-DD
+  topicIds: string[];
+}
+
+/** Создать или изменить контрольную. Дата, которая раньше стояла у темы (`Topic.examDate`), после этого живёт в записанной контрольной. */
+export function saveExam(input: ExamInput): Exam {
+  const stamp = nowIso();
+  const topicIds = [...new Set(input.topicIds)].filter((id) => data.topics.some((t) => t.id === id));
+  const known = input.id && !input.id.startsWith('topic:') ? (data.exams ?? []).find((e) => e.id === input.id) : undefined;
+  const exam: Exam = {
+    id: known?.id ?? uid(),
+    subjectId: input.subjectId,
+    name: input.name.trim() || 'Контрольная',
+    date: input.date,
+    topicIds,
+    createdAt: known?.createdAt ?? stamp,
+    updatedAt: stamp
+  };
+  const old = input.id?.startsWith('topic:') ? input.id.slice(6) : null;
+  const clear = new Set([...(old ? [old] : []), ...(known ? [] : topicIds)]);
+  commit({
+    ...data,
+    exams: known ? (data.exams ?? []).map((e) => (e.id === known.id ? exam : e)) : [...(data.exams ?? []), exam],
+    // дата у темы больше не нужна: контрольная её заменила (иначе одна и та же дата считалась бы дважды)
+    topics: data.topics.map((t) => (clear.has(t.id) && t.examDate ? { ...t, examDate: undefined, updatedAt: stamp } : t))
+  });
+  return exam;
+}
+
+/** Удалить контрольную. Возвращает «Вернуть». */
+export function deleteExam(id: string): () => void {
+  if (id.startsWith('topic:')) {
+    const tid = id.slice(6);
+    const t = data.topics.find((x) => x.id === tid);
+    const was = t?.examDate;
+    if (t) updateTopic(tid, { examDate: undefined });
+    return () => {
+      if (was) updateTopic(tid, { examDate: was });
+    };
+  }
+  const exam = (data.exams ?? []).find((e) => e.id === id);
+  if (!exam) return () => {};
+  commit(tomb({ ...data, exams: (data.exams ?? []).filter((e) => e.id !== id) }, ['exam:' + id]));
+  return () => {
+    const deleted = { ...(data.deleted ?? {}) };
+    delete deleted['exam:' + id];
+    commit({ ...data, deleted, exams: [...(data.exams ?? []), { ...exam, updatedAt: nowIso() }] });
+  };
+}
+
+/** Пометить последний ответ по элементу: не помню / перепутал / не понял (по желанию; null — снять). Тип ошибки автоматически не определить. */
+export function tagLastAnswer(key: string, err: 'forgot' | 'mixed' | 'lost' | null, mix?: string) {
+  let i = data.logs.length - 1;
+  while (i >= 0 && data.logs[i].key !== key) i--;
+  if (i < 0) return;
+  commit({
+    ...data,
+    logs: data.logs.map((l, j) => {
+      if (j !== i) return l;
+      const { err: _e, mix: _m, ...rest } = l;
+      return err ? { ...rest, err, ...(err === 'mixed' && mix ? { mix } : {}) } : rest;
+    })
+  });
 }
 
 // ---------- Темы ----------

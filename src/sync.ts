@@ -4,7 +4,7 @@
 // Исключение — тема: её текст конспекта сливается отдельно от остальных полей (по noteAt), а если текст правили на двух
 // устройствах независимо, проигравший не пропадает, а остаётся копией темы.
 import { canonNote, noteHash, sameNote } from './noteText';
-import type { AppData, Folder, Homework, ItemState, Subject, Topic } from './types';
+import type { AppData, Exam, Folder, Homework, ItemState, Subject, Topic } from './types';
 
 const t = (s?: string) => (s ? Date.parse(s) || 0 : 0);
 
@@ -130,6 +130,7 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   const subjects = mergeList<Subject>(local.subjects, remote.subjects, 'subj:', 'subjects').map((s) => (s.folderId && !folderIds.has(s.folderId) ? { ...s, folderId: undefined } : s));
   const subjectIds = new Set(subjects.map((s) => s.id));
   const homework = mergeList<Homework>(local.homework ?? [], remote.homework ?? [], 'hw:', 'other');
+  const examList = mergeList<Exam>(local.exams ?? [], remote.exams ?? [], 'exam:', 'other').filter((e) => subjectIds.has(e.subjectId));
   const conflicts: { of: string; copy: Topic }[] = [];
   let topics = mergeList<Topic>(local.topics, remote.topics, 'topic:', 'topics', (a, b) => mergeTopic(a, b, conflicts)).filter((x) => subjectIds.has(x.subjectId));
   // Текст, проигравший при независимых правках, — отдельной темой рядом (если такой копии ещё нет и её не удаляли).
@@ -144,6 +145,7 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   // Подтема без родителя (родителя удалили) становится обычной темой.
   const topicIds = new Set(topics.map((x) => x.id));
   topics = topics.map((x) => (x.parentId && !topicIds.has(x.parentId) ? { ...x, parentId: undefined } : x));
+  const exams = examList.map((e) => ({ ...e, topicIds: e.topicIds.filter((id) => topicIds.has(id)) })).filter((e) => e.topicIds.length);
   const cards = mergeList(local.cards, remote.cards, 'card:', 'cards').filter((c) => topicIds.has(c.topicId));
   const cardIds = new Set(cards.map((c) => c.id));
 
@@ -181,7 +183,7 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   for (const [k, v] of Object.entries(deleted)) if (t(v) < cutoff) delete deleted[k];
 
   return {
-    data: { ...local, folders, homework, subjects, topics, cards, states, logs: logs.filter((l) => cardIds.has(l.cardId)), tests, deleted, settings: { ...local.settings, schedule } },
+    data: { ...local, folders, homework, exams, subjects, topics, cards, states, logs: logs.filter((l) => cardIds.has(l.cardId)), tests, deleted, settings: { ...local.settings, schedule } },
     report
   };
 }

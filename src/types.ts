@@ -147,6 +147,9 @@ export interface ReviewLogEntry {
   rating: 1 | 2 | 3 | 4;
   prevState: number; // состояние FSRS до ответа
   confidence?: Confidence;
+  /** Ручная пометка ошибки (по желанию): не помню / перепутал / не понял. Тип ошибки автоматически не определить. */
+  err?: 'forgot' | 'mixed' | 'lost';
+  mix?: string; // с каким элементом (key) перепутал — для err: 'mixed'
   at: string;
   ms: number; // сколько думал над ответом
 }
@@ -271,10 +274,22 @@ export interface GraphSettings {
   showTerms: boolean;
 }
 
+/** Контрольная: предмет, несколько тем, дата. Старые «даты контрольной» у тем (`Topic.examDate`) читаются как контрольные «на лету» (`src/exams.ts`), пока их не изменили. */
+export interface Exam {
+  id: string;
+  subjectId: string;
+  name: string;
+  date: string; // YYYY-MM-DD
+  topicIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppData {
   version: 1;
   folders: Folder[];
   homework: Homework[];
+  exams?: Exam[];
   subjects: Subject[];
   topics: Topic[];
   cards: Card[];
@@ -294,9 +309,10 @@ export type Route =
   | { name: 'folder'; id: string }
   | { name: 'homework' }
   | { name: 'plugin'; id: string }
+  | { name: 'exam'; id: string } // экран подготовки к контрольной; id вида `topic:<id>` — контрольная из старой даты темы
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
-  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; focus?: boolean; run?: number; limit?: number; mini?: boolean }
-  | { name: 'test'; topicId: string; pretest?: boolean }
+  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; ahead?: boolean; focus?: boolean; run?: number; limit?: number; mini?: boolean }
+  | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
   | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'settings'; section?: SettingsSection }
   | { name: 'features' }

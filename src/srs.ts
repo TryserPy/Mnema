@@ -2,6 +2,7 @@
 import { createEmptyCard, fsrs, Rating, type Card as FCard, type Grade } from 'ts-fsrs';
 import { instantiate } from './problems';
 import type { AppData, Card, ItemState, Settings } from './types';
+import { examsOf } from './examList';
 
 export const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
@@ -225,6 +226,8 @@ export interface QueueScope {
   subjectIds?: string[];
   cardIds?: string[];
   cram?: boolean; // «Повторить всю тему»: все карточки, расписание не меняется
+  /** «Заранее»: уже начатые карточки из cardIds в том порядке, как их передали (слабые — первыми), без учёта срока; ответы пишутся в расписание как обычно. */
+  ahead?: boolean;
 }
 
 /** Тема вместе с подтемами (учить параграф = учить и его подтемы). */
@@ -354,6 +357,10 @@ export interface TodayCounts {
 
 export function buildQueue(data: AppData, now: Date, scope: QueueScope = {}, rnd: () => number = Math.random): QueueItem[] {
   const items = allItems(data, scope);
+  if (scope.ahead) {
+    const rank = new Map((scope.cardIds ?? []).map((id, i) => [id, i]));
+    return items.filter((it) => data.states[it.key]).sort((a, b) => (rank.get(a.cardId) ?? 1e9) - (rank.get(b.cardId) ?? 1e9) || a.ord - b.ord);
+  }
   if (scope.cram) return interleaveByTopic(shuffle(items, rnd));
   const end = dayEnd(now, data.settings.dayStartHour).getTime();
   const learning: QueueItem[] = [];
@@ -542,7 +549,9 @@ export function recallAfter(days: number, stability: number): number {
 }
 
 interface ExamGroup {
-  topicId: string;
+  examId: string;
+  topicId: string; // первая тема контрольной (опорная)
+  topicIds: string[];
   examDay: number; // начало дня контрольной
   daysLeft: number; // 0 — сегодня, 1 — завтра
   items: QueueItem[];
@@ -553,20 +562,23 @@ function examGroups(data: AppData, now: Date): ExamGroup[] {
   const today = dayStart(now, hour).getTime();
   const out: ExamGroup[] = [];
   const taken = new Set<string>();
-  const roots = data.topics.filter((t) => t.examDate).sort((a, b) => a.examDate!.localeCompare(b.examDate!));
-  for (const t of roots) {
-    const d = new Date(t.examDate + 'T12:00:00');
+  // Контрольные: записанные (несколько тем) и старые даты у тем (examsOf их читает «на лету»); по порядку дат.
+  for (const ex of examsOf(data)) {
+    const d = new Date(ex.date + 'T12:00:00');
     const examDay = dayStart(d, 0).getTime() + hour * HOUR;
     const daysLeft = Math.round((examDay - today) / DAY);
     if (daysLeft < 0) continue;
-    const items = allItems(data, { topicId: t.id }).filter((it) => !taken.has(it.key));
-    items.forEach((it) => taken.add(it.key));
-    if (items.length) out.push({ topicId: t.id, examDay, daysLeft, items });
+    const items = ex.topicIds.flatMap((id) => allItems(data, { topicId: id })).filter((it) => !taken.has(it.key));
+    const uniq = new Map(items.map((it) => [it.key, it]));
+    const list = [...uniq.values()];
+    list.forEach((it) => taken.add(it.key));
+    if (list.length) out.push({ examId: ex.id, topicId: ex.topicIds[0], topicIds: ex.topicIds, examDay, daysLeft, items: list });
   }
   return out;
 }
 
 export interface ExamPlan {
+  examId: string;
   topicId: string;
   daysLeft: number;
   total: number;
@@ -620,7 +632,7 @@ function planFor(data: AppData, now: Date, g: ExamGroup): { plan: ExamPlan; boos
     perDay.push(Math.ceil(left / (g.daysLeft - d)));
   }
   return {
-    plan: { topicId: g.topicId, daysLeft: g.daysLeft, total: g.items.length, learned, newLeft: fresh.length, todayNew, todayAhead: ahead, todayDue: due, perDay, weak },
+    plan: { examId: g.examId, topicId: g.topicId, daysLeft: g.daysLeft, total: g.items.length, learned, newLeft: fresh.length, todayNew, todayAhead: ahead, todayDue: due, perDay, weak },
     boost
   };
 }
@@ -628,14 +640,20 @@ function planFor(data: AppData, now: Date, g: ExamGroup): { plan: ExamPlan; boos
 /** Какие элементы сегодня добавить из-за контрольных. */
 export function examBoost(data: AppData, now: Date): Map<string, 'new' | 'ahead'> {
   const out = new Map<string, 'new' | 'ahead'>();
-  if (!data.topics.some((t) => t.examDate)) return out;
+  if (!data.topics.some((t) => t.examDate) && !data.exams?.length) return out;
   for (const g of examGroups(data, now)) for (const [k, v] of planFor(data, now, g).boost) out.set(k, v);
   return out;
 }
 
 /** План подготовки к контрольной по теме (для экранов). */
 export function examPlan(data: AppData, now: Date, topicId: string): ExamPlan | null {
-  const g = examGroups(data, now).find((x) => x.topicId === topicId);
+  const g = examGroups(data, now).find((x) => x.topicIds.includes(topicId));
+  return g ? planFor(data, now, g).plan : null;
+}
+
+/** То же по контрольной (одна или несколько тем). */
+export function examPlanOf(data: AppData, now: Date, examId: string): ExamPlan | null {
+  const g = examGroups(data, now).find((x) => x.examId === examId);
   return g ? planFor(data, now, g).plan : null;
 }
 
