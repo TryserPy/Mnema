@@ -473,7 +473,14 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     else if (a === 'heading') c.toggleHeading({ level: 2 }).run();
     else if (a === 'list') c.toggleBulletList().run();
     else if (a === 'quote') c.toggleBlockquote().run();
-    else if (a === 'copy') {
+    if (a === 'bold' || a === 'italic' || a === 'mark' || a === 'heading' || a === 'list' || a === 'quote') {
+      // «Список» и «Рамка» оборачивают текст в новые блоки — номера позиций сдвигаются. Панель помнит прежние
+      // и тогда решала, что выделение другое, и пряталась. Запоминаем выделение заново: панель остаётся на месте.
+      if (bubbleAt.current) {
+        const { from, to } = editor.state.selection;
+        bubbleAt.current = { from, to };
+      }
+    } else if (a === 'copy') {
       void navigator.clipboard?.writeText(selectionText(editor)).catch(() => document.execCommand('copy'));
       bubbleAt.current = null;
       editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'hide'));
