@@ -83,12 +83,14 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
   await page.screenshot({ path: `${OUT}/session-${tag}-today.png` });
 
   // «Учиться»: открывается повторение, очередь = то, что на кнопке
+  await page.waitForTimeout(900); // число на кнопке плавно досчитывает
+  const onButton = await num();
   await page.locator('.hero-btn').click();
   await page.waitForTimeout(600);
   const reveal = await page.getByRole('button', { name: 'Показать ответ' }).count();
   check(reveal === 1, `${tag}: «Учиться» открыло повторение с вопросом`);
-  const prog = await page.locator('.review-progress, .progress, [class*="progress"]').first().innerText().catch(() => '');
-  console.log(`   (${tag}) шапка повторения: ${prog.replace(/\n/g, ' ').slice(0, 80)}`);
+  const m = (await page.locator('body').innerText()).match(/1 из (\d+)/);
+  check(m && Number(m[1]) === onButton, `${tag}: в повторении «1 из ${m ? m[1] : '?'}» = числу на кнопке (${onButton})`);
   await page.screenshot({ path: `${OUT}/session-${tag}-review.png` });
   await ctx.close();
 }
