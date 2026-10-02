@@ -9,6 +9,7 @@ import { PageViewer } from '../components/PageViewer';
 import { Icon, Modal, AnimText, touchUI } from '../components/ui';
 import { checkNumber } from '../problems';
 import { compareSpoken, startVoice, voiceSupported, type VoiceSession } from '../voice';
+import { buildSession } from '../session';
 import { buildPrompt, buildQueue, cardLapses, checkTyped, formatInterval, GRADES, MINUTE, previewIntervals, type QueueItem } from '../srs';
 import { getData, markLeechSeen, recordReview, updateCard, useData } from '../store';
 import { keyFor, matches, prettyCombo, typingTarget } from '../keys';
@@ -37,8 +38,11 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const cram = Boolean(route.cram);
   const settings = data.settings;
   const initial = useMemo(
-    () => buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead) }).slice(0, route.limit ?? Infinity),
-    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit]
+    () =>
+      route.session
+        ? buildSession(getData(), new Date(), route.session).items // «Учиться»: план на сегодня с учётом времени и пропущенных шагов
+        : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead) }).slice(0, route.limit ?? Infinity),
+    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session]
   );
   const [queue, setQueue] = useState<QueueItem[]>(initial.slice(1));
   const [waiting, setWaiting] = useState<Waiting[]>([]);

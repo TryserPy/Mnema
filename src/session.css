@@ -1,0 +1,27 @@
+/* «Учиться»: время на главной кнопке, «Что в плане и почему», одна строка про ближайшую контрольную. */
+.hero-btn:disabled { opacity: 0.55; cursor: default; }
+.hero-btn:disabled:hover { filter: none; }
+.hero-sub2 { font-size: 0.92rem; opacity: 0.85; margin-top: 2px; }
+.hero-time { display: flex; gap: 8px; flex-wrap: wrap; }
+.hero-chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--on-accent) 45%, transparent); background: transparent; color: var(--on-accent); font-size: 0.92rem; transition: background 0.15s, color 0.15s; }
+.hero-chip:hover:not(.on) { background: color-mix(in srgb, var(--on-accent) 16%, transparent); }
+.hero-chip.on { background: var(--on-accent); color: var(--accent); border-color: var(--on-accent); font-weight: 600; }
+
+.plan-why { display: flex; flex-direction: column; gap: 6px; }
+.plan-why-toggle { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 4px; border: none; background: transparent; color: var(--muted); font-size: 0.95rem; border-radius: 10px; }
+.plan-why-toggle:hover { color: var(--ink); }
+.plan-chev { display: inline-flex; transition: transform 0.2s ease; }
+.plan-chev.open { transform: rotate(90deg); }
+.plan-steps { list-style: none; margin: 0; padding: 4px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.plan-steps li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.plan-steps li.skipped { opacity: 0.6; }
+.plan-n { font-family: var(--display); font-weight: 600; font-size: 1.25rem; text-align: center; font-variant-numeric: tabular-nums; }
+.plan-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.plan-text .small { overflow-wrap: anywhere; }
+.plan-later { margin: 8px 4px 0; }
+.exam-line { width: 100%; text-align: left; }
+
+@media (max-width: 720px) {
+  .plan-steps li { grid-template-columns: 34px minmax(0, 1fr); }
+  .plan-steps li .btn { grid-column: 2; justify-self: start; }
+}

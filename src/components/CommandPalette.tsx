@@ -6,6 +6,7 @@ import { dueLabel } from '../homework';
 import { texPlain } from '../rules';
 import { registry, usePlugins } from '../plugins/host';
 import { normalizeAnswer } from '../srs';
+import { sessionPrefs } from '../session';
 import { updateSettings, useData } from '../store';
 import type { Route } from '../types';
 import { Icon, SubjectMark, usePresence } from './ui';
@@ -73,7 +74,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
     };
     // Команды
     const cmds: [string, string, () => void][] = [
-      ['Начать повторение на сегодня', 'play', () => go({ name: 'review', run: Date.now() })],
+      ['Начать повторение на сегодня', 'play', () => go({ name: 'review', session: sessionPrefs(data, new Date()), run: Date.now() })],
       [`Фокус: ${data.settings.focusMinutes} минут, потом перерыв`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
       ...(f.homework ? ([['Записать домашнее задание', 'homework', () => go({ name: 'homework' })], ['Открыть домашку', 'homework', () => go({ name: 'homework' })]] as [string, string, () => void][]) : []),
