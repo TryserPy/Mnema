@@ -159,7 +159,6 @@ export function emptyData(): AppData {
   return { version: 1, folders: [], homework: [], subjects: [], topics: [], cards: [], states: {}, logs: [], tests: [], settings: { ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features }, schedule: {}, keys: {}, treeOpen: [], graph: { ...DEFAULT_SETTINGS.graph }, highlight: { ...DEFAULT_HIGHLIGHT, rules: { ...DEFAULT_HIGHLIGHT.rules }, custom: [] }, textbook: { ...DEFAULT_SETTINGS.textbook } } };
 }
 
-/** Проверка и дополнение загруженных данных (старые файлы, импорт). */
 /** Возможности и поля, которых в 2.0 больше нет (код-плагины, достижения, сад, совет дня, переключатели ядра): из старых файлов не переносим, чтобы мёртвые данные не копились. */
 const REMOVED_SETTINGS = ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen', 'tips', 'dismissedTips'];
 const REMOVED_FEATURES = ['mods', 'awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly']; // последние пять стали частью ядра: всегда включены (кроме focus — теперь в поиске Ctrl+P)
@@ -171,6 +170,7 @@ export function dropRemoved(d: AppData): AppData {
   return d;
 }
 
+/** Проверка и дополнение загруженных данных (старые файлы, импорт). */
 export function normalizeData(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Мнемы');
   const r = raw as Partial<AppData>;

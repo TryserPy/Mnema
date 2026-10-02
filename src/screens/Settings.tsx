@@ -615,7 +615,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </div>
       </div>
       <Group>
-        <SRow label="Справка" hint={touchUI() ? 'С чего начать, формулы, моды' : 'С чего начать, формулы, клавиши, моды'}>
+        <SRow label="Справка" hint={touchUI() ? 'С чего начать' : 'С чего начать, клавиши'}>
           <button className="btn small" onClick={() => go({ name: 'help' })}>
             Открыть
           </button>
