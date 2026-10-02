@@ -434,22 +434,32 @@ describe('1.8: удалить несколько сразу', () => {
   });
 
   it('синхронизация: удалённое не воскресает со старой копии, а возвращённое — не пропадает', () => {
-    replaceData(many180());
-    const old = getData(); // «другое устройство» ещё помнит всё
-    const undo = deleteMany({ folders: ['f'], subjects: ['s1'], topics: ['b'] });
-    const afterDelete = getData();
-    const merged = mergeData(afterDelete, old).data;
-    expect(merged.folders).toHaveLength(0);
-    expect(merged.subjects.map((s) => s.id)).toEqual(['s2', 's3']);
-    expect(merged.topics.map((x) => x.id)).toEqual(['c']);
-    expect(merged.cards.map((c) => c.id)).toEqual(['cc']);
-    // Передумал: «Вернуть». Устройство, которое уже получило отметки об удалении, возвращённое не стирает.
-    undo();
-    const restored = mergeData(getData(), afterDelete).data;
-    expect(restored.folders.map((f) => f.id)).toEqual(['f']);
-    expect(restored.subjects.map((s) => s.id).sort()).toEqual(['s1', 's2', 's3']);
-    expect(restored.topics.map((x) => x.id).sort()).toEqual(['a', 'b', 'b2', 'c']);
-    expect(restored.cards).toHaveLength(3);
+    // Часы ставим сами: отметки времени — с точностью до миллисекунды, а тест нажимает «Удалить» и «Вернуть» подряд.
+    // Если они попадут в одну и ту же миллисекунду (быстрый компьютер), отметка об удалении окажется «не старше» возвращённой записи
+    // и слияние её уберёт. Человек так быстро не нажмёт, поэтому между шагами проходит минута.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-09-29T10:00:00.000Z'));
+      replaceData(many180());
+      const old = getData(); // «другое устройство» ещё помнит всё
+      const undo = deleteMany({ folders: ['f'], subjects: ['s1'], topics: ['b'] });
+      const afterDelete = getData();
+      const merged = mergeData(afterDelete, old).data;
+      expect(merged.folders).toHaveLength(0);
+      expect(merged.subjects.map((s) => s.id)).toEqual(['s2', 's3']);
+      expect(merged.topics.map((x) => x.id)).toEqual(['c']);
+      expect(merged.cards.map((c) => c.id)).toEqual(['cc']);
+      // Передумал: «Вернуть». Устройство, которое уже получило отметки об удалении, возвращённое не стирает.
+      vi.setSystemTime(new Date('2026-09-29T10:01:00.000Z'));
+      undo();
+      const restored = mergeData(getData(), afterDelete).data;
+      expect(restored.folders.map((f) => f.id)).toEqual(['f']);
+      expect(restored.subjects.map((s) => s.id).sort()).toEqual(['s1', 's2', 's3']);
+      expect(restored.topics.map((x) => x.id).sort()).toEqual(['a', 'b', 'b2', 'c']);
+      expect(restored.cards).toHaveLength(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
