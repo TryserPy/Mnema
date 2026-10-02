@@ -618,6 +618,11 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </SRow>
       </Group>
       <UpdatesGroup />
+      <Group title="Новое в 1.8.2">
+        <ul className="whats-new">
+          <li>Меню темы, предмета и папки в боковой панели снова открывается рядом с тем, на что нажали, а не в левом верхнем углу</li>
+        </ul>
+      </Group>
       <Group title="Новое в 1.8.1">
         <ul className="whats-new">
           <li>Меню «Ещё», «+» и «Вставить» всегда целиком на экране; на телефоне длинные меню выезжают снизу</li>
