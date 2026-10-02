@@ -25,6 +25,7 @@ import { ExamPlanLine } from './Today';
 import { PrintDialog } from '../components/ExportDialogs';
 import { keyFor, matches, prettyCombo } from '../keys';
 import type { Card, CardType, ListKind, Route } from '../types';
+import { openExamDialog } from '../components/ExamDialog';
 
 const TYPE_LABEL: Record<CardType, string> = {
   basic: 'Вопрос — ответ',
@@ -172,6 +173,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Закрой и перескажи', icon: 'eyeOff', onClick: () => setRecall(true), hidden: !topic.note.trim() },
               { label: 'Проверь себя до чтения', icon: 'bulb', onClick: () => go({ name: 'test', topicId: id, pretest: true }), hidden: cards.length < 2 || cards.some((c) => itemOrds(c).some((o) => data.states[itemKey(c.id, o)])) },
               { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 },
+              { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Мнема составит план', onClick: () => openExamDialog({ topicId: id }) },
               { label: 'Повторить всю тему', icon: 'repeat', onClick: () => go({ name: 'review', topicId: id, cram: true }), hidden: cards.length === 0 },
               { label: 'Поделиться темой (файл)', icon: 'share', onClick: () => exportTopic(data, id) },
               { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },

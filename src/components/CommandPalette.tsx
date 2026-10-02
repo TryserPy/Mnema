@@ -9,6 +9,8 @@ import { normalizeAnswer } from '../srs';
 import { updateSettings, useData } from '../store';
 import type { Route } from '../types';
 import { Icon, SubjectMark, usePresence } from './ui';
+import { openExamDialog } from './ExamDialog';
+import { examsOf } from '../examList';
 
 interface Item {
   id: string;
@@ -75,6 +77,8 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
       [`Фокус: ${data.settings.focusMinutes} минут, потом перерыв`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
       ...(f.homework ? ([['Записать домашнее задание', 'homework', () => go({ name: 'homework' })], ['Открыть домашку', 'homework', () => go({ name: 'homework' })]] as [string, string, () => void][]) : []),
+      ['Новая контрольная', 'test', () => openExamDialog()],
+      ...examsOf(data).slice(0, 6).map((e) => [`Контрольная: ${e.name}`, 'test', () => go({ name: 'exam', id: e.id })] as [string, string, () => void]),
       ['Новый предмет', 'plus', () => onNew()],
       ['Новая папка предметов', 'folderPlus', () => onNew({ as: 'folder' })],
       ['Статистика', 'chart', () => go({ name: 'stats' })],

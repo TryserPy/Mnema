@@ -4,7 +4,10 @@ import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
 import { duePoems } from '../poem';
-import { dayStart, DAY, examPlan, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
+import { allItems, dayStart, examPlanOf, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
+import { openExamDialog } from '../components/ExamDialog';
+import { daysLeftTo } from '../exams';
+import { examsOf } from '../examList';
 import { setScheduleDay, sortedSubjects, updateSettings, useData } from '../store';
 import type { Route } from '../types';
 
@@ -22,12 +25,10 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   const avgMs = recent.length ? recent.reduce((a, l) => a + l.ms, 0) / recent.length : 10_000;
   const minutes = total === 0 ? 0 : Math.max(1, Math.round((total * avgMs * 1.1) / 60_000));
 
-  const today = dayStart(now, data.settings.dayStartHour);
-  const exams = data.topics
-    .filter((t) => t.examDate)
-    .map((t) => ({ t, days: Math.round((new Date(t.examDate + 'T12:00:00').getTime() - today.getTime()) / DAY), m: topicMastery(data, t.id) }))
+  // Контрольные (записанные и старые даты у тем), ближайшие три.
+  const exams = examsOf(data)
+    .map((e) => ({ e, days: daysLeftTo(e, now, data.settings.dayStartHour) }))
     .filter((x) => x.days >= 0)
-    .sort((a, b) => a.days - b.days)
     .slice(0, 3);
   const important = data.topics
     .filter((t) => t.important)
@@ -142,29 +143,36 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
 
       {exams.length > 0 && (
         <div className="card exam-card">
-          <h3>Контрольные</h3>
-          {exams.map(({ t, days, m }) => {
-            const pct = m.total ? Math.round((m.learned / m.total) * 100) : 0;
-            const subject = data.subjects.find((s) => s.id === t.subjectId);
-            const plan = examPlan(data, now, t.id);
+          <div className="row between gap8">
+            <h3>Контрольные</h3>
+            <button className="btn small ghost" onClick={() => openExamDialog()}>
+              <Icon name="plus" size={16} /> Контрольная
+            </button>
+          </div>
+          {exams.map(({ e, days }) => {
+            const subject = data.subjects.find((x) => x.id === e.subjectId);
+            const plan = examPlanOf(data, now, e.id);
             const todo = plan ? plan.todayNew + plan.todayAhead + plan.todayDue : 0;
+            const m = e.topicIds.map((id) => topicMastery(data, id)).reduce((a, b) => ({ total: a.total + b.total, learned: a.learned + b.learned }), { total: 0, learned: 0 });
+            const pct = m.total ? Math.round((m.learned / m.total) * 100) : 0;
+            const single = e.topicIds.length === 1;
             return (
-              <div key={t.id} className="exam-row">
+              <div key={e.id} className="exam-row">
                 <div className="exam-top">
                   <span className="dot" style={{ background: subject?.color }} />
-                  <button className="grow exam-main" onClick={() => go({ name: 'topic', id: t.id })}>
-                    <strong>{t.name}</strong>
+                  <button className="grow exam-main" onClick={() => go({ name: 'exam', id: e.id })}>
+                    <strong>{e.name}</strong>
                     <span className="muted small block">
-                      {days === 0 ? 'сегодня' : days === 1 ? 'завтра' : `через ${days} ${plural(days, 'день', 'дня', 'дней')}`} · выучено {pct}%
+                      {days === 0 ? 'сегодня' : days === 1 ? 'завтра' : `через ${days} ${plural(days, 'день', 'дня', 'дней')}`} · выучено {pct}%{single ? '' : ` · тем: ${e.topicIds.length}`}
                     </span>
                   </button>
                   {todo > 0 ? (
-                    <button className="btn small primary" onClick={() => go({ name: 'review', topicId: t.id })}>
+                    <button className="btn small primary" onClick={() => go(single ? { name: 'review', topicId: e.topicIds[0] } : { name: 'review', cardIds: [...new Set(e.topicIds.flatMap((id) => allItems(data, { topicId: id }).map((it) => it.cardId)))] })}>
                       Готовиться · {todo}
                     </button>
                   ) : (
                     m.total >= 2 && (
-                      <button className="btn small" onClick={() => go({ name: 'test', topicId: t.id })}>
+                      <button className="btn small" onClick={() => go({ name: 'test', topicId: e.topicIds[0], examId: e.id })}>
                         Проверить себя
                       </button>
                     )

@@ -42,7 +42,7 @@ for (const { w, h, phone } of SIZES) {
   await page.waitForTimeout(400);
   const helpTabs = await page.getByRole('radio').allInnerTexts();
   console.log(`${w} справка, вкладки: [${helpTabs.join(' | ')}]`);
-  if (phone ? helpTabs.length !== 0 : helpTabs.join('|') !== 'Как учиться|Клавиши') problems.push(`${w}: вкладки справки: ${helpTabs.join('|')}`);
+  if (phone ? helpTabs.join('|') !== 'Как учиться|Моды' : helpTabs.join('|') !== 'Как учиться|Клавиши|Моды') problems.push(`${w}: вкладки справки: ${helpTabs.join('|')}`);
   await shot('3-help');
   // Возможности
   await openNav();
@@ -51,7 +51,7 @@ for (const { w, h, phone } of SIZES) {
   const tiles = await page.locator('.feat-tile').count();
   const heads = await page.locator('.feat-group-title, .sgroup-title, h3').allInnerTexts();
   console.log(`${w} возможности: плиток ${tiles}; группы: ${heads.join(' | ')}`);
-  if (tiles !== 13 && tiles !== 12) problems.push(`${w}: плиток возможностей ${tiles} (ждём 13, на телефоне без «Значок у часов» — 12)`);
+  if (tiles !== 14 && tiles !== 13) problems.push(`${w}: плиток возможностей ${tiles} (ждём 14, на телефоне без «Значок у часов» — 13)`);
   await shot('4-features');
   // Настройки → Оформление, «Ещё стили»
   await openNav();
@@ -61,7 +61,7 @@ for (const { w, h, phone } of SIZES) {
   const lookItem = page.locator('.set-nav-item', { hasText: 'Оформление' });
   if (await lookItem.count()) { await lookItem.click(); await page.waitForTimeout(300); }
   console.log(`${w} настройки, разделы: ${navItems.map((x) => x.trim()).join(' | ')}`);
-  if (navItems.some((x) => /Стили|Моды/.test(x))) problems.push(`${w}: в разделах настроек остались «Стили/Моды»`);
+  if (navItems.some((x) => /Стили/.test(x))) problems.push(`${w}: в разделах настроек остался отдельный раздел «Стили»`);
   await page.evaluate(() => document.querySelector('[data-set="styles"]')?.scrollIntoView({ block: 'start' }));
   await page.waitForTimeout(300);
   await shot('5-look-styles');

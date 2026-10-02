@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Markdown } from '../components/Markdown';
 import { Icon, Segmented, AnimText, touchUI } from '../components/ui';
 import { allItems, checkTyped } from '../srs';
+import { examById } from '../examList';
 import { addTestResult, getData, useData } from '../store';
 import { buildTest, schoolGrade, type TestQuestion } from '../testgen';
 import type { Route } from '../types';
@@ -16,10 +17,12 @@ function fmt(ms: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export function TestScreen({ topicId, go, pretest = false }: { topicId: string; go: (r: Route) => void; pretest?: boolean }) {
+export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: string; go: (r: Route) => void; pretest?: boolean; examId?: string }) {
   const data = useData();
   const topic = data.topics.find((t) => t.id === topicId);
-  const available = useMemo(() => allItems(getData(), { topicId }).length, [topicId]);
+  // Пробная контрольная — по всем темам контрольной; обычный тест — по одной теме.
+  const examTopics = useMemo(() => (examId ? examById(getData(), examId)?.topicIds : undefined), [examId]);
+  const available = useMemo(() => (examTopics ? new Set(examTopics.flatMap((id) => allItems(getData(), { topicId: id }).map((it) => it.key))).size : allItems(getData(), { topicId }).length), [topicId, examTopics]);
   const [count, setCount] = useState<number>(Math.min(10, available));
   const [timed, setTimed] = useState(false);
   const [questions, setQuestions] = useState<TestQuestion[] | null>(null);
@@ -50,7 +53,7 @@ export function TestScreen({ topicId, go, pretest = false }: { topicId: string; 
   }, [finished, questions, topicId, correct]);
 
   if (!topic) return <div className="page">Тема не найдена.</div>;
-  const back = () => go({ name: 'topic', id: topicId });
+  const back = () => go(examId ? { name: 'exam', id: examId } : { name: 'topic', id: topicId });
 
   // ---------- Настройка ----------
   if (!questions) {
@@ -91,7 +94,7 @@ export function TestScreen({ topicId, go, pretest = false }: { topicId: string; 
             <button
               className="btn primary"
               onClick={() => {
-                const q = buildTest(getData(), topicId, count);
+                const q = buildTest(getData(), topicId, count, Math.random, examTopics);
                 setQuestions(q);
                 setAnswers(new Array(q.length).fill(undefined));
                 if (timed) setDeadline(Date.now() + q.length * 60_000);

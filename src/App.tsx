@@ -25,6 +25,8 @@ import { FolderScreen } from './screens/FolderScreen';
 import { HomeworkScreen } from './components/Homework';
 import { widgetState, notificationPlan } from './homework';
 import { TestScreen } from './screens/TestScreen';
+import { ExamScreen } from './screens/ExamScreen';
+import { ExamDialogHost } from './components/ExamDialog';
 import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
 import { importTopicPackage, isTopicPackage } from './share';
@@ -437,7 +439,7 @@ export function App() {
     return (
       <div className={'app review-mode' + (route.name === 'review' && route.mini ? ' mini' : '')}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
-          {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId} topicId={route.topicId} pretest={route.pretest} go={go} />}
+          {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId + (route.examId ?? '')} topicId={route.topicId} pretest={route.pretest} examId={route.examId} go={go} />}
         </ErrorBoundary>
       </div>
     );
@@ -481,6 +483,7 @@ export function App() {
         {route.name === 'subject' && <SubjectScreen key={route.id} id={route.id} view={route.view} filter={route.filter} go={go} />}
         {route.name === 'topic' && <TopicScreen key={route.id} id={route.id} tab={route.tab} go={go} />}
         {route.name === 'stats' && <Stats go={go} tab={route.tab} />}
+        {route.name === 'exam' && <ExamScreen key={route.id} id={route.id} go={go} />}
         {(route.name === 'settings' || route.name === 'features') && <Settings go={go} section={route.name === 'features' ? 'features' : route.section} />}
         {route.name === 'help' && <Help section={route.section} go={go} />}
         </ErrorBoundary>
@@ -519,6 +522,7 @@ export function App() {
       {changes !== null && <ChangesDialog key={changes.length} initial={changes} onClose={() => setChanges(null)} />}
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
+      <ExamDialogHost go={go} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />
       {addingSubject && (
         <NewSubjectDialog
