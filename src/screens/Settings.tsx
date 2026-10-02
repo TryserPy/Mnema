@@ -4,8 +4,6 @@ import { Icon, Modal, Switch, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
-import { StylesSettings } from '../components/ModsSettings';
-import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
 import { KeySettings } from '../components/KeySettings';
@@ -67,8 +65,7 @@ const INDEX: IndexItem[] = [
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
-  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'styles', words: 'css вид' },
-  { label: 'Моды', section: 'mods', words: 'плагины расширения' },
+  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'look', anchor: 'styles', words: 'css вид моды' },
   { label: 'Обновления', section: 'about', anchor: 'update', words: 'новая версия github обновить' },
   { label: 'Версия и справка', section: 'about', words: 'о программе' }
 ];
@@ -89,8 +86,6 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     { id: 'ai', title: 'ИИ-помощник', icon: 'bot', hidden: !s.features.ai },
     { id: 'keys', title: 'Клавиши', icon: 'keyboard', hidden: touchUI() },
     { id: 'data', title: 'Данные', icon: 'database' },
-    { id: 'styles', title: 'Стили', icon: 'brush' },
-    { id: 'mods', title: 'Моды', icon: 'puzzle', hidden: !s.features.mods },
     { id: 'about', title: 'О Мнеме', icon: 'info' }
   ];
   const visible = sections.filter((x) => !x.hidden);
@@ -191,8 +186,6 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     </div>
   );
   else if (current === 'data') pane = <DataPane go={go} />;
-  else if (current === 'styles') pane = <StylesSettings />;
-  else if (current === 'mods') pane = <PluginsSettings go={go} />;
   else if (current === 'about') pane = <AboutPane go={go} />;
 
   if (narrow) {
@@ -301,13 +294,24 @@ function StudyPane() {
             ))}
           </select>
         </SRow>
-        {s.dismissedTips.length > 0 && (
-          <SRow label="Скрытые советы" hint={`Скрыто: ${s.dismissedTips.length}`}>
-            <button className="btn small" onClick={() => updateSettings({ dismissedTips: [] })}>
-              Показать снова
-            </button>
-          </SRow>
-        )}
+        <SRow label="Фокус-режим: заниматься" hint={touchUI() ? 'Запуск — в поиске (лупа сверху): «Фокус». Потом перерыв.' : 'Запуск — в поиске (Ctrl+P): «Фокус». Потом перерыв.'}>
+          <select className="input" value={s.focusMinutes} onChange={(e) => updateSettings({ focusMinutes: Number(e.target.value) })} aria-label="Сколько минут заниматься в фокус-режиме">
+            {[10, 15, 20, 25, 30, 45].map((m) => (
+              <option key={m} value={m}>
+                {m} мин
+              </option>
+            ))}
+          </select>
+        </SRow>
+        <SRow label="Фокус-режим: перерыв">
+          <select className="input" value={s.breakMinutes} onChange={(e) => updateSettings({ breakMinutes: Number(e.target.value) })} aria-label="Сколько минут длится перерыв">
+            {[3, 5, 10, 15].map((m) => (
+              <option key={m} value={m}>
+                {m} мин
+              </option>
+            ))}
+          </select>
+        </SRow>
       </Group>
     </div>
   );
@@ -611,13 +615,22 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </div>
       </div>
       <Group>
-        <SRow label="Справка" hint={touchUI() ? 'С чего начать, формулы, моды' : 'С чего начать, формулы, клавиши, моды'}>
+        <SRow label="Справка" hint={touchUI() ? 'С чего начать' : 'С чего начать, клавиши'}>
           <button className="btn small" onClick={() => go({ name: 'help' })}>
             Открыть
           </button>
         </SRow>
       </Group>
       <UpdatesGroup />
+      <Group title="Новое в 1.9.0">
+        <ul className="whats-new">
+          <li>Проще: убраны «Сад знаний», «Достижения» и «Совет дня»; на «Сегодня» нет плашки с серией — число «Дней подряд» теперь тихо лежит в «Статистика → Всегда»</li>
+          <li>«Возможности»: вместо 21 переключателя — 13. Трудные карточки, пробная контрольная и итоги недели работают всегда</li>
+          <li>Стили («Тетрадь», «Крупные кнопки», «Стикеры»…) переехали в «Настройки → Оформление → Ещё стили». Фокус-режим запускается из поиска (Ctrl+P)</li>
+          <li>Справка короче: «Как учиться» и «Клавиши». Моды-программы убраны — теперь из файла нельзя запустить чужую программу</li>
+          <li>Исправлено: Enter в поиске открывал ответ сразу; «Выключить все» выключало только один стиль</li>
+        </ul>
+      </Group>
       <Group title="Новое в 1.8.2">
         <ul className="whats-new">
           <li>Меню темы, предмета и папки в боковой панели снова открывается рядом с тем, на что нажали, а не в левом верхнем углу</li>
@@ -703,9 +716,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
           <li>Папки предметов, значки и новые цвета</li>
           <li>Видео по ссылке прямо в конспекте</li>
           <li>Правила: выдели слово — и правило всплывёт при наведении</li>
-          <li>Моды, которые добавляют новые возможности</li>
           <li className="desk-only">Быстрый поиск по Ctrl+P</li>
-          <li>Живой сад: восемь стадий роста, растения можно поливать и гладить</li>
           <li>Уроки на сегодня и завтра, простое расписание недели</li>
           <li>Новый стиль, настройки по разделам, плавная смена темы</li>
         </ul>

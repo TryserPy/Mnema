@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Collapse, Icon, Modal, plural, AnimatedNumber, AnimText, SubjectMark, touchUI } from '../components/ui';
+import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark, touchUI } from '../components/ui';
 import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
 import { duePoems } from '../poem';
-import { dayStart, DAY, examPlan, streak, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
-import { dismissTip, setScheduleDay, sortedSubjects, updateSettings, useData } from '../store';
-import { pickTip } from '../tips';
+import { dayStart, DAY, examPlan, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
+import { setScheduleDay, sortedSubjects, updateSettings, useData } from '../store';
 import type { Route } from '../types';
 
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -18,9 +17,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   const f = data.settings.features;
   const counts = todayCounts(data, now);
   const total = counts.learning + counts.review + counts.newCount;
-  const st = streak(data, now);
-  const tip = pickTip(data, now);
-  const [whyOpen, setWhyOpen] = useState(false);
 
   const recent = data.logs.slice(-200);
   const avgMs = recent.length ? recent.reduce((a, l) => a + l.ms, 0) / recent.length : 10_000;
@@ -92,12 +88,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           </div>
           <h1 className="display">Сегодня</h1>
         </div>
-        {st > 0 && (
-          <div className="pill streak" title="Дней подряд с повторениями">
-            <Icon name="flame" size={18} />
-            {st} {plural(st, 'день', 'дня', 'дней')} подряд
-          </div>
-        )}
       </div>
 
       <div className="hero">
@@ -115,11 +105,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
             <button className="hero-btn" onClick={() => go({ name: 'review' })}>
               <Icon name="play" size={18} /> Начать
             </button>
-            {f.focus && (
-              <button className="hero-link" onClick={() => go({ name: 'review', focus: true, run: Date.now() })}>
-                <Icon name="timer" size={16} /> Фокус {data.settings.focusMinutes} минут, потом перерыв
-              </button>
-            )}
           </>
         ) : (
           <>
@@ -129,7 +114,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
         )}
       </div>
 
-      {f.weekly && dayStart(now, data.settings.dayStartHour).getDay() === 1 && <WeekCard data={data} go={go} compact />}
+      {dayStart(now, data.settings.dayStartHour).getDay() === 1 && <WeekCard data={data} go={go} compact />}
 
       {tomorrow.length > 0 && !f.schedule && (
         <div className="note-line">
@@ -178,7 +163,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
                       Готовиться · {todo}
                     </button>
                   ) : (
-                    f.test &&
                     m.total >= 2 && (
                       <button className="btn small" onClick={() => go({ name: 'test', topicId: t.id })}>
                         Проверить себя
@@ -227,22 +211,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
         <button className="add-schedule" onClick={() => updateSettings({ features: { ...f, schedule: true } })}>
           <Icon name="calendar" size={18} /> Добавить расписание уроков — накануне Мнема будет ставить карточки этих предметов первыми
         </button>
-      )}
-
-      {tip && (
-        <div className="tip tip-bottom">
-          <Icon name="bulb" size={20} />
-          <div className="grow stack gap6">
-            <span>{tip.text}</span>
-            {whyOpen && <span className="small why">{tip.why}</span>}
-            <button className="link-btn tip-link" onClick={() => setWhyOpen(!whyOpen)}>
-              <AnimText value={whyOpen ? 'Скрыть' : 'Почему?'} />
-            </button>
-          </div>
-          <button className="icon-btn small tip-close" aria-label="Скрыть совет" onClick={() => dismissTip(tip.id)}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
       )}
     </div>
   );

@@ -27,7 +27,6 @@ await win.getByRole('button', { name: 'Настройки', exact: true }).click
 if (process.env.THEME === 'dark') { await win.getByRole('radio', { name: 'Тёмная' }).click(); await win.waitForTimeout(500); }
 if (process.env.MODS) {
   await win.locator('.set-nav-item', { hasText: 'Возможности' }).click();
-  await win.getByRole('switch', { name: 'Моды' }).click();
   await win.getByRole('switch', { name: 'ИИ-помощник' }).click();
 }
 const names = (process.env.ONLY || '').split(',').filter(Boolean);

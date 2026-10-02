@@ -1,4 +1,4 @@
-// 1.4: анимации и их настройки, оформление, конспект на весь экран, итоги, достижения, сад, шаблоны, моды, экспорт в Anki.
+// 1.4: анимации и их настройки, оформление, конспект на весь экран, итоги, шаблоны, моды, экспорт в Anki.
 import { _electron as electron } from 'playwright';
 import fs from 'fs';
 const OUT = process.env.OUT;
@@ -63,12 +63,11 @@ await win.waitForTimeout(400);
 await shot('f4-motion');
 await win.getByRole('radio', { name: 'Все', exact: true }).click();
 
-// Возможности: моды
+// Возможности
 await win.locator('.foot-btn[aria-label="Возможности"]').click();
-await win.getByRole('switch', { name: 'Моды' }).click();
 await win.getByRole('switch', { name: 'Карта знаний' }).click();
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
-await sect('Стили');
+await sect('Оформление');
 await win.getByRole('switch', { name: 'Стикеры' }).click();
 await win.getByRole('switch', { name: 'Крупные кнопки' }).click();
 step('mods css: ' + (await win.evaluate(() => document.getElementById('mnema-mods').textContent.length)));
@@ -93,7 +92,7 @@ step('template front: ' + (await win.locator('.modal textarea').first().inputVal
 await shot('f7-template');
 await win.keyboard.press('Escape');
 
-// Повторение → статистика, достижения, сад
+// Повторение → статистика
 await win.getByRole('button', { name: /Учить · / }).first().click();
 for (let i = 0; i < 3; i++) {
   await win.getByRole('button', { name: 'Показать ответ' }).click();
@@ -104,11 +103,6 @@ await win.keyboard.press('Escape');
 await win.waitForTimeout(500);
 await win.getByRole('button', { name: 'Статистика' }).click();
 await shot('f8-stats');
-await win.getByRole('radio', { name: 'Достижения' }).click();
-await shot('f9-awards');
-await win.getByRole('radio', { name: 'Сад знаний' }).click();
-await shot('f10-garden');
-step('plants: ' + (await win.locator('.plant-btn').count()));
 await win.getByRole('radio', { name: 'Карта знаний' }).click();
 await win.locator('.map-canvas').waitFor();
 step('map lazy ok');

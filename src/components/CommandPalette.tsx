@@ -1,10 +1,9 @@
-// Быстрый поиск и команды (Ctrl+P): темы, конспекты, карточки, правила, домашка, предметы и команды приложения и модов.
+// Быстрый поиск и команды (Ctrl+P): темы, конспекты, карточки, правила, домашка, предметы и команды приложения.
 // «>» в начале — только команды.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { openChanges } from './ChangesDialog';
 import { dueLabel } from '../homework';
 import { texPlain } from '../rules';
-import { registry, usePlugins } from '../plugins/host';
 import { normalizeAnswer } from '../srs';
 import { updateSettings, useData } from '../store';
 import type { Route } from '../types';
@@ -39,7 +38,6 @@ function snippet(text: string, q: string): string {
 
 export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; onClose: () => void; go: (r: Route) => void; onNew: (o?: { as?: 'folder' }) => void }) {
   const data = useData();
-  usePlugins();
   const pres = usePresence(open, 140);
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
@@ -72,13 +70,12 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
     // Команды
     const cmds: [string, string, () => void][] = [
       ['Начать повторение на сегодня', 'play', () => go({ name: 'review', run: Date.now() })],
+      [`Фокус: ${data.settings.focusMinutes} минут, потом перерыв`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
       ...(f.homework ? ([['Записать домашнее задание', 'homework', () => go({ name: 'homework' })], ['Открыть домашку', 'homework', () => go({ name: 'homework' })]] as [string, string, () => void][]) : []),
       ['Новый предмет', 'plus', () => onNew()],
       ['Новая папка предметов', 'folderPlus', () => onNew({ as: 'folder' })],
       ['Статистика', 'chart', () => go({ name: 'stats' })],
-      ...(f.awards ? ([['Достижения', 'chart', () => go({ name: 'stats', tab: 'awards' })]] as [string, string, () => void][]) : []),
-      ...(f.garden ? ([['Сад знаний', 'chart', () => go({ name: 'stats', tab: 'garden' })]] as [string, string, () => void][]) : []),
       ...(f.map ? ([['Карта знаний', 'map', () => go({ name: 'stats', tab: 'map' })]] as [string, string, () => void][]) : []),
       ['Загрузить файл изменений (от нейросети)', 'upload', () => openChanges()],
       ['Инструкция для нейросети', 'bot', () => openChanges('#guide')],
@@ -93,14 +90,6 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
     for (const [title, icon, run] of cmds) {
       const sc = score(title);
       if (sc) out.push({ id: 'cmd:' + title, group: 'Команды', title, icon: <Icon name={icon} size={16} />, score: sc + (nq ? 5 : 0), run: done(run) });
-    }
-    for (const c of registry.commands) {
-      const sc = score(c.name);
-      if (sc) out.push({ id: 'pc:' + c.id, group: 'Команды', title: c.name, sub: 'мод', icon: <span className="pal-emoji">🧩</span>, score: sc + 4, run: done(c.run) });
-    }
-    for (const v of registry.views) {
-      const sc = score(v.title);
-      if (sc) out.push({ id: 'pv:' + v.id, group: 'Команды', title: 'Открыть: ' + v.title, sub: 'мод', icon: <span className="pal-emoji">{v.icon}</span>, score: sc + 4, run: done(() => go({ name: 'plugin', id: v.id })) });
     }
     if (onlyCmd) return out.sort((a, b) => b.score - a.score).slice(0, 40);
     if (!nq) return out.slice(0, 12);

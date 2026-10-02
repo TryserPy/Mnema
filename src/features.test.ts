@@ -127,8 +127,8 @@ describe('трудные карточки', () => {
     d.cards = [c];
     d.states['x:0'] = { due: '', stability: 1, difficulty: 8, elapsed_days: 0, scheduled_days: 0, learning_steps: 0, reps: 9, lapses: 5, state: 3 };
     expect(isLeech(d, c)).toBe(true);
-    d.settings.features.leeches = false;
-    expect(isLeech(d, c)).toBe(false);
+    d.states['x:0'] = { ...d.states['x:0'], lapses: 2 };
+    expect(isLeech(d, c)).toBe(false); // меньше порога (по умолчанию 5)
   });
 });
 
