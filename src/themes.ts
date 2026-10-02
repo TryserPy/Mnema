@@ -1,6 +1,7 @@
 // Оформление: готовые темы (светлые и тёмные), шрифты, скругления, фон и свои цвета.
 import type { Settings } from './types';
 import { accentText, onAccent } from './color';
+import { safeColor } from './safeCss';
 
 export interface Palette {
   bg: string;
@@ -100,14 +101,14 @@ export function applyLook(root: HTMLElement, s: Settings, dark: boolean) {
   const look = s.look;
   const t = presetFor(look, dark);
   const custom = (dark ? look.custom.dark : look.custom.light) ?? {};
-  for (const k of Object.keys(VAR) as (keyof Palette)[]) root.style.setProperty(VAR[k], custom[k] || t.p[k]);
+  for (const k of Object.keys(VAR) as (keyof Palette)[]) root.style.setProperty(VAR[k], safeColor(custom[k]) || t.p[k]); // свой цвет — только цвет: из файла стиля сюда могли положить url(…)
   const font = FONTS.find((f) => f.id === look.font) ?? FONTS[0];
   void font.load?.();
   root.style.setProperty('--body', font.css);
   root.style.setProperty('--display', look.headFont === 'same' ? font.css : HEAD_FONTS[0].css);
   // Производные от акцента: текст НА заливке акцентом и акцент КАК текст на фоне темы (иначе на светлом акценте тёмных тем
   // белый текст читался на 2,2:1, а тёмный акцент делал ссылки и «+» невидимыми). Компоненты берут только эти переменные.
-  const surface = custom.surface || t.p.surface;
+  const surface = safeColor(custom.surface) || t.p.surface;
   root.style.setProperty('--on-accent', onAccent(s.accent));
   root.style.setProperty('--accent-text', accentText(s.accent, surface));
   root.dataset.style = look.style ?? 'modern';

@@ -159,6 +159,15 @@ const PipeSafeTable = Table.extend({
     })
 });
 
+/** Длинный конспект (много блоков) помечаем: у него блоки вне экрана не раскладываются и не перерисовываются (см. .note-doc[data-long] в styles.css). */
+const LONG_NOTE_BLOCKS = 40;
+function markLong(ed: Editor) {
+  if (ed.isDestroyed) return;
+  const dom = ed.view.dom;
+  if (ed.state.doc.childCount >= LONG_NOTE_BLOCKS) dom.setAttribute('data-long', '');
+  else dom.removeAttribute('data-long');
+}
+
 export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, onPage, tools, onReady, rules = null, onRuleHover, onAddRule, onLinkHover, topicId }: Props) {
   const linkHoverRef = useRef(onLinkHover);
   linkHoverRef.current = onLinkHover;
@@ -246,10 +255,15 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
       }
     },
     onUpdate: ({ editor: ed }) => {
+      markLong(ed);
       clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => onChangeRef.current(ed.getMarkdown()), 300);
     }
   });
+
+  useEffect(() => {
+    if (editor) markLong(editor);
+  }, [editor]);
 
   // Сохранить несохранённое при уходе со страницы.
   useEffect(
@@ -473,7 +487,14 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     else if (a === 'heading') c.toggleHeading({ level: 2 }).run();
     else if (a === 'list') c.toggleBulletList().run();
     else if (a === 'quote') c.toggleBlockquote().run();
-    else if (a === 'copy') {
+    if (a === 'bold' || a === 'italic' || a === 'mark' || a === 'heading' || a === 'list' || a === 'quote') {
+      // «Список» и «Рамка» оборачивают текст в новые блоки — номера позиций сдвигаются. Панель помнит прежние
+      // и тогда решала, что выделение другое, и пряталась. Запоминаем выделение заново: панель остаётся на месте.
+      if (bubbleAt.current) {
+        const { from, to } = editor.state.selection;
+        bubbleAt.current = { from, to };
+      }
+    } else if (a === 'copy') {
       void navigator.clipboard?.writeText(selectionText(editor)).catch(() => document.execCommand('copy'));
       bubbleAt.current = null;
       editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'hide'));

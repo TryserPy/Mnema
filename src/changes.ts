@@ -5,6 +5,7 @@
 import { looksLikeMnemaText, MNEMA_TEXT_GUIDE, parseMnemaText, splitDash, toMnemaText } from './mnemaText';
 import { autoChunk } from './poem';
 import { noteEdit } from './noteText';
+import { validExamDate } from './safeData';
 import { itemKey, itemOrds } from './srs';
 import { LIST_PRESETS } from './store';
 import type { AppData, Card, CardType, Folder, Homework, ListKind, ListMode, Poem, StudyList, Subject, Topic } from './types';
@@ -408,8 +409,8 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
         }
         if (c.examDate !== undefined) {
           const ex = str(c.examDate)?.trim();
-          const date = ex && /^\d{4}-\d{2}-\d{2}$/.test(ex) ? ex : undefined;
-          if (ex && !date) warnings.push(`Дата контрольной ${q(ex)}: нужен вид ГГГГ-ММ-ДД`);
+          const date = ex && validExamDate(ex) ? ex : undefined;
+          if (ex && !date) warnings.push(`Дата контрольной ${q(ex)}: нужна настоящая дата вида ГГГГ-ММ-ДД`);
           else if (date !== topic.examDate) {
             patch.examDate = date;
             edit(`Тема ${q(topic.name)}: ${date ? 'контрольная ' + date : 'без даты контрольной'}`);

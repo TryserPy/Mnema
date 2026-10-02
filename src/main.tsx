@@ -13,6 +13,7 @@ import 'katex/dist/katex.min.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { touchUI } from './components/ui';
 import './styles.css';
 import './design.css';
@@ -22,6 +23,9 @@ if (touchUI()) document.documentElement.dataset.touch = '1';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {/* Самый верхний предохранитель: если упадёт сама оболочка (не экран), будет понятное сообщение, а не белое окно. */}
+    <ErrorBoundary onHome={() => location.reload()}>
+      <App />
+    </ErrorBoundary>
   </StrictMode>
 );

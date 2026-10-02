@@ -4,9 +4,12 @@ import { bridgeKey } from './platform/bridgeKey';
 import type { Grade } from 'ts-fsrs';
 import { DEFAULT_HIGHLIGHT } from './important';
 import { DEFAULT_ACCENT, DEFAULT_LOOK, migrateLook } from './themes';
+import { emit } from './plugins/bus';
+import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
-import type { AppData, Card, CardType, Poem, Confidence, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
+import { cleanExam, cleanTopics, validExamDate } from './safeData';
+import type { AppData, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
 export type AiFormat = 'openai' | 'anthropic' | 'gemini';
@@ -119,6 +122,9 @@ export const DEFAULT_SETTINGS: Settings = {
   fontScale: 1,
   density: 'normal',
   look: DEFAULT_LOOK,
+  plugins: [],
+  pluginsSafe: true,
+  pluginData: {},
   homeworkRemind: { on: true, time: '18:00', when: 'dayBefore' },
   lessonsRemind: { on: true, time: '19:30' },
   update: { owner: '', repo: 'mnema', auto: true },
@@ -135,7 +141,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showIntervals: true,
   simpleButtons: false,
   askConfidence: false,
-  features: { schedule: false, obsidian: false, confidence: false, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, homework: true, why: true, poems: true },
+  features: { schedule: false, obsidian: false, confidence: false, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, mods: false, homework: true, why: true, poems: true },
   schedule: {},
   focusMinutes: 25,
   breakMinutes: 5,
@@ -159,15 +165,39 @@ export function emptyData(): AppData {
   return { version: 1, folders: [], homework: [], subjects: [], topics: [], cards: [], states: {}, logs: [], tests: [], settings: { ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features }, schedule: {}, keys: {}, treeOpen: [], graph: { ...DEFAULT_SETTINGS.graph }, highlight: { ...DEFAULT_HIGHLIGHT, rules: { ...DEFAULT_HIGHLIGHT.rules }, custom: [] }, textbook: { ...DEFAULT_SETTINGS.textbook } } };
 }
 
-/** Возможности и поля, которых в 2.0 больше нет (код-плагины, достижения, сад, совет дня, переключатели ядра): из старых файлов не переносим, чтобы мёртвые данные не копились. */
-const REMOVED_SETTINGS = ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen', 'tips', 'dismissedTips'];
-const REMOVED_FEATURES = ['mods', 'awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly']; // последние пять стали частью ядра: всегда включены (кроме focus — теперь в поиске Ctrl+P)
+/** Возможности и поля, которых в 2.0 больше нет (достижения, сад, совет дня, переключатели ядра): из старых файлов не переносим, чтобы мёртвые данные не копились. */
+const REMOVED_SETTINGS = ['awardsSeen', 'tips', 'dismissedTips'];
+const REMOVED_FEATURES = ['awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly']; // последние пять стали частью ядра: всегда включены (кроме focus — теперь в поиске Ctrl+P)
 export function dropRemoved(d: AppData): AppData {
   const st = d.settings as unknown as Record<string, unknown>;
   for (const k of REMOVED_SETTINGS) delete st[k];
   const f = d.settings.features as unknown as Record<string, unknown>;
   for (const k of REMOVED_FEATURES) delete f[k];
   return d;
+}
+
+/** Данные пришли «со стороны» (копия из файла): то, что может запустить чужой код или увести пароль, берём у ЭТОГО устройства, а не из файла.
+ *  — моды из копии остаются в списке, но не запускаются, пока их не разрешат здесь (`pluginsSafe`);
+ *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Мнема сама отправила бы сохранённый пароль на чужой сервер. */
+export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; notes: string[] } {
+  const notes: string[] = [];
+  const ownCloud = local.settings.cloud ?? null;
+  const theirs = d.settings.cloud ?? null;
+  if (theirs && JSON.stringify(theirs) !== JSON.stringify(ownCloud)) notes.push('облако из копии не подключено — подключи его заново в «Настройки → Данные»');
+  // Моды: доверяем только тому, что на этом устройстве уже стоит (тот же id и тот же код) или совпадает с каталогом по коду.
+  // Всё остальное из файла приходит ВЫКЛЮЧЕННЫМ и без метки «из каталога» — иначе одно нажатие «Разрешить моды» запустило бы чужой код.
+  const own = new Map(local.settings.plugins.map((p) => [p.id, p]));
+  const catalog = new Map(CATALOG_PLUGINS.map((p) => [p.id, p.code]));
+  const foreign: string[] = [];
+  const plugins = (d.settings.plugins ?? []).map((p) => {
+    const mine = own.get(p.id);
+    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog };
+    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true };
+    foreign.push(p.name);
+    return { ...p, enabled: false, fromCatalog: false };
+  });
+  if (foreign.length) notes.push(`моды из копии выключены (${foreign.slice(0, 5).join(', ')}) — включай их сам, только если им доверяешь`);
+  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud } }, notes };
 }
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
@@ -182,8 +212,9 @@ export function normalizeData(raw: unknown): AppData {
     version: 1,
     folders: Array.isArray(r.folders) ? r.folders : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
+    exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
     subjects: r.subjects,
-    topics: r.topics,
+    topics: cleanTopics(r.topics),
     cards: r.cards,
     states: r.states && typeof r.states === 'object' ? r.states : {},
     logs: Array.isArray(r.logs) ? r.logs : [],
@@ -194,6 +225,8 @@ export function normalizeData(raw: unknown): AppData {
       ...DEFAULT_SETTINGS,
       ...(r.settings ?? {}),
       features: { ...DEFAULT_SETTINGS.features, ...(r.settings?.features ?? {}) },
+      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins : [],
+      pluginData: r.settings?.pluginData && typeof r.settings.pluginData === 'object' ? r.settings.pluginData : {},
       homeworkRemind: { ...DEFAULT_SETTINGS.homeworkRemind, ...(r.settings?.homeworkRemind ?? {}) },
       lessonsRemind: { ...DEFAULT_SETTINGS.lessonsRemind, ...(r.settings?.lessonsRemind ?? {}) },
       update: { ...DEFAULT_SETTINGS.update, ...(r.settings?.update ?? {}) },
@@ -296,6 +329,7 @@ function commit(next: AppData) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     persistNow(false);
+    emit('dataChanged');
   }, 400);
 }
 
@@ -435,6 +469,77 @@ export function deleteMany(sel: { folders?: string[]; subjects?: string[]; topic
       subjects: data.subjects.map((x) => (fOf.has(x.id) && !x.folderId ? { ...x, folderId: fOf.get(x.id), updatedAt: back } : x))
     });
   };
+}
+
+// ---------- Контрольные ----------
+
+export interface ExamInput {
+  id?: string; // не задан — новая; `topic:<id>` — контрольная из старой даты темы (станет записанной)
+  subjectId: string;
+  name: string;
+  date: string; // YYYY-MM-DD
+  topicIds: string[];
+}
+
+/** Создать или изменить контрольную. Дата, которая раньше стояла у темы (`Topic.examDate`), после этого живёт в записанной контрольной. */
+export function saveExam(input: ExamInput): Exam {
+  const stamp = nowIso();
+  const topicIds = [...new Set(input.topicIds)].filter((id) => data.topics.some((t) => t.id === id));
+  const known = input.id && !input.id.startsWith('topic:') ? (data.exams ?? []).find((e) => e.id === input.id) : undefined;
+  const exam: Exam = {
+    id: known?.id ?? uid(),
+    subjectId: input.subjectId,
+    name: input.name.trim() || 'Контрольная',
+    date: validExamDate(input.date) ? input.date : known?.date ?? new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
+    topicIds,
+    createdAt: known?.createdAt ?? stamp,
+    updatedAt: stamp
+  };
+  const old = input.id?.startsWith('topic:') ? input.id.slice(6) : null;
+  const clear = new Set([...(old ? [old] : []), ...(known ? [] : topicIds)]);
+  commit({
+    ...data,
+    exams: known ? (data.exams ?? []).map((e) => (e.id === known.id ? exam : e)) : [...(data.exams ?? []), exam],
+    // дата у темы больше не нужна: контрольная её заменила (иначе одна и та же дата считалась бы дважды)
+    topics: data.topics.map((t) => (clear.has(t.id) && t.examDate ? { ...t, examDate: undefined, updatedAt: stamp } : t))
+  });
+  return exam;
+}
+
+/** Удалить контрольную. Возвращает «Вернуть». */
+export function deleteExam(id: string): () => void {
+  if (id.startsWith('topic:')) {
+    const tid = id.slice(6);
+    const t = data.topics.find((x) => x.id === tid);
+    const was = t?.examDate;
+    if (t) updateTopic(tid, { examDate: undefined });
+    return () => {
+      if (was) updateTopic(tid, { examDate: was });
+    };
+  }
+  const exam = (data.exams ?? []).find((e) => e.id === id);
+  if (!exam) return () => {};
+  commit(tomb({ ...data, exams: (data.exams ?? []).filter((e) => e.id !== id) }, ['exam:' + id]));
+  return () => {
+    const deleted = { ...(data.deleted ?? {}) };
+    delete deleted['exam:' + id];
+    commit({ ...data, deleted, exams: [...(data.exams ?? []), { ...exam, updatedAt: nowIso() }] });
+  };
+}
+
+/** Пометить последний ответ по элементу: не помню / перепутал / не понял (по желанию; null — снять). Тип ошибки автоматически не определить. */
+export function tagLastAnswer(key: string, err: 'forgot' | 'mixed' | 'lost' | null, mix?: string) {
+  let i = data.logs.length - 1;
+  while (i >= 0 && data.logs[i].key !== key) i--;
+  if (i < 0) return;
+  commit({
+    ...data,
+    logs: data.logs.map((l, j) => {
+      if (j !== i) return l;
+      const { err: _e, mix: _m, ...rest } = l;
+      return err ? { ...rest, err, ...(err === 'mixed' && mix ? { mix } : {}) } : rest;
+    })
+  });
 }
 
 // ---------- Темы ----------
@@ -812,6 +917,7 @@ export function recordReview(p: {
       }
     ]
   });
+  emit('review', { cardId: p.cardId, topicId: p.topicId, rating: p.rating, state: next });
   return next;
 }
 

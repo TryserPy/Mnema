@@ -33,11 +33,12 @@ function shuffle<T>(a: T[], rnd: () => number): T[] {
   return r;
 }
 
-export function buildTest(data: AppData, topicId: string, count: number, rnd: () => number = Math.random): TestQuestion[] {
+/** Вопросы теста по теме или (если дан `topicIds`) по нескольким темам — для пробной контрольной. */
+export function buildTest(data: AppData, topicId: string, count: number, rnd: () => number = Math.random, topicIds?: string[]): TestQuestion[] {
   const topic = data.topics.find((t) => t.id === topicId);
   if (!topic) return [];
   const cardsById = new Map(data.cards.map((c) => [c.id, c]));
-  const own = allItems(data, { topicId });
+  const own = topicIds?.length ? [...new Map(topicIds.flatMap((id) => allItems(data, { topicId: id })).map((it) => [it.key, it])).values()] : allItems(data, { topicId });
   const subjectItems = allItems(data, { subjectId: topic.subjectId });
 
   const answerOf = (it: { cardId: string; ord: number }) => itemAnswer(cardsById.get(it.cardId)!, it.ord);

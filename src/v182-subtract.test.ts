@@ -1,9 +1,9 @@
-// Этап 2 плана 2.0 («вычитание»): Сад, Достижения, моды-программы убраны. Старые файлы данных должны открываться как раньше.
+// Этап 2 плана 2.0 («вычитание»): Сад, Достижения, «Совет дня» и переключатели ядра убраны (моды-программы после этого вернули по просьбе автора). Старые файлы данных должны открываться как раньше.
 import { describe, expect, it } from 'vitest';
 import { FEATURES } from './featureList';
 import { dropRemoved, emptyData, normalizeData } from './store';
 
-const REMOVED = ['mods', 'awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly'];
+const REMOVED = ['awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly'];
 
 /** Данные, какими их сохраняла Мнема 1.8: с плагинами, достижениями и возможностями «Сад», «Достижения», «Моды». */
 function oldFile() {
@@ -29,15 +29,18 @@ describe('2.0, этап 2: старые данные', () => {
     expect(d.subjects.map((s) => s.name)).toEqual(['Физика']);
   });
 
-  it('мёртвые поля выбрасываются: плагины, их данные, достижения, советы; возможности «Сад», «Достижения», «Моды», «Совет дня» и пять переключателей ядра', () => {
+  it('мёртвые поля выбрасываются: достижения, советы; возможности «Сад», «Достижения», «Совет дня» и пять переключателей ядра', () => {
     const d = normalizeData(oldFile());
     const s = d.settings as unknown as Record<string, unknown>;
-    for (const k of ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen', 'tips', 'dismissedTips']) expect(k in s).toBe(false);
+    for (const k of ['awardsSeen', 'tips', 'dismissedTips']) expect(k in s).toBe(false);
     for (const k of REMOVED) expect(k in d.settings.features).toBe(false);
   });
 
-  it('стили, свои стили и свой CSS остаются — они переехали в «Оформление», а не пропали', () => {
+  it('моды-программы, стили, свои стили и свой CSS остаются', () => {
     const d = normalizeData(oldFile());
+    expect(d.settings.plugins).toHaveLength(1);
+    expect(d.settings.pluginData).toEqual({ p1: { n: 3 } });
+    expect(d.settings.features.mods).toBe(true);
     expect(d.settings.modsOn).toEqual(['notebook', 'm-1']);
     expect(d.settings.customMods).toHaveLength(1);
     expect(d.settings.userCss).toBe('.hero { opacity: .9; }');
@@ -65,6 +68,7 @@ describe('2.0, этап 2: старые данные', () => {
     const ids = FEATURES.map((f) => f.id as string);
     for (const k of REMOVED) expect(ids).not.toContain(k);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(13);
+    expect(ids).toContain('mods');
+    expect(ids).toHaveLength(14);
   });
 });

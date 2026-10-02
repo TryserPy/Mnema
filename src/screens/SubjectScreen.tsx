@@ -7,6 +7,7 @@ import { Timeline, timelineEvents } from '../components/Timeline';
 import { ObsidianImport } from '../components/ObsidianImport';
 import { DeleteSubject, EditSubject } from '../components/SubjectDialogs';
 import { Icon, MoreMenu, plural, Segmented, SubjectMark } from '../components/ui';
+import { openExamDialog } from '../components/ExamDialog';
 import { cardsByTopic, todayCounts, topicStatsByTopic } from '../srs';
 import { addTopic, childTopics, subjectRules, updateSubject, useData } from '../store';
 import type { Route, Topic } from '../types';
@@ -80,6 +81,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
             items={[
               { label: `Учить весь предмет · ${due}`, icon: 'play', onClick: () => go({ name: 'review', subjectId: id }), hidden: due === 0 },
               { label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
+              { label: 'Новая контрольная', icon: 'test', hint: 'Выбрать темы и дату — Мнема составит план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },
               { label: 'Импорт из Obsidian', icon: 'folder', onClick: () => setObsidian(true), hidden: !data.settings.features.obsidian },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setExportKind('print') },
               subject.topicSort !== 'manual'

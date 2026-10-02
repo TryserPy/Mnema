@@ -1,0 +1,35 @@
+/* Экран подготовки к контрольной и окно «Контрольная». Только токены темы — в тёмной и светлой темах, на всех акцентах. */
+.exam-hero { gap: 14px; }
+.exam-pct-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.exam-pct { font-family: var(--display); font-size: 3.4rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; color: var(--ink); }
+.exam-pct small { font-size: 1.5rem; margin-left: 2px; color: var(--muted); font-weight: 600; }
+.exam-facts { display: flex; flex-direction: column; gap: 4px; color: var(--ink-2); }
+
+.exam-topic { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 8px 0; border: none; background: none; text-align: left; color: inherit; border-top: 1px solid var(--line); }
+.exam-topic:first-of-type { border-top: none; }
+.exam-topic:hover strong { text-decoration: underline; }
+.exam-bars { position: relative; display: block; height: 8px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+.exam-bar { position: absolute; inset: 0 auto 0 0; border-radius: 99px; transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.exam-bar.cover { background: color-mix(in srgb, var(--accent) 30%, var(--sunken)); }
+.exam-bar.recall { background: var(--accent); }
+
+.exam-weak { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); text-align: left; color: inherit; }
+.exam-weak:hover { border-color: var(--accent); }
+
+.prep-days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.prep-days li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.prep-days li:first-child { border-top: none; }
+.prep-days-day { font-weight: 600; color: var(--ink); }
+.prep-days li.rest { color: var(--muted); }
+.prep-days li.weak { color: var(--ink); }
+
+.exam-topics { display: flex; flex-direction: column; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.exam-topic-pick { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 10px; cursor: pointer; border-top: 1px solid var(--line); }
+.exam-topic-pick:first-child { border-top: none; }
+.exam-topic-pick:hover { background: var(--sunken); }
+.exam-topic-pick input { flex-shrink: 0; }
+
+@media (max-width: 720px) {
+  .exam-pct { font-size: 2.8rem; }
+  .prep-days li { grid-template-columns: 80px minmax(0, 1fr); }
+}

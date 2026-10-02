@@ -11,10 +11,12 @@ import { NoteEditor, type NoteApi } from '../components/NoteEditor';
 import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, selHow, usePresence, AnimText } from '../components/ui';
 import { boldTerms, mentioned, suggestFromSelection } from '../noteTools';
 import { exportTopic } from '../share';
+import { examsOf } from '../examList';
 import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer, todayCounts } from '../srs';
 import { addList, addPoem, addTopic, childTopics, deleteCard, LIST_PRESETS, resetCardProgress, subjectRules, topicWithDescendants, updateTopic, useData, getData } from '../store';
 import { StudyListView } from '../components/StudyListView';
 import { PoemView } from '../components/PoemView';
+import { usePlugins } from '../plugins/host';
 import { AddToRule, RulesDrawer, RuleWordsEditor, useRuleTips } from '../components/Rules';
 import { useLinkTips } from '../components/Links';
 import { makeRuleMatcher } from '../rules';
@@ -24,6 +26,7 @@ import { ExamPlanLine } from './Today';
 import { PrintDialog } from '../components/ExportDialogs';
 import { keyFor, matches, prettyCombo } from '../keys';
 import type { Card, CardType, ListKind, Route } from '../types';
+import { openExamDialog } from '../components/ExamDialog';
 
 const TYPE_LABEL: Record<CardType, string> = {
   basic: 'Вопрос — ответ',
@@ -44,6 +47,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [dropped, setDropped] = useState<File[] | null>(null);
   const [subName, setSubName] = useState('');
   const [rulesOpen, setRulesOpen] = useState(false);
+  const plugins = usePlugins();
   const [noteCards, setNoteCards] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   if (!topic) return <div className="page">Тема не найдена.</div>;
@@ -63,6 +67,8 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const current = listTab ? tab! : poemTab ? 'poem:' + poemTab.id : tab === 'note' || tab === 'cards' ? tab : topic.note.trim() || cards.length === 0 ? 'note' : 'cards';
   const f = data.settings.features;
   const examInfo = topic.examDate ? examPlan(data, new Date(), topic.id) : null;
+  // Тема уже входит в записанную контрольную (сама или через родителя) — показываем её, а не предлагаем поставить вторую дату.
+  const inExam = examsOf(data).find((e) => !e.virtual && (e.topicIds.includes(topic.id) || ancestors.some((a) => e.topicIds.includes(a.id))));
   const tabValues = ['note', 'cards', ...lists.map((l) => 'list:' + l.id), ...poems.map((p) => 'poem:' + p.id)];
   const moveTab = (from: string, to: string) => reorderTab(id, tabValues, from, to);
 
@@ -124,7 +130,14 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
             </div>
           ) : (
           <div className="row gap8 small muted">
-            {topic.examDate && !pickDate ? (
+            {inExam ? (
+              <span className="row gap6 wrap">
+                <Icon name="calendar" size={16} /> Контрольная «{inExam.name}», {new Date(inExam.date + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                <button className="link-btn small" onClick={() => go({ name: 'exam', id: inExam.id })}>
+                  открыть
+                </button>
+              </span>
+            ) : topic.examDate && !pickDate ? (
               <span className="row gap6">
                 <Icon name="calendar" size={16} /> Контрольная {new Date(topic.examDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
                 <button className="link-btn small" onClick={() => setPickDate(true)}>
@@ -170,10 +183,12 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Закрой и перескажи', icon: 'eyeOff', onClick: () => setRecall(true), hidden: !topic.note.trim() },
               { label: 'Проверь себя до чтения', icon: 'bulb', onClick: () => go({ name: 'test', topicId: id, pretest: true }), hidden: cards.length < 2 || cards.some((c) => itemOrds(c).some((o) => data.states[itemKey(c.id, o)])) },
               { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 },
+              { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Мнема составит план', onClick: () => openExamDialog({ topicId: id }) },
               { label: 'Повторить всю тему', icon: 'repeat', onClick: () => go({ name: 'review', topicId: id, cram: true }), hidden: cards.length === 0 },
               { label: 'Поделиться темой (файл)', icon: 'share', onClick: () => exportTopic(data, id) },
               { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 },
+              ...plugins.topicActions.map((a) => ({ label: a.title, icon: 'puzzle', onClick: () => a.run({ id: topic.id, name: topic.name, note: topic.note, subjectId: topic.subjectId }) })),
               { label: 'Удалить тему', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
             ]}
           />
