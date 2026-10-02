@@ -120,7 +120,7 @@ await page.screenshot({ path: OUT + '/a1-today.png' });
 
 step('DBG subjects stored=' + (await page.evaluate(() => (JSON.parse(localStorage.getItem('fake:data') || '{}').subjects || []).length)) + ' dom=' + (await page.locator('.tree-row.subject').count()) + ' welcome=' + (await page.getByRole('button', { name: 'Посмотреть на примере' }).count()));
 // Назад (кнопка телефона)
-await page.getByRole('button', { name: 'Меню' }).click();
+await page.getByRole('button', { name: 'Знания' }).click();
 await page.waitForTimeout(300);
 const b1 = await page.evaluate(() => window.__mnemaBack());
 await page.waitForTimeout(300);
@@ -137,10 +137,10 @@ step('ai models: ' + JSON.stringify(await page.evaluate(() => window.mnemaApi.ai
 
 step('DBG subjects stored=' + (await page.evaluate(() => (JSON.parse(localStorage.getItem('fake:data') || '{}').subjects || []).length)) + ' dom=' + (await page.locator('.tree-row.subject').count()) + ' welcome=' + (await page.getByRole('button', { name: 'Посмотреть на примере' }).count()));
 // Голос
-await page.getByRole('button', { name: 'Меню' }).click();
+await page.getByRole('button', { name: 'Знания' }).click();
 await page.locator('.foot-btn[aria-label="Возможности"]').click();
 await page.getByRole('switch', { name: 'Ответ голосом' }).click();
-await page.getByRole('button', { name: 'Меню' }).click();
+await page.getByRole('button', { name: 'Знания' }).click();
 await page.waitForTimeout(500); await page.screenshot({ path: OUT + '/a-dbg.png' });
 await page.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.twisty').click();
 await page.locator('.tree-row', { hasText: 'Закон Ома' }).locator('.tree-label').click();
@@ -160,7 +160,7 @@ await page.getByRole('button', { name: 'Закончить' }).click().catch(() 
 await page.waitForTimeout(300);
 
 // Облако
-await page.getByRole('button', { name: 'Меню' }).click();
+await page.getByRole('button', { name: 'Знания' }).click();
 await page.getByRole('button', { name: 'Настройки', exact: true }).click();
 await page.locator('.set-nav-item', { hasText: 'Данные' }).click();
 await rowBtn(page, 'Облако', /Подключить|Настроить/).click();

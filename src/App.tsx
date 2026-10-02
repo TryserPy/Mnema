@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { CreateHost } from './components/CreateMenu';
+import { hidesTabBar, TabBar } from './components/TabBar';
+import { sessionPrefs } from './session';
 import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
 import { RuleView } from './components/Rules';
@@ -450,12 +453,9 @@ export function App() {
   const dueAll = total.learning + total.review + total.newCount;
 
   return (
-    <div className={'app' + (mobile ? ' mobile' : '') + (drawer ? ' drawer-open' : '')} {...dropProps}>
+    <div className={'app' + (mobile ? ' mobile' : '') + (drawer ? ' drawer-open' : '') + (mobile && !hidesTabBar(route) ? ' has-tabbar' : '')} {...dropProps}>
       {mobile && (
         <header className="mobile-bar">
-          <button className="icon-btn" aria-label="Меню" onClick={() => setDrawer(true)}>
-            <Icon name="menu" size={24} />
-          </button>
           <button className="mobile-brand" onClick={() => go({ name: 'today' })}>
             <span className="logo small-logo">М</span> Мнема
           </button>
@@ -464,7 +464,7 @@ export function App() {
             <Icon name="search" size={22} />
           </button>
           {dueAll > 0 && route.name !== 'today' && (
-            <button className="btn small primary" onClick={() => go({ name: 'review', run: Date.now() })}>
+            <button className="btn small primary" onClick={() => go({ name: 'review', session: sessionPrefs(data, new Date()), run: Date.now() })}>
               <Icon name="play" size={14} /> {dueAll}
             </button>
           )}
@@ -489,6 +489,8 @@ export function App() {
         </ErrorBoundary>
         </div>
       </main>
+
+      {mobile && <TabBar route={route} go={go} dueAll={dueAll} knowledgeOpen={drawer} onKnowledge={() => setDrawer(!drawer)} />}
 
       {dragging && <div className="drop-hint">Отпусти файл: тема Мнемы (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</div>}
       {toastPres.mounted && (
@@ -523,6 +525,7 @@ export function App() {
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <ExamDialogHost go={go} />
+      <CreateHost route={route} go={go} onNewSubject={() => setAddingSubject({})} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />
       {addingSubject && (
         <NewSubjectDialog

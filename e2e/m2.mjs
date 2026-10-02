@@ -6,7 +6,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:4174');
 await page.getByRole('button', { name: 'Посмотреть на примере' }).click();
-await page.getByRole('button', { name: 'Меню' }).click();
+await page.getByRole('button', { name: 'Знания' }).click();
 await page.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.twisty').click();
 await page.locator('.tree-row', { hasText: 'Закон Ома' }).locator('.tree-label').click();
 await page.waitForTimeout(400);
@@ -19,7 +19,7 @@ await page.locator('.paste-area').fill('Сила тока — заряд, про
 await page.getByRole('button', { name: /^Добавить 3/ }).click();
 await page.waitForTimeout(500);
 await page.screenshot({ path: OUT + '/m-list.png' });
-await page.getByRole('button', { name: 'Меню' }).click();
+await page.getByRole('button', { name: 'Знания' }).click();
 await page.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.tree-label').click();
 await page.getByRole('radio', { name: /Правила/ }).click();
 await page.waitForTimeout(300);

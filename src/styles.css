@@ -1323,3 +1323,28 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .api-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .api-row code { font-size: 0.8rem; overflow-wrap: anywhere; }
 @media (max-width: 720px) { .api-row { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ---------- 1.12: оболочка — «Создать» и нижняя панель телефона ---------- */
+.nav-item.create-btn { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text, var(--accent)); font-weight: 600; margin-bottom: 4px; }
+.nav-item.create-btn:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.create-list { display: flex; flex-direction: column; gap: 6px; }
+.create-item { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px; min-height: 60px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: inherit; text-align: left; transition: border-color 0.15s, background 0.15s; }
+.create-item:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.create-ico { flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-text, var(--accent)); }
+.create-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.create-text .small { overflow-wrap: anywhere; }
+
+.tabbar { display: none; }
+@media (max-width: 720px) {
+  .app.mobile .tabbar { display: flex; flex-shrink: 0; position: relative; z-index: 20; background: var(--side); border-top: 1px solid var(--line); padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); }
+  .tab { flex: 1; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: none; background: none; color: var(--muted); border-radius: 12px; padding: 4px 2px; }
+  .tab.on { color: var(--accent-text, var(--accent)); }
+  .tab-ico { position: relative; display: grid; place-items: center; height: 28px; }
+  .tab-label { font-size: 0.72rem; font-weight: 500; line-height: 1.1; }
+  .tab.on .tab-label { font-weight: 700; }
+  .tab-badge { position: absolute; top: -4px; left: calc(100% - 6px); min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.65rem; font-weight: 700; line-height: 18px; text-align: center; }
+  .tab-plus { color: var(--ink); }
+  .tab-plus .tab-ico { height: 32px; }
+  .tab-plus-dot { display: grid; place-items: center; width: 46px; height: 30px; border-radius: 15px; background: var(--accent); color: var(--on-accent); }
+  .app.has-tabbar .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
