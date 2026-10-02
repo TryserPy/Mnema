@@ -52,11 +52,11 @@ async function prof(label, fn) {
   console.log(`== ${label}: ${ms} ms, long tasks: ${lt.map((x) => Math.round(x)).join(', ')}`);
   console.log([...self.entries()].filter(([k]) => !/^\((idle|program|root)\)/.test(k)).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => '  ' + v.toFixed(0) + 'ms ' + k).join('\n'));
 }
-await prof('open drawer', async () => { await page.getByRole('button', { name: 'Меню' }).click(); await page.waitForTimeout(300); });
+await prof('open drawer', async () => { await page.getByRole('button', { name: 'Знания' }).click(); await page.waitForTimeout(300); });
 await prof('expand subject', async () => { await page.locator('.tree-row.subject', { hasText: 'Предмет 2' }).locator('.twisty').click(); await page.locator('.tree-row', { hasText: '§3 Тема 3' }).waitFor(); });
 await prof('open topic', async () => { await page.locator('.tree-row', { hasText: '§3 Тема 3' }).locator('.tree-label').click(); await page.locator('.ProseMirror').waitFor(); });
-await prof('open topic 2', async () => { await page.getByRole('button', { name: 'Меню' }).click(); await page.waitForTimeout(300); await page.locator('.tree-row', { hasText: '§4 Тема 4' }).locator('.tree-label').click(); await page.locator('.ProseMirror').waitFor(); });
+await prof('open topic 2', async () => { await page.getByRole('button', { name: 'Знания' }).click(); await page.waitForTimeout(300); await page.locator('.tree-row', { hasText: '§4 Тема 4' }).locator('.tree-label').click(); await page.locator('.ProseMirror').waitFor(); });
 await prof('type 20 chars', async () => { await page.locator('.ProseMirror p').first().click({ position: { x: 4, y: 6 } }); await page.keyboard.type('Проверка набора тек'); });
 await page.screenshot({ path: 'out-r/pp-after-type.png' }); console.log('modal:', await page.locator('.modal h2').allInnerTexts());
-await prof('open subject', async () => { await page.getByRole('button', { name: 'Меню' }).click(); await page.waitForTimeout(300); await page.locator('.tree-row.subject', { hasText: 'Предмет 3' }).locator('.tree-label').click(); await page.locator('.topic-row').first().waitFor(); });
+await prof('open subject', async () => { await page.getByRole('button', { name: 'Знания' }).click(); await page.waitForTimeout(300); await page.locator('.tree-row.subject', { hasText: 'Предмет 3' }).locator('.tree-label').click(); await page.locator('.topic-row').first().waitFor(); });
 await browser.close();

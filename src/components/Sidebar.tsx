@@ -1,5 +1,6 @@
 // Левая панель: предметы → темы → подтемы. Её можно тянуть по ширине и сворачивать,
 // темы — перетаскивать (порядок, в другой предмет, внутрь другой темы), отмечать звёздочкой.
+import { openCreate } from './CreateMenu';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
 import { keyFor, prettyCombo } from '../keys';
 import { groupOf } from '../homework';
@@ -481,6 +482,11 @@ export function Sidebar({
         )}
       </div>
       <nav className="nav">
+        {!mobile && (
+          <button className="nav-item create-btn" onClick={openCreate} title="Создать: карточку, тему, предмет, контрольную…">
+            <Icon name="plus" /> <span className="grow">Создать</span>
+          </button>
+        )}
         <button className={'nav-item' + nav('today')} onClick={() => go({ name: 'today' })}>
           <Icon name="home" /> <span className="grow">Сегодня</span>
           {dueAll > 0 && <span className="badge pop" key={dueAll}>{dueAll}</span>}

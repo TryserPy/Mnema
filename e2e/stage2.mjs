@@ -25,7 +25,7 @@ for (const { w, h, phone } of SIZES) {
   await page.waitForTimeout(500);
   const shot = (n) => page.screenshot({ path: `${OUT}/s2-${w}-${n}.png` });
   const foot = (n) => page.locator(`.foot-btn[aria-label="${n}"]`).click();
-  const openNav = async () => { if (phone) { await page.getByRole('button', { name: 'Меню' }).click(); await page.waitForTimeout(300); } };
+  const openNav = async () => { if (phone) { await page.getByRole('button', { name: 'Знания' }).click(); await page.waitForTimeout(300); } };
   await shot('1-today');
   // Статистика
   await openNav();
