@@ -6,6 +6,7 @@ import { parseVideo, VIDEO_ALT } from '../video';
 import { videoPlayer } from './videoNode';
 import { drawingBgOf, inlineDrawing } from './Drawing';
 import { safeStyleAttr } from '../safeCss';
+import { safeClassList } from '../katexClasses';
 import { registry, runPostProcessors } from '../plugins/host';
 
 export function renderTex(tex: string, display: boolean): string {
@@ -100,6 +101,15 @@ if (DOMPurify.isSupported) DOMPurify.addHook('afterSanitizeAttributes', (node) =
     if (v != null && !SAFE_URL.test(v.trim()) && !LOCAL_REL.test(v.trim())) node.removeAttribute(a);
   }
   node.removeAttribute('srcset');
+  // Свой class и id в тексте не нужны: класс .modal-back и подобные рисовали бы поверх приложения поддельное окно.
+  if (markdownPass) {
+    if (node.hasAttribute('class')) {
+      const cl = safeClassList(node.getAttribute('class') ?? '');
+      if (cl) node.setAttribute('class', cl);
+      else node.removeAttribute('class');
+    }
+    node.removeAttribute('id');
+  }
   // Свои стили в конспекте не нужны (поддельные кнопки поверх окна, скрытие частей окна), кроме формул KaTeX.
   if (markdownPass && node.hasAttribute('style')) {
     // Внутри формулы оставляем только безопасное (размеры, сдвиги, цвет); класс math-block можно написать руками, поэтому position/z-index/inset/url не пропускаем никогда.

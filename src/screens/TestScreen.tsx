@@ -54,6 +54,8 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
 
   if (!topic) return <div className="page">Тема не найдена.</div>;
   const back = () => go(examId ? { name: 'exam', id: examId } : { name: 'topic', id: topicId });
+  // У пробной контрольной из нескольких тем — название контрольной, а не первой темы.
+  const title = (examId ? examById(data, examId)?.name : undefined) ?? topic.name;
 
   // ---------- Настройка ----------
   if (!questions) {
@@ -64,12 +66,12 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
         <div className="card stack gap16 done-card">
           <div className="stack gap4">
             <span className="muted">{pretest ? 'Проверь себя до чтения' : 'Пробная контрольная'}</span>
-            <h1 className="display">{topic.name}</h1>
+            <h1 className="display">{title}</h1>
           </div>
           {pretest ? (
             <p className="muted">Ты ещё не учил эту тему — и это нормально. Отвечай наугад: попытка вспомнить до чтения готовит память, и потом запоминается лучше, даже если сейчас ошибёшься. Оценки не будет.</p>
           ) : (
-            <p className="muted">Вопросы по карточкам темы, без подсказок. Расписание повторений не меняется — это просто проверка, насколько ты готов.</p>
+            <p className="muted">{examId ? 'Вопросы по карточкам всех тем контрольной' : 'Вопросы по карточкам темы'}, без подсказок. Расписание повторений не меняется — это просто проверка, насколько ты готов.</p>
           )}
           <div className="stack gap8">
             <span className="label">Сколько вопросов</span>
@@ -144,7 +146,7 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
     return (
       <div className="page narrow">
         <div className="card stack gap12 result-card">
-          <span className="muted">Пробная контрольная · {topic.name}</span>
+          <span className="muted">Пробная контрольная · {title}</span>
           <div className="row gap16 end-align">
             <div className={'grade-badge g' + grade}>{grade}</div>
             <div className="stack gap4">

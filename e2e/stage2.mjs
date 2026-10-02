@@ -42,7 +42,7 @@ for (const { w, h, phone } of SIZES) {
   await page.waitForTimeout(400);
   const helpTabs = await page.getByRole('radio').allInnerTexts();
   console.log(`${w} справка, вкладки: [${helpTabs.join(' | ')}]`);
-  if (phone ? helpTabs.join('|') !== 'Как учиться|Моды' : helpTabs.join('|') !== 'Как учиться|Клавиши|Моды') problems.push(`${w}: вкладки справки: ${helpTabs.join('|')}`);
+  if (phone ? helpTabs.join('|') !== 'Как учиться' : helpTabs.join('|') !== 'Как учиться|Клавиши') problems.push(`${w}: вкладки справки: ${helpTabs.join('|')}`);
   await shot('3-help');
   // Возможности
   await openNav();

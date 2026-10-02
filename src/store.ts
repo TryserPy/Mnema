@@ -5,8 +5,10 @@ import type { Grade } from 'ts-fsrs';
 import { DEFAULT_HIGHLIGHT } from './important';
 import { DEFAULT_ACCENT, DEFAULT_LOOK, migrateLook } from './themes';
 import { emit } from './plugins/bus';
+import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
+import { cleanExam, cleanTopics, validExamDate } from './safeData';
 import type { AppData, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
@@ -182,8 +184,20 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
   const ownCloud = local.settings.cloud ?? null;
   const theirs = d.settings.cloud ?? null;
   if (theirs && JSON.stringify(theirs) !== JSON.stringify(ownCloud)) notes.push('облако из копии не подключено — подключи его заново в «Настройки → Данные»');
-  if (d.settings.plugins?.length && !d.settings.pluginsSafe) notes.push('моды из копии выключены — включи их сам, если им доверяешь');
-  return { data: { ...d, settings: { ...d.settings, pluginsSafe: true, cloud: ownCloud } }, notes };
+  // Моды: доверяем только тому, что на этом устройстве уже стоит (тот же id и тот же код) или совпадает с каталогом по коду.
+  // Всё остальное из файла приходит ВЫКЛЮЧЕННЫМ и без метки «из каталога» — иначе одно нажатие «Разрешить моды» запустило бы чужой код.
+  const own = new Map(local.settings.plugins.map((p) => [p.id, p]));
+  const catalog = new Map(CATALOG_PLUGINS.map((p) => [p.id, p.code]));
+  const foreign: string[] = [];
+  const plugins = (d.settings.plugins ?? []).map((p) => {
+    const mine = own.get(p.id);
+    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog };
+    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true };
+    foreign.push(p.name);
+    return { ...p, enabled: false, fromCatalog: false };
+  });
+  if (foreign.length) notes.push(`моды из копии выключены (${foreign.slice(0, 5).join(', ')}) — включай их сам, только если им доверяешь`);
+  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud } }, notes };
 }
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
@@ -198,9 +212,9 @@ export function normalizeData(raw: unknown): AppData {
     version: 1,
     folders: Array.isArray(r.folders) ? r.folders : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
-    exams: Array.isArray(r.exams) ? r.exams.filter((e) => e && typeof e.id === 'string' && typeof e.date === 'string' && Array.isArray(e.topicIds)) : [],
+    exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
     subjects: r.subjects,
-    topics: r.topics,
+    topics: cleanTopics(r.topics),
     cards: r.cards,
     states: r.states && typeof r.states === 'object' ? r.states : {},
     logs: Array.isArray(r.logs) ? r.logs : [],
@@ -476,7 +490,7 @@ export function saveExam(input: ExamInput): Exam {
     id: known?.id ?? uid(),
     subjectId: input.subjectId,
     name: input.name.trim() || 'Контрольная',
-    date: input.date,
+    date: validExamDate(input.date) ? input.date : known?.date ?? new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
     topicIds,
     createdAt: known?.createdAt ?? stamp,
     updatedAt: stamp

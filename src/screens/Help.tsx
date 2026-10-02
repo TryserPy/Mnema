@@ -1,10 +1,14 @@
 import { Segmented, selHow, touchUI } from '../components/ui';
 import { KeySettings } from '../components/KeySettings';
+import { useData } from '../store';
 import type { Route } from '../types';
 
 type Section = 'start' | 'keys' | 'mods';
 
-export function Help({ section = 'start', go }: { section?: Section; go: (r: Route) => void }) {
+export function Help({ section: wanted = 'start', go }: { section?: Section; go: (r: Route) => void }) {
+  // Справка для писателей модов — только когда моды включены и не на телефоне (там нет ни клавиш, ни своих программ).
+  const modsHelp = useData().settings.features.mods && !touchUI();
+  const section: Section = wanted === 'mods' && !modsHelp ? 'start' : wanted === 'keys' && touchUI() ? 'start' : wanted;
   return (
     <div className="page narrow">
       <h1 className="display">Справка</h1>
@@ -15,7 +19,7 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
         options={[
           { value: 'start', label: 'Как учиться' },
           ...(touchUI() ? [] : [{ value: 'keys' as const, label: 'Клавиши' }]),
-          { value: 'mods', label: 'Моды' }
+          ...(modsHelp ? [{ value: 'mods' as const, label: 'Моды' }] : [])
         ]}
       />
 

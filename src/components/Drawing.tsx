@@ -148,7 +148,7 @@ export function inlineDrawing(src: string): HTMLElement | null {
     // Рисунок Мнемы состоит только из этих элементов. <style> и атрибут style из чужого рисунка пропускать нельзя: глобальный CSS прячет кнопки и подделывает окна.
     const clean = DOMPurify.sanitize(svgText, {
       ALLOWED_TAGS: ['svg', 'g', 'path', 'rect', 'circle', 'defs', 'pattern'],
-      FORBID_ATTR: ['style', 'href', 'xlink:href'],
+      FORBID_ATTR: ['style', 'class', 'id', 'href', 'xlink:href'],
       ADD_ATTR: ['data-dark', 'data-mnema', 'data-bg']
     });
     if (!clean.includes('<svg')) return null;

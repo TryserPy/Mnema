@@ -2,6 +2,7 @@
 // Чистые функции. Всё это ПРОГНОЗ ПО КАРТОЧКАМ, а не оценка за контрольную: так и подписано на экране.
 import { findImportant } from './important';
 import { allItems, DAY, dayStart, HOUR } from './srs';
+import { MAX_PLAN_DAYS } from './safeData';
 import type { ExamView } from './examList';
 import { weakCards, weakItems, type WeakCard } from './weakness';
 import type { AppData, Topic } from './types';
@@ -155,7 +156,7 @@ const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 export function dayPlan(data: AppData, exam: ExamView, now: Date): PlanDay[] {
   const hour = data.settings.dayStartHour;
   const D = daysLeftTo(exam, now, hour);
-  if (D <= 0) return [];
+  if (D <= 0 || D > MAX_PLAN_DAYS) return [];
   const items = new Map<string, true>();
   for (const id of exam.topicIds) for (const it of allItems(data, { topicId: id })) items.set(it.key, true);
   let fresh = [...items.keys()].filter((k) => !data.states[k]).length;

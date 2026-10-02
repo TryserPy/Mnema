@@ -11,6 +11,7 @@ import { NoteEditor, type NoteApi } from '../components/NoteEditor';
 import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, selHow, usePresence, AnimText } from '../components/ui';
 import { boldTerms, mentioned, suggestFromSelection } from '../noteTools';
 import { exportTopic } from '../share';
+import { examsOf } from '../examList';
 import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer, todayCounts } from '../srs';
 import { addList, addPoem, addTopic, childTopics, deleteCard, LIST_PRESETS, resetCardProgress, subjectRules, topicWithDescendants, updateTopic, useData, getData } from '../store';
 import { StudyListView } from '../components/StudyListView';
@@ -66,6 +67,8 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const current = listTab ? tab! : poemTab ? 'poem:' + poemTab.id : tab === 'note' || tab === 'cards' ? tab : topic.note.trim() || cards.length === 0 ? 'note' : 'cards';
   const f = data.settings.features;
   const examInfo = topic.examDate ? examPlan(data, new Date(), topic.id) : null;
+  // Тема уже входит в записанную контрольную (сама или через родителя) — показываем её, а не предлагаем поставить вторую дату.
+  const inExam = examsOf(data).find((e) => !e.virtual && (e.topicIds.includes(topic.id) || ancestors.some((a) => e.topicIds.includes(a.id))));
   const tabValues = ['note', 'cards', ...lists.map((l) => 'list:' + l.id), ...poems.map((p) => 'poem:' + p.id)];
   const moveTab = (from: string, to: string) => reorderTab(id, tabValues, from, to);
 
@@ -127,7 +130,14 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
             </div>
           ) : (
           <div className="row gap8 small muted">
-            {topic.examDate && !pickDate ? (
+            {inExam ? (
+              <span className="row gap6 wrap">
+                <Icon name="calendar" size={16} /> Контрольная «{inExam.name}», {new Date(inExam.date + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                <button className="link-btn small" onClick={() => go({ name: 'exam', id: inExam.id })}>
+                  открыть
+                </button>
+              </span>
+            ) : topic.examDate && !pickDate ? (
               <span className="row gap6">
                 <Icon name="calendar" size={16} /> Контрольная {new Date(topic.examDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
                 <button className="link-btn small" onClick={() => setPickDate(true)}>

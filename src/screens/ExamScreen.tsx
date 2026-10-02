@@ -84,7 +84,7 @@ export function ExamScreen({ id, go }: { id: string; go: (r: Route) => void }) {
             </div>
             <div className="exam-facts small">
               <span>
-                Учишь {r.started} из {r.items} {plural(r.items, 'карточки', 'карточек', 'карточек')}
+                Учишь {r.started} из {r.items} {plural(r.items, 'вопроса', 'вопросов', 'вопросов')}
                 {r.started < r.items && ' — остальные ещё не начаты, их прогноз 0'}
               </span>
               {r.coverage ? (
@@ -162,10 +162,10 @@ export function ExamScreen({ id, go }: { id: string; go: (r: Route) => void }) {
       {plan.length > 0 && (
         <div className="card stack gap8">
           <h3>План до даты</h3>
-          <ul className="exam-plan">
+          <ul className="prep-days">
             {plan.map((p) => (
               <li key={p.offset} className={p.kind}>
-                <span className="exam-plan-day">{dayLabel(p.offset, r.daysLeft, p.date)}</span>
+                <span className="prep-days-day">{dayLabel(p.offset, r.daysLeft, p.date)}</span>
                 <span>
                   {p.kind === 'new' && `${p.n} ${plural(p.n, 'новая карточка', 'новые карточки', 'новых карточек')} + повторения`}
                   {p.kind === 'weak' && `последний проход: ${p.n} ${plural(p.n, 'слабое место', 'слабых места', 'слабых мест')}`}

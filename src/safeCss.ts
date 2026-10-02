@@ -47,12 +47,22 @@ export function safeStyleAttr(style: string): string {
 
 /** Раскрыть CSS-экранирование (\75rl → url): иначе проверки ниже обходятся. */
 export function decodeCssEscapes(s: string): string {
-  return s
-    .replace(/\\([0-9a-fA-F]{1,6})[ \t\n\r\f]?/g, (_m, h: string) => {
-      const n = parseInt(h, 16);
-      return n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '�';
-    })
-    .replace(/\\([^\n])/g, '$1');
+  const once = (t: string) =>
+    t
+      .replace(/\\([0-9a-fA-F]{1,6})[ \t\n\r\f]?/g, (_m, h: string) => {
+        const n = parseInt(h, 16);
+        return n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '�';
+      })
+      .replace(/\\([^\n])/g, '$1');
+  // Одного прохода мало: «\\5c \\5c 75rl(» после него снова превращается в «\\75rl(», то есть в url(. Повторяем до устойчивого вида,
+  // а то, что всё ещё похоже на экранирование, выбрасываем — в стилях из файла оно не нужно.
+  let cur = s;
+  for (let i = 0; i < 6; i++) {
+    const next = once(cur);
+    if (next === cur) break;
+    cur = next;
+  }
+  return cur.replace(/\\/g, '');
 }
 
 /** Имя стиля попадает в комментарий в CSS — оставляем только буквы, цифры и простые знаки, чтобы имя не закрыло комментарий. */

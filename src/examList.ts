@@ -24,17 +24,19 @@ export function examsOf(data: AppData): ExamView[] {
     if (!t.examDate || t.kind || covered.has(t.id)) continue;
     let p = t.parentId;
     let inside = false;
-    while (p) {
+    const seen = new Set<string>([t.id]); // на случай петли в родителях (две темы друг у друга под собой) — не зависаем
+    while (p && !seen.has(p)) {
       if (covered.has(p)) {
         inside = true;
         break;
       }
+      seen.add(p);
       p = topics.get(p)?.parentId;
     }
     if (inside) continue;
     out.push({ id: examIdOfTopic(t.id), subjectId: t.subjectId, name: t.name, date: t.examDate, topicIds: [t.id], createdAt: t.createdAt, updatedAt: t.updatedAt, virtual: true });
   }
-  return out.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name, 'ru'));
+  return out.sort((a, b) => a.date.localeCompare(b.date) || String(a.name).localeCompare(String(b.name), 'ru'));
 }
 
 export function examById(data: AppData, id: string): ExamView | null {

@@ -4,6 +4,7 @@
 // Исключение — тема: её текст конспекта сливается отдельно от остальных полей (по noteAt), а если текст правили на двух
 // устройствах независимо, проигравший не пропадает, а остаётся копией темы.
 import { canonNote, noteHash, sameNote } from './noteText';
+import { breakTopicCycles } from './safeData';
 import type { AppData, Exam, Folder, Homework, ItemState, Subject, Topic } from './types';
 
 const t = (s?: string) => (s ? Date.parse(s) || 0 : 0);
@@ -144,7 +145,7 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   }
   // Подтема без родителя (родителя удалили) становится обычной темой.
   const topicIds = new Set(topics.map((x) => x.id));
-  topics = topics.map((x) => (x.parentId && !topicIds.has(x.parentId) ? { ...x, parentId: undefined } : x));
+  topics = breakTopicCycles(topics.map((x) => (x.parentId && !topicIds.has(x.parentId) ? { ...x, parentId: undefined } : x)));
   const exams = examList.map((e) => ({ ...e, topicIds: e.topicIds.filter((id) => topicIds.has(id)) })).filter((e) => e.topicIds.length);
   const cards = mergeList(local.cards, remote.cards, 'card:', 'cards').filter((c) => topicIds.has(c.topicId));
   const cardIds = new Set(cards.map((c) => c.id));

@@ -78,7 +78,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
       ...(f.homework ? ([['Записать домашнее задание', 'homework', () => go({ name: 'homework' })], ['Открыть домашку', 'homework', () => go({ name: 'homework' })]] as [string, string, () => void][]) : []),
       ['Новая контрольная', 'test', () => openExamDialog()],
-      ...examsOf(data).slice(0, 6).map((e) => [`Контрольная: ${e.name}`, 'test', () => go({ name: 'exam', id: e.id })] as [string, string, () => void]),
+      ...examsOf(data).filter((e) => e.date >= new Date(Date.now() - 864e5).toISOString().slice(0, 10)).slice(0, 6).map((e) => [`Контрольная: ${e.name}`, 'test', () => go({ name: 'exam', id: e.id })] as [string, string, () => void]),
       ['Новый предмет', 'plus', () => onNew()],
       ['Новая папка предметов', 'folderPlus', () => onNew({ as: 'folder' })],
       ['Статистика', 'chart', () => go({ name: 'stats' })],

@@ -1,6 +1,7 @@
 // Контрольная: создать или изменить — название, предмет, дата и темы (можно несколько).
 import { useEffect, useMemo, useState } from 'react';
 import { examById, type ExamView } from '../examList';
+import { validExamDate } from '../safeData';
 import { childTopics, deleteExam, saveExam, sortedSubjects, useData } from '../store';
 import type { AppData, Route, Topic } from '../types';
 import { Icon, Modal, toast } from './ui';
@@ -31,7 +32,7 @@ export function ExamDialog({ examId, subjectId, topicId, onClose, onSaved }: { e
   const [picked, setPicked] = useState<Set<string>>(new Set(existing?.topicIds ?? (startTopic ? [startTopic.id] : [])));
   const list = useMemo(() => flatTopics(data, subject), [data, subject]);
   const subj = data.subjects.find((s) => s.id === subject);
-  const canSave = Boolean(subject && date && picked.size > 0);
+  const canSave = Boolean(subject && validExamDate(date) && picked.size > 0);
 
   const toggle = (id: string) =>
     setPicked((p) => {
@@ -77,7 +78,7 @@ export function ExamDialog({ examId, subjectId, topicId, onClose, onSaved }: { e
           </label>
           <label className="stack gap4">
             <span className="small muted">Когда</span>
-            <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input className="input" type="date" min="2000-01-01" max="2100-12-31" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
         </div>
         <div className="stack gap6">

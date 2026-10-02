@@ -3,6 +3,7 @@ import { createEmptyCard, fsrs, Rating, type Card as FCard, type Grade } from 't
 import { instantiate } from './problems';
 import type { AppData, Card, ItemState, Settings } from './types';
 import { examsOf } from './examList';
+import { MAX_PLAN_DAYS } from './safeData';
 
 export const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
@@ -567,7 +568,7 @@ function examGroups(data: AppData, now: Date): ExamGroup[] {
     const d = new Date(ex.date + 'T12:00:00');
     const examDay = dayStart(d, 0).getTime() + hour * HOUR;
     const daysLeft = Math.round((examDay - today) / DAY);
-    if (daysLeft < 0) continue;
+    if (daysLeft < 0 || daysLeft > MAX_PLAN_DAYS) continue; // прошла или слишком далеко для плана
     const items = ex.topicIds.flatMap((id) => allItems(data, { topicId: id })).filter((it) => !taken.has(it.key));
     const uniq = new Map(items.map((it) => [it.key, it]));
     const list = [...uniq.values()];
@@ -627,9 +628,11 @@ function planFor(data: AppData, now: Date, g: ExamGroup): { plan: ExamPlan; boos
   }
   const rest = fresh.length - todayNew;
   const perDay = [todayNew];
+  let placed = 0;
   for (let d = 1; d < g.daysLeft; d++) {
-    const left = rest - perDay.slice(1).reduce((a, b) => a + b, 0);
-    perDay.push(Math.ceil(left / (g.daysLeft - d)));
+    const n = Math.ceil((rest - placed) / (g.daysLeft - d));
+    perDay.push(n);
+    placed += n;
   }
   return {
     plan: { examId: g.examId, topicId: g.topicId, daysLeft: g.daysLeft, total: g.items.length, learned, newLeft: fresh.length, todayNew, todayAhead: ahead, todayDue: due, perDay, weak },
