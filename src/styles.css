@@ -425,7 +425,6 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .soon { display: flex; flex-wrap: wrap; gap: 8px; }
 .soon-item { padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--line-2); color: var(--muted); font-size: 0.88rem; }
 .help p { margin: 0; line-height: 1.6; }
-.formula-table { display: flex; flex-direction: column; }
 .formula-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .formula-row:last-child { border-bottom: none; }
 .f-render { font-size: 1.1rem; overflow-x: auto; }
@@ -1194,9 +1193,6 @@ html[data-no-windows] .note-layout.full { animation: none; }
 .tpl-chip.add { padding: 4px 10px; color: var(--accent-text, var(--accent)); cursor: pointer; font: inherit; font-size: 0.82rem; }
 .tpl-chip.add:disabled { opacity: 0.5; cursor: default; }
 
-.mods { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.mod { display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); animation: rowIn 0.28s ease both; transition: border-color 0.2s, background 0.2s; }
-.mod.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
 .center-items { align-items: center; }
 .css-area { min-height: 150px; font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; resize: vertical; }
 .check-row { cursor: pointer; }
@@ -1323,15 +1319,5 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 @media (max-width: 720px) { .pal-back { padding-top: 12px; } .palette { max-height: 80dvh; } .search-item .nav-kbd { display: none; } }
 
 /* ---------- Моды ---------- */
-.safe-row { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); }
-.safe-row.on { border-color: color-mix(in srgb, var(--good-ink) 40%, var(--line)); }
-.mod.plugin { align-items: flex-start; }
-.code-area { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.86rem; min-height: 55vh; line-height: 1.5; tab-size: 2; white-space: pre; resize: vertical; }
-.plugin-settings { padding: 8px 0; }
-.plugin-view { min-height: 100%; }
 .link-btn.danger-text { color: var(--again-ink); }
-.code-sample { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.84rem; overflow-x: auto; margin: 0; }
-.api-table { display: flex; flex-direction: column; }
-.api-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
-.api-row code { font-size: 0.8rem; overflow-wrap: anywhere; }
 @media (max-width: 720px) { .api-row { grid-template-columns: 1fr; gap: 2px; } }

@@ -108,7 +108,7 @@
 - Правила: выдели слово → «Правило»; слово подчёркивается во всех конспектах предмета, при наведении всплывает правило.
 - (Сад знаний убран в 2.0 — этап 2 переработки.)
 - Видео в конспекте (YouTube, Rutube, VK, mp4).
-- Моды-программы (как плагины Obsidian; не работают, пока их не разрешить). Стили — отдельно.
+- (Моды-программы убраны в 2.0; остались стили.)
 - Поиск Ctrl+P; вкладки темы без прокрутки (лишние — в «Ещё»); тонкие полосы прокрутки; проверка вылезающего текста на всех экранах.
 
 **1.6 «Меньше времени, больше толку»**
@@ -379,9 +379,8 @@
 | `themes.ts`, `mods.ts`, `templates.ts`, `keys.ts`, `tips.ts`, `progress.ts`, `featureList.ts`, `update.ts`, `video.ts`, `noteTools.ts`, `seed.ts` (пример «Посмотреть на примере») | |
 | `platform/android.ts` | `window.mnemaApi` поверх моста `MnemaAndroid` |
 | `platform/ocrWeb.ts` | офлайн-распознавание на телефоне |
-| `plugins/host.ts`, `bus.ts`, `catalog.ts` | моды-программы |
 | `components/*` | NoteEditor, Links, Rules, SubjectTerms, StudyListView, PoemView, Drawing, FormulaEditor, HandFormulaPad, Markdown, CardEditor, ImportantPanel, TextbookImport, Homework, KnowledgeMap, Sidebar, CommandPalette, LookSettings, AiSettings, ModsSettings, PluginsSettings, SyncDialog, CloudDialog, ExportDialogs, AnkiImport, ObsidianImport, Timeline, PageViewer, CameraCapture, SubjectDialogs, FeaturesPane, KeySettings, SettingsKit, ErrorBoundary, `ui.tsx` (Icon, Modal, Segmented, MoreMenu, OverflowTabs, Collapse, ConfirmButton, AnimText, toast, usePresence, motionOn, plural…), `autoHighlight.ts` (декорации ProseMirror: важное, слова правил, метки страниц), `videoNode.ts` |
-| `screens/*` | Today, SubjectScreen, FolderScreen, TopicScreen, Review, TestScreen, Stats, Settings, Help, PluginScreen |
+| `screens/*` | Today, SubjectScreen, FolderScreen, TopicScreen, Review, TestScreen, Stats, Settings, Help |
 
 ### 6.4 Electron (`electron/`)
 - **`main.cjs`** — окно, данные, копии, IPC.
@@ -408,18 +407,11 @@
 - **Android** — GitHub API → ссылка на APK из выпуска.
 - **Репозиторий:** настройки `settings.update.owner/repo` (раздел «О Мнеме»). В `package.json` → `build.publish` стоит **заглушка** `mnema-app/mnema`: настоящего репозитория пользователь ещё не дал. Инструкция «GitHub — как выложить обновление.txt» лежит в каждой папке выпуска.
 
-### 6.7 Моды-программы (как плагины Obsidian)
-- **Мод** — JS-модуль `export default { onload(app){…}, onunload(){…} }`. Заголовок-комментарий с id, name, version, author, description, icon.
-- **API `app`:**
-  - `commands.add` (в Ctrl+P, горячие клавиши);
-  - `ui` (кнопки в левой панели, свои экраны `openView`, действия с темой, `toast`, `go`);
-  - `markdown` (постобработчики);
-  - `events` (on/emit: ответ, создание карточки, конец сессии…);
-  - `data` (get, subjects, topics, cards, addTopic, updateTopic, addCard, updateCard, addHomework);
-  - `storage` (данные мода), `ai`, `http`.
-- **Безопасность:** выключены по умолчанию, пока не нажали «Разрешить моды»; безопасный режим (`pluginsSafe`).
-- **Каталог:** Поздороваться, Помодоро, Конфетти, Шпаргалка формул, Размер конспекта, Вопросы от ИИ.
-- **Стили** (только CSS) отдельно: notebook, big-buttons, big-cards, sticky-notes, pastel-grades, glow, calm, wide-note, mono…, плюс свои `.mnemamod` и свой CSS.
+### 6.7 Стили (бывшие «моды»)
+- В 2.0 **моды-программы (плагины с кодом) убраны**: `src/plugins/`, экраны «Моды», кнопка «Моды» в левой панели, постобработка Markdown, действия темы. Из старых файлов данных поля `plugins`, `pluginsSafe`, `pluginData` при чтении выбрасываются (`dropRemoved` в `store.ts`).
+- Остались **стили** (только CSS и настройки вида): `src/mods.ts`, `ModsSettings.tsx` → теперь блок «Ещё стили» внизу «Настроек → Оформление»: notebook, big-buttons, big-cards, sticky-notes, pastel-grades, glow, calm, wide-note, mono…, плюс свои `.mnemamod` и свой CSS.
+- Справка больше не содержит вкладок «Формулы» и «Моды» (решение автора, этап 2 плана 2.0); формулы в конспектах, список «Формулы», задачи с числами и рукописный ввод остались.
+- CSP: из `script-src` убран `blob:` (нужен был только загрузчику модов-программ).
 
 ---
 
@@ -437,7 +429,7 @@
 - **`Poem`**: id, title, author, text, chunk (0 = по строфам), learned, lineMiss[], review {due, interval, reps}, history[{at, acc, mode}].
 - **`Homework`**: text, subjectId, topicId, due, remind, photos[], done.
 - **`ItemState`** (FSRS): due, stability, difficulty, elapsed_days, scheduled_days, learning_steps, reps, lapses, state, last_review.
-- **`Settings`**: look, accent, theme, fontScale, density, motion, retention (0.80–0.95), newPerDay, maxReviews, dayStartHour, simpleButtons, showIntervals, features, schedule (`'1'..'6'` → id предметов, повторы разрешены), keys, highlight, textbook, cloud, update, homeworkRemind, lessonsRemind, plugins, modsOn, customMods, userCss, cardTemplates, sidebar, treeOpen, graph и др.
+- **`Settings`**: look, accent, theme, fontScale, density, motion, retention (0.80–0.95), newPerDay, maxReviews, dayStartHour, simpleButtons, showIntervals, features, schedule (`'1'..'6'` → id предметов, повторы разрешены), keys, highlight, textbook, cloud, update, homeworkRemind, lessonsRemind, modsOn, customMods, userCss, cardTemplates, sidebar, treeOpen, graph и др.
 - **Маркдаун-расширения в `note`:**
   - `$…$`, `$$…$$` — формулы;
   - `==маркер==`;

@@ -63,12 +63,11 @@ await win.waitForTimeout(400);
 await shot('f4-motion');
 await win.getByRole('radio', { name: 'Все', exact: true }).click();
 
-// Возможности: моды
+// Возможности
 await win.locator('.foot-btn[aria-label="Возможности"]').click();
-await win.getByRole('switch', { name: 'Моды' }).click();
 await win.getByRole('switch', { name: 'Карта знаний' }).click();
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
-await sect('Стили');
+await sect('Оформление');
 await win.getByRole('switch', { name: 'Стикеры' }).click();
 await win.getByRole('switch', { name: 'Крупные кнопки' }).click();
 step('mods css: ' + (await win.evaluate(() => document.getElementById('mnema-mods').textContent.length)));

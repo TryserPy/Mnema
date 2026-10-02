@@ -113,42 +113,13 @@ await shot('g6-full');
 await win.keyboard.press('Escape');
 await win.waitForTimeout(300);
 
-// 5. Моды с кодом
-await win.locator('.foot-btn[aria-label="Возможности"]').click();
-await win.getByRole('switch', { name: 'Моды', exact: true }).click();
-await win.getByRole('button', { name: 'Настройки', exact: true }).click();
-await win.locator('.set-nav-item', { hasText: 'Моды' }).click();
-const pm = win.locator('.set-pane');
-// безопасный режим: сначала разрешить моды, потом ставить из каталога
-await pm.getByRole('button', { name: 'Разрешить моды' }).click();
-await win.getByRole('dialog', { name: 'Разрешить моды?' }).getByRole('button', { name: 'Разрешить', exact: true }).click();
-await pm.getByRole('radio', { name: 'Каталог' }).click();
-for (const name of ['Помодоро', 'Конфетти', 'Шпаргалка формул', 'Размер конспекта']) await pm.locator('.plug-card', { hasText: name }).getByRole('button', { name: 'Установить' }).click();
-await pm.getByRole('radio', { name: /^Мои/ }).click();
-await win.waitForTimeout(1200);
-step('running: ' + (await pm.locator('.plug-row.on:not(:has(.err-text)):not(:has-text("Запускается"))').count()) + ' errors: ' + (await pm.locator('.plug-row .err-text').allInnerTexts()).join('; '));
-await shot('g7-mods');
-await win.locator('.foot-btn[aria-label="Моды"]').click();
-await win.getByRole('menuitem', { name: /Помодоро/ }).click();
-await win.waitForTimeout(400);
-step('pomodoro view: ' + (await win.locator('.plugin-view').innerText()).replace(/\n+/g, ' | ').slice(0, 80));
-await win.locator('.foot-btn[aria-label="Моды"]').click();
-await win.getByRole('menuitem', { name: /Формулы|формул/ }).click();
-await win.waitForTimeout(400);
-step('formulas: ' + (await win.locator('.plugin-view .katex').count()) + ' формул');
-await shot('g8-formulas');
-
-// 6. Поиск Ctrl+P: по тексту конспекта и команда мода
+// 6. Поиск Ctrl+P: по тексту конспекта
 await win.keyboard.press('Control+p');
 await win.locator('.palette input').fill('сопротивлен');
 await win.waitForTimeout(300);
 step('search: ' + (await win.locator('.pal-item').allInnerTexts()).slice(0, 4).join(' || ').replace(/\n/g, ' '));
 await shot('g9-search');
-await win.locator('.palette input').fill('>конфетти');
-await win.waitForTimeout(200);
-await win.keyboard.press('Enter');
-await win.waitForTimeout(300);
-step('confetti pieces: ' + (await win.locator('body > div i').count()));
+await win.keyboard.press('Escape');
 
 // 7. Анимации: кнопка «Свои» (раньше «Выбрать») в рамке — проверяем переключатели во всех разделах настроек
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();

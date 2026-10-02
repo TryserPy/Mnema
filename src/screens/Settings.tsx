@@ -4,8 +4,6 @@ import { Icon, Modal, Switch, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
-import { StylesSettings } from '../components/ModsSettings';
-import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
 import { KeySettings } from '../components/KeySettings';
@@ -67,8 +65,7 @@ const INDEX: IndexItem[] = [
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
-  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'styles', words: 'css вид' },
-  { label: 'Моды', section: 'mods', words: 'плагины расширения' },
+  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'look', anchor: 'styles', words: 'css вид моды' },
   { label: 'Обновления', section: 'about', anchor: 'update', words: 'новая версия github обновить' },
   { label: 'Версия и справка', section: 'about', words: 'о программе' }
 ];
@@ -89,8 +86,6 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     { id: 'ai', title: 'ИИ-помощник', icon: 'bot', hidden: !s.features.ai },
     { id: 'keys', title: 'Клавиши', icon: 'keyboard', hidden: touchUI() },
     { id: 'data', title: 'Данные', icon: 'database' },
-    { id: 'styles', title: 'Стили', icon: 'brush' },
-    { id: 'mods', title: 'Моды', icon: 'puzzle', hidden: !s.features.mods },
     { id: 'about', title: 'О Мнеме', icon: 'info' }
   ];
   const visible = sections.filter((x) => !x.hidden);
@@ -191,8 +186,6 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     </div>
   );
   else if (current === 'data') pane = <DataPane go={go} />;
-  else if (current === 'styles') pane = <StylesSettings />;
-  else if (current === 'mods') pane = <PluginsSettings go={go} />;
   else if (current === 'about') pane = <AboutPane go={go} />;
 
   if (narrow) {

@@ -3,7 +3,7 @@
 
 /* ---------- Текст не вылезает за рамки ---------- */
 body { overflow-wrap: break-word; }
-.grow, .srow-text, .feat-text, .plug-text, .style-body, .stack { min-width: 0; }
+.grow, .srow-text, .feat-text, .style-body, .stack { min-width: 0; }
 .btn { max-width: 100%; }
 .seg button { white-space: normal; line-height: 1.15; padding: 4px 8px; overflow-wrap: normal; word-break: normal; hyphens: auto; }
 
@@ -24,8 +24,6 @@ body { overflow-wrap: break-word; }
 :root[data-style='modern'] .sgroup-body,
 :root[data-style='modern'] .feat-tile,
 :root[data-style='modern'] .style-item,
-:root[data-style='modern'] .plug-row,
-:root[data-style='modern'] .plug-card { border-color: transparent; box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent), 0 1px 3px rgba(16, 24, 40, 0.05); }
 :root[data-style='modern'][data-theme='dark'] .card,
 :root[data-style='modern'][data-theme='dark'] .topic-row,
 :root[data-style='modern'][data-theme='dark'] .card-row,
@@ -33,8 +31,6 @@ body { overflow-wrap: break-word; }
 :root[data-style='modern'][data-theme='dark'] .sgroup-body,
 :root[data-style='modern'][data-theme='dark'] .feat-tile,
 :root[data-style='modern'][data-theme='dark'] .style-item,
-:root[data-style='modern'][data-theme='dark'] .plug-row,
-:root[data-style='modern'][data-theme='dark'] .plug-card { box-shadow: 0 0 0 1px var(--line); }
 :root[data-style='modern'] .topic-row:hover,
 :root[data-style='modern'] .card-row:hover { box-shadow: 0 0 0 1px var(--line-2), var(--shadow); }
 :root[data-style='modern'] .btn { border-color: var(--line-2); }
@@ -154,23 +150,11 @@ html[data-no-screens] .set-pane { animation: none; }
 .safe-card strong { font-size: 1.15rem; }
 .safe-card .btn { margin-top: 6px; }
 .safe-ico { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-text, var(--accent)); }
-.plug-list { display: flex; flex-direction: column; gap: 8px; }
-.plug-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
-.plug-row:not(.on) .plug-ico { filter: grayscale(1); opacity: 0.6; }
-.plug-ico { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; font-size: 1.2rem; background: var(--sunken); }
-.plug-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .err-text { color: var(--again-ink); }
-.plug-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.plug-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
 .own-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .own-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); text-align: left; color: var(--ink); transition: transform 0.18s cubic-bezier(0.3, 1.3, 0.5, 1), border-color 0.18s; }
 .own-tile svg { color: var(--accent-text, var(--accent)); margin-bottom: 4px; }
 .own-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
-
-/* Меню модов в подвале панели — открывается вверх */
-.foot-more { position: relative; }
-.menu.up { top: auto; bottom: calc(100% + 8px); left: 0; transform-origin: bottom left; }
-.menu-title { padding: 6px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 
 /* О Мнеме */
 .about { display: flex; align-items: center; gap: 16px; padding: 6px 2px; }
@@ -187,7 +171,7 @@ html[data-no-screens] .set-pane { animation: none; }
   .set-nav-item:first-of-type { border-radius: 14px 14px 0 0; }
   .set-nav-item:last-of-type { border-radius: 0 0 14px 14px; border-bottom: none; }
   .set-nav-item.on { font-weight: 500; }
-  .feat-grid, .plug-grid, .own-grid, .style-grid { grid-template-columns: minmax(0, 1fr); }
+  .feat-grid, .own-grid, .style-grid { grid-template-columns: minmax(0, 1fr); }
   .srow { padding: 12px 14px; flex-wrap: wrap; }
   .srow-ctl { max-width: 100%; }
   .ctl-seg, .ctl-seg.small-seg, .ctl-seg.tabs-seg { width: 100%; }
