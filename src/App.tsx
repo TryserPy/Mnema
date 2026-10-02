@@ -120,25 +120,6 @@ export function App() {
     el.textContent = modsStyle;
   }, [modsStyle]);
 
-  // Новые достижения — поздравить (один раз за каждое).
-  useEffect(() => {
-    if (!s.features.awards || !data.logs.length || route.name === 'review' || route.name === 'test') return;
-    const t = setTimeout(async () => {
-      const { achievements } = await import('./progress');
-      const got = achievements(getData(), new Date()).filter((a) => a.got);
-      const fresh = got.filter((a) => !s.awardsSeen.includes(a.id));
-      if (!fresh.length) return;
-      // Первый раз после обновления — не засыпаем поздравлениями за старое
-      if (s.awardsSeen.length === 0 && fresh.length > 1) {
-        updateSettings({ awardsSeen: got.map((a) => a.id) });
-        return;
-      }
-      updateSettings({ awardsSeen: [...s.awardsSeen, ...fresh.map((a) => a.id)] });
-      showToast(`${fresh[0].icon} Достижение: ${fresh[0].title}!`, { label: 'Все', run: () => go({ name: 'stats', tab: 'awards' }) });
-    }, 800);
-    return () => clearTimeout(t);
-  }, [data.logs.length, route.name]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Напоминания о домашке (и на телефоне — ежедневное «пора повторить»): отдаём список системе.
   const plan = JSON.stringify(notificationPlan(data, new Date(), window.mnemaApi?.platform === 'android'));
   useEffect(() => {

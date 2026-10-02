@@ -163,7 +163,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type Density = 'compact' | 'normal' | 'comfy';
 
 /** Возможности, которые включаются на экране «Возможности». */
-export type FeatureId = 'leeches' | 'test' | 'focus' | 'schedule' | 'obsidian' | 'confidence' | 'tips' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'weekly' | 'awards' | 'garden' | 'mods' | 'homework' | 'why' | 'poems';
+export type FeatureId = 'leeches' | 'test' | 'focus' | 'schedule' | 'obsidian' | 'confidence' | 'tips' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'weekly' | 'mods' | 'homework' | 'why' | 'poems';
 
 export type MotionLevel = 'all' | 'essential' | 'off' | 'custom';
 export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover';
@@ -230,7 +230,6 @@ export interface Settings {
   plugins: PluginRec[]; // моды с кодом (как плагины Obsidian)
   pluginsSafe: boolean; // безопасный режим: моды с кодом не запускаются
   pluginData: Record<string, Record<string, unknown>>; // что моды сохранили
-  awardsSeen: string[]; // о каких достижениях уже сказали
   motion: MotionLevel; // анимации: все, только важные, выключены, выборочно
   motionOff: MotionKind[]; // для «выборочно»: какие выключены
   theme: ThemeMode;
@@ -300,7 +299,7 @@ export type Route =
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
   | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; focus?: boolean; run?: number; limit?: number; mini?: boolean }
   | { name: 'test'; topicId: string; pretest?: boolean }
-  | { name: 'stats'; tab?: 'numbers' | 'map' | 'garden' | 'awards' }
+  | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'settings'; section?: SettingsSection }
   | { name: 'features' }
   | { name: 'help'; section?: 'start' | 'formulas' | 'keys' | 'mods' };

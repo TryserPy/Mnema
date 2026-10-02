@@ -77,8 +77,6 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
       ['Новый предмет', 'plus', () => onNew()],
       ['Новая папка предметов', 'folderPlus', () => onNew({ as: 'folder' })],
       ['Статистика', 'chart', () => go({ name: 'stats' })],
-      ...(f.awards ? ([['Достижения', 'chart', () => go({ name: 'stats', tab: 'awards' })]] as [string, string, () => void][]) : []),
-      ...(f.garden ? ([['Сад знаний', 'chart', () => go({ name: 'stats', tab: 'garden' })]] as [string, string, () => void][]) : []),
       ...(f.map ? ([['Карта знаний', 'map', () => go({ name: 'stats', tab: 'map' })]] as [string, string, () => void][]) : []),
       ['Загрузить файл изменений (от нейросети)', 'upload', () => openChanges()],
       ['Инструкция для нейросети', 'bot', () => openChanges('#guide')],

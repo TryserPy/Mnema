@@ -1,5 +1,5 @@
 // Итоги недели, цифры за период, слабые темы и достижения за регулярность.
-import { dayKey, dayStart, DAY, streak } from './srs';
+import { dayKey, dayStart, DAY } from './srs';
 import type { AppData, ReviewLogEntry } from './types';
 
 /** Единый порог выборки: меньше стольких ответов процент ничего не говорит (и для «Запоминания», и для слабых тем). */
@@ -167,40 +167,4 @@ export function bestStreak(data: AppData): number {
     prev = t;
   }
   return best;
-}
-
-export interface Achievement {
-  id: string;
-  icon: string; // эмодзи
-  title: string;
-  text: string;
-  got: boolean;
-  progress?: [number, number];
-}
-
-export function achievements(data: AppData, now: Date): Achievement[] {
-  const cur = streak(data, now);
-  const best = Math.max(bestStreak(data), cur);
-  const answers = data.logs.length;
-  const learned = Object.values(data.states).filter((s) => s.state === 2 && s.stability >= 21).length;
-  const topicsWithNote = data.topics.filter((t) => t.note.trim().length > 200).length;
-  const listRows = data.cards.filter((c) => c.listId).length;
-  const tests = data.tests.length;
-  const hour = data.settings.dayStartHour;
-  const earlyDays = new Set(data.logs.filter((l) => new Date(l.at).getHours() < 9 && new Date(l.at).getHours() >= 5).map((l) => dayKey(new Date(l.at), hour))).size;
-  const a = (id: string, icon: string, title: string, text: string, have: number, need: number): Achievement => ({ id, icon, title, text, got: have >= need, progress: [Math.min(have, need), need] });
-  return [
-    a('streak3', '🔥', 'Три дня подряд', 'Занимался три дня без пропусков', best, 3),
-    a('streak7', '🗓️', 'Неделя подряд', 'Семь дней подряд — привычка начинается', best, 7),
-    a('streak14', '⚡', 'Две недели', '14 дней подряд без пропусков', best, 14),
-    a('streak30', '🏆', 'Месяц подряд', '30 дней подряд — это уже привычка', best, 30),
-    a('streak100', '💎', 'Сто дней', '100 дней подряд', best, 100),
-    a('answers100', '✅', 'Первая сотня', '100 ответов на карточки', answers, 100),
-    a('answers1000', '🎯', 'Тысяча ответов', '1000 ответов на карточки', answers, 1000),
-    a('learned50', '🧠', 'Надёжная память', '50 карточек помнишь дольше трёх недель', learned, 50),
-    a('notes5', '📝', 'Конспектист', '5 подробных конспектов', topicsWithNote, 5),
-    a('words50', '🔤', 'Словарный запас', '50 строк в словарях и списках', listRows, 50),
-    a('tests3', '📋', 'Проверил себя', '3 пробные контрольные', tests, 3),
-    a('early5', '🌅', 'Ранняя пташка', 'Пять дней занимался до 9 утра', earlyDays, 5)
-  ];
 }

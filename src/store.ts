@@ -130,7 +130,6 @@ export const DEFAULT_SETTINGS: Settings = {
   modsOn: [],
   customMods: [],
   userCss: '',
-  awardsSeen: [],
   motion: 'all',
   motionOff: [],
   retention: 0.9,
@@ -142,7 +141,7 @@ export const DEFAULT_SETTINGS: Settings = {
   askConfidence: false,
   tips: true,
   dismissedTips: [],
-  features: { leeches: true, test: true, focus: false, schedule: false, obsidian: false, confidence: false, tips: true, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, weekly: true, awards: true, garden: true, mods: false, homework: true, why: true, poems: true },
+  features: { leeches: true, test: true, focus: false, schedule: false, obsidian: false, confidence: false, tips: true, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, weekly: true, mods: false, homework: true, why: true, poems: true },
   schedule: {},
   focusMinutes: 25,
   breakMinutes: 5,
@@ -201,7 +200,6 @@ export function normalizeData(raw: unknown): AppData {
       cardTemplates: Array.isArray(r.settings?.cardTemplates) ? r.settings!.cardTemplates : [],
       modsOn: Array.isArray(r.settings?.modsOn) ? r.settings!.modsOn.map((m) => (m === 'neon' ? 'glow' : m)) : [],
       customMods: Array.isArray(r.settings?.customMods) ? r.settings!.customMods : [],
-      awardsSeen: Array.isArray(r.settings?.awardsSeen) ? r.settings!.awardsSeen : [],
       userCss: typeof r.settings?.userCss === 'string' ? r.settings.userCss : '',
       // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
       bgImage:

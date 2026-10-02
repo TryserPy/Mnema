@@ -613,8 +613,7 @@ input[type='range'] { accent-color: var(--accent); }
 .progress span, .bar-fill { transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .stack > .hint { animation: fadeIn 0.25s ease; }
 @media (prefers-reduced-motion: reduce) {
-  /* Поглаживание растений (.pet-fx) оставляем: это ответ на нажатие, а не украшение. */
-  *:not(.pet-fx, .pet-fx *), *:not(.pet-fx, .pet-fx *)::before, *:not(.pet-fx, .pet-fx *)::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
 /* ---------- 1.1.1: граф ---------- */
@@ -1186,31 +1185,6 @@ html[data-no-windows] .note-layout.full { animation: none; }
 .up { color: var(--good-ink); font-weight: 600; }
 .down { color: var(--again-ink); font-weight: 600; }
 .week-notes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
-.streak-hero { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
-.awards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.award { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); animation: rowIn 0.3s ease both; opacity: 0.75; }
-.award.got { opacity: 1; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow: var(--shadow); }
-.award-ico { font-size: 1.8rem; line-height: 1; filter: grayscale(1); opacity: 0.55; transition: filter 0.3s, opacity 0.3s, transform 0.3s; }
-.award.got .award-ico { filter: none; opacity: 1; animation: awardPop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
-@keyframes awardPop { from { transform: scale(0.4) rotate(-20deg); } }
-.award-ok { color: var(--good-ink); font-weight: 800; }
-.garden-sum { display: flex; flex-wrap: wrap; gap: 8px 22px; }
-.garden { display: flex; flex-direction: column; gap: 14px; }
-.bed { background: linear-gradient(to bottom, color-mix(in srgb, #7BB36A 10%, var(--surface)), var(--surface)); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 6px; }
-.bed-name { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px; }
-.bed-plants { display: flex; flex-wrap: wrap; gap: 4px; }
-.plant-btn { width: 92px; border: none; background: none; padding: 4px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: var(--ink); transition: background 0.15s, transform 0.2s; }
-.plant-btn:hover { background: var(--sunken); transform: translateY(-2px); }
-.plant-name { font-size: 0.74rem; max-width: 86px; text-align: center; color: var(--muted); }
-.plant { width: 70px; height: 88px; overflow: visible; }
-.plant .soil { fill: color-mix(in srgb, #8B6A43 55%, var(--surface)); }
-.plant .sway { transform-origin: 40px 90px; animation: sway 4.5s ease-in-out infinite; }
-.plant.thirsty .sway { animation: none; transform: rotate(6deg); }
-@keyframes sway { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
-.plant .bloom { animation: bloomIn 0.8s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
-@keyframes bloomIn { from { transform: scale(0); } }
-.garden-hint { min-height: 2.8em; }
-html[data-no-hover] .plant .sway, html[data-no-hover] .plant .bloom, html[data-no-hover] .award, html[data-no-hover] .award-ico { animation: none !important; }
 
 .tpl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .tpl-chip { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface-2); font-size: 0.82rem; overflow: hidden; transition: border-color 0.15s, background 0.15s, transform 0.15s; }
@@ -1247,9 +1221,6 @@ html[data-no-hover] .plant .sway, html[data-no-hover] .plant .bloom, html[data-n
 }
 @media (max-width: 720px) {
   .week-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .streak-hero { grid-template-columns: 1fr; }
-  .plant-btn { width: 76px; }
-  .plant { width: 60px; height: 76px; }
 }
 
 /* Расписание: название урока целиком, «повторить N» — строкой ниже */
