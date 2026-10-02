@@ -27,6 +27,7 @@ import { PrintDialog } from '../components/ExportDialogs';
 import { keyFor, matches, prettyCombo } from '../keys';
 import type { Card, CardType, ListKind, Route } from '../types';
 import { openExamDialog } from '../components/ExamDialog';
+import { NoteHistoryDialog } from '../components/NoteHistory';
 
 const TYPE_LABEL: Record<CardType, string> = {
   basic: 'Вопрос — ответ',
@@ -37,6 +38,8 @@ const TYPE_LABEL: Record<CardType, string> = {
 };
 
 export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r: Route) => void }) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [reload, setReload] = useState(0); // растёт, когда конспект поменяли «снаружи» (возврат версии): редактор перечитывает текст
   const data = useData();
   const topic = data.topics.find((t) => t.id === id);
   const [recall, setRecall] = useState(false);
@@ -185,6 +188,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 },
               { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Мнема составит план', onClick: () => openExamDialog({ topicId: id }) },
               { label: 'Повторить всю тему', icon: 'repeat', onClick: () => go({ name: 'review', topicId: id, cram: true }), hidden: cards.length === 0 },
+              { label: 'История конспекта', icon: 'clock', hint: 'Вернуть прежний текст', onClick: () => setHistoryOpen(true), hidden: !data.noteHistory?.[id]?.length },
               { label: 'Поделиться темой (файл)', icon: 'share', onClick: () => exportTopic(data, id) },
               { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 },
@@ -297,7 +301,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       ) : listTab ? (
         <StudyListView key={listTab.id} topicId={id} list={listTab} go={go} subjectId={data.settings.features.lists && ['terms', 'vocab', 'custom'].includes(listTab.kind) ? topic.subjectId : undefined} />
       ) : current === 'note' ? (
-        <NoteTab go={go} topicId={id} importOpen={importOpen} setImportOpen={(v) => { setImportOpen(v); if (!v) setDropped(null); }} droppedFiles={dropped} />
+        <NoteTab go={go} topicId={id} reload={reload} importOpen={importOpen} setImportOpen={(v) => { setImportOpen(v); if (!v) setDropped(null); }} droppedFiles={dropped} />
       ) : (
         <div className="tab-pane">
           <CardsTab topicId={id} cards={cards} />
@@ -305,6 +309,16 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       )}
       {printOpen && <PrintDialog topicId={id} onClose={() => setPrintOpen(false)} />}
       {noteCards && <NoteToCards topicId={id} onClose={() => setNoteCards(false)} />}
+      {historyOpen && (
+        <NoteHistoryDialog
+          topicId={id}
+          onClose={() => setHistoryOpen(false)}
+          onRestored={() => {
+            setHistoryOpen(false);
+            setReload((n) => n + 1);
+          }}
+        />
+      )}
       {rulesOpen && <RulesDrawer subjectId={topic.subjectId} go={go} onClose={() => setRulesOpen(false)} />}
 
       {recall && <RecallModal note={topic.note} onClose={() => setRecall(false)} />}
@@ -338,7 +352,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
 
 // ---------- Конспект ----------
 
-function NoteTab({ topicId, importOpen, setImportOpen, droppedFiles, go }: { topicId: string; importOpen: boolean; setImportOpen: (v: boolean) => void; droppedFiles: File[] | null; go: (r: Route) => void }) {
+function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go }: { topicId: string; reload: number; importOpen: boolean; setImportOpen: (v: boolean) => void; droppedFiles: File[] | null; go: (r: Route) => void }) {
   const data = useData();
   const topic = data.topics.find((t) => t.id === topicId)!;
   // Правила предмета: слова-подсказки в конспекте и «Правило» из выделения.
@@ -428,7 +442,7 @@ function NoteTab({ topicId, importOpen, setImportOpen, droppedFiles, go }: { top
           </div>
         ) : (
         <NoteEditor
-          key={topicId + ':' + version}
+          key={topicId + ':' + version + ':' + reload}
           markdown={topic.note}
           // Редактор при закрытии темы отдаёт текст в своей записи (отступы, «-» вместо «*»…) — если выглядит так же, это не правка.
           onChange={(md) => md !== topic.note && !sameLook(md, topic.note) && updateTopic(topicId, { note: md })}
