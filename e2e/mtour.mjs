@@ -27,7 +27,7 @@ const over = async (tag) => {
   if (r.length) console.log('OVER', tag, JSON.stringify(r));
 };
 const shot = async (n) => { await p.waitForTimeout(450); await over(n); await p.screenshot({ path: `${OUT}/${n}.png`, fullPage: true }); };
-const menu = async () => { await p.locator('.mobile-bar button').first().click(); await p.waitForTimeout(350); };
+const menu = async () => { await p.locator('.tab', { hasText: 'Знания' }).click(); await p.waitForTimeout(350); };
 await shot('01-today');
 await menu();
 await shot('02-drawer');

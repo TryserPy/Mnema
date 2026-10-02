@@ -1,6 +1,6 @@
 // Защита от кривых данных: файл, облако и Wi-Fi-обмен могут принести что угодно, а одна плохая запись не должна вешать приложение.
 // Чистые функции без интерфейса.
-import type { Exam, Removed, Topic, TrashEntry } from './types';
+import type { Exam, NoteVersion, Removed, Topic, TrashEntry } from './types';
 
 /** Контрольные дальше этого числа дней вперёд в планы не берём (годовой план бессмыслен, а считать его дорого). */
 export const MAX_PLAN_DAYS = 400;
@@ -91,4 +91,16 @@ export function cleanTrash(raw: unknown): TrashEntry[] {
     if (out.length >= 30) break;
   }
   return out;
+}
+
+/** История конспектов из файла: только для существующих тем (или тех, что в корзине), версии правильной формы, до 15 на тему. */
+export function cleanNoteHistory(raw: unknown, topicIds: Set<string>): Record<string, NoteVersion[]> | undefined {
+  if (!isObj(raw)) return undefined;
+  const out: Record<string, NoteVersion[]> = {};
+  for (const [id, list] of Object.entries(raw)) {
+    if (!topicIds.has(id) || !Array.isArray(list)) continue;
+    const ok = list.filter((v): v is NoteVersion => isObj(v) && typeof v.at === 'string' && typeof v.note === 'string').slice(0, 15);
+    if (ok.length) out[id] = ok.map((v) => ({ at: v.at, note: v.note }));
+  }
+  return Object.keys(out).length ? out : undefined;
 }
