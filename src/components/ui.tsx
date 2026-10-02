@@ -850,10 +850,16 @@ export function fitInView(el: HTMLElement, margin = 8) {
   st.maxHeight = '';
   st.maxWidth = '';
   st.overflowY = '';
-  st.left = '';
-  st.right = '';
-  st.top = '';
-  st.bottom = '';
+  // left/right/top/bottom сбрасываем, только если их поставили мы. У меню в точке нажатия (.menu.ctx, .sel-menu — position: fixed)
+  // эти значения задаёт сам экран; если их стереть, меню уедет в левый верхний угол (так было в 1.8.1).
+  if (el.dataset.fitPos) {
+    st.left = '';
+    st.right = '';
+    st.top = '';
+    st.bottom = '';
+    st.transformOrigin = '';
+    delete el.dataset.fitPos;
+  }
   el.classList.remove('scroll', 'flip-up');
   if (isPhoneSheet(el)) {
     // Шторка снизу: положение задаёт CSS, но если пунктов больше, чем влезает, показываем тени-подсказки «есть ещё».
@@ -876,11 +882,14 @@ export function fitInView(el: HTMLElement, margin = 8) {
   if (fix.side === 'left') {
     st.left = '0';
     st.right = 'auto';
+    el.dataset.fitPos = '1';
   } else if (fix.side === 'right') {
     st.right = '0';
     st.left = 'auto';
+    el.dataset.fitPos = '1';
   }
   if (fix.flipUp) {
+    el.dataset.fitPos = '1';
     st.top = 'auto';
     st.bottom = 'calc(100% + 6px)';
     st.transformOrigin = fix.side === 'left' ? 'bottom left' : 'bottom right';
