@@ -1,6 +1,6 @@
 // Синхронизация по Wi-Fi. На компьютере — QR-код и код из 8 цифр; на телефоне — сканер или ручной ввод.
 import { useEffect, useRef, useState } from 'react';
-import { getData, normalizeData, replaceData } from '../store';
+import { forSync, getData, normalizeData, replaceData } from '../store';
 import { mergeData, reportText, type MergeReport } from '../sync';
 import { Icon, Modal, Segmented } from './ui';
 
@@ -36,7 +36,7 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
   }
   if (!base) throw new Error('Компьютер не найден. Проверь, что телефон и компьютер в одной сети Wi-Fi и окно синхронизации на компьютере открыто. Если Windows спросила про брандмауэр — разреши доступ.');
   onStep?.('Отправляю и объединяю данные…');
-  const local = getData();
+  const local = forSync(getData());
   const res = await http({
     url: `${base}/mnema/sync`,
     method: 'POST',
@@ -63,7 +63,7 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
 export function acceptIncoming(remote: unknown) {
   const merged = mergeData(getData(), normalizeData(remote));
   replaceData(merged.data);
-  return Promise.resolve({ data: merged.data, report: merged.report });
+  return Promise.resolve({ data: forSync(merged.data), report: merged.report }); // корзина остаётся на этом устройстве
 }
 
 export function SyncDialog({ onClose }: { onClose: () => void }) {

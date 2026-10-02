@@ -1,6 +1,6 @@
 // Защита от кривых данных: файл, облако и Wi-Fi-обмен могут принести что угодно, а одна плохая запись не должна вешать приложение.
 // Чистые функции без интерфейса.
-import type { Exam, Topic } from './types';
+import type { Exam, Removed, Topic, TrashEntry } from './types';
 
 /** Контрольные дальше этого числа дней вперёд в планы не берём (годовой план бессмыслен, а считать его дорого). */
 export const MAX_PLAN_DAYS = 400;
@@ -73,4 +73,22 @@ export function cleanExam(raw: unknown): Exam | null {
 export function cleanTopics<T extends Pick<Topic, 'id' | 'parentId' | 'examDate'>>(topics: T[]): T[] {
   const fixed = topics.map((t) => (t.examDate !== undefined && !validExamDate(t.examDate) ? { ...t, examDate: undefined } : t));
   return breakTopicCycles(fixed);
+}
+
+const isObj = (x: unknown): x is Record<string, unknown> => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
+const withId = (arr: unknown): arr is { id: string }[] => Array.isArray(arr) && arr.every((x) => isObj(x) && typeof x.id === 'string');
+
+/** Корзина из файла: только записи правильной формы, не больше 30; всё остальное выбрасывается. */
+export function cleanTrash(raw: unknown): TrashEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: TrashEntry[] = [];
+  for (const e of raw) {
+    if (!isObj(e) || typeof e.id !== 'string' || typeof e.at !== 'string' || typeof e.label !== 'string' || !isObj(e.removed)) continue;
+    const r = e.removed;
+    if (!withId(r.subjects) || !withId(r.topics) || !withId(r.cards) || !Array.isArray(r.logs) || !Array.isArray(r.marks) || !isObj(r.states)) continue;
+    if (!r.marks.every((m) => typeof m === 'string')) continue;
+    out.push({ id: e.id, at: e.at, label: e.label.slice(0, 200), removed: r as unknown as Removed });
+    if (out.length >= 30) break;
+  }
+  return out;
 }

@@ -287,11 +287,30 @@ export interface Exam {
   updatedAt: string;
 }
 
+/** Что удалено одним действием — чтобы можно было нажать «Вернуть» (сразу после удаления или потом из корзины). */
+export interface Removed {
+  subjects: Subject[];
+  topics: Topic[];
+  cards: Card[];
+  states: Record<string, ItemState>;
+  logs: ReviewLogEntry[];
+  marks: string[];
+}
+
+/** Корзина: недавно удалённое. Живёт только на этом устройстве (в облако и по Wi-Fi не уходит). */
+export interface TrashEntry {
+  id: string;
+  at: string;
+  label: string;
+  removed: Removed;
+}
+
 export interface AppData {
   version: 1;
   folders: Folder[];
   homework: Homework[];
   exams?: Exam[];
+  trash?: TrashEntry[];
   subjects: Subject[];
   topics: Topic[];
   cards: Card[];
@@ -316,6 +335,7 @@ export type Route =
   | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean }
   | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
   | { name: 'stats'; tab?: 'numbers' | 'map' }
+  | { name: 'trash' }
   | { name: 'settings'; section?: SettingsSection }
   | { name: 'features' }
   | { name: 'help'; section?: 'start' | 'keys' | 'mods' };
