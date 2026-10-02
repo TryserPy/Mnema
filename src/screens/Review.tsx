@@ -148,7 +148,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         const due = new Date(next.due).getTime();
         if (due - Date.now() < 30 * MINUTE) w = [...w, { item: { ...current, isNew: false }, due }];
         // «Трудная» карточка: предложить переписать один раз.
-        if (rating === Rating.Again && settings.features.leeches && !card.leechSeen && cardLapses(getData(), card) >= settings.leechThreshold) {
+        if (rating === Rating.Again && !card.leechSeen && cardLapses(getData(), card) >= settings.leechThreshold) {
           setLeechCard(card.id);
         }
       }
@@ -180,7 +180,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
       }
       if (!current) return;
       if (!revealed) {
-        if ((matches(e, settings, 'reveal') && !inInput) || e.key === 'Enter') {
+        // Enter, которым в поиске (Ctrl+P) запустили повторение, уже обработан: он не должен ещё и открыть ответ.
+        if (!e.defaultPrevented && ((matches(e, settings, 'reveal') && !inInput) || e.key === 'Enter')) {
           e.preventDefault();
           setRevealed(true);
         } else if (!inInput && settings.features.voice && matches(e, settings, 'voiceAnswer')) {

@@ -7,14 +7,12 @@ import { UpdateDialog } from './components/UpdateFlow';
 import { ChangesDialog } from './components/ChangesDialog';
 import { parseChangeFile } from './changes';
 import type { UpdateInfo } from './update';
-import { PluginScreen } from './screens/PluginScreen';
-import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
 import { applyLook, FONTS, lookKey } from './themes';
 import { allMods, modsCss } from './mods';
 import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
-import { comboFromEvent, keyFor, matches, toAccelerator, typingTarget } from './keys';
+import { keyFor, matches, toAccelerator, typingTarget } from './keys';
 import { Icon, keepMenusInView, onToast, usePresence } from './components/ui';
 import { Help } from './screens/Help';
 import { Review } from './screens/Review';
@@ -120,25 +118,6 @@ export function App() {
     el.textContent = modsStyle;
   }, [modsStyle]);
 
-  // Новые достижения — поздравить (один раз за каждое).
-  useEffect(() => {
-    if (!s.features.awards || !data.logs.length || route.name === 'review' || route.name === 'test') return;
-    const t = setTimeout(async () => {
-      const { achievements } = await import('./progress');
-      const got = achievements(getData(), new Date()).filter((a) => a.got);
-      const fresh = got.filter((a) => !s.awardsSeen.includes(a.id));
-      if (!fresh.length) return;
-      // Первый раз после обновления — не засыпаем поздравлениями за старое
-      if (s.awardsSeen.length === 0 && fresh.length > 1) {
-        updateSettings({ awardsSeen: got.map((a) => a.id) });
-        return;
-      }
-      updateSettings({ awardsSeen: [...s.awardsSeen, ...fresh.map((a) => a.id)] });
-      showToast(`${fresh[0].icon} Достижение: ${fresh[0].title}!`, { label: 'Все', run: () => go({ name: 'stats', tab: 'awards' }) });
-    }, 800);
-    return () => clearTimeout(t);
-  }, [data.logs.length, route.name]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Напоминания о домашке (и на телефоне — ежедневное «пора повторить»): отдаём список системе.
   const plan = JSON.stringify(notificationPlan(data, new Date(), window.mnemaApi?.platform === 'android'));
   useEffect(() => {
@@ -237,14 +216,6 @@ export function App() {
       autostart: s.autostart
     });
   }, [s.features.tray, dueForTray, s.reminder, s.trayHotkey, s.closeToTray, s.autostart, s.keys]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Моды с кодом: запустить включённые, остановить выключенные.
-  const pluginKey = s.features.mods && !s.pluginsSafe ? s.plugins.map((p) => p.id + (p.enabled ? '+' : '-') + p.code.length).join('|') : 'off';
-  useEffect(() => {
-    setNavigator(go);
-    void syncPlugins();
-  }, [pluginKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => emit('route', route), [route]);
 
   // Синхронизация: другое устройство прислало данные — слить.
   useEffect(() => window.mnemaApi?.onSyncIncoming?.(acceptIncoming), []);
@@ -345,13 +316,6 @@ export function App() {
         return;
       }
       if (document.querySelector('.modal-back, .pal-back')) return;
-      const combo = comboFromEvent(e);
-      const pc = combo ? registry.commands.find((c) => c.hotkey && c.hotkey.replace(/\s+/g, '') === combo) : undefined;
-      if (pc) {
-        e.preventDefault();
-        pc.run();
-        return;
-      }
       const typing = typingTarget(e);
       const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
       if (typing && plain) return;
@@ -495,7 +459,6 @@ export function App() {
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
         {route.name === 'today' && <Today go={go} onNewSubject={() => setAddingSubject({})} />}
         {route.name === 'homework' && <HomeworkScreen go={go} />}
-        {route.name === 'plugin' && <PluginScreen key={route.id} id={route.id} />}
         {route.name === 'folder' && <FolderScreen id={route.id} go={go} onNewSubject={(o) => setAddingSubject(o)} />}
         {route.name === 'subject' && <SubjectScreen key={route.id} id={route.id} view={route.view} filter={route.filter} go={go} />}
         {route.name === 'topic' && <TopicScreen key={route.id} id={route.id} tab={route.tab} go={go} />}

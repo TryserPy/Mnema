@@ -4,7 +4,6 @@ import { bridgeKey } from './platform/bridgeKey';
 import type { Grade } from 'ts-fsrs';
 import { DEFAULT_HIGHLIGHT } from './important';
 import { DEFAULT_ACCENT, DEFAULT_LOOK, migrateLook } from './themes';
-import { emit } from './plugins/bus';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
 import type { AppData, Card, CardType, Poem, Confidence, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
@@ -120,9 +119,6 @@ export const DEFAULT_SETTINGS: Settings = {
   fontScale: 1,
   density: 'normal',
   look: DEFAULT_LOOK,
-  plugins: [],
-  pluginsSafe: true,
-  pluginData: {},
   homeworkRemind: { on: true, time: '18:00', when: 'dayBefore' },
   lessonsRemind: { on: true, time: '19:30' },
   update: { owner: '', repo: 'mnema', auto: true },
@@ -130,7 +126,6 @@ export const DEFAULT_SETTINGS: Settings = {
   modsOn: [],
   customMods: [],
   userCss: '',
-  awardsSeen: [],
   motion: 'all',
   motionOff: [],
   retention: 0.9,
@@ -140,9 +135,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showIntervals: true,
   simpleButtons: false,
   askConfidence: false,
-  tips: true,
-  dismissedTips: [],
-  features: { leeches: true, test: true, focus: false, schedule: false, obsidian: false, confidence: false, tips: true, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, weekly: true, awards: true, garden: true, mods: false, homework: true, why: true, poems: true },
+  features: { schedule: false, obsidian: false, confidence: false, ai: false, handwriting: false, map: false, tray: false, voice: false, lists: true, rules: true, homework: true, why: true, poems: true },
   schedule: {},
   focusMinutes: 25,
   breakMinutes: 5,
@@ -166,6 +159,17 @@ export function emptyData(): AppData {
   return { version: 1, folders: [], homework: [], subjects: [], topics: [], cards: [], states: {}, logs: [], tests: [], settings: { ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features }, schedule: {}, keys: {}, treeOpen: [], graph: { ...DEFAULT_SETTINGS.graph }, highlight: { ...DEFAULT_HIGHLIGHT, rules: { ...DEFAULT_HIGHLIGHT.rules }, custom: [] }, textbook: { ...DEFAULT_SETTINGS.textbook } } };
 }
 
+/** Возможности и поля, которых в 2.0 больше нет (код-плагины, достижения, сад, совет дня, переключатели ядра): из старых файлов не переносим, чтобы мёртвые данные не копились. */
+const REMOVED_SETTINGS = ['plugins', 'pluginsSafe', 'pluginData', 'awardsSeen', 'tips', 'dismissedTips'];
+const REMOVED_FEATURES = ['mods', 'awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly']; // последние пять стали частью ядра: всегда включены (кроме focus — теперь в поиске Ctrl+P)
+export function dropRemoved(d: AppData): AppData {
+  const st = d.settings as unknown as Record<string, unknown>;
+  for (const k of REMOVED_SETTINGS) delete st[k];
+  const f = d.settings.features as unknown as Record<string, unknown>;
+  for (const k of REMOVED_FEATURES) delete f[k];
+  return d;
+}
+
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
 export function normalizeData(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Мнемы');
@@ -174,7 +178,7 @@ export function normalizeData(raw: unknown): AppData {
     throw new Error('Файл не похож на данные Мнемы');
   }
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
-  return {
+  const out: AppData = {
     version: 1,
     folders: Array.isArray(r.folders) ? r.folders : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
@@ -190,8 +194,6 @@ export function normalizeData(raw: unknown): AppData {
       ...DEFAULT_SETTINGS,
       ...(r.settings ?? {}),
       features: { ...DEFAULT_SETTINGS.features, ...(r.settings?.features ?? {}) },
-      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins : [],
-      pluginData: r.settings?.pluginData && typeof r.settings.pluginData === 'object' ? r.settings.pluginData : {},
       homeworkRemind: { ...DEFAULT_SETTINGS.homeworkRemind, ...(r.settings?.homeworkRemind ?? {}) },
       lessonsRemind: { ...DEFAULT_SETTINGS.lessonsRemind, ...(r.settings?.lessonsRemind ?? {}) },
       update: { ...DEFAULT_SETTINGS.update, ...(r.settings?.update ?? {}) },
@@ -201,7 +203,6 @@ export function normalizeData(raw: unknown): AppData {
       cardTemplates: Array.isArray(r.settings?.cardTemplates) ? r.settings!.cardTemplates : [],
       modsOn: Array.isArray(r.settings?.modsOn) ? r.settings!.modsOn.map((m) => (m === 'neon' ? 'glow' : m)) : [],
       customMods: Array.isArray(r.settings?.customMods) ? r.settings!.customMods : [],
-      awardsSeen: Array.isArray(r.settings?.awardsSeen) ? r.settings!.awardsSeen : [],
       userCss: typeof r.settings?.userCss === 'string' ? r.settings.userCss : '',
       // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
       bgImage:
@@ -221,6 +222,7 @@ export function normalizeData(raw: unknown): AppData {
       textbook: { ...DEFAULT_SETTINGS.textbook, ...(r.settings?.textbook ?? {}) }
     }
   };
+  return dropRemoved(out);
 }
 
 /** Файл данных есть, но не прочитался: работаем, но не сохраняем поверх (иначе потеряли бы всё). */
@@ -294,7 +296,6 @@ function commit(next: AppData) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     persistNow(false);
-    emit('dataChanged');
   }, 400);
 }
 
@@ -811,7 +812,6 @@ export function recordReview(p: {
       }
     ]
   });
-  emit('review', { cardId: p.cardId, topicId: p.topicId, rating: p.rating, state: next });
   return next;
 }
 
@@ -882,11 +882,6 @@ export function importTopics(
   }
   commit(d);
   return { topics, cards, firstTopicId };
-}
-
-export function dismissTip(id: string) {
-  if (data.settings.dismissedTips.includes(id)) return;
-  updateSettings({ dismissedTips: [...data.settings.dismissedTips, id] });
 }
 
 export function replaceData(next: AppData) {

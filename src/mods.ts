@@ -59,8 +59,8 @@ export const CATALOG: Mod[] = [
     icon: '🍃',
     name: 'Спокойный',
     where: 'на «Сегодня»',
-    description: 'Без счётчиков, серий и советов — ничего не торопит.',
-    css: `.pill.streak, .tip, .rail-badge, .nav-item .badge, .hero-sub, .hero-time { display: none !important; }`
+    description: 'Без счётчиков и значков с числами — ничего не торопит.',
+    css: `.rail-badge, .nav-item .badge, .hero-sub, .hero-time { display: none !important; }`
   },
   {
     id: 'wide-note',

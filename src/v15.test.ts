@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { groupOf, nextLesson, notificationPlan, ymd } from './homework';
-import { parseHeader } from './plugins/host';
 import { emptyData } from './store';
 import { mergeData } from './sync';
 import type { AppData, Folder, Homework } from './types';
@@ -100,13 +99,6 @@ describe('Видео по ссылке', () => {
     expect(parseVideo('https://example.com/lesson.mp4')?.kind).toBe('file');
     expect(parseVideo('https://example.com/page')).toBeNull();
     expect(parseVideo('javascript:alert(1)')).toBeNull();
-  });
-});
-
-describe('Моды', () => {
-  it('читает шапку мода', () => {
-    const h = parseHeader('// @id my-mod\n// @name Мой мод\n// @version 1.2\n// @description Делает хорошо\nexport default { onload(app) {} }');
-    expect(h).toMatchObject({ id: 'my-mod', name: 'Мой мод', version: '1.2', description: 'Делает хорошо' });
   });
 });
 

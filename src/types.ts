@@ -163,7 +163,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type Density = 'compact' | 'normal' | 'comfy';
 
 /** Возможности, которые включаются на экране «Возможности». */
-export type FeatureId = 'leeches' | 'test' | 'focus' | 'schedule' | 'obsidian' | 'confidence' | 'tips' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'weekly' | 'awards' | 'garden' | 'mods' | 'homework' | 'why' | 'poems';
+export type FeatureId = 'schedule' | 'obsidian' | 'confidence' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'homework' | 'why' | 'poems';
 
 export type MotionLevel = 'all' | 'essential' | 'off' | 'custom';
 export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover';
@@ -191,19 +191,6 @@ export interface Mod {
   font?: string; // шрифт, который нужно подгрузить (id из FONTS)
 }
 
-/** Мод с кодом: сохранённый текст программы и описание. */
-export interface PluginRec {
-  id: string;
-  name: string;
-  version: string;
-  author?: string;
-  description: string;
-  code: string;
-  enabled: boolean;
-  fromCatalog?: boolean;
-  icon?: string;
-}
-
 export interface Look {
   style?: 'modern' | 'classic'; // стиль интерфейса
   light: string; // id светлой темы
@@ -227,10 +214,6 @@ export interface Settings {
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов
   userCss: string; // свой CSS
-  plugins: PluginRec[]; // моды с кодом (как плагины Obsidian)
-  pluginsSafe: boolean; // безопасный режим: моды с кодом не запускаются
-  pluginData: Record<string, Record<string, unknown>>; // что моды сохранили
-  awardsSeen: string[]; // о каких достижениях уже сказали
   motion: MotionLevel; // анимации: все, только важные, выключены, выборочно
   motionOff: MotionKind[]; // для «выборочно»: какие выключены
   theme: ThemeMode;
@@ -244,8 +227,6 @@ export interface Settings {
   showIntervals: boolean;
   simpleButtons: boolean; // две кнопки: «Не помню» / «Помню»
   askConfidence: boolean; // устарело, заменено features.confidence
-  tips: boolean; // устарело, заменено features.tips
-  dismissedTips: string[];
   features: Record<FeatureId, boolean>;
   schedule: Record<string, string[]>; // '1'…'6' (пн…сб) → id предметов
   focusMinutes: number;
@@ -289,18 +270,17 @@ export interface AppData {
   deviceId?: string;
 }
 
-export type SettingsSection = 'look' | 'text' | 'motion' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'styles' | 'mods' | 'about';
+export type SettingsSection = 'look' | 'text' | 'motion' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'about';
 
 export type Route =
   | { name: 'today' }
   | { name: 'subject'; id: string; view?: 'topics' | 'rules' | 'terms' | 'timeline'; filter?: string }
   | { name: 'folder'; id: string }
   | { name: 'homework' }
-  | { name: 'plugin'; id: string }
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
   | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; focus?: boolean; run?: number; limit?: number; mini?: boolean }
   | { name: 'test'; topicId: string; pretest?: boolean }
-  | { name: 'stats'; tab?: 'numbers' | 'map' | 'garden' | 'awards' }
+  | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'settings'; section?: SettingsSection }
   | { name: 'features' }
-  | { name: 'help'; section?: 'start' | 'formulas' | 'keys' | 'mods' };
+  | { name: 'help'; section?: 'start' | 'keys' };

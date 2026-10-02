@@ -1,28 +1,24 @@
-import { useState } from 'react';
-import { renderTex } from '../components/Markdown';
 import { Segmented, selHow, touchUI } from '../components/ui';
-import { FORMULA_GROUPS } from '../formulaExamples';
 import { KeySettings } from '../components/KeySettings';
 import type { Route } from '../types';
 
-type Section = 'start' | 'formulas' | 'keys' | 'mods';
+type Section = 'start' | 'keys';
 
 export function Help({ section = 'start', go }: { section?: Section; go: (r: Route) => void }) {
-  const [copied, setCopied] = useState('');
   return (
     <div className="page narrow">
       <h1 className="display">Справка</h1>
-      <Segmented
-        ariaLabel="Раздел справки"
-        value={section}
-        onChange={(v) => go({ name: 'help', section: v })}
-        options={[
-          { value: 'start', label: 'Как учиться' },
-          { value: 'formulas', label: 'Формулы' },
-          ...(touchUI() ? [] : [{ value: 'keys' as const, label: 'Клавиши' }]),
-          { value: 'mods', label: 'Моды' }
-        ]}
-      />
+      {!touchUI() && (
+        <Segmented
+          ariaLabel="Раздел справки"
+          value={section}
+          onChange={(v) => go({ name: 'help', section: v })}
+          options={[
+            { value: 'start', label: 'Как учиться' },
+            { value: 'keys', label: 'Клавиши' }
+          ]}
+        />
+      )}
 
       {section === 'start' && (
         <div className="card stack gap12 help">
@@ -58,7 +54,7 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
             <li>«На весь экран» (в конспекте{touchUI() ? '' : ', Ctrl+Shift+F'}) — конспект занимает всё окно{touchUI() ? ', «Свернуть» — обратно' : ', Esc — обратно'}.</li>
             <li>Шаблоны карточек: в окне новой карточки выбери заготовку («Что такое…?», «Дата ↔ событие», «Формула»…) или сохрани свою.</li>
             <li>«Настройки → Оформление»: готовые темы, свои цвета, шрифт, углы и фон (например, тетрадь в клетку). «Анимации» — все, только важные, выключить или выбрать, какие.</li>
-            <li>«Статистика»: итоги недели, достижения за серию дней и сад знаний, где каждая тема — растение.</li>
+            <li>«Статистика»: итоги недели, цифры за неделю, месяц или всё время, слабые темы, прогноз нагрузки и сколько дней подряд ты занимаешься.</li>
             <li>Экспорт в Anki и печать карточек — в «Настройках → Данные» и в меню предмета.</li>
             <li>Предмет можно переименовать, перекрасить или удалить: «⋯» рядом с предметом в левой панели или правый щелчок. Удалённое можно вернуть кнопкой «Вернуть».</li>
             <li>«Возможности» (слева внизу) — включить то, что нужно, и выключить лишнее.</li>
@@ -76,51 +72,6 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
               <strong>Ответ голосом</strong> (в «Возможностях»): при повторении нажми микрофон и скажи ответ. На телефоне распознаёт сам телефон, на компьютере — ИИ-помощник.
             </li>
           </ul>
-        </div>
-      )}
-
-      {section === 'formulas' && (
-        <div className="stack gap12">
-          <div className="card stack gap8 help">
-            <h3>Как вставить формулу</h3>
-            <ul className="tight">
-              <li>
-                <strong>Проще всего:</strong> в конспекте «Вставить → Формула», в карточке «+ Формула». Там кнопки для дробей, степеней, корней и экранная клавиатура.
-              </li>
-              <li>
-                <strong>Прямо в тексте:</strong> напиши формулу между знаками доллара: <code>$E = mc^2$</code>. Как только поставишь второй знак $, она станет красивой.
-              </li>
-              <li>
-                <strong>Отдельной строкой</strong> (крупно, по центру): <code>$$ … $$</code> на отдельной строке.
-              </li>
-              <li>Нажми на формулу в конспекте, чтобы её изменить.</li>
-            </ul>
-            <p className="small muted">Внутри — язык LaTeX, как в учебниках и научных статьях. Ниже — готовые примеры: копируй и меняй.</p>
-          </div>
-          {FORMULA_GROUPS.map((g) => (
-            <div key={g.title} className="card stack gap8">
-              <h3>{g.title}</h3>
-              <div className="formula-table">
-                {g.items.map((it) => (
-                  <div key={it.name} className="formula-row">
-                    <span className="small muted f-name">{it.name}</span>
-                    <span className="f-render" dangerouslySetInnerHTML={{ __html: renderTex(it.tex, false) }} />
-                    <code className="f-code">${it.tex}$</code>
-                    <button
-                      className="btn small ghost"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(`$${it.tex}$`);
-                        setCopied(it.name);
-                        setTimeout(() => setCopied(''), 1200);
-                      }}
-                    >
-                      {copied === it.name ? 'Скопировано' : 'Копировать'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
@@ -155,66 +106,6 @@ export function Help({ section = 'start', go }: { section?: Section; go: (r: Rou
           </table>
         </div>
       )}
-      {section === 'mods' && <ModsHelp />}
-    </div>
-  );
-}
-
-const API_ROWS: [string, string][] = [
-  ['app.commands.add({ id, name, hotkey?, run })', 'Команда в поиске (Ctrl+P). hotkey — например «Ctrl+Shift+O».'],
-  ['app.ui.addView({ id, title, icon, render(el) })', 'Свой экран с кнопкой в левой панели. render рисует в el и может вернуть функцию очистки.'],
-  ['app.ui.openView(id)', 'Открыть свой экран.'],
-  ['app.ui.addSidebarButton({ id, icon, title, onClick })', 'Кнопка в левой панели.'],
-  ['app.ui.addTopicAction({ id, title, run(topic) })', 'Пункт в меню «⋯» темы. topic: id, name, note, subjectId.'],
-  ['app.ui.addSettingsTab(render(el))', 'Настройки мода — открываются в «Настройках → Моды».'],
-  ['app.ui.addStyle(css)', 'Свои стили (убираются, когда мод выключен).'],
-  ['app.ui.toast(text) · app.ui.modal(title, render(el, close))', 'Сообщение внизу и своё окно.'],
-  ['app.ui.renderMarkdown(el, md) · app.ui.go(route)', 'Нарисовать Markdown с формулами; перейти на экран.'],
-  ['app.markdown.addPostProcessor((el, { source }) => …)', 'Обработать конспект или карточку после отрисовки (при повторении, в правилах).'],
-  ["app.events.on('review' | 'dataChanged' | 'route', fn)", 'review: { cardId, topicId, rating 1–4 }. Отписка — сама, при выключении мода.'],
-  ['app.data.get() · subjects() · topics() · cards()', 'Копия данных — читать можно всё.'],
-  ['app.data.addTopic · updateTopic · addCard · updateCard · addHomework', 'Изменить данные (синхронизируются и попадают в копии).'],
-  ['app.storage.get(key) · app.storage.set(key, value)', 'Хранилище мода (переживает перезапуск и синхронизируется).'],
-  ['app.ai.ask(text) · app.http(url, init)', 'Спросить ИИ-помощника; запрос в интернет в обход ограничений окна.']
-];
-
-function ModsHelp() {
-  return (
-    <div className="stack gap12">
-      <div className="card stack gap8 help">
-        <h3>Моды</h3>
-        <p>
-          Мод — это JavaScript-файл. Он получает объект <code>app</code> и может добавлять экраны, команды, кнопки, пункты меню, реагировать на ответы и работать с данными. Включаются в «Возможностях», управляются в «Настройках → Моды». Пока включён безопасный режим, моды не запускаются.
-        </p>
-        <p className="small muted">Только внешний вид меняют «Стили» (CSS) — они в «Настройках → Стили» и работают без модов.</p>
-        <pre className="code-sample">{`// @id hello
-// @name Привет
-// @version 1.0
-// @description Первый мод
-
-export default {
-  onload(app) {
-    app.commands.add({
-      id: 'hi',
-      name: 'Сказать привет',
-      run: () => app.ui.toast('Привет! Тем: ' + app.data.topics().length)
-    });
-  },
-  onunload() {}
-};`}</pre>
-      </div>
-      <div className="card stack gap8 help">
-        <h3>Что умеет app</h3>
-        <div className="api-table">
-          {API_ROWS.map(([a, b]) => (
-            <div key={a} className="api-row">
-              <code>{a}</code>
-              <span className="small">{b}</span>
-            </div>
-          ))}
-        </div>
-        <p className="small muted">Мод работает внутри приложения и видит все твои данные. Ставь моды только от тех, кому доверяешь. Если что-то сломалось — включи безопасный режим, и все моды остановятся.</p>
-      </div>
     </div>
   );
 }

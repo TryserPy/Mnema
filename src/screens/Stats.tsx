@@ -1,14 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Garden } from '../components/Garden';
 import { KnowledgeMap } from '../components/lazy';
 import { AnimatedNumber, Icon, plural, Segmented } from '../components/ui';
-import { achievements, bestStreak, MIN_SAMPLE, periodStats, topicAccuracy, WEAK_BELOW, weakTopics, weekSummary } from '../progress';
+import { bestStreak, MIN_SAMPLE, periodStats, topicAccuracy, WEAK_BELOW, weakTopics, weekSummary } from '../progress';
 import { dayKey, dayStart, DAY, forecast, streak } from '../srs';
 import { useData } from '../store';
 import type { AppData, Route } from '../types';
 import '../stats-groups.css';
 
-type StatsTab = 'numbers' | 'map' | 'garden' | 'awards' | undefined;
+type StatsTab = 'numbers' | 'map' | undefined;
 
 const fmtDay = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 
@@ -101,54 +100,6 @@ export function WeekCard({ data, go, compact = false }: { data: AppData; go: (r:
   );
 }
 
-function Awards({ data }: { data: AppData }) {
-  const now = new Date();
-  const list = achievements(data, now);
-  const got = list.filter((a) => a.got).length;
-  const cur = streak(data, now);
-  const best = Math.max(bestStreak(data), cur);
-  return (
-    <div className="stack gap16">
-      <div className="streak-hero">
-        <div className="stack gap4">
-          <span className="muted small">Серия сейчас</span>
-          <span className="kpi-num">
-            🔥 <AnimatedNumber value={cur} /> {plural(cur, 'день', 'дня', 'дней')}
-          </span>
-        </div>
-        <div className="stack gap4">
-          <span className="muted small">Лучшая серия</span>
-          <span className="kpi-num">{best}</span>
-        </div>
-        <div className="stack gap4">
-          <span className="muted small">Получено</span>
-          <span className="kpi-num">
-            {got} <small>из {list.length}</small>
-          </span>
-        </div>
-      </div>
-      <div className="awards">
-        {list.map((a, i) => (
-          <div key={a.id} className={'award' + (a.got ? ' got' : '')} style={{ animationDelay: Math.min(i, 12) * 35 + 'ms' }}>
-            <span className="award-ico">{a.icon}</span>
-            <div className="stack gap4 grow">
-              <strong>{a.title}</strong>
-              <span className="small muted">{a.text}</span>
-              {!a.got && a.progress && (
-                <span className="progress full" title={`${a.progress[0]} из ${a.progress[1]}`}>
-                  <span style={{ width: (a.progress[0] / a.progress[1]) * 100 + '%' }} />
-                </span>
-              )}
-            </div>
-            {a.got && <span className="award-ok">✓</span>}
-          </div>
-        ))}
-      </div>
-      <p className="small muted">Серия считается по дням, когда ты ответил хотя бы на одну карточку. День начинается в {data.settings.dayStartHour}:00.</p>
-    </div>
-  );
-}
-
 /** Вкладка «Цифры»: сверху то, что зависит от переключателя периода, ниже — то, что от него не зависит. */
 function Numbers({ data, go, tabs, period, onPeriod }: { data: AppData; go: (r: Route) => void; tabs: ReactNode; period: 7 | 30 | 3650; onPeriod: (p: 7 | 30 | 3650) => void }) {
   const f = data.settings.features;
@@ -165,6 +116,8 @@ function Numbers({ data, go, tabs, period, onPeriod }: { data: AppData; go: (r: 
 
   // Всегда.
   const learned = Object.values(data.states).filter((s) => s.state === 2).length;
+  const streakNow = streak(data, now);
+  const streakBest = Math.max(bestStreak(data), streakNow);
   const cells = useMemo(() => {
     const perDay = new Map<string, number>();
     for (const l of data.logs) {
@@ -269,15 +222,26 @@ function Numbers({ data, go, tabs, period, onPeriod }: { data: AppData; go: (r: 
           <span className="small muted">не зависит от периода</span>
         </div>
 
-        <div className="kpi sg-learned">
-          <span className="muted small">Выучено</span>
-          <span className="kpi-num">
-            <AnimatedNumber value={learned} />
-          </span>
-          <span className="small muted">элементов в долгом повторении</span>
+        <div className="sg-kpis n2">
+          <div className="kpi">
+            <span className="muted small">Выучено</span>
+            <span className="kpi-num">
+              <AnimatedNumber value={learned} />
+            </span>
+            <span className="small muted">элементов в долгом повторении</span>
+          </div>
+          <div className="kpi">
+            <span className="muted small">Дней подряд</span>
+            <span className="kpi-num">
+              <AnimatedNumber value={streakNow} />
+            </span>
+            <span className="small muted" title="День считается, если ты ответил хотя бы на одну карточку">
+              лучшая серия — {streakBest}
+            </span>
+          </div>
         </div>
 
-        {f.weekly && <WeekCard data={data} go={go} />}
+        <WeekCard data={data} go={go} />
 
         <div className="stats-grid">
           <div className="card stack gap12">
@@ -329,8 +293,6 @@ export function Stats({ go, tab }: { go: (r: Route) => void; tab?: StatsTab }) {
   const f = data.settings.features;
   const tabOptions: { value: NonNullable<StatsTab>; label: string }[] = [
     { value: 'numbers', label: 'Цифры' },
-    ...(f.awards ? [{ value: 'awards' as const, label: 'Достижения' }] : []),
-    ...(f.garden ? [{ value: 'garden' as const, label: 'Сад знаний' }] : []),
     ...(f.map ? [{ value: 'map' as const, label: 'Карта знаний' }] : [])
   ];
   const current: StatsTab = tab && tabOptions.some((o) => o.value === tab) ? tab : 'numbers';
@@ -349,24 +311,5 @@ export function Stats({ go, tab }: { go: (r: Route) => void; tab?: StatsTab }) {
       </div>
     );
   }
-  if (current === 'garden') {
-    return (
-      <div className="page wide">
-        <h1 className="display">Сад знаний</h1>
-        {tabs}
-        <Garden data={data} go={go} />
-      </div>
-    );
-  }
-  if (current === 'awards') {
-    return (
-      <div className="page">
-        <h1 className="display">Достижения</h1>
-        {tabs}
-        <Awards data={data} />
-      </div>
-    );
-  }
-
   return <Numbers data={data} go={go} tabs={tabs} period={period} onPeriod={setPeriod} />;
 }

@@ -18,7 +18,6 @@
 .sg-empty { margin: 0; }
 
 /* «Выучено» — одной строкой: число и пояснение рядом. */
-.kpi.sg-learned { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
 
 /* Подпись «Неделя» у переключателя «Прошлая / Эта» в карточке итогов. */
 .sg-weekpick { display: flex; align-items: center; gap: 10px; }

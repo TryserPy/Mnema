@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { allMods, CATALOG, isMod, MOD_EXT, sanitizeCss } from '../mods';
 import { downloadFile } from '../share';
-import { updateSettings, useData } from '../store';
+import { getData, updateSettings, useData } from '../store';
 import { FONTS } from '../themes';
 import type { Mod } from '../types';
 import { Collapse, Icon, Switch, toast } from './ui';
@@ -49,7 +49,8 @@ function StylePreview() {
   );
 }
 
-export function StylesSettings() {
+/** Наборы стилей. `embedded` — внутри экрана «Оформление» (свой заголовок вместо шапки раздела). */
+export function StylesSettings({ embedded = false }: { embedded?: boolean } = {}) {
   const data = useData();
   const s = data.settings;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -58,6 +59,8 @@ export function StylesSettings() {
   const [err, setErr] = useState('');
 
   function toggle(m: Mod, on: boolean) {
+    // Свежие настройки, а не снимок при отрисовке: «Выключить все» вызывает toggle подряд, и каждый вызов должен видеть работу предыдущего.
+    const s = getData().settings;
     const modsOn = on ? [...s.modsOn, m.id] : s.modsOn.filter((x) => x !== m.id);
     if (m.font && on) void FONTS.find((f) => f.id === m.font)?.load?.();
     // Стиль из файла может менять оформление — запоминаем, как было, чтобы вернуть при выключении.
@@ -104,15 +107,27 @@ export function StylesSettings() {
 
   const list = allMods(s.customMods);
   const onCount = list.filter((m) => s.modsOn.includes(m.id)).length;
+  const offAll =
+    onCount > 0 ? (
+      <button className="btn small ghost" onClick={() => list.filter((m) => s.modsOn.includes(m.id)).forEach((m) => toggle(m, false))}>
+        Выключить все
+      </button>
+    ) : null;
   return (
     <div className="stack gap16">
-      <PaneHead title="Стили" text="Готовые наборы внешнего вида. Можно включать несколько сразу, а выключишь — всё станет как было.">
-        {onCount > 0 && (
-          <button className="btn small ghost" onClick={() => list.filter((m) => s.modsOn.includes(m.id)).forEach((m) => toggle(m, false))}>
-            Выключить все
-          </button>
-        )}
-      </PaneHead>
+      {embedded ? (
+        <div className="row between gap8 wrap" data-set="styles">
+          <div className="stack gap4 grow">
+            <h3 className="sgroup-title">Ещё стили</h3>
+            <p className="small muted">Готовые наборы внешнего вида: тетрадь, крупные кнопки, стикеры… Можно включать несколько сразу, а выключишь — всё станет как было.</p>
+          </div>
+          {offAll}
+        </div>
+      ) : (
+        <PaneHead title="Стили" text="Готовые наборы внешнего вида. Можно включать несколько сразу, а выключишь — всё станет как было.">
+          {offAll}
+        </PaneHead>
+      )}
       <div className="styles-layout">
         <div className="style-list">
           {list.map((m, i) => {
