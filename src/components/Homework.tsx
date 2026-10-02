@@ -321,7 +321,7 @@ function QuickAdd({ presetSubject }: { presetSubject?: string }) {
       const got = await pastedPhotos(e, 4);
       if (got.length) {
         setPhotos((p) => [...p, ...got].slice(0, 4));
-        toast('Фото добавлено — допиши, что задали, и нажми Enter');
+        toast(touchUI() ? 'Фото добавлено — допиши, что задали, и отправь' : 'Фото добавлено — допиши, что задали, и нажми Enter');
         inputRef.current?.focus();
       }
     };
@@ -362,7 +362,7 @@ function QuickAdd({ presetSubject }: { presetSubject?: string }) {
         const got = await pastedPhotos(e, 4 - photos.length);
         if (got.length) {
           setPhotos((p) => [...p, ...got].slice(0, 4));
-          toast('Фото добавлено — допиши, что задали, и нажми Enter');
+          toast(touchUI() ? 'Фото добавлено — допиши, что задали, и отправь' : 'Фото добавлено — допиши, что задали, и нажми Enter');
           inputRef.current?.focus();
         }
       }}

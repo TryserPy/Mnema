@@ -7,7 +7,7 @@ import { Timeline, timelineEvents } from '../components/Timeline';
 import { ObsidianImport } from '../components/ObsidianImport';
 import { DeleteSubject, EditSubject } from '../components/SubjectDialogs';
 import { Icon, MoreMenu, plural, Segmented, SubjectMark } from '../components/ui';
-import { todayCounts, topicMastery } from '../srs';
+import { cardsByTopic, todayCounts, topicStatsByTopic } from '../srs';
 import { addTopic, childTopics, subjectRules, updateSubject, useData } from '../store';
 import type { Route, Topic } from '../types';
 
@@ -28,6 +28,13 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
   }, [initialView]);
   const events = useMemo(() => (subject ? timelineEvents(data, id).length : 0), [data, id, subject]);
   const termCount = useMemo(() => termGroups(data, id).reduce((n, g) => n + g.cards.length, 0), [data, id]);
+  // Счётчики и освоение всех тем предмета — за один проход по карточкам (раньше считались на каждую тему отдельно:
+  // на 500 темах это ≈0,6 с, на 2000 — до 9 с). Пересчёт — при изменении данных и раз в минуту.
+  const minute = Math.floor(Date.now() / 60000);
+  const stats = useMemo(
+    () => (subject ? topicStatsByTopic(data, new Date(), data.topics.filter((t) => t.subjectId === id && !t.kind).map((t) => t.id)) : null),
+    [data, id, subject, minute]
+  );
   if (!subject) return <div className="page">Предмет не найден.</div>;
   const folder = subject.folderId ? data.folders.find((f) => f.id === subject.folderId) : undefined;
   const topics = data.topics.filter((t) => t.subjectId === id && !t.kind);
@@ -43,6 +50,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
   };
   if (subject) walk(undefined, 0);
   const now = new Date();
+  const byTopic = cardsByTopic(data);
   const counts = todayCounts(data, now, { subjectId: id });
   const due = counts.learning + counts.review + counts.newCount;
 
@@ -140,9 +148,9 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           </div>
         )}
         {flat.map(({ t, depth }, i) => {
-          const m = topicMastery(data, t.id);
-          const c = todayCounts(data, now, { topicId: t.id });
-          const cardCount = data.cards.filter((x) => x.topicId === t.id).length;
+          const m = stats!.get(t.id)!.mastery;
+          const c = stats!.get(t.id)!.counts;
+          const cardCount = byTopic.get(t.id)?.length ?? 0;
           const pct = m.total ? Math.round((m.learned / m.total) * 100) : 0;
           const dueT = c.review + c.learning;
           return (

@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мнема 2.0 — концепт</title>
+<style>
+/* ===== Токены: те же, что у настоящей Мнемы (темы «Бумага» и «Графит»). Всё приложение строится только на них —
+   поэтому любая тема, акцент и плотность работают на каждом экране одинаково. ===== */
+.app { --accent:#3F51D8; --accent-ink:#fff; --bg:#F6F3EC; --side:#EFEBE2; --surface:#fff; --surface-2:#FBFAF6; --sunken:#EAE5DA; --ink:#1E2230; --ink-2:#3A3F4E; --muted:#5B6070; --line:#E6E1D6; --line-2:#D8D2C4;
+  --good-bg:#E3F3EA; --good-ink:#1F6B43; --bad-bg:#FBE9E7; --bad-ink:#A3302A; --warn-bg:#FFF7E6; --warn-ink:#6E4A10; --mark:#FCEFB4; --shadow:0 6px 24px rgba(30,34,48,.08); --pop:0 12px 32px rgba(30,34,48,.18);
+  --radius:16px; --pad:18px; --display:'Literata',Georgia,serif; --body:'Onest','Segoe UI',system-ui,sans-serif; }
+.app.dark { --bg:#15171E; --side:#1B1E27; --surface:#20232D; --surface-2:#1D2029; --sunken:#2A2E3A; --ink:#F1EFE9; --ink-2:#D4D2CC; --muted:#A7ABB8; --line:#2E3240; --line-2:#3A3F4E;
+  --good-bg:#1F3529; --good-ink:#8FD6AE; --bad-bg:#3A2224; --bad-ink:#F2A09A; --warn-bg:#2E2718; --warn-ink:#F0D9A8; --mark:#5A4B12; --shadow:0 6px 24px rgba(0,0,0,.3); --pop:0 12px 32px rgba(0,0,0,.5); --accent-ink:#10131c; }
+.app.roomy { --pad:24px; } .app.tight { --pad:12px; }
+
+*{box-sizing:border-box} html,body{margin:0}
+body{font-family:'Onest','Segoe UI',system-ui,sans-serif;background:#d9dbe3;color:#1E2230;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+
+/* ===== Панель управления прототипом (не часть приложения) ===== */
+.ctl{position:sticky;top:0;z-index:50;background:#1E2230;color:#fff;padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:.86rem}
+.ctl b{opacity:.7;font-weight:500;margin-right:4px}
+.ctl .grp{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.ctl button{background:#2f3447;border:1px solid #444b63;border-radius:8px;padding:5px 10px;color:#fff}
+.ctl button.on{background:#fff;color:#1E2230;border-color:#fff}
+.ctl .dot{width:22px;height:22px;border-radius:50%;padding:0;border:2px solid #444b63}
+.ctl .dot.on{border-color:#fff}
+@media (max-width:760px){.ctl{position:static}}
+.note{max-width:1180px;margin:10px auto 0;padding:0 14px;font-size:.85rem;color:#3a3f4e}
+.stage{padding:14px;display:flex;justify-content:center}
+.fit{transform-origin:top center}
+
+/* ===== Устройства ===== */
+.app{display:flex;color:var(--ink);background:var(--bg);font-family:var(--body);font-size:16px;line-height:1.45;overflow:hidden;position:relative;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.desktop .app{width:1180px;height:740px}
+.phone .app{width:390px;height:780px;flex-direction:column;border-radius:36px;border:8px solid #11131a}
+.side{width:262px;background:var(--side);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:1.3rem;padding:0 6px 6px}
+.logo{width:32px;height:32px;border-radius:10px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:1.05rem}
+.create{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface);font-weight:600}
+.create small{margin-left:auto;color:var(--muted);font-weight:400}
+.grp-h{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 8px 2px}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;border:0;background:none;width:100%;text-align:left}
+.nav:hover{background:var(--sunken)} .nav.on{background:var(--surface);box-shadow:0 0 0 1px var(--line)}
+.nav .n{margin-left:auto;font-size:.8rem;color:var(--muted)}
+.nav.sub{padding-left:30px;font-size:.93rem;color:var(--ink-2)}
+.dotc{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.main{flex:1;overflow:auto;padding:var(--pad) calc(var(--pad)*1.4);position:relative}
+.phone .main{padding:12px 14px 18px}
+.phone .tabs button{padding:9px 8px;font-size:.92rem}
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg);flex-shrink:0}
+.topbar .brand{padding:0;font-size:1.15rem}
+.topbar .sp{flex:1}
+.bottom{display:flex;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px 14px;flex-shrink:0}
+.bottom button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:.74rem;color:var(--muted)}
+.bottom button.on{color:var(--accent);font-weight:600}
+.bottom .plus{color:var(--accent-ink);}
+.bottom .plus i{width:44px;height:44px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-style:normal;font-size:1.6rem;margin-top:-14px;box-shadow:var(--shadow)}
+.ico{font-style:normal;font-size:1.2rem;line-height:1}
+
+/* ===== Общие элементы (одна система на всех экранах) ===== */
+h1{font-family:var(--display);font-weight:600;font-size:1.7rem;margin:0 0 4px;line-height:1.2}
+h2{font-family:var(--display);font-weight:600;font-size:1.12rem;margin:22px 0 8px}
+.muted{color:var(--muted)} .small{font-size:.86rem}
+.card{background:var(--surface);border-radius:var(--radius);box-shadow:0 0 0 1px var(--line);padding:var(--pad)}
+.btn{border:1px solid var(--line-2);background:var(--surface);border-radius:12px;padding:9px 14px;font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.big{font-size:1.25rem;padding:16px 28px;border-radius:16px;width:100%}
+.btn.ghost{border-color:transparent;background:none;color:var(--accent);padding:6px 8px}
+.btn.small{padding:5px 10px;font-size:.88rem;border-radius:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:.88rem}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap} .between{justify-content:space-between}
+.bar{height:8px;border-radius:99px;background:var(--sunken);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:99px}
+.bar .cov{background:color-mix(in srgb,var(--accent) 28%,transparent)} .bar .mas{background:var(--accent)}
+.pill{white-space:nowrap;font-size:.78rem;padding:2px 8px;border-radius:99px;background:var(--sunken);color:var(--ink-2)}
+.pill.bad{background:var(--bad-bg);color:var(--bad-ink)} .pill.good{background:var(--good-bg);color:var(--good-ink)} .pill.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.seg{display:inline-flex;background:var(--sunken);border-radius:12px;padding:3px;gap:2px}
+.seg button{border:0;background:none;border-radius:9px;padding:6px 12px;color:var(--muted);font-size:.9rem;white-space:nowrap}
+.seg button.on{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+.step{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.step:first-child{border-top:0}
+.num{width:26px;height:26px;border-radius:50%;background:var(--sunken);display:grid;place-items:center;font-size:.82rem;font-weight:700;flex-shrink:0}
+.step.skip{opacity:.45;text-decoration:line-through}
+.menu{position:absolute;z-index:30;background:var(--surface);border-radius:14px;box-shadow:var(--pop),0 0 0 1px var(--line);padding:6px;min-width:260px}
+.menu button,.sheet button{display:flex;gap:10px;align-items:center;width:100%;border:0;background:none;color:var(--ink);padding:11px 10px;border-radius:10px;text-align:left}
+.menu button:hover,.sheet button:hover{background:var(--sunken)} .menu hr,.sheet hr{border:0;border-top:1px solid var(--line);margin:6px 4px}
+.menu .hd{font-size:.78rem;color:var(--muted);padding:6px 10px 4px}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:var(--pop);padding:10px 10px 22px}
+.scrim{position:absolute;inset:0;background:rgba(10,12,20,.45);z-index:35}
+.kbd{margin-left:auto;font-size:.78rem;color:var(--muted)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:14px 0}
+.tabs button{white-space:nowrap;border:0;background:none;padding:9px 12px;color:var(--muted);border-bottom:2px solid transparent}
+.tabs button.on{color:var(--ink);font-weight:600;border-color:var(--accent)}
+.note-doc{font-size:1.02rem}
+.note-doc p{margin:.5em 0}
+.box{background:var(--warn-bg);color:var(--warn-ink);border-radius:12px;padding:10px 14px;margin:10px 0;border-left:4px solid #E3B341}
+mark{background:var(--mark);color:inherit;border-radius:4px;padding:0 2px}
+.sel{background:color-mix(in srgb,var(--accent) 22%,transparent);border-radius:4px}
+.selpanel{background:var(--surface);border-radius:14px;box-shadow:var(--pop),0 0 0 1px var(--line);padding:8px;width:max-content;max-width:100%;margin:6px 0}
+.selpanel .fmt{display:flex;gap:2px}
+.selpanel .fmt button{border:0;background:none;border-radius:8px;padding:4px 8px;display:flex;flex-direction:column;align-items:center;font-size:.68rem;color:var(--muted);min-width:46px}
+.selpanel .fmt button b{font-size:1rem;color:var(--ink)}
+.selpanel .act{display:flex;flex-direction:column;gap:2px;margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
+.selpanel .act button{border:0;background:none;text-align:left;padding:7px 10px;border-radius:9px;display:flex;gap:8px;align-items:center}
+.selpanel .act button.main-act{background:var(--accent);color:var(--accent-ink);font-weight:600;flex-wrap:wrap;row-gap:0}
+.selpanel .act small{opacity:.85;margin-left:auto;font-weight:400}
+.phone .selpanel .act small{width:100%;margin:0 0 0 22px}
+.ai-mark{font-size:.72rem;color:var(--accent);font-weight:700}
+.big-n{font-family:var(--display);font-size:3.4rem;font-weight:600;line-height:1}
+.days{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
+.day{min-width:120px;flex:1;background:var(--surface-2);box-shadow:0 0 0 1px var(--line);border-radius:12px;padding:10px 12px}
+.input{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 10px;font:inherit;width:120px}
+.swatch{width:46px;height:30px;border-radius:9px;box-shadow:0 0 0 1px var(--line-2);display:inline-block;border:0;padding:0}
+.swatch.on{box-shadow:0 0 0 2px var(--accent)}
+.help{position:absolute;right:14px;bottom:14px;max-width:290px;background:#1E2230;color:#fff;border-radius:12px;padding:10px 12px;font-size:.8rem;z-index:20;box-shadow:var(--pop)}
+.phone .help{display:none}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="ctl">
+  <div class="grp"><b>Устройство</b><button data-dev="desktop" class="on">Компьютер</button><button data-dev="phone">Телефон</button></div>
+  <div class="grp"><b>Экран</b><button data-go="learn" class="on">Учусь</button><button data-go="subject">Предмет</button><button data-go="know">Знания (тема)</button><button data-go="review">Повторение</button><button data-go="exam">Контрольная</button><button data-go="profile">Профиль</button></div>
+  <div class="grp"><b>Главный экран</b><button data-var="A" class="on">A — минимум</button><button data-var="B">B — с «Скоро»</button></div>
+  <div class="grp"><b>Оформление (остаётся!)</b><button data-theme="light" class="on">Светлая</button><button data-theme="dark">Тёмная</button>
+    <button class="dot on" data-acc="#3F51D8" style="background:#3F51D8" title="Индиго"></button><button class="dot" data-acc="#1F7A6B" style="background:#1F7A6B" title="Мята"></button><button class="dot" data-acc="#C2417A" style="background:#C2417A" title="Сакура"></button><button class="dot" data-acc="#A4591A" style="background:#A4591A" title="Песок"></button>
+    <button data-dens="tight">Плотно</button><button data-dens="normal" class="on">Обычно</button><button data-dens="roomy">Просторно</button></div>
+  <div class="grp"><b>Главная кнопка темы</b><button data-ts="empty">нет конспекта</button><button data-ts="nocards">нет карточек</button><button data-ts="learn" class="on">есть что учить</button><button data-ts="exam">всё повторено, есть контрольная</button></div>
+  <div class="grp"><b>ИИ</b><button data-ai="0" class="on">не настроен</button><button data-ai="1">настроен</button></div>
+</div>
+<div class="note">Это концепт для утверждения, не рабочее приложение: данные выдуманные, кнопки работают только там, где показан сценарий. Цвета и шрифты — настоящие, из Мнемы. Переключатели вверху показывают, что оформление остаётся настраиваемым и «ИИ не настроен» полностью прячет кнопки ИИ.</div>
+<div class="stage" id="stage"><div class="fit" id="fit"><div id="dev" class="desktop"></div></div></div>
+
+<script>
+const S = { dev:'desktop', screen:'learn', variant:'A', theme:'light', acc:'#3F51D8', dens:'normal', ai:false, budget:10, plus:false, skipped:new Set(), planOpen:false,
+  revShown:false, revRate:null, similar:false, similarOk:null, noteTab:'note', ts:'learn', topicMenu:false, selOpen:true, period:'Неделя' };
+
+const STEPS = [
+  { t:'Слабое: квадратные уравнения', m:3, d:'6 карточек', why:'Контрольная по алгебре через 3 дня, готовность 43 %' },
+  { t:'Повторить по расписанию', m:5, d:'14 карточек', why:'Пора повторять: ты начинаешь это забывать' },
+  { t:'Работа над ошибками', m:2, d:'3 вопроса', why:'Ты ошибся в них вчера — проверим, держится ли' },
+  { t:'Стих «Зимнее утро», строфа 2', m:2, d:'рассказать по памяти', why:'Рассказывать на уроке в среду' }
+];
+const included = () => { let acc = 0; const out = []; STEPS.forEach((s,i)=>{ if (S.skipped.has(i)) return; if (out.length===0 || acc + s.m <= S.budget) { out.push(i); acc += s.m; } }); return out; };
+const minutes = () => included().reduce((a,i)=>a+STEPS[i].m,0);
+
+const ic = { learn:'▶', know:'▣', plus:'＋', profile:'☺', search:'⌕' };
+const isPhone = () => S.dev==='phone';
+
+/* ---------- Экраны ---------- */
+function vLearn() {
+  const inc = included();
+  const plan = STEPS.map((s,i)=>{
+    const inn = inc.includes(i), sk = S.skipped.has(i);
+    return `<div class="step ${sk?'skip':''}"><span class="num">${i+1}</span><div style="flex:1"><div><b>${s.t}</b> <span class="muted small">· ${s.d} · ${s.m} мин</span></div>
+      <div class="small muted">${inn?'Почему: '+s.why:(sk?'Пропущено':'Если останется время')}</div></div>
+      ${sk?`<button class="btn ghost small" data-unskip="${i}">Вернуть</button>`:`<button class="btn ghost small" data-skip="${i}">Пропустить</button>`}</div>`;
+  }).join('');
+  const hero = `<div class="card" style="text-align:center;padding:${isPhone()?'18px':'26px'}">
+      <div class="muted small">Пятница, 2 октября</div>
+      <div style="margin:10px 0 14px"><button class="btn primary big" data-go="review">Учиться</button></div>
+      <div class="muted" style="margin-bottom:10px">≈ ${minutes()} мин · ${inc.length} ${inc.length===1?'шаг':(inc.length<5?'шага':'шагов')}</div>
+      <div class="row" style="justify-content:center">${[5,10,20].map(m=>`<button class="chip ${S.budget===m?'on':''}" data-budget="${m}">${m} мин</button>`).join('')}</div>
+      <div style="margin-top:12px"><button class="btn ghost small" data-planopen="1">${S.planOpen?'Скрыть план':'Что в плане и почему ›'}</button></div>
+      ${S.planOpen?`<div style="text-align:left;margin-top:6px">${plan}</div>`:''}
+    </div>`;
+  const exam = `<div class="card row between" style="margin-top:12px"><div><b>Контрольная по алгебре — через 3 дня</b><div class="small muted">Готовность 43 % · мало карточек по «Формулам Виета»</div></div><button class="btn small primary" data-go="review">Исправить · 9</button></div>`;
+  if (S.variant==='A') return `<h1>Учусь</h1><p class="muted" style="margin:0 0 14px">Одна кнопка. Остальное — по желанию.</p>${hero}${exam}`;
+  return `<h1>Учусь</h1>${hero}
+    <h2>Скоро</h2>
+    <div class="card">
+      <div class="row between"><div><b>Контрольная по алгебре</b> <span class="pill warn">через 3 дня</span><div class="small muted">Готовность 43 %</div></div><button class="btn small primary" data-go="exam">Открыть</button></div>
+      <div class="step"><div style="flex:1"><b>Физика §8</b> <span class="pill">домашка · завтра</span></div><button class="btn ghost small">Сделано</button></div>
+      <div class="step"><div style="flex:1"><b>Стих «Зимнее утро»</b> <span class="pill">к среде</span><div class="small muted">Вчера вечером 70 % · утром проверим целиком</div></div></div>
+    </div>
+    <h2>Слабые места</h2>
+    <div class="card">${[['Квадратные уравнения',43,'9'],['Закон Ома',58,'5'],['Фотосинтез',64,'4']].map(r=>`<div class="step"><div style="flex:1"><b>${r[0]}</b><div class="bar" style="margin-top:6px"><i class="mas" style="width:${r[1]}%"></i></div></div><span class="muted small">${r[1]} %</span><button class="btn small" data-go="review">Исправить · ${r[2]}</button></div>`).join('')}</div>`;
+}
+
+function vKnow() {
+  const ai = S.ai;
+  const sel = `<div class="selpanel"><div class="fmt">${[['Ж','Жирный'],['К','Курсив'],['▮','Маркер'],['H','Заголовок'],['•','Список'],['❝','Рамка']].map(f=>`<button><b>${f[0]}</b>${f[1]}</button>`).join('')}</div>
+    <div class="act"><button class="main-act">＋ В карточку <small>вопрос из выделенного</small></button>
+      ${ai?`<button>Объяснить <span class="ai-mark">✦ ИИ</span></button><button>Вопрос по тексту <span class="ai-mark">✦ ИИ</span></button>`:''}
+      <button>Ещё ⋯</button></div></div>`;
+  const note = `<div class="note-doc"><h2 style="margin-top:6px">Дискриминант</h2>
+    <p>Квадратное уравнение <b>ax² + bx + c = 0</b>. Чтобы понять, есть ли корни, считают <span class="sel">дискриминант D = b² − 4ac</span>.</p>
+    ${S.selOpen?sel:''}
+    <div class="box"><b>Запомни:</b> D &gt; 0 — два корня, D = 0 — один, D &lt; 0 — корней нет.</div>
+    <p>Корни находят по формуле <mark>x = (−b ± √D) / 2a</mark>.</p></div>`;
+  const cards = `<div class="note-doc">${['Что такое дискриминант?','Когда у уравнения нет корней?','Формула корней','Сколько корней при D = 0?'].map(q=>`<div class="step"><div style="flex:1">${q}</div><span class="pill ${Math.random()>.5?'good':'bad'}">${['помню','слабо'][q.length%2]}</span></div>`).join('')}</div>`;
+  const lists = `<div class="note-doc"><div class="step"><div style="flex:1"><b>Термины</b> · 6</div></div><div class="step"><div style="flex:1"><b>Формулы</b> · 4</div></div></div>`;
+  const body = S.ts==='empty' ? `<div class="card" style="text-align:center"><b>Здесь пока пусто</b><p class="muted" style="margin:6px 0 0">Напиши конспект своими словами или вставь текст — карточки сделаем сами.</p></div>` : (S.noteTab==='note'?note:(S.noteTab==='cards'?cards:lists));
+  const menu = S.topicMenu?`<div class="menu" style="right:0;top:44px">${['Переименовать и цвет','Назначить контрольную','Проверить себя','Сделать набор из конспекта','История конспекта','Выгрузить для нейросети','Удалить тему'].map((x,i)=>`${i===6?'<hr>':''}<button>${x}</button>`).join('')}<hr><div class="hd">Меню короткое: не больше 8 строк, опасное — последним</div></div>`:'';
+  return `<div class="muted small">‹ Алгебра</div><div class="row between" style="position:relative"><h1>Квадратные уравнения</h1><button class="btn small" data-topicmenu="1">⋯</button>${menu}</div>
+    <div class="card" style="margin:10px 0">
+      <div class="row between"><b>Знаю 62 %</b><span class="muted small">охвачено 8 из 13 мест конспекта</span></div>
+      <div class="bar" style="margin:8px 0"><i class="cov" style="width:${8/13*100}%"></i><i class="mas" style="width:${62*8/13}%"></i></div>
+      <div class="small muted">Светлая часть — места конспекта, по которым есть карточки; тёмная — то, что ты помнишь. Так «100 %» не обманывает, если карточек мало.</div>
+    </div>
+    <div class="row"><button class="btn primary" data-go="${S.ts==='exam'?'exam':'review'}">${PRIMARY[S.ts]}</button>${S.ts==='learn'?'<button class="btn" data-go="exam">Контрольная ›</button>':''}</div>
+    <div class="small muted" style="margin-top:6px">Главная кнопка одна и зависит от состояния темы: «Написать конспект» → «Сделать карточки» → «Учить» → «Подготовиться».</div>
+    <div class="tabs">${[['note','Конспект'],['cards','Карточки 13'],['lists','Списки 2']].map(t=>`<button class="${S.noteTab===t[0]?'on':''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>${body}`;
+}
+
+
+function vSubject() {
+  const rows = [['Квадратные уравнения',43,'8 из 13'],['Дискриминант',71,'6 из 6'],['Формулы Виета',38,'2 из 7'],['Теорема Виета: задачи',0,'нет карточек']];
+  return `<div class="muted small">‹ Знания</div><div class="row between"><h1><span class="dotc" style="background:#3F51D8;display:inline-block;margin-right:8px"></span>Алгебра</h1><button class="btn small">⋯</button></div>
+    <div class="row" style="margin:10px 0"><button class="btn primary" data-go="review">Учить · 9</button><button class="btn" data-go="exam">Контрольная · через 3 дня</button><button class="btn">＋ Тема</button></div>
+    <div class="small muted" style="margin-bottom:10px">Главная кнопка предмета — «Учить», если есть что; иначе «＋ Тема». Вкладки «Термины» и «Правила» не показываются, пока в них пусто.</div>
+    <div class="card" style="padding:6px 16px">${rows.map(r=>`<div class="step"><div style="flex:1"><b>${r[0]}</b> <span class="muted small">· ${r[1]===0?'карточек ещё нет':'охвачено '+r[2]}</span><div class="bar" style="margin-top:6px"><i class="cov" style="width:${Math.min(100,r[1]+25)}%"></i><i class="mas" style="width:${r[1]}%"></i></div></div><span class="pill ${r[1]===0?'':(r[1]<50?'bad':'good')}">${r[1]===0?'нет карточек':r[1]+' %'}</span></div>`).join('')}</div>
+    <div class="small muted" style="margin-top:8px">Экспорт, печать и «Выгрузить для нейросети» — в подменю «Поделиться» внутри «⋯», а не в общем списке.</div>`;
+}
+
+function vReview() {
+  const wrong = S.revRate==='bad';
+  const explain = wrong ? `<div class="card" style="margin-top:12px;border-left:4px solid var(--bad-ink)">
+      <b>Неверно. Почему?</b>
+      <p style="margin:6px 0">Ты, скорее всего, перепутал это с формулой корней: <i>x = (−b ± √D) / 2a</i>. Дискриминант — это только <b>D = b² − 4ac</b> = 25 − 24 = 1.</p>
+      <div class="small muted">Из твоего конспекта: «Чтобы понять, есть ли корни, считают дискриминант D = b² − 4ac».</div>
+      <div class="row" style="margin-top:10px"><button class="btn small primary" data-similar="1">Похожий вопрос</button>${S.ai?`<button class="btn small">Объяснить проще <span class="ai-mark">✦ ИИ</span></button>`:''}</div>
+      ${S.similar?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div>Посчитай дискриминант: <b>x² − 6x + 5 = 0</b></div>
+        <div class="row" style="margin-top:6px"><input class="input" id="sim" placeholder="D = …"><button class="btn small" data-checksim="1">Проверить</button>
+        ${S.similarOk===true?'<span class="pill good">Верно — D = 16. Эта карточка вернётся завтра</span>':''}${S.similarOk===false?'<span class="pill bad">Не совсем. Подсказка: 36 − 20</span>':''}</div></div>`:''}
+    </div>` : '';
+  const q = `<div class="card" style="text-align:center;padding:${isPhone()?'22px 14px':'34px'}"><div class="muted small">Алгебра · Квадратные уравнения</div>
+      <div style="font-family:var(--display);font-size:1.4rem;margin:12px 0">Чему равен дискриминант уравнения<br><b>x² − 5x + 6 = 0</b> ?</div>
+      ${!S.revShown?`<button class="btn primary" data-reveal="1">Показать ответ</button>`:`<div class="pill good" style="font-size:1rem;padding:6px 14px">D = 1</div>
+      <div class="row" style="justify-content:center;margin-top:14px">${[['bad','Забыл'],['hard','Трудно'],['good','Хорошо'],['easy','Легко']].map(r=>`<button class="btn small ${S.revRate===r[0]?'primary':''}" data-rate="${r[0]}">${r[1]}</button>`).join('')}</div>`}
+    </div>`;
+  return `<div class="row between"><button class="btn ghost small" data-go="learn">✕ Закончить</button><span class="muted small">Шаг 1 из 4 · ещё 6</span></div>
+    <div class="bar" style="margin:8px 0 4px"><i class="mas" style="width:22%"></i></div>
+    <div class="small muted" style="margin-bottom:12px"><b>Слабое: квадратные уравнения</b> — контрольная через 3 дня</div>${q}${explain}
+    <div class="small muted" style="margin-top:12px;text-align:center">Ответы здесь записываются в расписание повторений, как обычные.</div>`;
+}
+
+function vExam() {
+  const rows = [['Квадратные уравнения',43,'8 из 13','9'],['Дискриминант',71,'6 из 6','2'],['Формулы Виета',38,'2 из 7','мало карточек']];
+  return `<div class="muted small">‹ Учусь</div><h1>Контрольная · Алгебра</h1><div class="muted">5 октября · через 3 дня · 3 темы <button class="btn ghost small">Изменить</button></div>
+    <div class="card" style="margin:12px 0"><div class="row" style="gap:18px"><div><div class="big-n">43 %</div><div class="small muted">готовность к дате</div></div>
+      <div style="flex:1;min-width:200px" class="small muted">Это прогноз по твоим карточкам, а не оценка за контрольную. Охват: карточки есть на 10 из 26 мест конспекта — остальное мы не проверяем.</div></div></div>
+    <div class="row"><button class="btn primary" data-go="review">Исправить · 9 карточек</button><button class="btn">Пробная контрольная</button></div>
+    <h2>По темам</h2><div class="card">${rows.map(r=>`<div class="step"><div style="flex:1"><b>${r[0]}</b> <span class="muted small">· охвачено ${r[2]}</span><div class="bar" style="margin-top:6px"><i class="cov" style="width:${Math.min(100,r[1]+25)}%"></i><i class="mas" style="width:${r[1]}%"></i></div></div><span class="pill ${r[1]<50?'bad':'good'}">${r[1]} %</span><button class="btn small" data-go="review">${isNaN(+r[3])?r[3]:'Исправить · '+r[3]}</button></div>`).join('')}</div>
+    <h2>План до даты</h2><div class="days">${[['Сегодня','9 карточек · 5 мин'],['Завтра','12 карточек · 7 мин'],['Воскресенье','Повтор + пробная'],['Накануне','Последний проход']].map(d=>`<div class="day"><b>${d[0]}</b><div class="small muted">${d[1]}</div></div>`).join('')}</div>
+    <div class="small muted" style="margin-top:8px">Последний полный проход — за 1–2 дня до даты, а не в ночь перед: так лучше запоминается.</div>`;
+}
+
+function vProfile() {
+  const themes = [['#F6F3EC','Бумага'],['#F4F6F9','Снег'],['#EFF6F2','Мята'],['#FBF1F4','Сакура'],['#15171E','Графит'],['#101216','Ночь'],['#0E1A2B','Океан'],['#18121F','Слива']];
+  return `<h1>Профиль</h1>
+    <h2 style="margin-top:6px">Мой прогресс</h2>
+    <div class="card"><div class="row" style="gap:22px;margin-bottom:6px">
+        <div><div class="big-n" style="font-size:2.2rem">86 %</div><div class="small muted">помню из того, что учил</div></div>
+        <div><div class="big-n" style="font-size:2.2rem">5 из 7</div><div class="small muted">дней занималась</div></div>
+        <div><div class="big-n" style="font-size:2.2rem">64</div><div class="small muted">минуты за неделю</div></div></div>
+      <div class="small muted">Всегда считается по тому, что ты реально сделал. Без наград за количество.</div></div>
+    <div class="row between" style="margin:16px 0 8px"><b>За период</b><div class="seg">${['Неделя','Месяц','Всё время'].map(p=>`<button class="${S.period===p?'on':''}" data-period="${p}">${p}</button>`).join('')}</div></div>
+    <div class="card small muted">Ответов · Запоминание · Ошибки «с уверенностью» — пересчитываются при смене периода.</div>
+    <div class="row between" style="margin:16px 0 8px"><b>Всегда</b><span class="small muted">не зависит от периода</span></div>
+    <div class="card small muted">Итоги прошлой недели · Нагрузка на 14 дней · Занятия за 16 недель</div>
+    <h2>Оформление</h2>
+    <div class="card"><div class="small muted" style="margin-bottom:6px">Светлые и тёмные темы — отдельными рядами; всё остальное (шрифт, акцент, скругления, плотность, свой фон) — здесь же. Выбор остаётся, он просто не мешает.</div>
+      <div class="row" style="gap:6px">${themes.map(t=>`<span class="swatch" style="background:${t[0]}" title="${t[1]}"></span>`).join('')}</div>
+      <div class="row" style="margin-top:10px"><button class="chip">Свой фон…</button><button class="chip">Шрифт: Онест</button><button class="chip">Скругления</button></div></div>
+    <h2>Ещё</h2>
+    <div class="card" style="padding:6px 14px">${['Учёба и напоминания','ИИ-помощник','Возможности · 13','Корзина · 2','Данные и копии','Справка','О Мнеме · 2.0'].map(x=>`<div class="step" style="padding:11px 0"><div style="flex:1">${x}</div><span class="muted">›</span></div>`).join('')}</div>`;
+}
+
+const PRIMARY = { empty:'Написать конспект', nocards:'Сделать карточки из конспекта', learn:'Учить · 6', exam:'Подготовиться · через 3 дня' };
+const SCREENS = { learn:vLearn, subject:vSubject, know:vKnow, review:vReview, exam:vExam, profile:vProfile };
+
+/* ---------- Оболочка ---------- */
+function plusItems() {
+  const items = [['Карточка','в «Квадратные уравнения»','Ctrl+N'],['Конспект','новая тема'],['Домашка'],['Контрольная'],['Термин'],['Быстрая карточка','вопрос — ответ, потом разберу']];
+  return items.map(i=>`<button><span>${i[0]}${i[1]?` <span class="muted small">· ${i[1]}</span>`:''}</span>${(!isPhone()&&i[2])?`<span class="kbd">${i[2]}</span>`:''}</button>`).join('') + `<hr><button>Загрузить файл изменений…</button>`;
+}
+function plusLayer() {
+  if (!S.plus) return '';
+  if (isPhone()) return `<div class="scrim" data-plusoff="1"></div><div class="sheet"><div class="hd small muted" style="padding:6px 12px">Создать в: Алгебра › Квадратные уравнения</div>${plusItems().replace(/<hr>/,'<hr style="border:0;border-top:1px solid var(--line);margin:6px 4px">')}</div>`;
+  return `<div class="scrim" data-plusoff="1" style="background:transparent"></div><div class="menu" style="left:12px;top:92px"><div class="hd">Создать в: Алгебра › Квадратные уравнения</div>${plusItems()}</div>`;
+}
+function shell() {
+  const body = SCREENS[S.screen]();
+  const tabOn = (k)=> (S.screen===k || (k==='know' && S.screen==='subject') || (k==='learn' && (S.screen==='review'||S.screen==='exam')) ) ? 'on' : '';
+  if (isPhone()) {
+    const hideBar = S.screen==='review';
+    return `<div class="topbar"><div class="brand"><span class="logo">М</span> Мнема</div><span class="sp"></span><button class="btn ghost" style="font-size:1.2rem">${ic.search}</button></div>
+      <div class="main">${body}</div>
+      ${hideBar?'':`<div class="bottom"><button class="${tabOn('learn')}" data-go="learn"><span class="ico">${ic.learn}</span>Учусь</button><button class="${tabOn('know')}" data-go="know"><span class="ico">${ic.know}</span>Знания</button><button class="plus" data-plus="1"><i>＋</i></button><button class="${tabOn('profile')}" data-go="profile"><span class="ico">${ic.profile}</span>Профиль</button></div>`}${plusLayer()}`;
+  }
+  return `<div class="side"><div class="brand"><span class="logo">М</span> Мнема</div>
+      <button class="create" data-plus="1">＋ Создать <small>Ctrl+N</small></button>
+      <button class="nav" style="color:var(--muted)"><span class="ico">${ic.search}</span> Поиск <span class="n">Ctrl+P</span></button>
+      <div class="grp-h">Учусь</div>
+      <button class="nav ${tabOn('learn')}" data-go="learn"><span class="ico">${ic.learn}</span> Учусь <span class="n">12 мин</span></button>
+      <button class="nav sub">Домашка <span class="n">2</span></button>
+      <button class="nav sub" data-go="exam">Контрольные <span class="n">3 дн.</span></button>
+      <div class="grp-h">Знания</div>
+      <button class="nav ${S.screen==='subject'?'on':''}" data-go="subject"><span class="dotc" style="background:#3F51D8"></span> Алгебра <span class="n">9</span></button>
+      <button class="nav sub ${S.screen==='know'?'on':''}" data-go="know">Квадратные уравнения</button>
+      <button class="nav sub">Дискриминант</button>
+      <button class="nav"><span class="dotc" style="background:#C2417A"></span> Физика <span class="n">5</span></button>
+      <button class="nav"><span class="dotc" style="background:#1F7A6B"></span> Биология</button>
+      <button class="nav"><span class="dotc" style="background:#A4591A"></span> Литература</button>
+      <div style="flex:1"></div>
+      <button class="nav ${tabOn('profile')}" data-go="profile"><span class="ico">${ic.profile}</span> Профиль</button></div>
+    <div class="main">${body}${S.screen==='learn'?`<div class="help">${S.variant==='A'?'Вариант A: на экране одно главное действие и одна строка «Скоро». Всё остальное — в «Что в плане».':'Вариант B: то же + «Скоро» и «Слабые места». Информативнее, но экран уже не «одна кнопка».'}</div>`:''}${plusLayer()}</div>`;
+}
+
+/* ---------- Отрисовка и события ---------- */
+function paint() {
+  const dev = document.getElementById('dev');
+  dev.className = S.dev;
+  dev.innerHTML = `<div class="app ${S.theme==='dark'?'dark':''} ${S.dens==='roomy'?'roomy':''} ${S.dens==='tight'?'tight':''}" id="app" style="--accent:${S.acc}">${shell()}</div>`;
+  document.querySelectorAll('.ctl [data-dev]').forEach(b=>b.classList.toggle('on', b.dataset.dev===S.dev));
+  document.querySelectorAll('.ctl [data-go]').forEach(b=>b.classList.toggle('on', b.dataset.go===S.screen));
+  document.querySelectorAll('.ctl [data-var]').forEach(b=>b.classList.toggle('on', b.dataset.var===S.variant));
+  document.querySelectorAll('.ctl [data-theme]').forEach(b=>b.classList.toggle('on', b.dataset.theme===S.theme));
+  document.querySelectorAll('.ctl [data-acc]').forEach(b=>b.classList.toggle('on', b.dataset.acc===S.acc));
+  document.querySelectorAll('.ctl [data-dens]').forEach(b=>b.classList.toggle('on', b.dataset.dens===S.dens));
+  document.querySelectorAll('.ctl [data-ts]').forEach(b=>b.classList.toggle('on', b.dataset.ts===S.ts));
+  document.querySelectorAll('.ctl [data-ai]').forEach(b=>b.classList.toggle('on', (b.dataset.ai==='1')===S.ai));
+  fit();
+}
+function fit() {
+  const fitEl = document.getElementById('fit'), app = document.getElementById('app'); if (!app) return;
+  fitEl.style.transform = 'none'; fitEl.style.height = 'auto';
+  const w = app.offsetWidth, h = app.offsetHeight, avail = document.getElementById('stage').clientWidth - 28;
+  const k = Math.min(1, avail / w);
+  fitEl.style.transform = `scale(${k})`; fitEl.style.height = (h * k) + 'px'; fitEl.style.width = w + 'px';
+}
+addEventListener('resize', fit);
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button,[data-plusoff]'); if (!t) return;
+  const d = t.dataset;
+  if (d.dev) S.dev = d.dev;
+  if (d.go) { S.screen = d.go; S.plus = false; if (d.go==='review') { S.revShown=false; S.revRate=null; S.similar=false; S.similarOk=null; } if (d.go==='learn') S.skipped = new Set(); }
+  if (d.var) { S.variant = d.var; S.screen = 'learn'; }
+  if (d.ts) { S.ts = d.ts; S.screen = 'know'; S.noteTab = 'note'; }
+  if (d.theme) S.theme = d.theme;
+  if (d.acc) S.acc = d.acc;
+  if (d.dens) S.dens = d.dens;
+  if (d.ai !== undefined) S.ai = d.ai === '1';
+  if (d.budget) S.budget = +d.budget;
+  if (d.planopen) S.planOpen = !S.planOpen;
+  if (d.skip !== undefined) S.skipped.add(+d.skip);
+  if (d.unskip !== undefined) S.skipped.delete(+d.unskip);
+  if (d.plus) S.plus = !S.plus;
+  if (d.plusoff !== undefined) S.plus = false;
+  if (d.reveal) S.revShown = true;
+  if (d.rate) { S.revRate = d.rate; if (d.rate!=='bad') { S.similar=false; } }
+  if (d.similar) S.similar = true;
+  if (d.checksim) { const v = (document.getElementById('sim')||{}).value || ''; S.similarOk = /16/.test(v); }
+  if (d.tab) S.noteTab = d.tab;
+  if (d.topicmenu) S.topicMenu = !S.topicMenu; else if (!t.closest('.menu')) S.topicMenu = false;
+  if (d.period) S.period = d.period;
+  paint();
+});
+paint();
+</script>
+</body>
+</html>

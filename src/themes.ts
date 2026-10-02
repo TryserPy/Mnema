@@ -1,5 +1,6 @@
 // Оформление: готовые темы (светлые и тёмные), шрифты, скругления, фон и свои цвета.
 import type { Settings } from './types';
+import { accentText, onAccent } from './color';
 
 export interface Palette {
   bg: string;
@@ -64,6 +65,8 @@ export const BACKGROUNDS: { id: Settings['look']['background']; name: string }[]
 
 export const DEFAULT_LOOK: Settings['look'] = { style: 'modern', light: 'air', dark: 'night', font: 'onest', headFont: 'same', radius: 'normal', background: 'plain', custom: {} };
 export const DEFAULT_ACCENT = '#4C5BD4';
+/** Свой фон: цвет темы закрывает картинку не меньше чем на 72 % — серый текст на ярком фоне при 50 % читался на 1,3:1. */
+export const MIN_BG_FADE = 0.72;
 
 /** Два стиля интерфейса: новый «Современный» и прежний «Классический» (бумага и книжные заголовки). */
 export const STYLES: { id: 'modern' | 'classic'; name: string; text: string; look: Partial<Settings['look']>; accent: string }[] = [
@@ -102,6 +105,11 @@ export function applyLook(root: HTMLElement, s: Settings, dark: boolean) {
   void font.load?.();
   root.style.setProperty('--body', font.css);
   root.style.setProperty('--display', look.headFont === 'same' ? font.css : HEAD_FONTS[0].css);
+  // Производные от акцента: текст НА заливке акцентом и акцент КАК текст на фоне темы (иначе на светлом акценте тёмных тем
+  // белый текст читался на 2,2:1, а тёмный акцент делал ссылки и «+» невидимыми). Компоненты берут только эти переменные.
+  const surface = custom.surface || t.p.surface;
+  root.style.setProperty('--on-accent', onAccent(s.accent));
+  root.style.setProperty('--accent-text', accentText(s.accent, surface));
   root.dataset.style = look.style ?? 'modern';
   root.dataset.radius = look.radius;
   root.dataset.bg = look.background;
@@ -110,7 +118,7 @@ export function applyLook(root: HTMLElement, s: Settings, dark: boolean) {
   // Принимаем только картинку внутри данных (data:image/…;base64) — без кавычек и скобок, чтобы не сломать CSS.
   if (s.bgImage?.src && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(s.bgImage.src)) {
     root.style.setProperty('--bg-img', `url("${s.bgImage.src}")`);
-    root.style.setProperty('--bg-fade', String(Number.isFinite(s.bgImage.fade) ? Math.min(0.95, Math.max(0.5, s.bgImage.fade)) : 0.78));
+    root.style.setProperty('--bg-fade', String(Number.isFinite(s.bgImage.fade) ? Math.min(0.95, Math.max(MIN_BG_FADE, s.bgImage.fade)) : 0.82));
     root.dataset.bgimg = '1';
   } else {
     root.style.removeProperty('--bg-img');

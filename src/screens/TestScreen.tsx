@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Markdown } from '../components/Markdown';
-import { Icon, Segmented, AnimText } from '../components/ui';
+import { Icon, Segmented, AnimText, touchUI } from '../components/ui';
 import { allItems, checkTyped } from '../srs';
 import { addTestResult, getData, useData } from '../store';
 import { buildTest, schoolGrade, type TestQuestion } from '../testgen';
@@ -245,7 +245,7 @@ export function TestScreen({ topicId, go, pretest = false }: { topicId: string; 
               if (!revealed && typed.trim()) answer({ ok: checkTyped(typed, q.expected!), given: typed });
             }}
           >
-            <input className={'input typed ' + (revealed ? (ans?.ok ? 'ok' : 'bad') : '')} autoFocus placeholder="Напиши ответ и нажми Enter" value={typed} readOnly={revealed} onChange={(e) => setTyped(e.target.value)} />
+            <input className={'input typed ' + (revealed ? (ans?.ok ? 'ok' : 'bad') : '')} autoFocus placeholder={touchUI() ? 'Напиши ответ' : 'Напиши ответ и нажми Enter'} value={typed} readOnly={revealed} onChange={(e) => setTyped(e.target.value)} />
           </form>
         )}
         {q.kind === 'self' && revealed && (

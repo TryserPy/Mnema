@@ -95,6 +95,9 @@ export interface Topic {
   name: string;
   examDate?: string; // YYYY-MM-DD
   note: string; // Markdown (формулы — $…$ и $$…$$, рисунки — SVG-картинки data:)
+  noteAt?: string; // ISO: когда последний раз менялся ТЕКСТ конспекта (а не другие поля) — по нему слияние не теряет правку текста
+  noteFrom?: string; // ISO: noteAt версии текста, от которой начата правка (отличает продолжение чужой правки от независимой)
+  noteBy?: string; // id устройства (AppData.deviceId), которое правило текст
   source?: string; // откуда импортирована (например, путь заметки Obsidian)
   parentId?: string; // подтема: id родительской темы (того же предмета)
   important?: boolean; // отмечена звёздочкой

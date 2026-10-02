@@ -6,6 +6,7 @@ import { DEFAULT_HIGHLIGHT } from './important';
 import { DEFAULT_ACCENT, DEFAULT_LOOK, migrateLook } from './themes';
 import { emit } from './plugins/bus';
 import { gradeItem, itemKey, itemOrds } from './srs';
+import { noteEdit } from './noteText';
 import type { AppData, Card, CardType, Poem, Confidence, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
@@ -447,7 +448,16 @@ export function addTopic(subjectId: string, name: string, parentId?: string, kin
 }
 
 export function updateTopic(id: string, patch: Partial<Omit<Topic, 'id'>>) {
-  commit({ ...data, topics: data.topics.map((t) => (t.id === id ? { ...t, ...patch, updatedAt: nowIso() } : t)) });
+  const stamp = nowIso();
+  commit({
+    ...data,
+    topics: data.topics.map((t) => {
+      if (t.id !== id) return t;
+      // noteAt — только когда текст конспекта правда поменялся: звёздочка, дата, порядок вкладок его не трогают (см. src/sync.ts).
+      const edited = patch.note !== undefined && patch.note !== t.note;
+      return { ...t, ...(edited ? noteEdit(t, data.deviceId, stamp) : {}), ...patch, updatedAt: stamp };
+    })
+  });
 }
 
 /** id темы и всех её подтем. */
@@ -855,7 +865,7 @@ export function importTopics(
         subjectId = s.id;
       }
     }
-    const t: Topic = { id: uid(), subjectId, name: it.topic.name, note: it.topic.note, examDate: it.topic.examDate, source: it.topic.source, ...(it.topic.lists?.length ? { lists: it.topic.lists } : {}), ...(it.topic.kind === 'rule' ? { kind: 'rule' as const } : {}), ...(it.topic.poems?.length ? { poems: it.topic.poems } : {}), createdAt: nowIso(), updatedAt: nowIso() };
+    const t: Topic = { id: uid(), subjectId, name: it.topic.name, note: it.topic.note, ...(it.topic.note.trim() ? noteEdit({}, d.deviceId, nowIso()) : {}), examDate: it.topic.examDate, source: it.topic.source, ...(it.topic.lists?.length ? { lists: it.topic.lists } : {}), ...(it.topic.kind === 'rule' ? { kind: 'rule' as const } : {}), ...(it.topic.poems?.length ? { poems: it.topic.poems } : {}), createdAt: nowIso(), updatedAt: nowIso() };
     firstTopicId ??= t.id;
     const newCards: Card[] = [];
     const states: Record<string, ItemState> = {};

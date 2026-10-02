@@ -1,6 +1,88 @@
-// Итоги недели и достижения за регулярность.
+// Итоги недели, цифры за период, слабые темы и достижения за регулярность.
 import { dayKey, dayStart, DAY, streak } from './srs';
-import type { AppData } from './types';
+import type { AppData, ReviewLogEntry } from './types';
+
+/** Единый порог выборки: меньше стольких ответов процент ничего не говорит (и для «Запоминания», и для слабых тем). */
+export const MIN_SAMPLE = 5;
+/** Тема считается слабой, если верных ответов за период меньше этой доли. */
+export const WEAK_BELOW = 0.8;
+
+/**
+ * Запоминание: доля ответов «не Снова» среди карточек, которые уже были в долгом повторении (prevState === 2).
+ * Если таких ответов меньше MIN_SAMPLE — процента нет (null), показывать надо «—».
+ */
+export function retentionOf(logs: ReviewLogEntry[]): { pct: number | null; n: number } {
+  const matured = logs.filter((l) => l.prevState === 2);
+  const n = matured.length;
+  if (n < MIN_SAMPLE) return { pct: null, n };
+  return { pct: Math.round((matured.filter((l) => l.rating > 1).length / n) * 100), n };
+}
+
+export interface PeriodStats {
+  answers: number;
+  minutes: number;
+  retention: number | null; // % или null, если мало ответов
+  retentionN: number; // сколько ответов легло в «Запоминание»
+  overconf: number; // ошибки при высокой уверенности
+  confN: number; // ответов с отметкой уверенности
+}
+
+/** Цифры за период: все ответы, начиная с момента since (мс). */
+export function periodStats(data: AppData, since: number): PeriodStats {
+  const logs = data.logs.filter((l) => new Date(l.at).getTime() >= since);
+  const r = retentionOf(logs);
+  return {
+    answers: logs.length,
+    minutes: Math.round(logs.reduce((a, l) => a + l.ms, 0) / 60_000),
+    retention: r.pct,
+    retentionN: r.n,
+    overconf: logs.filter((l) => l.confidence === 2 && l.rating === 1).length,
+    confN: logs.filter((l) => l.confidence !== undefined).length
+  };
+}
+
+export interface TopicAccuracy {
+  id: string;
+  name: string;
+  total: number; // ответов за период
+  wrong: number; // из них «Снова»
+  pct: number; // % верных, округлённый вниз (чтобы у слабой темы не вышло «80 %»)
+  lastAt: number; // когда был последний ответ (мс)
+}
+
+/** Точность по каждой теме за период (только существующие темы). Без порога — его ставит вызывающий. */
+export function topicAccuracy(data: AppData, since: number): TopicAccuracy[] {
+  const by = new Map<string, { total: number; wrong: number; lastAt: number }>();
+  for (const l of data.logs) {
+    const t = new Date(l.at).getTime();
+    if (t < since) continue;
+    const x = by.get(l.topicId) ?? { total: 0, wrong: 0, lastAt: 0 };
+    x.total++;
+    if (l.rating === 1) x.wrong++;
+    if (t > x.lastAt) x.lastAt = t;
+    by.set(l.topicId, x);
+  }
+  const out: TopicAccuracy[] = [];
+  for (const [id, v] of by) {
+    const topic = data.topics.find((t) => t.id === id);
+    if (!topic) continue;
+    out.push({ id, name: topic.name, total: v.total, wrong: v.wrong, pct: Math.floor(((v.total - v.wrong) * 100) / v.total), lastAt: v.lastAt });
+  }
+  return out;
+}
+
+/**
+ * Слабые темы: за период хотя бы minAnswers ответов и доля верных ниже below (80 %).
+ * Сначала те, где больше всего ошибок; при равенстве — где процент ниже, затем где ответ был позже.
+ * Сильные темы сюда не попадают никогда: если слабых нет, список пуст.
+ */
+export function weakTopics(data: AppData, since: number, opts: { minAnswers?: number; below?: number; limit?: number } = {}): TopicAccuracy[] {
+  const { minAnswers = MIN_SAMPLE, below = WEAK_BELOW, limit = 5 } = opts;
+  return topicAccuracy(data, since)
+    .filter((t) => t.total >= minAnswers && (t.total - t.wrong) / t.total < below)
+    .sort((a, b) => b.wrong - a.wrong || a.pct - b.pct || b.lastAt - a.lastAt)
+    .slice(0, limit);
+}
 
 export interface WeekSummary {
   from: Date; // понедельник
@@ -43,7 +125,6 @@ export function weekSummary(data: AppData, now: Date, offset = 1): WeekSummary {
   const cur = summarize(data, from, to);
   const pb = weekBounds(now, hour, offset + 1);
   const prev = summarize(data, pb.from, pb.to);
-  const matured = cur.logs.filter((l) => l.prevState === 2);
   let bestDay: WeekSummary['bestDay'] = null;
   for (const [k, n] of cur.perDay) {
     if (!bestDay || n > bestDay.n) {
@@ -65,7 +146,7 @@ export function weekSummary(data: AppData, now: Date, offset = 1): WeekSummary {
     minutes: cur.minutes,
     days: cur.perDay.size,
     newLearned: cur.logs.filter((l) => l.prevState === 0).length,
-    retention: matured.length >= 5 ? Math.round((matured.filter((l) => l.rating > 1).length / matured.length) * 100) : null,
+    retention: retentionOf(cur.logs).pct,
     bestDay,
     topics,
     prev: { answers: prev.logs.length, minutes: prev.minutes, days: prev.perDay.size }
