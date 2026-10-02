@@ -28,7 +28,7 @@ const shot = async (n) => { await p.waitForTimeout(350); await p.screenshot({ pa
 await p.goto('http://localhost:4174');
 await p.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await p.waitForTimeout(500);
-if (mobile) { await p.locator('button[aria-label="Меню"], button[aria-label="Открыть меню"]').first().click(); await p.waitForTimeout(300); }
+if (mobile) { await p.locator('button.tab:has-text("Знания")').first().click(); await p.waitForTimeout(300); }
 await p.locator('.tree-row.subject', { hasText: 'История' }).locator('.twisty').click();
 await p.locator('.tree-row.subject', { hasText: 'История' }).locator('xpath=following-sibling::*[1]').locator('.tree-label').first().click().catch(async () => {
   await p.locator('.tree-row:not(.subject)').filter({ hasNotText: 'Закон' }).locator('.tree-label').first().click();

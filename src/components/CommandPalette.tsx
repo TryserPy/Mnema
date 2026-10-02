@@ -11,6 +11,7 @@ import { updateSettings, useData } from '../store';
 import type { Route } from '../types';
 import { Icon, SubjectMark, usePresence } from './ui';
 import { openExamDialog } from './ExamDialog';
+import { openCreate } from './CreateMenu';
 import { examsOf } from '../examList';
 
 interface Item {
@@ -74,6 +75,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
     };
     // Команды
     const cmds: [string, string, () => void][] = [
+      ['Создать…', 'plus', () => openCreate()],
       ['Начать повторение на сегодня', 'play', () => go({ name: 'review', session: sessionPrefs(data, new Date()), run: Date.now() })],
       [`Фокус: ${data.settings.focusMinutes} минут, потом перерыв`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],

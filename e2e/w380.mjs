@@ -4,7 +4,7 @@ const p = await b.newPage({ viewport: { width: 380, height: 800 }, isMobile: tru
 await p.goto('http://localhost:4174');
 await p.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await p.waitForTimeout(400);
-await p.locator('button[aria-label="Меню"], button[aria-label="Открыть меню"]').first().click(); await p.waitForTimeout(300);
+await p.locator('button.tab:has-text("Знания")').first().click(); await p.waitForTimeout(300);
 await p.locator('.tree-row.subject', { hasText: 'История' }).locator('.twisty').click();
 await p.locator('.tree-row', { hasText: 'Отмена' }).locator('.tree-label').click();
 await p.waitForTimeout(600);
