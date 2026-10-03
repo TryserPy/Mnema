@@ -378,6 +378,44 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .choice.wrong { border-color: var(--again-ink); background: var(--again-bg); color: var(--again-ink); }
 .choice.dim { opacity: 0.5; }
 .choice .md p { margin: 0; }
+/* «Соедини пары»: два столбца кнопок; связанные пары — одного цвета и с одним номером. */
+.mt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.mt-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mt-item { --c: var(--line-2); display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; border-radius: 14px; border: 1.5px solid var(--c);
+  background: var(--surface); color: var(--ink); text-align: left; font-size: 0.98rem; overflow-wrap: anywhere; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; }
+.mt-item:hover { border-color: var(--accent); }
+.mt-item.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.mt-num { flex-shrink: 0; width: 24px; height: 24px; border-radius: 12px; display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; background: var(--sunken); color: var(--muted); }
+.mt-item.right .mt-num:empty { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-2); }
+.mt-item.c0 { --c: #4F6BED; } .mt-item.c1 { --c: #E8833A; } .mt-item.c2 { --c: #22A06B; } .mt-item.c3 { --c: #B05CD6; }
+.mt-item:is(.c0, .c1, .c2, .c3) { background: color-mix(in srgb, var(--c) 9%, var(--surface)); }
+.mt-item:is(.c0, .c1, .c2, .c3) .mt-num { background: var(--c); color: #fff; }
+.mt-item .md p { margin: 0; }
+.mt-result { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mt-result li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; }
+.mt-result li.ok { background: var(--good-bg); color: var(--good-ink); }
+.mt-result li.bad { background: var(--again-bg); color: var(--again-ink); }
+.mt-mark { flex-shrink: 0; display: grid; place-items: center; margin-top: 2px; }
+.mt-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; overflow-wrap: anywhere; }
+.mt-line .md p, .ord-item .md p { margin: 0; display: inline; }
+.mt-dash { opacity: 0.6; }
+.mt-fix { font-weight: 600; }
+/* «Расставь по порядку»: сверху — твой порядок с номерами, снизу — что осталось. */
+.ord-zone { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; background: var(--sunken); min-height: 64px; }
+.ord-empty { padding: 4px 2px; }
+.ord-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ord-pool { display: flex; flex-direction: column; gap: 8px; }
+.ord-item { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 14px; border-radius: 14px; border: 1.5px solid var(--line-2); background: var(--surface);
+  color: var(--ink); text-align: left; font-size: 0.98rem; overflow-wrap: anywhere; animation: rowIn 0.18s ease; }
+.ord-item:hover:not(:disabled) { border-color: var(--accent); }
+.ord-item.on { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
+.ord-item:disabled { opacity: 1; cursor: default; }
+.ord-item.ok { border-color: var(--good-ink); background: var(--good-bg); color: var(--good-ink); }
+.ord-item.bad { border-color: var(--again-ink); background: var(--again-bg); color: var(--again-ink); }
+.ord-num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 0.85rem; }
+.ord-right { display: flex; flex-direction: column; gap: 4px; }
+.ord-right ol { margin: 0; padding-left: 22px; }
+@media (max-width: 720px) { .mt-grid { gap: 8px; } .mt-item { padding: 8px 10px; gap: 8px; font-size: 0.92rem; } }
 .result-card { padding: 26px; }
 .grade-badge { width: 76px; height: 76px; border-radius: 20px; display: grid; place-items: center; font-family: var(--display); font-size: 2.6rem; font-weight: 600; }
 .grade-badge.g5 { background: var(--good-bg); color: var(--good-ink); }

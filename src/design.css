@@ -3,7 +3,7 @@
 
 /* ---------- Текст не вылезает за рамки ---------- */
 body { overflow-wrap: break-word; }
-.grow, .srow-text, .feat-text, .plug-text, .style-body, .stack { min-width: 0; }
+.grow, .srow-text, .feat-text, .plug-text, .stack { min-width: 0; }
 .btn { max-width: 100%; }
 .seg button { white-space: normal; line-height: 1.15; padding: 4px 8px; overflow-wrap: normal; word-break: normal; hyphens: auto; }
 
@@ -23,7 +23,7 @@ body { overflow-wrap: break-word; }
 :root[data-style='modern'] .note-page,
 :root[data-style='modern'] .sgroup-body,
 :root[data-style='modern'] .feat-tile,
-:root[data-style='modern'] .style-item,
+:root[data-style='modern'] .st-tile,
 :root[data-style='modern'] .plug-row,
 :root[data-style='modern'] .plug-card { border-color: transparent; box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent), 0 1px 3px rgba(16, 24, 40, 0.05); }
 :root[data-style='modern'][data-theme='dark'] .card,
@@ -32,7 +32,7 @@ body { overflow-wrap: break-word; }
 :root[data-style='modern'][data-theme='dark'] .note-page,
 :root[data-style='modern'][data-theme='dark'] .sgroup-body,
 :root[data-style='modern'][data-theme='dark'] .feat-tile,
-:root[data-style='modern'][data-theme='dark'] .style-item,
+:root[data-style='modern'][data-theme='dark'] .st-tile,
 :root[data-style='modern'][data-theme='dark'] .plug-row,
 :root[data-style='modern'][data-theme='dark'] .plug-card { box-shadow: 0 0 0 1px var(--line); }
 :root[data-style='modern'] .topic-row:hover,
@@ -68,6 +68,8 @@ body { overflow-wrap: break-word; }
 @keyframes paneIn { from { opacity: 0; transform: translateY(6px); } }
 html[data-no-screens] .set-pane { animation: none; }
 .pane-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+/* Кнопка справа от заголовка уходит на строку ниже, а не сжимает текст в узкий столбик. */
+.pane-head > .grow { flex: 1 1 260px; }
 .pane-head h2 { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.015em; }
 .pane-text { margin: 0; color: var(--muted); max-width: 60ch; line-height: 1.5; }
 
@@ -131,27 +133,30 @@ html[data-no-screens] .set-pane { animation: none; }
 .empty-soft { padding: 18px; text-align: center; color: var(--muted); border-radius: var(--radius); background: color-mix(in srgb, var(--ink) 3%, transparent); }
 
 /* Стили */
-.styles-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
-.style-list { display: flex; flex-direction: column; gap: 8px; }
-.style-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; animation: tabIn 0.25s ease both; transition: box-shadow 0.18s; }
-.style-item.on { box-shadow: 0 0 0 2px var(--accent) !important; }
-.style-emoji { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; font-size: 1.25rem; background: var(--sunken); }
-.style-body { flex: 1; display: flex; flex-direction: column; gap: 1px; }
-.style-body > .small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.35; }
-.style-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.style-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* Плитки стилей: живой пример сверху, название и пояснение снизу; нажатие включает стиль. */
+.st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.st-cell { position: relative; display: flex; animation: pageIn 0.3s ease both; }
+.st-tile { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink);
+  text-align: left; overflow: hidden; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.st-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+.st-tile:active { transform: translateY(0) scale(0.99); }
+.st-cell.on .st-tile { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) !important; }
+.st-frame { position: relative; display: block; height: 150px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.st-demo { position: absolute; inset: 8px; pointer-events: none; }
+.st-where { color: var(--muted); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+.st-check { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); transform: scale(0); transition: transform 0.22s cubic-bezier(0.3, 1.5, 0.5, 1); }
+.st-cell.on .st-check { transform: scale(1); }
+.st-info { display: flex; flex-direction: column; gap: 3px; padding: 10px 14px 13px; }
+.st-name { font-weight: 600; overflow-wrap: anywhere; }
+.st-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+.st-del { position: absolute; top: 8px; left: 8px; width: 30px; height: 30px; border-radius: 15px; border: none; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: 0 0 0 1px var(--line); color: var(--muted); }
+.st-del:hover { color: var(--again-ink); }
+.st-own { display: flex; flex-direction: column; gap: 10px; }
+.st-own .btn.on { box-shadow: 0 0 0 2px var(--accent); }
+.st-css { padding-top: 4px; }
 .tag.soft { margin: 0; background: var(--sunken); color: var(--muted); font-size: 0.74rem; padding: 2px 8px; }
-.preview-col { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 8px; }
-.style-preview { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: var(--radius); background: var(--bg); border: 1px solid var(--line); zoom: 0.78; pointer-events: none; }
-.style-preview .hero { padding: 16px 18px; gap: 8px; }
-.style-preview .hero-btn { height: 44px; font-size: 1rem; }
-.style-preview .review-card { padding: 18px 20px; gap: 12px; border-radius: 20px; flex: none; }
-.style-preview .question { font-size: 1.4rem; }
-.style-preview .answer-text { font-size: 1rem; }
-.style-preview .grades { gap: 6px; }
-.style-preview .grade { min-height: 48px; font-size: 0.85rem; border-radius: 12px; }
-.style-preview .note-page { min-height: 0; padding: 14px 18px; border-radius: 14px; }
-.style-preview .note-doc { min-height: 0; font-size: 1rem; }
 
 /* Моды */
 .safe-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 36px 28px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); }
@@ -182,11 +187,14 @@ html[data-no-screens] .set-pane { animation: none; }
 .about h2 { font-size: 1.4rem; }
 .whats-new { margin: 0; padding: 14px 18px 14px 36px; display: flex; flex-direction: column; gap: 6px; }
 
-@media (max-width: 1000px) {
-  .styles-layout { grid-template-columns: minmax(0, 1fr); }
-  /* Узко: сначала сами стили, предпросмотр — под ними (оформление и так меняется сразу). */
-  .preview-col { position: static; }
-  .style-preview { zoom: 0.7; }
+@media (max-width: 720px) {
+  /* Телефон: две плитки в ряд, пример пониже. */
+  .st-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .st-frame { height: 118px; }
+  .st-info { padding: 8px 10px 10px; }
+  /* На телефоне пояснение не помещается — хватает примера и названия. */
+  .st-desc { display: none; }
+  .st-tile:hover { transform: none; box-shadow: none; }
 }
 @media (max-width: 760px) {
   .set-nav-item { min-height: 50px; background: var(--surface); border-radius: 0; box-shadow: none !important; border-bottom: 1px solid var(--line); }
