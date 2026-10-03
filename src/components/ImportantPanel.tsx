@@ -2,6 +2,7 @@
 // кнопками «В карточку», «Показать», «Скрыть» и созданием карточек из всего сразу.
 import { useMemo, useState } from 'react';
 import { cardDraft, findImportant, IMPORTANT_TYPES, type ImportantItem } from '../important';
+import { defaultPicks, draftQuality, groupOf, SET_GROUPS } from '../noteSet';
 import { addCard, updateSettings, updateTopic, useData } from '../store';
 import type { CardType, HighlightSettings, ImportantType } from '../types';
 import { CardEditor } from './CardEditor';
@@ -186,49 +187,68 @@ function HighlightSettingsView({ hs, hiddenCount, onUnhide }: { hs: HighlightSet
   );
 }
 
-/** Черновики карточек из всего найденного: отметь нужные, поправь формулировку — и добавь. */
+/** Черновики карточек из всего найденного — по группам. Отмечено по умолчанию только хорошее (короткий ответ, один факт)
+ *  и не больше порции: ребёнок не станет разбирать 40 черновиков, а 40 новых карточек разом — это долг на недели. */
 function BulkCards({ topicId, items, onClose, title = 'Карточки из «Важного»' }: { topicId: string; items: ImportantItem[]; onClose: () => void; title?: string }) {
   const [drafts, setDrafts] = useState(() => {
     const seen = new Set<string>();
-    return items
+    const list = items
       .filter((i) => i.type !== 'term' || i.sentence.length < 200)
-      .map((i) => ({ item: i, on: i.type !== 'formula' && i.type !== 'name', ...cardDraft(i) }))
+      .map((i) => ({ item: i, group: groupOf(i.type), ...cardDraft(i) }))
       .filter((d) => {
         const k = d.front.toLowerCase();
         if (seen.has(k)) return false;
         seen.add(k);
         return true;
       });
+    const picks = defaultPicks(list);
+    return list.map((d, i) => ({ ...d, on: picks.has(i) }));
   });
   const chosen = drafts.filter((d) => d.on);
   const patch = (i: number, p: Partial<(typeof drafts)[number]>) => setDrafts(drafts.map((d, j) => (j === i ? { ...d, ...p } : d)));
+  const groups = SET_GROUPS.map((g) => ({ ...g, rows: drafts.map((d, i) => ({ d, i })).filter((x) => x.d.group === g.id) })).filter((g) => g.rows.length);
   return (
     <Modal title={title} onClose={onClose} width={860} sticky>
       <div className="stack gap12">
-        <div className="row gap8 wrap">
-          <button className="btn small ghost" onClick={() => setDrafts(drafts.map((d) => ({ ...d, on: true })))}>
-            Выбрать все
-          </button>
-          <button className="btn small ghost" onClick={() => setDrafts(drafts.map((d) => ({ ...d, on: false })))}>
-            Снять все
-          </button>
-        </div>
-        <p className="small muted">Это черновики. Поправь формулировку своими словами — так запоминается лучше. Отметь только то, что действительно нужно знать.</p>
+        <p className="small muted">
+          {drafts.length > chosen.length && chosen.length > 0
+            ? `Отмечено ${chosen.length} из ${drafts.length} — для начала хватит: понемногу учить легче, остальное добавишь потом. `
+            : ''}
+          Это черновики — поправь формулировку своими словами, так запоминается лучше.
+        </p>
         <div className="bulk-list">
-          {drafts.map((d, i) => {
-            const t = IMPORTANT_TYPES.find((x) => x.id === d.item.type)!;
+          {groups.map((g) => {
+            const on = g.rows.filter((x) => x.d.on).length;
             return (
-              <div key={d.item.id} className={'bulk-row' + (d.on ? '' : ' off')}>
-                <input type="checkbox" checked={d.on} onChange={(e) => patch(i, { on: e.target.checked })} aria-label="Взять карточку" />
-                <div className="grow stack gap4">
-                  <div className="row gap6 tiny-text">
-                    <span className="imp-dot" style={{ background: t.color }} /> {t.label} · {TYPE_NAMES[d.type]}
-                    {d.item.page && <span className="muted">· стр. {d.item.page}</span>}
-                  </div>
-                  <textarea rows={d.type === 'cloze' ? 2 : 1} value={d.front} onChange={(e) => patch(i, { front: e.target.value })} aria-label="Вопрос" disabled={!d.on} />
-                  {d.type !== 'cloze' && <textarea rows={1} value={d.back} onChange={(e) => patch(i, { back: e.target.value })} aria-label="Ответ" disabled={!d.on} />}
+              <section key={g.id} className="ns-group">
+                <div className="ns-head">
+                  <h4>{g.title}</h4>
+                  <span className="small muted">
+                    {on} из {g.rows.length}
+                  </span>
+                  <button className="link-btn small" onClick={() => setDrafts(drafts.map((d) => (d.group === g.id ? { ...d, on: on < g.rows.length } : d)))}>
+                    {on < g.rows.length ? 'Выбрать все' : 'Снять все'}
+                  </button>
                 </div>
-              </div>
+                {g.rows.map(({ d, i }) => {
+                  const t = IMPORTANT_TYPES.find((x) => x.id === d.item.type)!;
+                  const q = draftQuality(d);
+                  return (
+                    <div key={d.item.id} className={'bulk-row' + (d.on ? '' : ' off')}>
+                      <input type="checkbox" checked={d.on} onChange={(e) => patch(i, { on: e.target.checked })} aria-label="Взять карточку" />
+                      <div className="grow stack gap4">
+                        <div className="row gap6 tiny-text wrap">
+                          <span className="imp-dot" style={{ background: t.color }} /> {t.label} · {TYPE_NAMES[d.type]}
+                          {d.item.page && <span className="muted">· стр. {d.item.page}</span>}
+                          {!q.ok && <span className="ns-warn">· {q.why}</span>}
+                        </div>
+                        <textarea rows={d.type === 'cloze' ? 2 : 1} value={d.front} onChange={(e) => patch(i, { front: e.target.value })} aria-label="Вопрос" disabled={!d.on} />
+                        {d.type !== 'cloze' && <textarea rows={1} value={d.back} onChange={(e) => patch(i, { back: e.target.value })} aria-label="Ответ" disabled={!d.on} />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
             );
           })}
         </div>

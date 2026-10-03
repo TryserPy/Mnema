@@ -102,6 +102,10 @@ npm run build          # сборка в dist/
 - Конспект на весь экран, экран не «белеет» при ошибке (`ErrorBoundary`), починена пустая карта знаний
 - Быстрее: счётчики «на сегодня» кэшируются, журнал ответов читается с конца, редактор формул/граф/импорт учебника грузятся по требованию
 
+## 1.18.0 — набор из конспекта (этап 6)
+- `src/noteSet.ts`: `groupOf` (группа по виду найденного), `draftQuality` (короткий ответ, один факт), `defaultPicks` (порция до 12, по очереди из групп; имена и формулы сами не отмечаются); тесты `noteSet.test.ts`
+- `BulkCards` в `components/ImportantPanel.tsx` — по группам, с пометками качества; подсказка «Сделать карточки» в `NoteTab` (`TopicScreen.tsx`) для темы без карточек; сценарий `e2e/noteset.mjs`
+
 ## 1.17.0 — «Стили» плитками, «Соедини пары» и «По порядку» (часть этапа 6)
 - `src/styleDemo.ts` (`demoParts` — какие части примера показать по CSS стиля, `cssForDemo` — `sanitizeCss` и `:root/html/body → :host`), `components/StyleGallery.tsx`: пример в Shadow DOM (на него действует только CSS этого стиля), вписывается в плитку через `zoom`, пересчёт после загрузки шрифтов; тесты `styleDemo.test.ts`, сценарий `e2e/styles2.mjs`
 - `testgen.ts`: виды `match` и `order`, `matchQuestion`, `orderQuestion`, `isDate`, `noteSequences`, `buildTest(..., { extras })`; `components/TestKinds.tsx` (нажатия вместо перетаскивания); тесты `testKinds.test.ts`, сценарий `e2e/testkinds.mjs`. Расписание не меняется (как и вся пробная контрольная)
