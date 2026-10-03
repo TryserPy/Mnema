@@ -19,6 +19,7 @@ const step = (s) => console.log('•', s);
 const sect = (t) => win.locator('.set-nav-item', { hasText: t }).click();
 const rowBtn = (label, btn) => win.locator('.srow', { has: win.locator('.srow-label', { hasText: new RegExp('^' + label + '$') }) }).getByRole('button', { name: btn });
 const shot = async (n) => { await win.waitForTimeout(350); await win.screenshot({ path: `${OUT}/${n}.png` }); };
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(400);
 await shot('f0-today');

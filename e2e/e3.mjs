@@ -30,6 +30,8 @@ win.on('pageerror', (e) => errors.push(e.message));
 win.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 const step = (s) => console.log('•', s);
 
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
+
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: 'Возможности' }).click();
 for (const n of ['ИИ-помощник', 'Ответ от руки', 'Карта знаний', 'Значок у часов и напоминания']) await win.getByRole('switch', { name: n }).click();

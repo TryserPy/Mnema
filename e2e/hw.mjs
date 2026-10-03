@@ -8,6 +8,7 @@ const win = await app.firstWindow();
 const errors = []; win.on('pageerror', (e) => errors.push(e.message)); win.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 const shot = async (n) => { await win.waitForTimeout(450); await win.screenshot({ path: `${OUT}/${n}.png` }); };
 const step = (s) => console.log('•', s);
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(300);
 await win.locator('.add-schedule').click();

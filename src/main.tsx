@@ -17,6 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { touchUI } from './components/ui';
 import './styles.css';
 import './design.css';
+import './motion2.css';
 
 // Телефон или планшет: прячем подсказки про клавиши и мышь (html[data-touch] в CSS).
 if (touchUI()) document.documentElement.dataset.touch = '1';

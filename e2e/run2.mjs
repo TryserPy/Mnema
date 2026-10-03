@@ -26,6 +26,7 @@ await step('welcome', async () => {
   await shot('01-welcome');
 });
 await step('example', async () => {
+  await page.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
   await page.getByRole('button', { name: 'Посмотреть на примере' }).click();
   await page.getByRole('heading', { name: 'Сегодня' }).waitFor();
   await shot('02-today');

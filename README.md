@@ -102,6 +102,11 @@ npm run build          # сборка в dist/
 - Конспект на весь экран, экран не «белеет» при ошибке (`ErrorBoundary`), починена пустая карта знаний
 - Быстрее: счётчики «на сегодня» кэшируются, журнал ответов читается с конца, редактор формул/граф/импорт учебника грузятся по требованию
 
+## 1.22.0 — справка, знакомство, анимации (этап 5б)
+- `components/Illustrations.tsx` + `guide.css` (рисунки SVG, анимация CSS; выключаются видом «Картинки в справке»), `components/Guide.tsx` (`GuideHost`, `openGuide`; знакомство само открывается при `!onboarded` и пустых данных), `screens/Help.tsx` («Как учиться», «Как пользоваться»), `components/BackupsHost.tsx` (`openBackups` из «Профиля» и «Настроек»)
+- `motion2.css`: списки/нажатия/полоски; новые `MotionKind`: `lists`, `press`, `guide` (`types.ts`, `ui.tsx`, `App.tsx`, `LookSettings.tsx`)
+- `components/Capped.tsx` («Ещё N»), `components/Dismissible.tsx` + `settings.hiddenTips` (закрытые подсказки); `Sidebar.tsx`: «+» вернулись, меню по свободному месту, «Поиск» внизу; `App.tsx`: подсказка перетаскивания гаснет по таймеру и по `dragleave/dragend/drop/blur`; `electron/main.cjs`: меню не выдвигается по Alt; `NoteEditor.tsx`: панель выделения плавно двигается (`data-settled`); тесты `v1220.test.ts`, сценарий `e2e/v122.mjs`
+
 ## 1.21.0 — меньше «+» (часть этапа 5)
 - `Sidebar.tsx`: убраны `.row-add` у предмета/темы/папки и кнопки в шапке «Предметы»; `HomeworkToday` без своей кнопки «+»; `CreateMenu.tsx`: пункт «Новая папка», `onNewSubject({ as })`. Сценарии `e4/e5/fold/e15` переведены на «⋯» и «Создать»; в `shell.mjs` проверка «в дереве нет своих +»
 

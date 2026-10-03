@@ -6,6 +6,7 @@ const app = await electron.launch({ executablePath: process.cwd() + '/node_modul
 const win = await app.firstWindow();
 const errors = []; win.on('pageerror', (e) => errors.push(e.message));
 const shot = async (n) => { await win.waitForTimeout(450); await win.screenshot({ path: `${OUT}/${n}.png` }); };
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
 await win.locator('.set-nav-item', { hasText: 'Возможности' }).click();

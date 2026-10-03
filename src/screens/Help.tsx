@@ -1,28 +1,117 @@
 import { Segmented, selHow, touchUI } from '../components/ui';
-import { KeySettings } from '../components/KeySettings';
+import { IlluMake, IlluMix, IlluNote, IlluRecall, IlluSpaced, IlluTree } from '../components/Illustrations';
+import { openGuide } from '../components/Guide';
 import type { Route } from '../types';
+import '../guide.css';
 
-type Section = 'start' | 'keys';
+type Section = 'learn' | 'use';
 
-export function Help({ section: wanted = 'start', go }: { section?: Section; go: (r: Route) => void }) {
-  // Клавиши — только на компьютере. Как писать моды — в «Настройках → Моды», не здесь.
-  const section: Section = wanted === 'keys' && !touchUI() ? 'keys' : 'start';
+/** Три главные идеи — с рисунком и тем, что можно попробовать прямо сейчас. */
+function Learn({ go }: { go: (r: Route) => void }) {
+  return (
+    <div className="stack gap16">
+      <div className="card idea">
+        <IlluRecall />
+        <div className="idea-text">
+          <h3>1. Вспоминай, а не перечитывай</h3>
+          <p>Перечитывать приятно, но запоминается слабо. Когда ты сам достаёшь ответ из головы — это и есть учёба.</p>
+          <p className="small muted">Попробуй: закрой конспект и расскажи тему своими словами, потом сравни.</p>
+          <div className="row gap8 wrap">
+            <button className="btn small primary" onClick={() => go({ name: 'today' })}>
+              Учиться
+            </button>
+            <button className="btn small" onClick={() => go({ name: 'knowledge' })}>
+              Выбрать тему
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="card idea">
+        <IlluSpaced />
+        <div className="idea-text">
+          <h3>2. Повторяй с перерывами</h3>
+          <p>Лучше повторить пять раз в разные дни, чем пять раз подряд. Мнема сама ставит повторение на момент, когда ты начинаешь забывать.</p>
+          <p className="small muted">Попробуй: возвращайся хоть на 5 минут каждый день — это работает лучше, чем один длинный вечер.</p>
+          <div className="row gap8 wrap">
+            <button className="btn small" onClick={() => go({ name: 'today' })}>
+              Что в плане
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="card idea">
+        <IlluMix />
+        <div className="idea-text">
+          <h3>3. Смешивай похожее</h3>
+          <p>Темы вперемешку учить труднее, зато потом путаешься меньше: мозг учится различать, а не просто узнавать знакомое.</p>
+          <p className="small muted">Попробуй: «Пробная контрольная» по нескольким темам (меню темы «⋯» → «Проверить себя»).</p>
+        </div>
+      </div>
+      <div className="card stack gap8 help">
+        <h3>Ещё три приёма</h3>
+        <ul className="tight">
+          <li>
+            <strong>Угадай до чтения.</strong> Ответь на вопросы по теме до того, как учишь её: ошибки в начале делают потом запоминание сильнее.
+          </li>
+          <li>
+            <strong>Объясни по-своему.</strong> Если можешь объяснить тему другу простыми словами — ты её понял. Не получается — вернись к конспекту.
+          </li>
+          <li>
+            <strong>Честно оценивай.</strong> «Не помню» — не провал, а сигнал: Мнема повторит карточку раньше.
+          </li>
+        </ul>
+        <p className="small muted">
+          Опора — обзор десяти приёмов учёбы (Dunlosky и др., 2013): самое полезное — вспоминать без подсказки и повторять с перерывами.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function Help({ section: wanted = 'learn', go }: { section?: Section; go: (r: Route) => void }) {
+  // Горячие клавиши — в «Настройки → Горячие клавиши». Как писать моды — в «Настройки → Моды».
+  const section: Section = wanted === 'use' ? 'use' : 'learn';
   return (
     <div className="page narrow">
-      <h1 className="display">Справка</h1>
+      <div className="row between gap8 wrap">
+        <h1 className="display">Справка</h1>
+        <button className="btn small" onClick={openGuide}>
+          Пройти знакомство
+        </button>
+      </div>
       <Segmented
         ariaLabel="Раздел справки"
         value={section}
         onChange={(v) => go({ name: 'help', section: v })}
         options={[
-          { value: 'start', label: 'Как учиться' },
-          ...(touchUI() ? [] : [{ value: 'keys' as const, label: 'Клавиши' }])
+          { value: 'learn', label: 'Как учиться' },
+          { value: 'use', label: 'Как пользоваться' }
         ]}
       />
 
-      {section === 'start' && (
+      {section === 'learn' && <Learn go={go} />}
+
+      {section === 'use' && (
         <div className="card stack gap12 help">
           <h3>Четыре шага</h3>
+          <div className="steps-pics">
+            <figure>
+              <IlluTree />
+              <figcaption>Предмет → тема</figcaption>
+            </figure>
+            <figure>
+              <IlluNote />
+              <figcaption>Конспект своими словами</figcaption>
+            </figure>
+            <figure>
+              <IlluMake />
+              <figcaption>Из важного — карточки</figcaption>
+            </figure>
+            <figure>
+              <IlluSpaced />
+              <figcaption>Каждый день «Учиться»</figcaption>
+            </figure>
+          </div>
           <ol className="steps">
             <li>
               <strong>Предмет → тема.</strong> Тема — это параграф или раздел учебника.
@@ -75,37 +164,6 @@ export function Help({ section: wanted = 'start', go }: { section?: Section; go:
         </div>
       )}
 
-      {section === 'keys' && (
-        <div className="card help stack gap16">
-          <p className="small muted" style={{ margin: 0 }}>
-            Нажми на сочетание справа от действия и затем нажми новые клавиши. Esc — отменить, «×» — вернуть как было.
-          </p>
-          <KeySettings />
-          <span className="label">Ещё в конспекте (не меняются)</span>
-          <table className="keys">
-            <tbody>
-              <tr>
-                <td>
-                  <span className="kbd">Ctrl</span> + <span className="kbd">B</span> / <span className="kbd">I</span>
-                </td>
-                <td>Жирный / курсив в конспекте</td>
-              </tr>
-              <tr>
-                <td>
-                  <span className="kbd">Ctrl</span> + <span className="kbd">Z</span>
-                </td>
-                <td>Отменить (в конспекте и в рисунке)</td>
-              </tr>
-              <tr>
-                <td>
-                  <code>## </code> в начале строки
-                </td>
-                <td>Заголовок; <code>- </code> — список</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }

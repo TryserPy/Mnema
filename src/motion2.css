@@ -1,0 +1,56 @@
+/* ================= 1.22: анимации почти для всего =================
+   Все правила отключаются в «Настройки → Анимации» (пункты «Списки и плитки», «Нажатия», «Мелкие эффекты»)
+   и общим выключателем html[data-motion='off']. Всё лёгкое: только transform и opacity. */
+
+/* ---- Списки и плитки появляются по очереди ---- */
+@keyframes itemIn { from { opacity: 0; transform: translateY(8px); } }
+:is(.know-grid, .create-list, .trash-list, .know-found, .folder-subjects, .hw-list, .style-grid, .theme-grid, .feat-grid, .week-kpis, .prof-kpis, .steps-pics, .exam-list, .prep-days, .stat-list, .week, .sess-steps) > * {
+  animation: itemIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+:is(.know-grid, .create-list, .trash-list, .know-found, .folder-subjects, .hw-list, .style-grid, .theme-grid, .feat-grid, .week-kpis, .prof-kpis, .steps-pics, .exam-list, .prep-days, .stat-list, .week, .sess-steps) > :nth-child(2) { animation-delay: 35ms; }
+:is(.know-grid, .create-list, .trash-list, .know-found, .folder-subjects, .hw-list, .style-grid, .theme-grid, .feat-grid, .week-kpis, .prof-kpis, .steps-pics, .exam-list, .prep-days, .stat-list, .week, .sess-steps) > :nth-child(3) { animation-delay: 70ms; }
+:is(.know-grid, .create-list, .trash-list, .know-found, .folder-subjects, .hw-list, .style-grid, .theme-grid, .feat-grid, .week-kpis, .prof-kpis, .steps-pics, .exam-list, .prep-days, .stat-list, .week, .sess-steps) > :nth-child(4) { animation-delay: 105ms; }
+:is(.know-grid, .create-list, .trash-list, .know-found, .folder-subjects, .hw-list, .style-grid, .theme-grid, .feat-grid, .week-kpis, .prof-kpis, .steps-pics, .exam-list, .prep-days, .stat-list, .week, .sess-steps) > :nth-child(5) { animation-delay: 140ms; }
+:is(.know-grid, .create-list, .trash-list, .know-found, .folder-subjects, .hw-list, .style-grid, .theme-grid, .feat-grid, .week-kpis, .prof-kpis, .steps-pics, .exam-list, .prep-days, .stat-list, .week, .sess-steps) > :nth-child(n + 6) { animation-delay: 170ms; }
+.capped-open > * { animation: itemIn 0.25s ease backwards; }
+.prof-progress, .know-search, .idea, .guide-pic { animation: itemIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.empty { animation: itemIn 0.4s ease backwards; }
+html[data-no-lists] :is(.know-grid, .create-list, .trash-list, .know-found, .folder-subjects, .hw-list, .style-grid, .theme-grid, .feat-grid, .week-kpis, .prof-kpis, .steps-pics, .exam-list, .prep-days, .stat-list, .week, .sess-steps) > *,
+html[data-no-lists] :is(.capped-open > *, .prof-progress, .know-search, .idea, .guide-pic, .empty) { animation: none !important; }
+
+/* ---- Полоски и числа ---- */
+@keyframes barGrow { from { transform: scaleX(0); } }
+.progress > span { transform-origin: left center; animation: barGrow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+html[data-no-text] .progress > span { animation: none; }
+
+/* ---- Нажатия и наведение ---- */
+:is(.btn, .icon-btn, .tab, .nav-item, .foot-btn, .create-item, .know-tile, .know-found-row, .folder-subject, .chip-btn, .subtopic-chip, .capped-more, .seg button, .tree-label, .twisty, .star-btn, .row-add, .row-more, .grade, .sel-card) {
+  transition: transform 0.14s cubic-bezier(0.3, 1.2, 0.5, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.2s ease, opacity 0.18s ease;
+}
+:is(.btn, .icon-btn, .tab, .nav-item, .foot-btn, .create-item, .know-tile, .know-found-row, .folder-subject, .chip-btn, .subtopic-chip, .capped-more, .grade):active:not(:disabled) { transform: scale(0.965); }
+.tab.on .tab-ico { animation: tabPop 0.32s cubic-bezier(0.3, 1.4, 0.5, 1); }
+@keyframes tabPop { 0% { transform: scale(0.8); } 100% { transform: none; } }
+.nav-item:hover:not(.on) .icon, .nav-item:hover:not(.on) svg { transform: translateX(1px); }
+.create-item:hover .create-ico { transform: scale(1.06) rotate(-3deg); }
+.create-ico { transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.know-tile:hover .progress > span { filter: brightness(1.1); }
+html[data-no-press] :is(.btn, .icon-btn, .tab, .nav-item, .foot-btn, .create-item, .know-tile, .know-found-row, .folder-subject, .chip-btn, .subtopic-chip, .capped-more, .grade):active { transform: none !important; }
+html[data-no-press] .tab.on .tab-ico { animation: none; }
+html[data-no-hover] .create-item:hover .create-ico, html[data-no-hover] .nav-item:hover svg { transform: none !important; }
+
+/* ---- Поля ввода и фокус ---- */
+.input, .know-search { transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease; }
+:focus-visible { transition: outline-offset 0.12s ease; }
+
+/* ---- Значки-счётчики мягко «подпрыгивают» при смене числа ---- */
+.tab-badge, .rail-badge { animation: tabPop 0.3s cubic-bezier(0.3, 1.4, 0.5, 1); }
+html[data-no-text] :is(.tab-badge, .rail-badge) { animation: none; }
+
+/* ---- Меню «Создать» на свободном месте у «Предметы» ---- */
+.side-head-title { cursor: pointer; }
+.side-head { cursor: default; }
+.side-search { margin-top: 6px; }
+.tree { cursor: default; }
+
+/* ---- Плавное появление экрана-подсказки перетаскивания ---- */
+.toast { transition: transform 0.2s ease, opacity 0.2s ease; }

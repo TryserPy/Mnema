@@ -3,6 +3,7 @@ import fs from 'fs';
 const dir = '/tmp/mnemaSt'; fs.rmSync(dir, { recursive: true, force: true });
 const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'], env: { ...process.env, MNEMA_USER_DATA: dir } });
 const win = await app.firstWindow();
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
 await win.locator('.set-nav-item', { hasText: 'Стили' }).click();

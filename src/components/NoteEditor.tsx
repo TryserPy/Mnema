@@ -261,6 +261,55 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     }
   });
 
+  // Панель выделения плавно «подъезжает», когда текст под ней перестроился (список, рамка), а не прыгает.
+  // Плавность включается, только когда панель уже показана и не идёт прокрутка: иначе она вылетала бы из угла или отставала от текста.
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let tries = 0;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const attach = () => {
+      const el = document.querySelector<HTMLElement>('.bubble.sel-panel');
+      if (!el) {
+        if (tries++ < 30) retry = setTimeout(attach, 100); // панель появляется в DOM чуть позже редактора
+        return;
+      }
+      cleanup = watch(el);
+    };
+    const watch = (el: HTMLElement) => {
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    let still: ReturnType<typeof setTimeout> | undefined;
+    const sync = () => {
+      const shown = el.style.visibility === 'visible' && el.style.opacity !== '0';
+      if (shown) {
+        if (!settle && el.dataset.settled === undefined) settle = setTimeout(() => ((el.dataset.settled = ''), (settle = undefined)), 260);
+      } else {
+        clearTimeout(settle);
+        settle = undefined;
+        delete el.dataset.settled;
+      }
+    };
+    const onScroll = () => {
+      el.dataset.scrolling = '';
+      clearTimeout(still);
+      still = setTimeout(() => delete el.dataset.scrolling, 160);
+    };
+    const mo = new MutationObserver(sync);
+    mo.observe(el, { attributes: true, attributeFilter: ['style'] });
+    window.addEventListener('scroll', onScroll, true);
+    sync();
+    return () => {
+      mo.disconnect();
+      window.removeEventListener('scroll', onScroll, true);
+      clearTimeout(settle);
+      clearTimeout(still);
+    };
+    };
+    attach();
+    return () => {
+      clearTimeout(retry);
+      cleanup?.();
+    };
+  }, [editor]);
   useEffect(() => {
     if (editor) markLong(editor);
   }, [editor]);

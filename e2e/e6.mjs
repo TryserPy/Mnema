@@ -4,6 +4,7 @@ const PAGE = process.env.PAGE || process.cwd() + '/test-fixtures/page47.jpg';
 const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'] });
 const userData = await app.evaluate(({ app }) => app.getPath('userData'));
 const win = await app.firstWindow();
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.locator('.tree-row.subject', { hasText: 'История' }).locator('.tree-label').click();
 await win.locator('.topic-row').first().click();

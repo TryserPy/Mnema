@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { BackupsHost } from './components/BackupsHost';
+import { GuideHost } from './components/Guide';
 import { Knowledge } from './screens/Knowledge';
 import { Profile } from './screens/Profile';
 import { CreateHost } from './components/CreateMenu';
@@ -76,6 +78,26 @@ export function App() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => onToast((text, action) => showToast(text, action)), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [dragging, setDragging] = useState(false);
+  const dragTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Файл увели за окно, отпустили в другом месте или передумали (Esc) — подсказка «Отпусти файл» не должна зависнуть.
+  useEffect(() => {
+    const hide = () => {
+      clearTimeout(dragTimer.current);
+      setDragging(false);
+    };
+    const leave = (e: DragEvent) => (!e.relatedTarget || e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) && hide();
+    window.addEventListener('dragleave', leave);
+    window.addEventListener('dragend', hide);
+    window.addEventListener('drop', hide);
+    window.addEventListener('blur', hide);
+    return () => {
+      window.removeEventListener('dragleave', leave);
+      window.removeEventListener('dragend', hide);
+      window.removeEventListener('drop', hide);
+      window.removeEventListener('blur', hide);
+      clearTimeout(dragTimer.current);
+    };
+  }, []);
   const [ankiFile, setAnkiFile] = useState<File | null>(null);
   const [adding, setAdding] = useState<AddingAt>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -91,9 +113,9 @@ export function App() {
       root.dataset.theme = dark ? 'dark' : 'light';
       root.dataset.density = s.density;
       // Анимации: какие выключены
-      const off: string[] = s.motion === 'essential' ? ['screens', 'text', 'hover'] : s.motion === 'custom' ? s.motionOff : [];
+      const off: string[] = s.motion === 'essential' ? ['screens', 'text', 'hover', 'lists', 'press', 'guide'] : s.motion === 'custom' ? s.motionOff : [];
       root.dataset.motion = s.motion === 'off' ? 'off' : 'on';
-      for (const k of ['screens', 'windows', 'expand', 'text', 'review', 'hover']) {
+      for (const k of ['screens', 'windows', 'expand', 'text', 'review', 'hover', 'lists', 'press', 'guide']) {
         const attr = 'no' + k[0].toUpperCase() + k.slice(1);
         if (off.includes(k)) root.dataset[attr] = '';
         else delete root.dataset[attr];
@@ -432,10 +454,13 @@ export function App() {
       if (e.dataTransfer.types.includes('Files')) {
         e.preventDefault();
         setDragging(true);
+        // Пока файл над окном, dragover приходит снова и снова. Перестал приходить — файл унесли, подсказку убираем.
+        clearTimeout(dragTimer.current);
+        dragTimer.current = setTimeout(() => setDragging(false), 1200);
       }
     },
     onDragLeave: (e: React.DragEvent) => {
-      if (e.currentTarget === e.target) setDragging(false);
+      if (e.currentTarget === e.target || !e.relatedTarget) setDragging(false);
     },
     onDrop,
     onDropCapture: () => setDragging(false)
@@ -498,7 +523,7 @@ export function App() {
 
       {mobile && <TabBar route={route} go={go} dueAll={dueAll} />}
 
-      {dragging && <div className="drop-hint">Отпусти файл: тема Мнемы (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</div>}
+      {dragging && <div className="drop-hint"><span>Отпусти файл: тема Мнемы (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
           <span>{toast || lastToast.current}</span>
@@ -531,6 +556,8 @@ export function App() {
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <ExamDialogHost go={go} />
+      <BackupsHost />
+      <GuideHost onNewSubject={() => setAddingSubject({})} />
       <CreateHost route={route} go={go} onNewSubject={(o) => setAddingSubject(o ?? {})} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />
       {addingSubject && (
