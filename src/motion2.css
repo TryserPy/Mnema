@@ -49,7 +49,6 @@ html[data-no-text] :is(.tab-badge, .rail-badge) { animation: none; }
 /* ---- Меню «Создать» на свободном месте у «Предметы» ---- */
 .side-head-title { cursor: pointer; }
 .side-head { cursor: default; }
-.side-search { margin-top: 6px; }
 .tree { cursor: default; }
 
 /* ---- Плавное появление экрана-подсказки перетаскивания ---- */

@@ -721,6 +721,22 @@ public class Bridge {
         });
     }
 
+    /** «Остановить» — замолчать сразу и забыть то, что ждало очереди. */
+    @JavascriptInterface
+    public void speakStop(String k) {
+        if (!allowed(k)) return;
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                ttsPending = null;
+                try {
+                    if (tts != null) tts.stop();
+                } catch (Exception ignored) {
+                }
+            }
+        });
+    }
+
     void sayNow(String text, String lang) {
         try {
             tts.setLanguage(Locale.forLanguageTag(lang));

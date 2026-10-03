@@ -3,7 +3,7 @@ import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark } from '../c
 import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
-import { openGuide } from '../components/Guide';
+import { startTutorial } from '../components/Tutorial';
 import { duePoems } from '../poem';
 import { dayStart, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
 import { buildSession, SESSION_MINUTES, sessionPrefs, toggledSkip } from '../session';
@@ -67,7 +67,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
             >
               Посмотреть на примере
             </button>
-            <button className="btn ghost" onClick={openGuide}>
+            <button className="btn ghost" onClick={startTutorial}>
               Знакомство
             </button>
           </div>

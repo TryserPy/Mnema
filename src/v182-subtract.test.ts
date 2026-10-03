@@ -1,6 +1,6 @@
 // Этап 2 плана 2.0 («вычитание»): Сад, Достижения, «Совет дня» и переключатели ядра убраны (моды-программы после этого вернули по просьбе автора). Старые файлы данных должны открываться как раньше.
 import { describe, expect, it } from 'vitest';
-import { FEATURES } from './featureList';
+import { FEATURES, MODS_AVAILABLE } from './featureList';
 import { dropRemoved, emptyData, normalizeData } from './store';
 
 const REMOVED = ['awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly'];
@@ -68,7 +68,9 @@ describe('2.0, этап 2: старые данные', () => {
     const ids = FEATURES.map((f) => f.id as string);
     for (const k of REMOVED) expect(ids).not.toContain(k);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toContain('mods');
-    expect(ids).toHaveLength(14);
+    // 1.23.0: моды скрыты (MODS_AVAILABLE = false), код остался — вернуть можно одной строкой.
+    expect(MODS_AVAILABLE).toBe(false);
+    expect(ids).not.toContain('mods');
+    expect(ids).toHaveLength(13);
   });
 });

@@ -48,17 +48,19 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
     check((await page.locator('.sidebar .row-add').count()) >= 1, `${tag}: «+» у предметов на месте`);
     check((await page.locator('.side-head button[aria-label="Добавить предмет"]').count()) === 1, `${tag}: «+» над списком предметов на месте`);
     await page.locator('.sidebar .tree').click({ position: { x: 100, y: 250 } });
+    check((await page.locator('.menu.ctx').count()) === 0, `${tag}: левая кнопка по свободному месту меню не открывает`);
+    await page.locator('.sidebar .tree').click({ position: { x: 100, y: 250 }, button: 'right' });
     await page.waitForTimeout(300);
     const items = await page.locator('.menu.ctx [role="menuitem"]').allInnerTexts();
-    check(items.join('|').includes('Новый предмет') && items.join('|').includes('Новая папка'), `${tag}: щелчок по свободному месту: ${items.join(' | ')}`);
+    check(items.join('|').includes('Новый предмет') && items.join('|').includes('Новая папка'), `${tag}: правая кнопка по свободному месту: ${items.join(' | ')}`);
     await page.screenshot({ path: `${OUT}/v122-${tag}-blankmenu.png` });
     await page.keyboard.press('Escape');
     await page.mouse.click(700, 400);
-    const sb = await page.locator('.sidebar').boundingBox();
-    const sr = await page.locator('.side-search').boundingBox();
-    const ft = await page.locator('.side-foot').boundingBox();
-    check(sr && ft && sr.y > ft.y && Math.abs(sr.y + sr.height - (sb.y + sb.height)) < 40, `${tag}: «Поиск» в самом низу панели (${Math.round(sr.y)} под значками ${Math.round(ft.y)})`);
-    check((await page.locator('.nav .search-item').count()) === 0, `${tag}: в верхнем списке «Поиска» нет`);
+    const nv = await page.locator('.nav .search-item').boundingBox();
+    const hwb = await page.locator('.nav .nav-item', { hasText: 'Профиль' }).boundingBox();
+    const last = await page.locator('.nav > *').last().evaluate((e) => e.classList.contains('search-item'));
+    check(nv && hwb && nv.y > hwb.y && last, `${tag}: «Поиск» — последний пункт верхнего списка (под «Профилем»)`);
+    check((await page.locator('.side-search').count()) === 0, `${tag}: внизу панели «Поиска» больше нет`);
   }
 
   // Подтемы: «Ещё N»
@@ -135,15 +137,15 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'О Мнеме' }).first().click().catch(() => {});
   await page.waitForTimeout(500);
-  check((await page.locator('.wn-bar .chip').count()) === 4, `${tag}: «Что нового»: версии переключателем`);
+  check((await page.locator('.wn-list').count()) === 1 && (await page.getByRole('button', { name: 'Что было раньше' }).count()) === 1, `${tag}: «Что нового»: текущая версия списком и кнопка «Что было раньше»`);
   const ab = await page.locator('.about').boundingBox().catch(() => null);
   const wl = await page.locator('.wn-list').boundingBox();
-  check(wl.height < (phone ? 700 : 420), `${tag}: список обновлений компактный (${Math.round(wl.height)} px)`);
+  check(wl.height < (phone ? 800 : 420), `${tag}: список обновлений компактный (${Math.round(wl.height)} px)`);
   await page.screenshot({ path: `${OUT}/v122-${tag}-about.png` });
   await page.getByRole('button', { name: 'Пройти знакомство' }).first().click();
   await page.waitForTimeout(400);
-  check((await page.locator('.modal h2', { hasText: 'Знакомство' }).count()) === 1, `${tag}: знакомство открывается из «О Мнеме»`);
-  await page.keyboard.press('Escape');
+  check((await page.locator('.tut-card').count()) === 1, `${tag}: знакомство из «О Мнеме» запускает тренажёр`);
+  await page.getByRole('button', { name: 'Выйти' }).click();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   check(!overflow, `${tag}: нет горизонтальной прокрутки`);

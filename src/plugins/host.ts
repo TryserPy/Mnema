@@ -3,6 +3,7 @@
 // Через `app` мод добавляет команды, кнопки в левую панель, свои экраны, действия с темой,
 // обработку конспектов, слушает события и работает с данными. Мод может всё, что может Мнема,
 // поэтому включать стоит только моды от тех, кому доверяешь (как в Obsidian).
+import { MODS_AVAILABLE } from '../featureList';
 import { useSyncExternalStore } from 'react';
 import { renderMarkdown } from '../components/Markdown';
 import { toast } from '../components/ui';
@@ -283,7 +284,7 @@ export function unloadPlugin(id: string) {
 /** Привести запущенные моды в соответствие с настройками. */
 export async function syncPlugins() {
   const s = getData().settings;
-  const want = new Set(!s.pluginsSafe && s.features.mods ? s.plugins.filter((p) => p.enabled).map((p) => p.id) : []);
+  const want = new Set(MODS_AVAILABLE && !s.pluginsSafe && s.features.mods ? s.plugins.filter((p) => p.enabled).map((p) => p.id) : []);
   for (const id of [...reg.loaded]) if (!want.has(id)) unloadPlugin(id);
   for (const p of s.plugins) if (want.has(p.id) && !reg.loaded.has(p.id)) await loadPlugin(p);
 }
