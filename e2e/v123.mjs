@@ -24,35 +24,97 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Дальше' }).click();
   await page.getByRole('button', { name: 'Давай попробуем' }).click();
   await page.waitForTimeout(600);
+  const text = async () => (await page.locator('.tut-text').innerText()).trim();
+  const create = phone ? '.tab-plus' : '.sidebar .create-btn';
   check((await page.locator('.tut-card').count()) === 1 && (await stepNo(page)) === '1', `${tag}: тренажёр начался с шага 1`);
   check((await page.locator('.tut-ring').count()) === 1, `${tag}: кнопка «Создать» подсвечена`);
   await page.screenshot({ path: `${OUT}/v123-${tag}-tut1.png` });
-  // 1: Создать
-  await page.locator(phone ? '.tab-plus' : '.sidebar .create-btn').click();
-  await page.waitForTimeout(900);
-  check((await stepNo(page)) === '2', `${tag}: после «Создать» — шаг 2`);
+  // Закрыл окно «Создать» — вернулись к «Нажми «Создать»»
+  await page.locator(create).click();
+  await page.waitForTimeout(700);
+  check((await text()).includes('Новый предмет'), `${tag}: открыто «Создать» — просит выбрать «Новый предмет»`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(700);
+  check((await text()).includes('Нажми «Создать»'), `${tag}: закрыл окно «Создать» — вернулся на «Нажми «Создать»»`);
+  await page.locator(create).click();
+  await page.waitForTimeout(400);
   await page.locator('.modal .create-item', { hasText: 'Новый предмет' }).click();
-  await page.waitForTimeout(900);
-  check((await stepNo(page)) === '3', `${tag}: диалог предмета — шаг 3`);
-  await page.locator('.modal input').first().fill('Биология');
+  await page.waitForTimeout(700);
+  check((await text()).includes('Назови предмет'), `${tag}: открыт диалог предмета`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(700);
+  check((await text()).includes('Нажми «Создать»'), `${tag}: закрыл диалог предмета — вернулся на шаг «Создать»`);
+  // Любой предмет подходит — не обязательно «Биология»
+  await page.locator(create).click();
+  await page.waitForTimeout(400);
+  await page.locator('.modal .create-item', { hasText: 'Новый предмет' }).click();
+  await page.waitForTimeout(400);
+  await page.locator('.modal input').first().fill('Химия');
   await page.locator('.modal').getByRole('button', { name: /Создать/ }).last().click();
-  await page.waitForTimeout(1000);
-  check((await stepNo(page)) === '4', `${tag}: предмет создан — шаг 4 (тема)`);
-  await page.locator(phone ? '.tab-plus' : '.sidebar .create-btn').click();
+  await page.waitForTimeout(900);
+  check((await stepNo(page)) === '2', `${tag}: любой предмет засчитан — шаг 2 (тема)`);
+  // Тема: удалённый предмет возвращает на шаг 1
+  if (!phone) {
+    await page.locator('.tree-row.subject', { hasText: 'Химия' }).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Удалить предмет' }).click();
+    await page.waitForTimeout(300);
+    await page.locator('.modal').getByRole('button', { name: /Удалить/ }).last().click();
+    await page.waitForTimeout(900);
+    check((await stepNo(page)) === '1', `${tag}: удалил предмет — подсказка вернулась на шаг 1`);
+    await page.locator(create).click();
+    await page.waitForTimeout(400);
+    await page.locator('.modal .create-item', { hasText: 'Новый предмет' }).click();
+    await page.waitForTimeout(400);
+    await page.locator('.modal input').first().fill('Биология');
+    await page.locator('.modal').getByRole('button', { name: /Создать/ }).last().click();
+    await page.waitForTimeout(900);
+    check((await stepNo(page)) === '2', `${tag}: создал другой предмет — снова шаг 2`);
+  }
+  await page.locator(create).click();
+  await page.waitForTimeout(500);
+  await page.locator('.modal .create-item', { hasText: 'Новая тема' }).click();
+  await page.waitForTimeout(500);
+  check((await text()).includes('Назови тему'), `${tag}: диалог темы`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(700);
+  check((await stepNo(page)) === '2' && (await text()).includes('Новая тема'), `${tag}: закрыл диалог темы — остался на шаге 2`);
+  await page.locator(create).click();
   await page.waitForTimeout(500);
   await page.locator('.modal .create-item', { hasText: 'Новая тема' }).click();
   await page.waitForTimeout(400);
   await page.locator('.modal input.input').fill('§1 Клетка');
   await page.locator('.modal').getByRole('button', { name: 'Создать', exact: true }).click();
   await page.waitForTimeout(1200);
-  check((await stepNo(page)) === '5', `${tag}: тема создана — шаг 5 (конспект)`);
+  check((await stepNo(page)) === '3', `${tag}: тема создана — шаг 3 (конспект)`);
+  // Ушёл на «Сегодня» — подсказка зовёт назад в тему
+  await page.locator(phone ? '.tab' : '.sidebar .nav-item', { hasText: phone ? 'Учусь' : 'Сегодня' }).first().click();
+  await page.waitForTimeout(800);
+  check((await stepNo(page)) === '3' && (await text()).includes('Открой свою тему'), `${tag}: ушёл с темы — подсказка зовёт обратно («${(await text()).slice(0, 40)}…»)`);
+  check((await page.locator('.tut-ring').count()) === 1, `${tag}: путь к теме подсвечен`);
+  if (!phone) {
+    // подсветка ведёт к предмету → потом к теме, как и подсказывает окно
+    await page.locator('.sidebar .tree-row.subject .tree-label', { hasText: 'Биология' }).click();
+    await page.waitForTimeout(700);
+    check((await text()).includes('Открой свою тему') && (await page.locator('.tut-ring').count()) === 1, `${tag}: открыл предмет — тема подсвечена в списке`);
+    await page.locator('.main .topic-row', { hasText: '§1 Клетка' }).click();
+  } else { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); await page.locator('.know-tile', { hasText: 'Химия' }).click(); await page.waitForTimeout(400); await page.locator('.main .topic-row', { hasText: '§1 Клетка' }).click(); }
+  await page.waitForTimeout(900);
+  check((await text()).includes('Напиши в конспекте'), `${tag}: открыл тему — снова «Напиши в конспекте»`);
   await page.locator('.ProseMirror').click();
   await page.keyboard.type('Клетка — это единица строения и жизни всех организмов.');
   await page.waitForTimeout(1300);
-  check((await stepNo(page)) === '6', `${tag}: конспект написан — шаг 6 (карточка)`);
+  check((await stepNo(page)) === '4', `${tag}: конспект написан — шаг 4 (карточка)`);
   await page.screenshot({ path: `${OUT}/v123-${tag}-tut6.png` });
-  // карточка через правую кнопку (на телефоне — меню «Выделенное»; здесь проверяем компьютер, на телефоне — кнопку «Пропустить шаг»)
   if (!phone) {
+    await page.locator('.ProseMirror p').first().click({ clickCount: 3 });
+    await page.locator('.ProseMirror p').first().click({ button: 'right' });
+    await page.waitForTimeout(400);
+    await page.locator('.sel-card').click();
+    await page.waitForTimeout(500);
+    check((await text()).includes('Сохранить'), `${tag}: открыто окно карточки — «нажми Сохранить»`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(700);
+    check((await stepNo(page)) === '4', `${tag}: закрыл окно карточки — остался на шаге 4`);
     await page.locator('.ProseMirror p').first().click({ clickCount: 3 });
     await page.locator('.ProseMirror p').first().click({ button: 'right' });
     await page.waitForTimeout(400);
@@ -62,26 +124,26 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
     await page.locator('.modal textarea').nth(1).fill('Единица строения и жизни.');
     await page.locator('.modal').getByRole('button', { name: /Сохранить|Добавить/ }).first().click();
     await page.waitForTimeout(1300);
-    check((await stepNo(page)) === '7', `${tag}: карточка создана — шаг 7`);
-  } else {
-    await page.getByRole('button', { name: 'Пропустить шаг' }).click();
-    await page.waitForTimeout(500);
-  }
-  // 7: Учиться
-  if (!phone) await page.locator('.sidebar .nav-item', { hasText: 'Сегодня' }).click();
-  else await page.locator('.tab', { hasText: 'Учусь' }).click();
-  await page.waitForTimeout(700);
-  if (!phone) {
+    check((await stepNo(page)) === '5', `${tag}: карточка создана — шаг 5 (повторение)`);
+    await page.locator('.sidebar .nav-item', { hasText: 'Сегодня' }).click();
+    await page.waitForTimeout(700);
     check((await page.locator('.tut-ring').count()) === 1, `${tag}: «Учиться» подсвечено`);
     await page.locator('.hero-btn').click();
     await page.waitForTimeout(1200);
-    check((await stepNo(page)) === '8', `${tag}: повторение открыто — финал`);
+    check((await stepNo(page)) === '6', `${tag}: повторение открыто — финал`);
     check((await page.locator('.tut-card').count()) === 1, `${tag}: подсказка осталась в повторении`);
     await page.screenshot({ path: `${OUT}/v123-${tag}-tut8.png` });
     await page.locator('.tut-btns .btn.primary').click();
     await page.waitForTimeout(400);
     check((await page.locator('.tut').count()) === 0, `${tag}: «Закончить» закрывает знакомство`);
   } else {
+    // «Пропустить шаг» и «Назад»
+    await page.getByRole('button', { name: 'Пропустить шаг' }).click();
+    await page.waitForTimeout(500);
+    check((await stepNo(page)) === '5', `${tag}: «Пропустить шаг» ведёт на шаг 5`);
+    await page.getByRole('button', { name: 'Назад' }).click();
+    await page.waitForTimeout(500);
+    check((await stepNo(page)) === '4', `${tag}: «Назад» возвращает на шаг 4`);
     await page.getByRole('button', { name: 'Выйти' }).click();
     check((await page.locator('.tut').count()) === 0, `${tag}: «Выйти» закрывает знакомство`);
   }
