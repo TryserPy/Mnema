@@ -13,11 +13,11 @@ const ph = await electron.launch({ executablePath: EXE, args: [process.cwd() + '
 const w1 = await pc.firstWindow();
 const w2 = await ph.firstWindow();
 // На «компьютере» — пример; на «телефоне» — свой предмет и тема.
-await w1.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
+for (const w of [w1, w2]) await w.getByRole('button', { name: 'Пропустить' }).click({ timeout: 8000 }).catch(() => {}); // знакомство при первом запуске
 await w1.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await w2.getByRole('button', { name: /Добавить предмет/ }).first().click();
 await w2.getByPlaceholder('Например: Биология').fill('Английский');
-await w2.getByRole('button', { name: 'Создать' }).click();
+await w2.locator('.modal').getByRole('button', { name: 'Создать' }).click();
 await w2.getByRole('button', { name: /Тема/ }).first().click();
 await w2.getByPlaceholder(/Название темы/).fill('Unit 3');
 await w2.keyboard.press('Enter');
@@ -31,7 +31,7 @@ const codes = await w1.locator('.big-code').allInnerTexts();
 step('pc shows: ' + codes.join(' | '));
 await w1.screenshot({ path: OUT + '/s1-qr.png' });
 const addr = codes[0].trim();
-const code = codes[1].replace(/\D/g, '');
+const code = codes[1].replace(/^\s*код\s*/, ''); // 12 знаков вида K7QM-2XPA-9RTD
 // Второе устройство: ввести
 await w2.getByRole('button', { name: 'Настройки', exact: true }).click();
 await w2.locator('.set-nav-item', { hasText: 'Данные' }).click();
@@ -55,7 +55,7 @@ await w2.getByRole('button', { name: 'Готово' }).click();
 await rowBtn(w2, 'Синхронизация по Wi-Fi', 'Открыть').click();
 await w2.getByRole('radio', { name: 'Ввести код другого' }).click();
 await w2.getByLabel('Адрес').fill(addr.replace(/^[\d.]+/, '127.0.0.1'));
-await w2.getByLabel('Код').fill('00000000');
+await w2.getByLabel('Код').fill('0000-0000-0000');
 await w2.getByRole('button', { name: 'Синхронизировать' }).click();
 await w2.locator('.modal .hint.warn').waitFor({ timeout: 20000 });
 step('wrong code: ' + (await w2.locator('.modal .hint.warn').innerText()));
