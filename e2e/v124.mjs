@@ -27,7 +27,7 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.getByRole('button', { name: 'Давай попробуем' }).click();
   await page.waitForTimeout(600);
   // подсказка не закрывает окно «Создать»
-  await page.locator(phone ? '.tab-plus' : '.sidebar .create-btn').click();
+  await page.locator(phone ? '.mobile-bar .mobile-create' : '.sidebar .create-btn').click();
   await page.waitForTimeout(700);
   const m = await page.locator('.modal').boundingBox();
   const c = await page.locator('.tut-card').boundingBox();

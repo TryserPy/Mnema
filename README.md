@@ -102,6 +102,11 @@ npm run build          # сборка в dist/
 - Конспект на весь экран, экран не «белеет» при ошибке (`ErrorBoundary`), починена пустая карта знаний
 - Быстрее: счётчики «на сегодня» кэшируются, журнал ответов читается с конца, редактор формул/граф/импорт учебника грузятся по требованию
 
+## 1.25.0 — «Где это?», «Пример», меню в пределах экрана
+- `components/ShowMe.tsx` (`showWhere(steps)`: переход + подсветка, тот же вид, что у знакомства), `components/Demos.tsx` + `demos.css` (интерактивные примеры), `Help.tsx`: у `HowItem` поля `where` и `demo`
+- `ui.tsx`: `fitInView` сдвигает меню через `margin` (не `translate`), последняя страховка — `position: fixed` в пределах экрана; следит за `.menu` и `.rule-tip`
+- `TabBar.tsx` без «Создать», значок `.mobile-create` в шапке (`App.tsx`); сценарий `e2e/v125.mjs`
+
 ## 1.24.0 — Ctrl+C / Ctrl+V, свернуть открытый предмет
 - `store.ts`: `pasteCopies(items, place)`; `copy.ts`: `copyTopic/copySubject(..., to)` — копия в другое место; `components/copyUi.ts`: буфер (`copyToClip`, `cleanClip`, `pasteClip`); обработчик Ctrl+C/V в `Sidebar.tsx` (по `e.code` — работает и в русской раскладке; не мешает копированию текста)
 - `Sidebar.tsx`: `shut` — свёрнутое вручную внутри «активного пути» (сбрасывается при переходе)

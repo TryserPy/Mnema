@@ -1396,9 +1396,6 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
   .tab-label { font-size: 0.72rem; font-weight: 500; line-height: 1.1; }
   .tab.on .tab-label { font-weight: 700; }
   .tab-badge { position: absolute; top: -4px; left: calc(100% - 6px); min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.65rem; font-weight: 700; line-height: 18px; text-align: center; }
-  .tab-plus { color: var(--ink); }
-  .tab-plus .tab-ico { height: 32px; }
-  .tab-plus-dot { display: grid; place-items: center; width: 46px; height: 30px; border-radius: 15px; background: var(--accent); color: var(--on-accent); }
   .app.has-tabbar .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
 

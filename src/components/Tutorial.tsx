@@ -29,10 +29,10 @@ export function startTutorial() {
   setSt({ active: true, skipped: [], learned: false, base: { subjects: new Set(d.subjects.map((x) => x.id)), topics: new Set(d.topics.map((x) => x.id)), cards: new Set(d.cards.map((x) => x.id)) } });
 }
 
-const q = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
+export const q = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
 const visible = (e: HTMLElement) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
-const byText = (sel: string, text: string): HTMLElement | null => [...document.querySelectorAll<HTMLElement>(sel)].find((e) => visible(e) && (e.textContent ?? '').includes(text)) ?? null;
-const createBtn = () => q('.tab-plus') ?? q('.sidebar .create-btn');
+export const byText = (sel: string, text: string): HTMLElement | null => [...document.querySelectorAll<HTMLElement>(sel)].find((e) => visible(e) && (e.textContent ?? '').includes(text)) ?? null;
+export const createBtn = () => q('.mobile-bar .mobile-create') ?? q('.sidebar .create-btn');
 const menuOpen = () => Boolean(q('.modal .create-item'));
 const dialogTitle = () => q('.modal h2')?.textContent ?? '';
 const anyModal = () => Boolean(q('.modal'));
@@ -166,7 +166,7 @@ interface Rect {
 const CARD_W = 440;
 const CARD_H = 190;
 /** Куда поставить подсказку, чтобы она не закрывала подсвеченное: снизу, сверху, справа или слева от него — где больше места. */
-function cardPlace(r: Rect | null, phone: boolean): React.CSSProperties {
+export function cardPlace(r: Rect | null, phone: boolean): React.CSSProperties {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const bottomGap = phone ? 86 : 20; // на телефоне снизу нижняя панель

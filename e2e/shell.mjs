@@ -28,7 +28,8 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
 
   if (phone) {
     const tabs = await page.locator('.tabbar .tab-label').allInnerTexts();
-    check(tabs.join('|') === 'Учусь|Знания|Создать|Профиль', `${tag}: нижняя панель с подписями: ${tabs.join(' | ')}`);
+    check(tabs.join('|') === 'Учусь|Знания|Профиль', `${tag}: нижняя панель без «Создать»: ${tabs.join(' | ')}`);
+    check((await page.locator('.mobile-bar .mobile-create').count()) === 1, `${tag}: «Создать» — значком «+» в шапке`);
     check((await page.locator('.mobile-bar [aria-label="Меню"]').count()) === 0, `${tag}: кнопки ☰ вверху нет`);
     const box = await page.locator('.tabbar').boundingBox();
     check(box && Math.abs(box.y + box.height - h) < 2 && box.width === w, `${tag}: панель прижата к низу и во всю ширину (${Math.round(box.y)}+${Math.round(box.height)} из ${h})`);
@@ -75,7 +76,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
   }
 
   // «Создать»
-  const open = phone ? () => page.locator('.tab-plus').click() : () => page.locator('.sidebar .create-btn').click();
+  const open = phone ? () => page.locator('.mobile-bar .mobile-create').click() : () => page.locator('.sidebar .create-btn').click();
   await open();
   await page.waitForTimeout(500);
   const items = await page.locator('.modal .create-item strong').allInnerTexts();
