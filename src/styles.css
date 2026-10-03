@@ -836,6 +836,17 @@ input[type='range'] { accent-color: var(--accent); }
 .bulk-row.off { opacity: 0.5; }
 .bulk-row textarea { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 8px; background: var(--surface); resize: vertical; font-size: 0.9rem; }
 .bulk-row input[type='checkbox'] { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); }
+/* «Набор из конспекта»: черновики по группам. */
+.ns-group { display: flex; flex-direction: column; gap: 8px; }
+.ns-group + .ns-group { margin-top: 8px; }
+.ns-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; gap: 10px; padding: 4px 2px; background: var(--surface); }
+.ns-head h4 { margin: 0; font-size: 0.95rem; }
+.ns-head .link-btn { margin-left: auto; }
+.ns-warn { color: var(--hard-ink); }
+/* Подсказка в пустой теме: «нашлось N важных мест — сделать карточки?» */
+.ns-hint { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); animation: rowIn 0.2s ease; }
+.ns-hint > span { flex: 1 1 220px; min-width: 0; }
 
 /* Лента времени */
 .timeline { position: relative; display: flex; flex-direction: column; gap: 4px; padding-left: 8px; }
