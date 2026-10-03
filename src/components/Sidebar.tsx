@@ -1,9 +1,9 @@
 // Левая панель: предметы → темы → подтемы. Её можно тянуть по ширине и сворачивать,
 // темы — перетаскивать (порядок, в другой предмет, внутрь другой темы), отмечать звёздочкой.
 import { openCreate } from './CreateMenu';
-import { makeCopy } from './copyUi';
+import { copyToClip, makeCopy, pasteClip } from './copyUi';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
-import { keyFor, prettyCombo } from '../keys';
+import { keyFor, prettyCombo, typingTarget } from '../keys';
 import { groupOf } from '../homework';
 import { usePlugins } from '../plugins/host';
 import { addTopic, childTopics, deleteMany, getData, setSubjectFolder, sortedFolders, subjectRules, moveSubject, moveTopic, sortedSubjects, toggleTreeOpen, updateSettings, updateTopic, useData } from '../store';
@@ -105,6 +105,37 @@ export function Sidebar({
       return next.size === old.size ? old : next;
     });
   }, [data]);
+  // Ctrl+C / Ctrl+V: копировать выбранное (или то, что открыто) и вставить туда, где ты сейчас. Кнопки «Сделать копию» остаются.
+  const selRef = useRef(sel);
+  selRef.current = sel;
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  useEffect(() => {
+    if (mobile) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+      const k = e.code === 'KeyC' ? 'c' : e.code === 'KeyV' ? 'v' : '';
+      if (!k || typingTarget(e) || document.querySelector('.modal-back, .pal-back')) return;
+      const r = routeRef.current;
+      const d = getData();
+      if (k === 'c') {
+        if (window.getSelection()?.toString()) return; // выделен текст — обычное копирование текста
+        const picked = [...selRef.current].map((key) => ({ kind: key[0] === 'f' ? 'folder' : key[0] === 's' ? 'subject' : 'topic', id: key.slice(2) }) as const);
+        const items = picked.length ? picked : r.name === 'topic' ? [{ kind: 'topic' as const, id: r.id }] : r.name === 'subject' ? [{ kind: 'subject' as const, id: r.id }] : r.name === 'folder' ? [{ kind: 'folder' as const, id: r.id }] : [];
+        if (!items.length) return;
+        e.preventDefault();
+        copyToClip(items);
+        if (picked.length) setSel(new Set());
+      } else {
+        const t = r.name === 'topic' ? d.topics.find((x) => x.id === r.id) : undefined;
+        const place = r.name === 'folder' ? { folderId: r.id } : r.name === 'subject' ? { subjectId: r.id } : t ? { subjectId: t.subjectId, topicId: t.id } : {};
+        e.preventDefault();
+        pasteClip(place, go);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobile]); // eslint-disable-line react-hooks/exhaustive-deps
   const openMenuAt = (el: HTMLElement, m: { topic?: Topic; subject?: Subject; folder?: Folder }) => {
     const r = el.getBoundingClientRect();
     setMenu({ x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 4, ...m });
@@ -113,7 +144,19 @@ export function Sidebar({
   const blankMenu = (e: React.MouseEvent) => setMenu({ x: Math.min(e.clientX, window.innerWidth - 250), y: Math.min(e.clientY, window.innerHeight - 120), blank: true });
   const [resizing, setResizing] = useState(false);
   const autoOpen = activePath(data, route);
-  const isOpen = (id: string) => s.treeOpen.includes(id) || autoOpen.has(id);
+  // Папка/предмет/тема, в которой ты сейчас, раскрывается сама — но её можно свернуть (до перехода в другое место).
+  const [shut, setShut] = useState<Set<string>>(() => new Set());
+  useEffect(() => setShut((o) => (o.size ? new Set() : o)), [route]);
+  const isOpen = (id: string) => s.treeOpen.includes(id) || (autoOpen.has(id) && !shut.has(id));
+  const setOpen = (id: string, want: boolean) => {
+    setShut((o) => {
+      const n = new Set(o);
+      if (want) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+    toggleTreeOpen(id, want);
+  };
   const nav = (name: Route['name']) => (route.name === name ? ' on' : '');
   const subjects = sortedSubjects(data);
   const plugins = usePlugins();
@@ -245,7 +288,7 @@ export function Sidebar({
             className={'twisty' + (open ? ' open' : '') + (kids.length ? '' : ' leaf')}
             aria-label={open ? 'Свернуть' : 'Развернуть'}
             tabIndex={kids.length ? 0 : -1}
-            onClick={() => kids.length && toggleTreeOpen(t.id, !open)}
+            onClick={() => kids.length && setOpen(t.id, !open)}
           >
             <Icon name="chevron" size={14} />
           </button>
@@ -301,7 +344,7 @@ export function Sidebar({
                   setMenu({ x: e.clientX, y: e.clientY, subject: sub });
                 }}
               >
-                <button className={'twisty' + (open ? ' open' : '') + (roots.length ? '' : ' leaf')} aria-label={open ? 'Свернуть' : 'Развернуть'} onClick={() => toggleTreeOpen(sub.id, !open)}>
+                <button className={'twisty' + (open ? ' open' : '') + (roots.length ? '' : ' leaf')} aria-label={open ? 'Свернуть' : 'Развернуть'} onClick={() => setOpen(sub.id, !open)}>
                   <Icon name="chevron" size={14} />
                 </button>
                 <button className="tree-label" onClick={pickOr('s:' + sub.id, () => go({ name: 'subject', id: sub.id }))}>
@@ -372,7 +415,7 @@ export function Sidebar({
             setMenu({ x: e.clientX, y: e.clientY, folder: f });
           }}
         >
-          <button className={'twisty' + (open ? ' open' : '') + (inside.length ? '' : ' leaf')} aria-label={open ? 'Свернуть' : 'Развернуть'} onClick={() => toggleTreeOpen(f.id, !open)}>
+          <button className={'twisty' + (open ? ' open' : '') + (inside.length ? '' : ' leaf')} aria-label={open ? 'Свернуть' : 'Развернуть'} onClick={() => setOpen(f.id, !open)}>
             <Icon name="chevron" size={14} />
           </button>
           <button className="tree-label" onClick={pickOr('f:' + f.id, () => (toggleTreeOpen(f.id, true), go({ name: 'folder', id: f.id })))}>
