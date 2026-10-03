@@ -750,15 +750,49 @@ export interface MenuItem {
   label: string;
   icon?: string;
   hint?: string;
-  onClick: () => void;
+  onClick?: () => void;
+  /** Группа: пункт открывает свои пункты в том же меню (сверху «Назад»), а не сбоку — так меню не уезжает за край экрана. */
+  items?: MenuItem[];
   danger?: boolean;
   hidden?: boolean;
+}
+
+/** Что показать в меню: скрытые пункты убрать, пустую группу убрать, группу из одного пункта заменить этим пунктом. */
+export function menuShown(items: MenuItem[]): MenuItem[] {
+  const out: MenuItem[] = [];
+  for (const i of items) {
+    if (i.hidden) continue;
+    if (!i.items) {
+      out.push(i);
+      continue;
+    }
+    const kids = i.items.filter((k) => !k.hidden);
+    if (kids.length === 1) out.push(kids[0]);
+    else if (kids.length > 1) out.push({ ...i, items: kids });
+  }
+  return out;
 }
 
 /** Кнопка «⋯» с выпадающим меню редких действий. */
 export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align = 'right' }: { items: MenuItem[]; label?: string; icon?: string; title?: string; align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false);
+  const [sub, setSub] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // Открыли группу или вернулись назад — фокус на первый пункт и заново поставить меню в окно (оно стало короче или длиннее).
+  const switched = useRef(false);
+  useEffect(() => {
+    if (!switched.current) return;
+    switched.current = false;
+    const m = menuRef.current;
+    if (!m) return;
+    m.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    requestAnimationFrame(() => m.isConnected && fitInView(m));
+  }, [sub]);
+  const goSub = (v: string | null) => {
+    switched.current = true;
+    setSub(v);
+  };
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
@@ -772,23 +806,43 @@ export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align 
       window.removeEventListener('keydown', esc);
     };
   }, [open]);
-  const visible = items.filter((i) => !i.hidden);
+  const top = menuShown(items);
+  const group = sub ? top.find((i) => i.items && i.label === sub) : undefined;
+  const visible = group?.items ?? top;
   const pres = usePresence(open, 130);
   return (
     <div className="more" ref={ref}>
-      <button type="button" className={'icon-btn bordered' + (icon !== 'dots' ? ' add-btn' : '')} aria-label={label} title={title} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button
+        type="button"
+        className={'icon-btn bordered' + (icon !== 'dots' ? ' add-btn' : '')}
+        aria-label={label}
+        title={title}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => {
+          setSub(null);
+          setOpen(!open);
+        }}
+      >
         <Icon name={icon} />
       </button>
       {pres.mounted && (
-        <div className={'menu' + (align === 'right' ? ' right' : '') + (pres.closing ? ' closing' : '')} role="menu">
+        <div ref={menuRef} className={'menu' + (align === 'right' ? ' right' : '') + (pres.closing ? ' closing' : '')} role="menu" aria-label={group?.label}>
+          {group && (
+            <button role="menuitem" className="menu-back" onClick={() => goSub(null)}>
+              <Icon name="left" size={18} /> {group.label}
+            </button>
+          )}
           {visible.map((i) => (
             <button
               key={i.label}
               role="menuitem"
               className={i.danger ? 'danger' : ''}
+              aria-haspopup={i.items ? 'menu' : undefined}
               onClick={() => {
+                if (i.items) return goSub(i.label);
                 setOpen(false);
-                i.onClick();
+                i.onClick?.();
               }}
             >
               {i.icon && <Icon name={i.icon} size={18} />}{' '}
@@ -799,6 +853,11 @@ export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align 
                 </span>
               ) : (
                 i.label
+              )}
+              {i.items && (
+                <span className="menu-chev" aria-hidden="true">
+                  <Icon name="right" size={16} />
+                </span>
               )}
             </button>
           ))}

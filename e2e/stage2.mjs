@@ -53,17 +53,15 @@ for (const { w, h, phone } of SIZES) {
   console.log(`${w} возможности: плиток ${tiles}; группы: ${heads.join(' | ')}`);
   if (tiles !== 14 && tiles !== 13) problems.push(`${w}: плиток возможностей ${tiles} (ждём 14, на телефоне без «Значок у часов» — 13)`);
   await shot('4-features');
-  // Настройки → Оформление, «Ещё стили»
+  // Настройки → «Стили» (с 1.16 снова свой раздел)
   await openNav();
   await foot('Настройки');
   await page.waitForTimeout(400);
   const navItems = await page.locator('.set-nav-item').allInnerTexts();
-  const lookItem = page.locator('.set-nav-item', { hasText: 'Оформление' });
-  if (await lookItem.count()) { await lookItem.click(); await page.waitForTimeout(300); }
+  const stylesItem = page.locator('.set-nav-item', { hasText: 'Стили' });
+  if (await stylesItem.count()) { await stylesItem.click(); await page.waitForTimeout(300); }
   console.log(`${w} настройки, разделы: ${navItems.map((x) => x.trim()).join(' | ')}`);
-  if (navItems.some((x) => /Стили/.test(x))) problems.push(`${w}: в разделах настроек остался отдельный раздел «Стили»`);
-  await page.evaluate(() => document.querySelector('[data-set="styles"]')?.scrollIntoView({ block: 'start' }));
-  await page.waitForTimeout(300);
+  if (!navItems.some((x) => /Стили/.test(x))) problems.push(`${w}: в разделах настроек нет раздела «Стили»`);
   await shot('5-look-styles');
   const sticky = page.getByRole('switch', { name: 'Стикеры' });
   if (await sticky.count()) {

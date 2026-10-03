@@ -207,6 +207,9 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .menu button { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: none; background: transparent; border-radius: 9px; text-align: left; color: var(--ink); white-space: nowrap; }
 .menu button:hover { background: var(--sunken); }
 .menu button.danger { color: var(--again-ink); }
+/* Группа в меню: стрелка справа; внутри группы — «Назад» с названием группы. */
+.menu-chev { margin-left: auto; padding-left: 12px; display: inline-flex; color: var(--muted); }
+.menu .menu-back { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; margin-bottom: 4px; }
 .menu-ico { width: 22px; text-align: center; color: var(--muted); font-weight: 600; }
 
 /* ---------- Сегодня ---------- */
@@ -1318,7 +1321,7 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .plugin-settings { padding: 8px 0; }
 .plugin-view { min-height: 100%; }
 .link-btn.danger-text { color: var(--again-ink); }
-.code-sample { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.84rem; overflow-x: auto; margin: 0; }
+.code-sample { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.84rem; overflow-x: auto; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .api-table { display: flex; flex-direction: column; }
 .api-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .api-row code { font-size: 0.8rem; overflow-wrap: anywhere; }
