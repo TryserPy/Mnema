@@ -181,17 +181,28 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
             items={[
               { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
               { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
-              { label: 'Добавить подтему', icon: 'subtopic', onClick: () => setAddingSub(true), hidden: topic.kind === 'rule' },
-              { label: topic.important ? 'Убрать из важных' : 'Отметить важной', icon: 'star', onClick: () => updateTopic(id, { important: !topic.important }) },
-              { label: 'Закрой и перескажи', icon: 'eyeOff', onClick: () => setRecall(true), hidden: !topic.note.trim() },
-              { label: 'Проверь себя до чтения', icon: 'bulb', onClick: () => go({ name: 'test', topicId: id, pretest: true }), hidden: cards.length < 2 || cards.some((c) => itemOrds(c).some((o) => data.states[itemKey(c.id, o)])) },
-              { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 },
+              {
+                label: 'Проверить себя',
+                icon: 'bulb',
+                items: [
+                  { label: 'Закрой и перескажи', icon: 'eyeOff', hint: 'Расскажи по памяти и сравни с конспектом', onClick: () => setRecall(true), hidden: !topic.note.trim() },
+                  { label: 'Проверь себя до чтения', icon: 'bulb', hint: 'Угадай ответы — потом запомнится лучше', onClick: () => go({ name: 'test', topicId: id, pretest: true }), hidden: cards.length < 2 || cards.some((c) => itemOrds(c).some((o) => data.states[itemKey(c.id, o)])) },
+                  { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 },
+                  { label: 'Повторить всю тему', icon: 'repeat', hint: 'Все карточки, даже те, что ещё рано', onClick: () => go({ name: 'review', topicId: id, cram: true }), hidden: cards.length === 0 }
+                ]
+              },
               { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Мнема составит план', onClick: () => openExamDialog({ topicId: id }) },
-              { label: 'Повторить всю тему', icon: 'repeat', onClick: () => go({ name: 'review', topicId: id, cram: true }), hidden: cards.length === 0 },
+              {
+                label: 'Поделиться',
+                icon: 'share',
+                items: [
+                  { label: 'Файлом', icon: 'share', hint: 'Другу или на другое устройство', onClick: () => exportTopic(data, id) },
+                  { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
+                  { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 }
+                ]
+              },
+              { label: 'Добавить подтему', icon: 'subtopic', onClick: () => setAddingSub(true), hidden: topic.kind === 'rule' },
               { label: 'История конспекта', icon: 'clock', hint: 'Вернуть прежний текст', onClick: () => setHistoryOpen(true), hidden: !data.noteHistory?.[id]?.length },
-              { label: 'Поделиться темой (файл)', icon: 'share', onClick: () => exportTopic(data, id) },
-              { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
-              { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 },
               ...plugins.topicActions.map((a) => ({ label: a.title, icon: 'puzzle', onClick: () => a.run({ id: topic.id, name: topic.name, note: topic.note, subjectId: topic.subjectId }) })),
               { label: 'Удалить тему', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
             ]}

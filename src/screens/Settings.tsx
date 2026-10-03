@@ -5,6 +5,7 @@ import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
 import { PluginsSettings } from '../components/PluginsSettings';
+import { StylesSettings } from '../components/ModsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
 import { KeySettings } from '../components/KeySettings';
@@ -66,7 +67,7 @@ const INDEX: IndexItem[] = [
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
-  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'look', anchor: 'styles', words: 'css вид' },
+  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'styles', words: 'css вид моды оформление' },
   { label: 'Моды', section: 'mods', words: 'плагины расширения' },
   { label: 'Обновления', section: 'about', anchor: 'update', words: 'новая версия github обновить' },
   { label: 'Версия и справка', section: 'about', words: 'о программе' }
@@ -82,6 +83,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     { id: 'look', title: 'Оформление', icon: 'palette' },
     { id: 'text', title: 'Текст и форма', icon: 'edit' },
     { id: 'motion', title: 'Анимации', icon: 'sparkle' },
+    { id: 'styles', title: 'Стили', icon: 'brush' },
     { id: 'features', title: 'Возможности', icon: 'grid' },
     { id: 'study', title: 'Учёба', icon: 'book' },
     { id: 'reminders', title: 'Напоминания', icon: 'bell' },
@@ -148,7 +150,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
           {results.length === 0 && <span className="small muted pad-note">Ничего не нашлось</span>}
           {results.map((r, i) => (
             <button key={i} className="set-result" onClick={() => open(r.section, r.anchor)}>
-              <span className="clamp1">{r.label}</span>
+              <span>{r.label}</span>
               <span className="small muted">{visible.find((x) => x.id === r.section)?.title}</span>
             </button>
           ))}
@@ -169,6 +171,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
   if (current === 'look') pane = <LookPane dark={dark} />;
   else if (current === 'text') pane = <TextPane dark={dark} />;
   else if (current === 'motion') pane = <MotionPane />;
+  else if (current === 'styles') pane = <StylesSettings />;
   else if (current === 'features') pane = <FeaturesPane openSection={open} />;
   else if (current === 'study') pane = <StudyPane />;
   else if (current === 'reminders') pane = <RemindersPane desktop={desktop} android={android} />;
@@ -189,7 +192,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     </div>
   );
   else if (current === 'data') pane = <DataPane go={go} />;
-  else if (current === 'mods') pane = <PluginsSettings go={go} />;
+  else if (current === 'mods') pane = <PluginsSettings />;
   else if (current === 'about') pane = <AboutPane go={go} />;
 
   if (narrow) {
@@ -632,6 +635,14 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </SRow>
       </Group>
       <UpdatesGroup />
+      <Group title="Новое в 1.16.0">
+        <ul className="whats-new">
+          <li>Меню «⋯» у темы короче: «Проверить себя» и «Поделиться» открываются внутри меню, «важная» — звёздочкой у названия</li>
+          <li>«Стили» снова отдельный раздел Настроек</li>
+          <li>Поиск в Настройках: длинные названия переносятся, а не налезают на соседнюю колонку</li>
+          <li>Справка без вкладки «Моды»; как писать моды — в «Настройках → Моды → Сделать свой»</li>
+        </ul>
+      </Group>
       <Group title="Новое в 1.15.0">
         <ul className="whats-new">
           <li>История конспекта: Мнема помнит прежние версии текста (до 15 на тему, 60 дней, только на этом устройстве). «⋯» у темы → «История конспекта» — можно вернуть любую</li>

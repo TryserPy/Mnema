@@ -5,9 +5,10 @@ import { CATALOG_PLUGINS, TEMPLATE } from '../plugins/catalog';
 import { parseHeader, reloadPlugin, usePlugins } from '../plugins/host';
 import { downloadFile } from '../share';
 import { updateSettings, useData } from '../store';
-import type { PluginRec, Route } from '../types';
+import type { PluginRec } from '../types';
 import { Icon, Modal, MoreMenu, Segmented, Switch, toast } from './ui';
 import { PaneHead } from './SettingsKit';
+import { ModsGuide } from './ModsGuide';
 
 function recFromCode(code: string, prev?: PluginRec): PluginRec {
   const h = parseHeader(code);
@@ -102,13 +103,14 @@ export function CodeEditor({ initial, onClose }: { initial?: PluginRec; onClose:
 
 type Tab = 'installed' | 'catalog' | 'own';
 
-export function PluginsSettings({ go }: { go: (r: Route) => void }) {
+export function PluginsSettings() {
   const data = useData();
   const s = data.settings;
   const reg = usePlugins();
   const [ask, setAsk] = useState(false);
   const [editing, setEditing] = useState<PluginRec | 'new' | null>(null);
   const [settingsOf, setSettingsOf] = useState<PluginRec | null>(null);
+  const [guide, setGuide] = useState(false);
   const [tab, setTab] = useState<Tab>(s.plugins.length ? 'installed' : 'catalog');
   const fileRef = useRef<HTMLInputElement>(null);
   const installed = new Set(s.plugins.map((p) => p.id));
@@ -269,7 +271,7 @@ export function PluginsSettings({ go }: { go: (r: Route) => void }) {
             <strong>Загрузить файл .js</strong>
             <span className="small muted">Мод от друга — добавится выключенным</span>
           </button>
-          <button className="own-tile" onClick={() => go({ name: 'help', section: 'mods' })}>
+          <button className="own-tile" onClick={() => setGuide(true)}>
             <Icon name="help" size={24} />
             <strong>Как писать моды</strong>
             <span className="small muted">Пример и всё, что умеет мод</span>
@@ -301,6 +303,11 @@ export function PluginsSettings({ go }: { go: (r: Route) => void }) {
         </Modal>
       )}
       {editing && <CodeEditor initial={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
+      {guide && (
+        <Modal title="Как писать моды" onClose={() => setGuide(false)} width={760}>
+          <ModsGuide />
+        </Modal>
+      )}
     </div>
   );
 }

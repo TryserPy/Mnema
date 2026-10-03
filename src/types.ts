@@ -329,7 +329,7 @@ export interface AppData {
   deviceId?: string;
 }
 
-export type SettingsSection = 'look' | 'text' | 'motion' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'mods' | 'about';
+export type SettingsSection = 'look' | 'text' | 'motion' | 'styles' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'mods' | 'about';
 
 export type Route =
   | { name: 'today' }
@@ -345,4 +345,4 @@ export type Route =
   | { name: 'trash' }
   | { name: 'settings'; section?: SettingsSection }
   | { name: 'features' }
-  | { name: 'help'; section?: 'start' | 'keys' | 'mods' };
+  | { name: 'help'; section?: 'start' | 'keys' };
