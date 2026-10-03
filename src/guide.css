@@ -106,3 +106,4 @@ html[data-no-guide] .tut-ring, html[data-motion='off'] .tut-ring { animation: no
 .tut-text { margin: 0; font-weight: 600; line-height: 1.4; }
 .tut-hint { margin: 0; }
 .tut-btns { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.tut-flash { margin: 0; font-weight: 600; font-size: 0.9rem; color: var(--accent-text, var(--accent)); animation: itemIn 0.25s ease; }
