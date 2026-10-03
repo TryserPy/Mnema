@@ -13,6 +13,8 @@ win.on('console', (m) => m.type() === 'error' && errors.push('console: ' + m.tex
 const step = (s) => console.log('•', s);
 const shot = (n) => win.screenshot({ path: `${OUT}/${n}.png` });
 
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
+
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(500);
 

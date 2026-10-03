@@ -23,6 +23,8 @@ win.on('pageerror', (e) => errors.push(e.message));
 win.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 const step = (s) => console.log('•', s);
 
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
+
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 // Подтема через «+» у темы в панели
 await win.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.twisty').click();

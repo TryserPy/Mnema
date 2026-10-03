@@ -9,6 +9,7 @@ let win = await app.firstWindow();
 const errors = []; const watch = (w) => { w.on('pageerror', (e) => errors.push(e.message)); w.on('console', (m) => m.type() === 'error' && errors.push('console: ' + m.text())); }; watch(win);
 const step = (s) => console.log('•', s);
 const shot = async (n) => { await win.waitForTimeout(400); await win.screenshot({ path: `${OUT}/${n}.png` }); };
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(400);
 await win.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();

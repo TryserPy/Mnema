@@ -5,6 +5,7 @@ const p = await b.newPage({ viewport: { width: 390, height: 800 }, deviceScaleFa
 const errors = [];
 p.on('pageerror', (e) => errors.push(e.message));
 await p.goto('http://localhost:4174');
+await p.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await p.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await p.waitForTimeout(500);
 await p.locator('.hw-today').getByRole('button', { name: /Записать/ }).click();

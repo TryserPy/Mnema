@@ -56,7 +56,7 @@ export function Sidebar({
   const s = data.settings;
   const [drag, setDrag] = useState<Drag>(null);
   const [drop, setDrop] = useState<Drop>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number; topic?: Topic; subject?: Subject; folder?: Folder } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; topic?: Topic; subject?: Subject; folder?: Folder; blank?: boolean } | null>(null);
   const lastMenu = useRef(menu);
   if (menu) lastMenu.current = menu;
   const menuPres = usePresence(Boolean(menu), 120);
@@ -108,6 +108,8 @@ export function Sidebar({
     const r = el.getBoundingClientRect();
     setMenu({ x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 4, ...m });
   };
+  /** Щелчок по свободному месту у «Предметы» — создать предмет или папку. */
+  const blankMenu = (e: React.MouseEvent) => setMenu({ x: Math.min(e.clientX, window.innerWidth - 250), y: Math.min(e.clientY, window.innerHeight - 120), blank: true });
   const [resizing, setResizing] = useState(false);
   const autoOpen = activePath(data, route);
   const isOpen = (id: string) => s.treeOpen.includes(id) || autoOpen.has(id);
@@ -258,6 +260,9 @@ export function Sidebar({
           >
             <Icon name={t.important ? 'starFill' : 'star'} size={15} />
           </button>
+          <button className="row-add" aria-label="Добавить подтему" title="Добавить подтему" onClick={() => setAdding({ subjectId: t.subjectId, parentId: t.id })}>
+            <Icon name="plus" size={15} />
+          </button>
           <button className="row-more" aria-label={`Ещё о теме «${t.name}»`} title="Ещё" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { topic: t })}>
             <Icon name="dots" size={15} />
           </button>
@@ -303,6 +308,17 @@ export function Sidebar({
                   <SubjectMark color={sub.color} icon={sub.icon} />
                   <span className="grow clamp1">{sub.name}</span>
                   <span className="muted small count">{roots.length || ''}</span>
+                </button>
+                <button
+                  className="row-add"
+                  aria-label="Добавить тему"
+                  title="Добавить тему"
+                  onClick={() => {
+                    toggleTreeOpen(sub.id, true);
+                    setAdding({ subjectId: sub.id });
+                  }}
+                >
+                  <Icon name="plus" size={15} />
                 </button>
                 <button className="row-more" aria-label={`Ещё о предмете «${sub.name}»`} title="Изменить или удалить предмет" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { subject: sub })}>
                   <Icon name="dots" size={15} />
@@ -363,6 +379,9 @@ export function Sidebar({
             {f.icon ? <SubjectMark color={f.color} icon={f.icon} /> : <Icon name="folder" size={16} />}
             <span className="grow clamp1 folder-name">{f.name}</span>
             <span className="muted small count">{inside.length || ''}</span>
+          </button>
+          <button className="row-add" aria-label="Новый предмет в папке" title="Новый предмет в папке" onClick={() => onNewSubject({ folderId: f.id })}>
+            <Icon name="plus" size={15} />
           </button>
           <button className="row-more" aria-label={`Ещё о папке «${f.name}»`} title="Изменить или удалить папку" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { folder: f })}>
             <Icon name="dots" size={15} />
@@ -480,12 +499,6 @@ export function Sidebar({
         <button className={'nav-item' + (route.name === 'profile' ? ' on' : '')} onClick={() => go({ name: 'profile' })}>
           <Icon name="sliders" /> <span className="grow">Профиль</span>
         </button>
-        {onSearch && (
-          <button className="nav-item search-item" onClick={onSearch} title="Поиск по всему и команды">
-            <Icon name="search" /> <span className="grow">Поиск</span>
-            {!mobile && <kbd className="nav-kbd">{prettyCombo(keyFor(s, 'palette')).join('+')}</kbd>}
-          </button>
-        )}
         {s.features.homework && (
           <button className={'nav-item' + nav('homework')} onClick={() => go({ name: 'homework' })}>
             <Icon name="homework" /> <span className="grow">Домашка</span>
@@ -497,8 +510,16 @@ export function Sidebar({
           </button>
         )}
       </nav>
-      <div className="side-head">
-        <span>Предметы</span>
+      <div className="side-head" onClick={(e) => e.target === e.currentTarget && blankMenu(e)}>
+        <span onClick={blankMenu} className="side-head-title" title="Создать предмет или папку">Предметы</span>
+        <span className="row gap2">
+          <button className="icon-btn small" aria-label="Новая папка" title="Новая папка предметов" onClick={() => onNewSubject({ as: 'folder' })}>
+            <Icon name="folderPlus" size={18} />
+          </button>
+          <button className="icon-btn small" aria-label="Добавить предмет" title="Добавить предмет" onClick={() => onNewSubject()}>
+            <Icon name="plus" size={18} />
+          </button>
+        </span>
       </div>
       {picking && (
         <div className="pick-bar" role="toolbar" aria-label="Выбранное">
@@ -513,7 +534,16 @@ export function Sidebar({
           </button>
         </div>
       )}
-      <div className="tree" onDragLeave={(e) => e.currentTarget === e.target && setDrop(null)}>
+      <div
+        className="tree"
+        onDragLeave={(e) => e.currentTarget === e.target && setDrop(null)}
+        onClick={(e) => e.target === e.currentTarget && blankMenu(e)}
+        onContextMenu={(e) => {
+          if (e.target !== e.currentTarget) return;
+          e.preventDefault();
+          blankMenu(e);
+        }}
+      >
         {sortedFolders(data).map((f) => renderFolder(f))}
         {subjects.filter((x) => !x.folderId || !data.folders.some((f) => f.id === x.folderId)).map((sub) => renderSubject(sub, 0))}
         {data.subjects.length === 0 && (
@@ -525,8 +555,36 @@ export function Sidebar({
       <div className="side-foot">
         <FootButtons />
       </div>
+      {onSearch && (
+        <button className="nav-item search-item side-search" onClick={onSearch} title="Поиск по всему и команды">
+          <Icon name="search" /> <span className="grow">Поиск</span>
+          {!mobile && <kbd className="nav-kbd">{prettyCombo(keyFor(s, 'palette')).join('+')}</kbd>}
+        </button>
+      )}
       {!mobile && <div className="side-resize" role="separator" aria-orientation="vertical" aria-label="Ширина панели" title="Потяни, чтобы изменить ширину. Двойной щелчок — как было." onPointerDown={startResize} onDoubleClick={() => updateSettings({ sidebarWidth: 248 })} />}
 
+      {shownMenu && shownMenu.blank && (
+        <div className={'menu ctx' + (menuPres.closing ? ' closing' : '')} role="menu" style={{ left: shownMenu.x, top: shownMenu.y }} onMouseDown={(e) => e.stopPropagation()}>
+          <button
+            role="menuitem"
+            onClick={() => {
+              onNewSubject();
+              setMenu(null);
+            }}
+          >
+            <Icon name="folderPlus" size={18} /> Новый предмет
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              onNewSubject({ as: 'folder' });
+              setMenu(null);
+            }}
+          >
+            <Icon name="folder" size={18} /> Новая папка
+          </button>
+        </div>
+      )}
       {shownMenu && shownMenu.folder && (
         <div className={'menu ctx' + (menuPres.closing ? ' closing' : '')} role="menu" style={{ left: Math.min(shownMenu.x, window.innerWidth - 260), top: Math.min(shownMenu.y, window.innerHeight - 240) }} onMouseDown={(e) => e.stopPropagation()}>
           <button

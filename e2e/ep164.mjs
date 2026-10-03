@@ -4,6 +4,7 @@ const dir = '/tmp/mnema164'; fs.rmSync(dir, { recursive: true, force: true });
 const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'], env: { ...process.env, MNEMA_USER_DATA: dir } });
 const win = await app.firstWindow();
 const errors = []; win.on('pageerror', (e) => errors.push(e.message));
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(400);
 await win.locator('.tree-row.subject', { hasText: 'История' }).locator('.twisty').click();

@@ -63,7 +63,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
   } else {
     check((await page.locator('.tabbar:visible').count()) === 0, `${tag}: нижней панели на компьютере нет`);
     check((await page.locator('.sidebar .create-btn').count()) === 1, `${tag}: слева кнопка «Создать»`);
-    check((await page.locator('.sidebar .row-add').count()) === 0 && (await page.locator('.side-head button').count()) === 0, `${tag}: в дереве предметов нет своих «+»`);
+    check((await page.locator('.sidebar .row-add').count()) >= 1 && (await page.locator('.side-head button').count()) === 2, `${tag}: «+» у предметов и тем на месте`);
     await page.locator('.sidebar .nav-item', { hasText: 'Знания' }).click();
     await page.waitForTimeout(500);
     check((await page.locator('.know-tile', { hasText: 'Биология' }).first().isVisible()) && (await page.locator('.know-tile').first().boundingBox()).width > 200, `${tag}: «Знания» слева открывают плитки`);

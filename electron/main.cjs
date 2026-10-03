@@ -78,7 +78,7 @@ function createWindow() {
     minHeight: 600,
     title: 'Мнема',
     backgroundColor: '#F6F3EC',
-    autoHideMenuBar: true,
+    autoHideMenuBar: false, // false + скрытая полоса: Alt не выдвигает меню «File Edit View Window» сверху
     icon: nativeImage.createFromPath(path.join(__dirname, 'icon.png')),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -89,6 +89,7 @@ function createWindow() {
     }
   });
   mainWin = win;
+  win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   // При автозапуске окно не показываем — Мнема ждёт в трее.
   if (!startHidden) win.once('ready-to-show', () => win.show());

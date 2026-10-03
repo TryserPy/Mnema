@@ -12,6 +12,7 @@ const watch = (w) => { w.on('pageerror', (e) => errors.push(e.message)); w.on('c
 watch(win);
 const step = (s) => console.log('•', s);
 const shot = async (n) => { await win.waitForTimeout(400); await win.screenshot({ path: `${OUT}/${n}.png` }); };
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(1500);
 await app.close();

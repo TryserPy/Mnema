@@ -352,13 +352,16 @@ const KIND_LABELS: [MotionKind, string, string][] = [
   ['expand', 'Раскрытие блоков', 'Списки и разделы раскрываются плавно'],
   ['text', 'Смена текста и чисел', 'Числа докручиваются'],
   ['review', 'Карточки при повторении', 'Карточка выезжает, ответ открывается'],
-  ['hover', 'Мелкие эффекты', 'Кнопки чуть приподнимаются, растения качаются']
+  ['hover', 'Мелкие эффекты', 'Кнопки чуть приподнимаются, строки подсвечиваются'],
+  ['lists', 'Списки и плитки', 'Появляются по очереди, а не разом'],
+  ['press', 'Нажатия', 'Кнопки и вкладки слегка «вдавливаются»'],
+  ['guide', 'Картинки в справке', 'Рисунки в справке и знакомстве оживают']
 ];
 
 export function MotionPane() {
   const data = useData();
   const s = data.settings;
-  const offNow: MotionKind[] = s.motion === 'off' ? KIND_LABELS.map((k) => k[0]) : s.motion === 'essential' ? ['screens', 'text', 'hover'] : s.motion === 'custom' ? s.motionOff : [];
+  const offNow: MotionKind[] = s.motion === 'off' ? KIND_LABELS.map((k) => k[0]) : s.motion === 'essential' ? ['screens', 'text', 'hover', 'lists', 'press', 'guide'] : s.motion === 'custom' ? s.motionOff : [];
   const toggle = (k: MotionKind, on: boolean) => {
     const next = on ? offNow.filter((x) => x !== k) : [...offNow, k];
     const level: MotionLevel = next.length === 0 ? 'all' : next.length === KIND_LABELS.length ? 'off' : 'custom';

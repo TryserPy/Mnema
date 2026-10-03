@@ -1,6 +1,7 @@
 // «Знания»: все предметы плитками — сколько помнишь и что на очереди — и быстрый поиск по темам.
 // Создаётся всё через «＋ Создать»; здесь только смотрим и открываем.
 import { useMemo, useState } from 'react';
+import { Capped } from '../components/Capped';
 import { Icon, plural, SubjectMark } from '../components/ui';
 import { topicStatsByTopic } from '../srs';
 import { childTopics, sortedFolders, sortedSubjects, useData } from '../store';
@@ -121,21 +122,13 @@ export function Knowledge({ go, onTree }: { go: (r: Route) => void; onTree?: () 
                       <Icon name="folder" size={18} /> {f.name}
                     </button>
                   </h2>
-                  <div className="know-grid">
-                    {tiles.filter((t) => t.subject.folderId === f.id).map((t) => (
-                      <Tile key={t.subject.id} tile={t} go={go} />
-                    ))}
-                  </div>
+                  <Capped className="know-grid" limit={12} items={tiles.filter((t) => t.subject.folderId === f.id)} render={(t) => <Tile key={t.subject.id} tile={t} go={go} />} />
                 </section>
               ))}
               {loose.length > 0 && (
                 <section className="know-group">
                   {folders.length > 0 && <h2 className="know-group-title">Без папки</h2>}
-                  <div className="know-grid">
-                    {loose.map((t) => (
-                      <Tile key={t.subject.id} tile={t} go={go} />
-                    ))}
-                  </div>
+                  <Capped className="know-grid" limit={12} items={loose} render={(t) => <Tile key={t.subject.id} tile={t} go={go} />} />
                 </section>
               )}
             </>

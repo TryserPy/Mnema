@@ -1,4 +1,5 @@
 // Подготовка к контрольной: сколько помнишь к дате (прогноз по карточкам, не оценка), что охвачено, где слабые места, что делать каждый день.
+import { Capped } from '../components/Capped';
 import { useMemo, useState } from 'react';
 import { ExamDialog } from '../components/ExamDialog';
 import { AnimatedNumber, Icon, plural } from '../components/ui';
@@ -119,7 +120,7 @@ export function ExamScreen({ id, go }: { id: string; go: (r: Route) => void }) {
       {r.perTopic.length > 0 && (
         <div className="card stack gap12">
           <h3>По темам</h3>
-          {r.perTopic.map((t) => {
+          <Capped className="stack gap12" limit={8} items={r.perTopic} render={(t) => {
             const cov = t.coverage ? Math.round((t.coverage.covered / t.coverage.places) * 100) : null;
             return (
               <button key={t.topicId} className="exam-topic" onClick={() => go({ name: 'topic', id: t.topicId })}>
@@ -135,7 +136,7 @@ export function ExamScreen({ id, go }: { id: string; go: (r: Route) => void }) {
                 </span>
               </button>
             );
-          })}
+          }} />
           <span className="small muted">Светлая полоса — охват конспекта карточками, тёмная — сколько помнишь к дате.</span>
         </div>
       )}
@@ -162,8 +163,7 @@ export function ExamScreen({ id, go }: { id: string; go: (r: Route) => void }) {
       {plan.length > 0 && (
         <div className="card stack gap8">
           <h3>План до даты</h3>
-          <ul className="prep-days">
-            {plan.map((p) => (
+          <Capped as="ul" className="prep-days" limit={10} items={plan} render={(p) => (
               <li key={p.offset} className={p.kind}>
                 <span className="prep-days-day">{dayLabel(p.offset, r.daysLeft, p.date)}</span>
                 <span>
@@ -172,8 +172,7 @@ export function ExamScreen({ id, go }: { id: string; go: (r: Route) => void }) {
                   {p.kind === 'rest' && 'только повторения по расписанию'}
                 </span>
               </li>
-            ))}
-          </ul>
+          )} />
           <span className="small muted">Новое заканчиваем за два дня до даты, а накануне — только слабое: так память держится надёжнее, чем при зубрёжке ночью.</span>
         </div>
       )}

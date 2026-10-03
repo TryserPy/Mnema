@@ -25,6 +25,7 @@ const win = await app.firstWindow();
 const errors = [];
 win.on('pageerror', (e) => errors.push(e.message));
 const step = (s) => console.log('•', s);
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: 'Возможности' }).click();
 await win.getByRole('switch', { name: 'ИИ-помощник' }).click();

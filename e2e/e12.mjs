@@ -9,6 +9,7 @@ const rowBtn = (w, label, btn) => w.locator('.srow', { has: w.locator('.srow-lab
 const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'], env: { ...process.env, MNEMA_USER_DATA: '/tmp/obsA' } });
 await app.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: ['/tmp/vaultOut'] }); });
 const win = await app.firstWindow();
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
 await win.locator('.set-nav-item', { hasText: 'Данные' }).click();

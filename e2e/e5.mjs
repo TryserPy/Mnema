@@ -41,6 +41,8 @@ win.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 const step = (s) => console.log('•', s);
 const t0 = Date.now();
 
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
+
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 // Новая тема в истории
 const hist = win.locator('.tree-row.subject', { hasText: 'История' });

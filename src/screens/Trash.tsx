@@ -1,4 +1,5 @@
 // Корзина: что удалено за последние 30 дней. Вернуть можно в один клик. Корзина лежит только на этом устройстве.
+import { Capped } from '../components/Capped';
 import { ConfirmButton, Icon, toast } from '../components/ui';
 import { plural } from '../components/ui';
 import { purgeTrash, restoreFromTrash, useData } from '../store';
@@ -29,8 +30,7 @@ export function Trash({ go }: { go: (r: Route) => void }) {
         </div>
       ) : (
         <>
-          <ul className="trash-list">
-            {items.map((t) => (
+          <Capped as="ul" className="trash-list" limit={20} items={items} render={(t) => (
               <li key={t.id} className="trash-item">
                 <span className="trash-text">
                   <strong className="clamp2">{t.label}</strong>
@@ -53,8 +53,8 @@ export function Trash({ go }: { go: (r: Route) => void }) {
                   </ConfirmButton>
                 </span>
               </li>
-            ))}
-          </ul>
+            
+          )} />
           <div className="row end">
             <ConfirmButton className="btn ghost danger" label="Очистить всё навсегда?" onConfirm={() => purgeTrash()}>
               Очистить корзину

@@ -40,6 +40,7 @@ const app = await electron.launch({ executablePath: process.cwd() + '/node_modul
 const userData = await app.evaluate(({ app }) => app.getPath('userData'));
 const win = await app.firstWindow();
 const step = (s) => console.log('•', s);
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: 'Возможности' }).click();
 await win.getByRole('switch', { name: 'ИИ-помощник' }).click();

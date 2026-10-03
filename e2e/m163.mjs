@@ -5,6 +5,7 @@ const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-119
 const p = await b.newPage({ viewport: { width: 380, height: 780 }, isMobile: true, hasTouch: true });
 const errors = []; p.on('pageerror', (e) => errors.push(e.message));
 await p.goto('http://localhost:4174');
+await p.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await p.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await p.waitForTimeout(500);
 await p.locator('.foot-btn[aria-label="Возможности"]').click().catch(() => {});

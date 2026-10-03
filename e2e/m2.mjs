@@ -5,6 +5,7 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, devi
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:4174');
+await page.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await page.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await page.getByRole('button', { name: 'Знания' }).click();
 await page.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.twisty').click();
