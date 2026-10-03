@@ -66,6 +66,8 @@ declare global {
       save: (json: string) => Promise<boolean>;
       saveSync: (json: string) => boolean;
       openDataFolder: () => Promise<string>;
+      backupList?: () => Promise<{ name: string; size: number }[]>; // автокопии (раз в день, последние 8)
+      backupRead?: (name: string) => Promise<string | null>;
       obsidianPick?: () => Promise<Vault | null>;
       obsidianRead?: (rel: string) => Promise<{ text: string; images: Record<string, string> }>;
       aiGetConfig?: () => Promise<AiConfig>;
