@@ -531,7 +531,7 @@ export function App() {
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <ExamDialogHost go={go} />
-      <CreateHost route={route} go={go} onNewSubject={() => setAddingSubject({})} />
+      <CreateHost route={route} go={go} onNewSubject={(o) => setAddingSubject(o ?? {})} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />
       {addingSubject && (
         <NewSubjectDialog

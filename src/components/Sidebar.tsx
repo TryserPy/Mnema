@@ -258,9 +258,6 @@ export function Sidebar({
           >
             <Icon name={t.important ? 'starFill' : 'star'} size={15} />
           </button>
-          <button className="row-add" aria-label="Добавить подтему" title="Добавить подтему" onClick={() => setAdding({ subjectId: t.subjectId, parentId: t.id })}>
-            <Icon name="plus" size={15} />
-          </button>
           <button className="row-more" aria-label={`Ещё о теме «${t.name}»`} title="Ещё" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { topic: t })}>
             <Icon name="dots" size={15} />
           </button>
@@ -306,17 +303,6 @@ export function Sidebar({
                   <SubjectMark color={sub.color} icon={sub.icon} />
                   <span className="grow clamp1">{sub.name}</span>
                   <span className="muted small count">{roots.length || ''}</span>
-                </button>
-                <button
-                  className="row-add"
-                  aria-label="Добавить тему"
-                  title="Добавить тему"
-                  onClick={() => {
-                    toggleTreeOpen(sub.id, true);
-                    setAdding({ subjectId: sub.id });
-                  }}
-                >
-                  <Icon name="plus" size={15} />
                 </button>
                 <button className="row-more" aria-label={`Ещё о предмете «${sub.name}»`} title="Изменить или удалить предмет" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { subject: sub })}>
                   <Icon name="dots" size={15} />
@@ -377,9 +363,6 @@ export function Sidebar({
             {f.icon ? <SubjectMark color={f.color} icon={f.icon} /> : <Icon name="folder" size={16} />}
             <span className="grow clamp1 folder-name">{f.name}</span>
             <span className="muted small count">{inside.length || ''}</span>
-          </button>
-          <button className="row-add" aria-label="Новый предмет в папке" title="Новый предмет в папке" onClick={() => onNewSubject({ folderId: f.id })}>
-            <Icon name="plus" size={15} />
           </button>
           <button className="row-more" aria-label={`Ещё о папке «${f.name}»`} title="Изменить или удалить папку" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { folder: f })}>
             <Icon name="dots" size={15} />
@@ -516,14 +499,6 @@ export function Sidebar({
       </nav>
       <div className="side-head">
         <span>Предметы</span>
-        <span className="row gap2">
-          <button className="icon-btn small" aria-label="Новая папка" title="Новая папка предметов" onClick={() => onNewSubject({ as: 'folder' })}>
-            <Icon name="folderPlus" size={18} />
-          </button>
-          <button className="icon-btn small" aria-label="Добавить предмет" title="Добавить предмет" onClick={() => onNewSubject()}>
-            <Icon name="plus" size={18} />
-          </button>
-        </span>
       </div>
       {picking && (
         <div className="pick-bar" role="toolbar" aria-label="Выбранное">
