@@ -31,7 +31,7 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.reload();
   await page.waitForTimeout(700);
   const tag = String(w);
-  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); }
+  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); await page.getByRole('button', { name: 'Все темы списком' }).click(); await page.waitForTimeout(400); }
   await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();
   await page.waitForTimeout(300);
   // тема без истории: пункта нет
@@ -43,7 +43,7 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   check((await page.getByRole('menuitem', { name: /История конспекта/ }).count()) === 0, `${tag}: у темы без истории пункта «История конспекта» нет`);
   await page.keyboard.press('Escape');
   // тема с историей
-  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); }
+  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); await page.getByRole('button', { name: 'Все темы списком' }).click(); await page.waitForTimeout(400); }
   await page.locator('.tree-row', { hasText: 'Клетка' }).locator('.tree-label').click();
   await page.waitForTimeout(600);
   await page.getByRole('button', { name: 'Действия с темой' }).click();

@@ -102,6 +102,9 @@ npm run build          # сборка в dist/
 - Конспект на весь экран, экран не «белеет» при ошибке (`ErrorBoundary`), починена пустая карта знаний
 - Быстрее: счётчики «на сегодня» кэшируются, журнал ответов читается с конца, редактор формул/граф/импорт учебника грузятся по требованию
 
+## 1.20.0 — «Знания» и «Профиль» (часть этапа 5)
+- Маршруты `knowledge` и `profile` (`types.ts`); `screens/Knowledge.tsx` (`subjectTiles` — один проход `topicStatsByTopic`, `findTopics`), `screens/Profile.tsx`; `TabBar.tsx` больше не открывает окно/шторку, а ведёт на экраны; пункты «Знания» и «Профиль» в `Sidebar.tsx`; тесты `v1200-knowledge.test.ts`, сценарий `e2e/shell.mjs`. Новые классы `.know-*`, `.prof-*` (`styles.css`)
+
 ## 1.19.0 — экран автокопий (этап 7)
 - Мост: `backup:list`, `backup:read` (`electron/main.cjs`, `preload.cjs`), `listBackups`, `readBackup` (`android/.../Bridge.java`, `src/platform/android.ts`); имя проверяется шаблоном `mnema-ГГГГ-ММ-ДД.json`
 - `src/backups.ts` (подписи дня и размера, тесты `backups.test.ts`), окно `components/Backups.tsx`, «Вернуть как было» после восстановления (`Settings.tsx`); сценарий `e2e/backups.mjs` (Electron)

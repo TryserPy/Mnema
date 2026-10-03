@@ -1422,3 +1422,25 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .bk-row:hover { background: var(--sunken); }
 .bk-body { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 0 14px 12px; animation: rowIn 0.15s ease; }
 .bk-bad { color: var(--again-ink); }
+
+/* «Знания» и «Профиль» */
+.know-page { gap: 18px; }
+.know-search { display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--muted); }
+.know-search:focus-within { border-color: var(--accent); }
+.know-search .input, .know-search .input:focus { border: none; outline: none; background: transparent; box-shadow: none; flex: 1; min-width: 0; padding-left: 0; }
+.know-group { display: flex; flex-direction: column; gap: 10px; }
+.know-group-title { font-size: 1rem; font-weight: 600; margin: 0; color: var(--muted); }
+.know-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.know-tile { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; min-width: 0; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: inherit; text-align: left; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s, border-color 0.15s; }
+.know-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--c, var(--accent)); }
+.know-tile-head { align-items: center; min-width: 0; }
+.know-found { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.know-found-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; min-height: 48px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: inherit; text-align: left; }
+.know-found-row:hover { border-color: var(--accent); }
+.know-found-row .small { max-width: 40%; }
+.prof-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.prof-kpis > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prof-kpis .kpi-num { font-size: 1.7rem; }
+.prof-links { gap: 8px; }
+@media (max-width: 719px) { .know-grid { grid-template-columns: 1fr; } .prof-kpis .kpi-num { font-size: 1.4rem; } }
+.know-tile .progress.full { flex: none; margin-top: auto; }

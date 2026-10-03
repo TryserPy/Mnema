@@ -491,6 +491,12 @@ export function Sidebar({
           <Icon name="home" /> <span className="grow">Сегодня</span>
           {dueAll > 0 && <span className="badge pop" key={dueAll}>{dueAll}</span>}
         </button>
+        <button className={'nav-item' + (route.name === 'knowledge' ? ' on' : '')} onClick={() => go({ name: 'knowledge' })}>
+          <Icon name="book" /> <span className="grow">Знания</span>
+        </button>
+        <button className={'nav-item' + (route.name === 'profile' ? ' on' : '')} onClick={() => go({ name: 'profile' })}>
+          <Icon name="sliders" /> <span className="grow">Профиль</span>
+        </button>
         {onSearch && (
           <button className="nav-item search-item" onClick={onSearch} title="Поиск по всему и команды">
             <Icon name="search" /> <span className="grow">Поиск</span>

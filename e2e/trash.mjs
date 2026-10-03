@@ -25,7 +25,7 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.reload();
   await page.waitForTimeout(700);
   const tag = String(w);
-  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); }
+  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); await page.getByRole('button', { name: 'Все темы списком' }).click(); await page.waitForTimeout(400); }
   await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();
   await page.waitForTimeout(300);
   // удалить тему «Ткани» через меню (два нажатия)
@@ -47,7 +47,7 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
     await page.waitForTimeout(300);
     await page.locator('.tab', { hasText: 'Профиль' }).click();
     await page.waitForTimeout(300);
-    await page.locator('.modal .create-item', { hasText: 'Корзина' }).click();
+    await page.locator('.prof-links .create-item', { hasText: 'Корзина' }).click();
   } else {
     await page.keyboard.press('Control+p');
     await page.locator('.palette input').fill('Корзина');
