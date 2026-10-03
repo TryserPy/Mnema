@@ -63,6 +63,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
   } else {
     check((await page.locator('.tabbar:visible').count()) === 0, `${tag}: нижней панели на компьютере нет`);
     check((await page.locator('.sidebar .create-btn').count()) === 1, `${tag}: слева кнопка «Создать»`);
+    check((await page.locator('.sidebar .row-add').count()) === 0 && (await page.locator('.side-head button').count()) === 0, `${tag}: в дереве предметов нет своих «+»`);
     await page.locator('.sidebar .nav-item', { hasText: 'Знания' }).click();
     await page.waitForTimeout(500);
     check((await page.locator('.know-tile', { hasText: 'Биология' }).first().isVisible()) && (await page.locator('.know-tile').first().boundingBox()).width > 200, `${tag}: «Знания» слева открывают плитки`);
@@ -78,7 +79,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
   await open();
   await page.waitForTimeout(500);
   const items = await page.locator('.modal .create-item strong').allInnerTexts();
-  check(items.join('|') === 'Быстрая карточка|Новая тема|Новый предмет|Домашка|Контрольная|Файл изменений', `${tag}: «Создать»: ${items.join(' | ')}`);
+  check(items.join('|') === 'Быстрая карточка|Новая тема|Новый предмет|Новая папка|Домашка|Контрольная|Файл изменений', `${tag}: «Создать»: ${items.join(' | ')}`);
   await page.screenshot({ path: `${OUT}/shell-${tag}-create.png` });
   // быстрая карточка
   const n0 = await cardsOf(page);
