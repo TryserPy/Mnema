@@ -206,6 +206,51 @@ public class Bridge {
         }
     }
 
+    // ---------- автокопии: список и чтение (только файлы mnema-ГГГГ-ММ-ДД.json из папки backups) ----------
+
+    static final String BACKUP_NAME = "mnema-\\d{4}-\\d{2}-\\d{2}\\.json";
+
+    /** Список автокопий: JSON-массив {name, size}, новые сверху. */
+    @JavascriptInterface
+    public String listBackups(String k) {
+        if (!allowed(k)) return "[]";
+        try {
+            File[] all = new File(activity.getFilesDir(), "backups").listFiles();
+            if (all == null) return "[]";
+            String[] names = new String[all.length];
+            int n = 0;
+            for (File f : all) if (f.getName().matches(BACKUP_NAME)) names[n++] = f.getName();
+            names = Arrays.copyOf(names, n);
+            Arrays.sort(names);
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = n - 1; i >= 0; i--) {
+                File f = new File(new File(activity.getFilesDir(), "backups"), names[i]);
+                if (sb.length() > 1) sb.append(',');
+                sb.append("{\"name\":\"").append(names[i]).append("\",\"size\":").append(f.length()).append('}');
+            }
+            return sb.append(']').toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    /** Текст одной автокопии. Имя проверяется по шаблону — путь из окна не принимается. */
+    @JavascriptInterface
+    public String readBackup(String k, String name) {
+        if (!allowed(k) || name == null || !name.matches(BACKUP_NAME)) return null;
+        try {
+            FileInputStream in = new FileInputStream(new File(new File(activity.getFilesDir(), "backups"), name));
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[65536];
+            int r;
+            while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
+            in.close();
+            return new String(out.toByteArray(), UTF8);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     // ---------- настройки и секреты ----------
 
     /** Страница (и моды в ней) читает и пишет только эти настройки; остальные — только сама оболочка. */

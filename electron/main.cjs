@@ -256,6 +256,27 @@ ipcMain.handle('obsidian:export', async (e, files) => {
   return { ok: true, folder: root, written };
 });
 
+// Автокопии: список и чтение. Только файлы mnema-ГГГГ-ММ-ДД.json из папки backups — имя проверяется, путь из окна не принимается.
+const BACKUP_NAME = /^mnema-\d{4}-\d{2}-\d{2}\.json$/;
+ipcMain.handle('backup:list', () => {
+  const dir = BACKUP_DIR();
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => BACKUP_NAME.test(f))
+    .sort()
+    .reverse()
+    .map((f) => ({ name: f, size: fs.statSync(path.join(dir, f)).size }));
+});
+ipcMain.handle('backup:read', (_e, name) => {
+  if (typeof name !== 'string' || !BACKUP_NAME.test(name)) return null;
+  try {
+    return fs.readFileSync(path.join(BACKUP_DIR(), name), 'utf8');
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle('data:folder', () => {
   shell.openPath(app.getPath('userData'));
   return app.getPath('userData');

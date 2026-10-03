@@ -26,6 +26,8 @@ interface AndroidBridge {
   apkInstall?(id: string, ask: boolean): void;
   setIcon?(name: string): void;
   setSelMenu?(json: string): void;
+  listBackups?(): string;
+  readBackup?(name: string): string | null;
 }
 
 /** Каждый вызов моста несёт ключ (см. bridgeKey.ts): оборачиваем, чтобы остальной код его не видел. */
@@ -114,6 +116,9 @@ if (RAW) {
     save: async (json: string) => A.save(json),
     saveSync: (json: string) => A.save(json),
     openDataFolder: async () => '',
+    // Старый APK без этих методов — автокопий в окне просто не будет видно.
+    backupList: typeof RAW.listBackups === 'function' ? async () => JSON.parse(A.listBackups!() || '[]') : undefined,
+    backupRead: typeof RAW.readBackup === 'function' ? async (name: string) => A.readBackup!(name) : undefined,
     aiGetConfig: async () => ai.getConfig(),
     aiSetConfig: async (p) => ai.setConfig(p),
     aiSaveCustom: async (d) => ai.saveCustom(d),

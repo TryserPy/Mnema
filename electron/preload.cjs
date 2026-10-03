@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('mnemaApi', {
   save: (json) => ipcRenderer.invoke('data:save', json),
   saveSync: (json) => ipcRenderer.sendSync('data:saveSync', json),
   openDataFolder: () => ipcRenderer.invoke('data:folder'),
+  backupList: () => ipcRenderer.invoke('backup:list'),
+  backupRead: (name) => ipcRenderer.invoke('backup:read', name),
   obsidianPick: () => ipcRenderer.invoke('obsidian:pick'),
   obsidianRead: (rel) => ipcRenderer.invoke('obsidian:read', rel),
   aiGetConfig: () => ipcRenderer.invoke('ai:getConfig'),
