@@ -45,7 +45,8 @@ await win.getByRole('button', { name: 'Посмотреть на примере'
 // Новая тема в истории
 const hist = win.locator('.tree-row.subject', { hasText: 'История' });
 await hist.hover();
-await hist.getByRole('button', { name: 'Добавить тему' }).click();
+await hist.getByRole('button', { name: /Ещё о предмете/ }).click();
+await win.getByRole('menuitem', { name: 'Новая тема' }).click();
 await win.getByPlaceholder('Новая тема, например §12').fill('§ 7. Реформы');
 await win.keyboard.press('Enter');
 await win.locator('.tb-hint').click();

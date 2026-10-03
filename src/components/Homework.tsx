@@ -501,16 +501,12 @@ export function HomeworkScreen({ go }: { go: (r: Route) => void }) {
 /** Карточка на «Сегодня»: что сдавать сегодня и завтра, просроченное. */
 export function HomeworkToday({ go }: { go: (r: Route) => void }) {
   const data = useData();
-  const [adding, setAdding] = useState(false);
   const soon = data.homework.filter((h) => !h.done && ['overdue', 'today', 'tomorrow'].includes(groupOf(h)));
   const later = data.homework.filter((h) => !h.done).length - soon.length;
   return (
     <div className="card hw-today">
       <div className="hw-today-head">
         <h3>Домашка</h3>
-        <button className="icon-btn small" title="Записать задание" aria-label="Записать задание" onClick={() => setAdding(true)}>
-          <Icon name="plus" size={18} />
-        </button>
         <span className="grow" />
         <button className="link-btn small" onClick={() => go({ name: 'homework' })}>
           Вся домашка ›
@@ -526,11 +522,6 @@ export function HomeworkToday({ go }: { go: (r: Route) => void }) {
               <HwRow key={h.id} h={h} go={go} i={i} />
             ))}
         </div>
-      )}
-      {adding && (
-        <Modal title="Новое задание" onClose={() => setAdding(false)} width={560}>
-          <HomeworkForm onDone={() => setAdding(false)} />
-        </Modal>
       )}
     </div>
   );

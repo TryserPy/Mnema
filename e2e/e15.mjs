@@ -20,7 +20,8 @@ await win.getByRole('button', { name: 'Посмотреть на примере'
 await win.waitForTimeout(400);
 
 // 1. Папка «Естественные науки»: Биология + Физика
-await win.getByRole('button', { name: 'Новая папка' }).click();
+await win.locator('.sidebar .create-btn').click();
+await win.locator('.modal .create-item', { hasText: 'Новая папка' }).click();
 await win.locator('.modal').getByLabel('Название').fill('Естественные науки');
 await win.locator('.modal .icon-pick-btn').click();
 await win.locator('.modal .ico-opt', { hasText: '🔬' }).click();

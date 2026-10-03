@@ -22,7 +22,7 @@ function here(route: Route, data: ReturnType<typeof useData>): { topicId?: strin
   return {};
 }
 
-export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: Route) => void; onNewSubject: () => void }) {
+export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: Route) => void; onNewSubject: (o?: { as?: 'subject' | 'folder' }) => void }) {
   const data = useData();
   const [sheet, setSheet] = useState<Sheet>(null);
   useEffect(() => {
@@ -41,6 +41,7 @@ export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: 
     { icon: 'cardPlus', title: 'Быстрая карточка', hint: 'Вопрос и ответ — в любую тему', run: () => setSheet('card'), hidden: data.topics.length === 0 },
     { icon: 'book', title: 'Новая тема', hint: 'Название — конспект допишешь потом', run: () => setSheet('topic'), hidden: data.subjects.length === 0 },
     { icon: 'folderPlus', title: 'Новый предмет', hint: 'Например, «Биология»', run: () => (close(), onNewSubject()) },
+    { icon: 'folder', title: 'Новая папка', hint: 'Собрать предметы вместе, например «Естественные науки»', run: () => (close(), onNewSubject({ as: 'folder' })) },
     { icon: 'homework', title: 'Домашка', hint: 'Что задали и к какому сроку', run: () => (close(), go({ name: 'homework' })), hidden: !data.settings.features.homework },
     { icon: 'calendar', title: 'Контрольная', hint: 'Дата и темы — Мнема составит план', run: () => (close(), openExamDialog(at)), hidden: data.topics.length === 0 },
     { icon: 'upload', title: 'Файл изменений', hint: 'Загрузить конспекты и карточки от нейросети', run: () => (close(), openChanges()) }

@@ -28,7 +28,8 @@ await win.getByRole('button', { name: 'Посмотреть на примере'
 await win.locator('.tree-row.subject', { hasText: 'Физика' }).locator('.twisty').click();
 const ohm = win.locator('.tree-row', { hasText: 'Закон Ома' });
 await ohm.hover();
-await ohm.getByRole('button', { name: 'Добавить подтему' }).click();
+await ohm.getByRole('button', { name: /Ещё о теме/ }).click();
+await win.getByRole('menuitem', { name: 'Добавить подтему' }).click();
 await win.getByPlaceholder('Подтема').fill('Сопротивление проводника');
 await win.keyboard.press('Enter');
 await win.locator('.title-input').waitFor();
