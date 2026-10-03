@@ -1,53 +1,13 @@
 // «Стили»: готовые наборы внешнего вида. Включил — сразу видно в предпросмотре; выключил — всё как было.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { allMods, CATALOG, isMod, MOD_EXT, sanitizeCss } from '../mods';
 import { downloadFile } from '../share';
 import { getData, updateSettings, useData } from '../store';
 import { FONTS } from '../themes';
 import type { Mod } from '../types';
-import { Collapse, Icon, Switch, toast } from './ui';
-import { Group, PaneHead, SRow } from './SettingsKit';
-
-/** Маленький кусочек Мнемы из настоящих элементов — стили меняют его так же, как всё приложение. */
-function StylePreview() {
-  return (
-    <div className="style-preview" aria-hidden="true">
-      <div className="hero sp-hero-mini">
-        <span className="hero-label">На сегодня</span>
-        <span className="row gap8 end-align">
-          <span className="hero-num small-num">12</span>
-          <span className="hero-sub">карточек · 4 мин</span>
-        </span>
-        <span className="hero-btn">▶ Начать</span>
-      </div>
-      <div className="review-card sp-review">
-        <div className="question">Что такое фотосинтез?</div>
-        <div className="divider" />
-        <div className="answer-text">Образование веществ из углекислого газа и воды на свету.</div>
-      </div>
-      <div className="grades">
-        <span className="grade again">Не помню</span>
-        <span className="grade hard">Трудно</span>
-        <span className="grade good">Помню</span>
-        <span className="grade easy">Легко</span>
-      </div>
-      <div className="note-page sp-note">
-        <div className="note-doc">
-          <p>
-            <strong>Сила тока</strong> прямо пропорциональна напряжению.
-          </p>
-        </div>
-      </div>
-      <div className="row gap8 wrap">
-        <span className="btn primary small">Кнопка</span>
-        <span className="btn small">Ещё кнопка</span>
-        <span className="switch on">
-          <span />
-        </span>
-      </div>
-    </div>
-  );
-}
+import { Collapse, Icon, toast } from './ui';
+import { StyleTile } from './StyleGallery';
+import { PaneHead } from './SettingsKit';
 
 /** Наборы стилей — свой раздел Настроек. */
 export function StylesSettings() {
@@ -106,6 +66,10 @@ export function StylesSettings() {
   }
 
   const list = allMods(s.customMods);
+  // Шрифты стилей нужны примерам в плитках сразу, а не только когда стиль включён.
+  useEffect(() => {
+    for (const m of list) if (m.font) void FONTS.find((f) => f.id === m.font)?.load?.();
+  }, [list.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const onCount = list.filter((m) => s.modsOn.includes(m.id)).length;
   const offAll =
     onCount > 0 ? (
@@ -113,76 +77,54 @@ export function StylesSettings() {
         Выключить все
       </button>
     ) : null;
+  // Тема для примеров: правила стилей «для тёмной темы» должны срабатывать и в плитках.
+  const theme = document.documentElement.dataset.theme ?? 'light';
   return (
     <div className="stack gap16">
-      <PaneHead title="Стили" text="Готовые наборы внешнего вида: тетрадь, крупные кнопки, стикеры… Можно включать несколько сразу, а выключишь — всё станет как было.">
+      <PaneHead title="Стили" text="Нажми на плитку — стиль включится. Можно несколько сразу, а выключишь — всё станет как было.">
         {offAll}
       </PaneHead>
-      <div className="styles-layout">
-        <div className="style-list">
-          {list.map((m, i) => {
-            const on = s.modsOn.includes(m.id);
-            const mine = !CATALOG.some((c) => c.id === m.id);
-            return (
-              <label key={m.id} className={'style-item' + (on ? ' on' : '')} style={{ animationDelay: Math.min(i, 10) * 25 + 'ms' }}>
-                <span className="style-emoji" aria-hidden="true">
-                  {m.icon ?? '🎨'}
-                </span>
-                <span className="style-body">
-                  <span className="style-name">
-                    <strong>{m.name}</strong>
-                    {m.where && <span className="tag soft">{m.where}</span>}
-                  </span>
-                  <span className="small muted" title={m.description}>
-                    {m.description}
-                  </span>
-                  <span className="style-meta">
-                    {mine && (
-                      <button
-                        type="button"
-                        className="link-btn small"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (on) toggle(m, false);
-                          updateSettings({ customMods: s.customMods.filter((x) => x.id !== m.id), modsOn: s.modsOn.filter((x) => x !== m.id) });
-                        }}
-                      >
-                        Удалить
-                      </button>
-                    )}
-                  </span>
-                </span>
-                <Switch label={m.name} checked={on} onChange={(v) => toggle(m, v)} />
-              </label>
-            );
-          })}
-        </div>
-        <div className="preview-col">
-          <span className="sgroup-title">Предпросмотр</span>
-          <StylePreview />
-        </div>
+      <div className="st-grid">
+        {list.map((m, i) => {
+          const on = s.modsOn.includes(m.id);
+          const mine = !CATALOG.some((c) => c.id === m.id);
+          return (
+            <StyleTile
+              key={m.id}
+              mod={m}
+              on={on}
+              theme={theme}
+              delay={Math.min(i, 10) * 25}
+              onToggle={() => toggle(m, !on)}
+              onDelete={
+                mine
+                  ? () => {
+                      if (on) toggle(m, false);
+                      const now = getData().settings;
+                      updateSettings({ customMods: now.customMods.filter((x) => x.id !== m.id), modsOn: now.modsOn.filter((x) => x !== m.id) });
+                    }
+                  : undefined
+              }
+            />
+          );
+        })}
       </div>
-      <Group title="Свои стили">
-        <SRow label="Стиль из файла" hint={`Файл ${MOD_EXT} от друга`}>
-          <button className="btn small" onClick={() => fileRef.current?.click()}>
-            <Icon name="folder" size={16} /> Выбрать
+      <div className="st-own">
+        <span className="sgroup-title">Свои стили</span>
+        <div className="row gap8 wrap">
+          <button className="btn small" onClick={() => fileRef.current?.click()} title={`Файл ${MOD_EXT} от друга`}>
+            <Icon name="folder" size={16} /> Стиль из файла
           </button>
-        </SRow>
-        <SRow label="Поделиться своим оформлением" hint="Сохранит тему, цвета и свой CSS в файл">
-          <button className="btn small" onClick={exportMine}>
-            <Icon name="share" size={16} /> Сохранить
+          <button className="btn small" onClick={exportMine} title="Сохранит тему, цвета и свой CSS в файл">
+            <Icon name="share" size={16} /> Сохранить мой вид
           </button>
-        </SRow>
-        <button className="srow srow-btn" aria-expanded={cssOpen} onClick={() => setCssOpen(!cssOpen)}>
-          <span className="srow-text">
-            <span className="srow-label">Свой CSS</span>
-            <span className="srow-hint">Для тех, кто умеет</span>
-          </span>
-          <span className={'chev' + (cssOpen ? ' open' : '')}>›</span>
-        </button>
+          <button className={'btn small' + (cssOpen ? ' on' : '')} aria-expanded={cssOpen} onClick={() => setCssOpen(!cssOpen)}>
+            <Icon name="code" size={16} /> Свой CSS
+          </button>
+        </div>
         <Collapse open={cssOpen}>
-          <div className="srow stack-row">
-            <textarea className="input css-area" spellCheck={false} value={css} onChange={(e) => setCss(e.target.value)} placeholder={'.hero { background: linear-gradient(135deg, var(--accent), #C2417A); }'} />
+          <div className="stack gap8 st-css">
+            <textarea className="input css-area" spellCheck={false} aria-label="Свой CSS" value={css} onChange={(e) => setCss(e.target.value)} placeholder={'.hero { background: linear-gradient(135deg, var(--accent), #C2417A); }'} />
             <div className="row gap8 wrap">
               <button className="btn primary small" onClick={() => updateSettings({ userCss: css })} disabled={css === s.userCss}>
                 Применить
@@ -191,10 +133,10 @@ export function StylesSettings() {
                 Очистить
               </button>
             </div>
-            <span className="small muted">Переменные: --accent, --bg, --surface, --ink, --radius, --body. Ссылки на интернет не работают.</span>
+            <span className="small muted">Для тех, кто умеет. Переменные: --accent, --bg, --surface, --ink, --radius, --body. Ссылки на интернет не работают.</span>
           </div>
         </Collapse>
-      </Group>
+      </div>
       {err && <div className="hint warn">{err}</div>}
       <input
         ref={fileRef}

@@ -63,7 +63,7 @@ for (const { w, h, phone } of SIZES) {
   console.log(`${w} настройки, разделы: ${navItems.map((x) => x.trim()).join(' | ')}`);
   if (!navItems.some((x) => /Стили/.test(x))) problems.push(`${w}: в разделах настроек нет раздела «Стили»`);
   await shot('5-look-styles');
-  const sticky = page.getByRole('switch', { name: 'Стикеры' });
+  const sticky = page.locator('.st-tile', { hasText: 'Стикеры' });
   if (await sticky.count()) {
     await sticky.click();
     await page.waitForTimeout(300);
@@ -77,7 +77,7 @@ for (const { w, h, phone } of SIZES) {
     if (!off) problems.push(`${w}: стиль «Стикеры» не выключился`);
   } else problems.push(`${w}: нет переключателя «Стикеры»`);
   // «Выключить все» должно выключить все включённые стили, а не один
-  for (const n of ['Тетрадь', 'Стикеры']) await page.getByRole('switch', { name: n }).click();
+  for (const n of ['Тетрадь', 'Стикеры']) await page.locator('.st-tile', { hasText: n }).click();
   await page.waitForTimeout(200);
   await page.getByRole('button', { name: 'Выключить все' }).click();
   await page.waitForTimeout(300);
