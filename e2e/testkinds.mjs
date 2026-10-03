@@ -39,7 +39,7 @@ for (const [w, h, phone, mistake] of [[1280, 860, false, false], [390, 844, true
   await page.reload();
   await page.waitForTimeout(700);
   const tag = String(w);
-  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); }
+  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); await page.getByRole('button', { name: 'Все темы списком' }).click(); await page.waitForTimeout(400); }
   await page.locator('.tree-row.subject', { hasText: 'История' }).locator('.twisty').click();
   await page.waitForTimeout(300);
   await page.locator('.tree-row', { hasText: 'Россия XIX века' }).locator('.tree-label').click();

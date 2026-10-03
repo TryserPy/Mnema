@@ -23,7 +23,7 @@ for (const [lookName, settings] of Object.entries(looks)) for (const [w, h, phon
   await page.reload();
   await page.waitForTimeout(700);
   const tag = `${lookName}-${w}`;
-  if (phone) { await page.locator('.tab', { hasText: 'Профиль' }).click(); await page.waitForTimeout(400); await page.getByRole('menuitem', { name: /Настройки/ }).click(); }
+  if (phone) { await page.locator('.tab', { hasText: 'Профиль' }).click(); await page.waitForTimeout(400); await page.locator('.prof-links .create-item', { hasText: 'Настройки' }).click(); }
   else await page.getByRole('button', { name: 'Настройки' }).first().click();
   await page.waitForTimeout(400);
   await page.locator('.set-nav-item', { hasText: 'Стили' }).click();

@@ -333,6 +333,8 @@ export type SettingsSection = 'look' | 'text' | 'motion' | 'styles' | 'features'
 
 export type Route =
   | { name: 'today' }
+  | { name: 'knowledge' }
+  | { name: 'profile' }
   | { name: 'subject'; id: string; view?: 'topics' | 'rules' | 'terms' | 'timeline'; filter?: string }
   | { name: 'folder'; id: string }
   | { name: 'homework' }

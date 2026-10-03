@@ -35,20 +35,27 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
     const small = await page.evaluate(() => [...document.querySelectorAll('.tabbar .tab')].filter((b) => b.getBoundingClientRect().height < 44 || b.getBoundingClientRect().width < 44).length);
     check(small === 0, `${tag}: все ячейки не меньше 44 px`);
     await page.screenshot({ path: `${OUT}/shell-${tag}-today.png` });
-    // Знания → шторка с деревом предметов
+    // Знания → экран с плитками предметов и поиском
     await page.locator('.tab', { hasText: 'Знания' }).click();
     await page.waitForTimeout(500);
-    check((await page.locator('.sidebar .tree-row', { hasText: 'Биология' }).first().isVisible()), `${tag}: «Знания» открывают дерево предметов`);
+    check((await page.locator('.know-tile', { hasText: 'Биология' }).first().isVisible()), `${tag}: «Знания» показывают плитку предмета`);
+    check((await page.locator('.tab.on', { hasText: 'Знания' }).count()) === 1, `${tag}: вкладка «Знания» подсвечена`);
+    await page.locator('.know-search input').fill('клет');
+    await page.waitForTimeout(300);
+    check((await page.locator('.know-found-row', { hasText: 'Клетка' }).count()) === 1, `${tag}: поиск нашёл тему «Клетка»`);
     await page.screenshot({ path: `${OUT}/shell-${tag}-knowledge.png` });
-    await page.locator('.drawer-back').click({ position: { x: w - 10, y: 200 } });
+    await page.locator('.know-search input').fill('');
+    await page.locator('.know-tile', { hasText: 'Биология' }).click();
     await page.waitForTimeout(400);
+    check((await page.locator('.tab.on', { hasText: 'Знания' }).count()) === 1, `${tag}: внутри предмета «Знания» подсвечены`);
     // Профиль
     await page.locator('.tab', { hasText: 'Профиль' }).click();
     await page.waitForTimeout(400);
-    const prof = await page.locator('.modal .create-item strong').allInnerTexts();
-    check(prof.join('|') === 'Мой прогресс|Настройки|Возможности|Корзина|Справка', `${tag}: «Профиль»: ${prof.join(' | ')}`);
+    const prof = await page.locator('.prof-links .create-item strong').allInnerTexts();
+    check(prof.join('|') === 'Настройки|Возможности|Автокопии|Корзина|Справка', `${tag}: «Профиль»: ${prof.join(' | ')}`);
+    check((await page.locator('.prof-progress').isVisible()) && (await page.locator('.prof-progress h3').innerText()).includes('Мой прогресс'), `${tag}: «Мой прогресс» сверху`);
     await page.screenshot({ path: `${OUT}/shell-${tag}-profile.png` });
-    await page.locator('.modal .create-item', { hasText: 'Настройки' }).click();
+    await page.locator('.prof-links .create-item', { hasText: 'Настройки' }).click();
     await page.waitForTimeout(500);
     check((await page.locator('.settings-page').count()) > 0 && (await page.locator('.tab.on', { hasText: 'Профиль' }).count()) === 1, `${tag}: «Настройки» открылись, вкладка «Профиль» подсвечена`);
     await page.locator('.tab', { hasText: 'Учусь' }).click();
@@ -56,6 +63,14 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 700, false], [390, 844, t
   } else {
     check((await page.locator('.tabbar:visible').count()) === 0, `${tag}: нижней панели на компьютере нет`);
     check((await page.locator('.sidebar .create-btn').count()) === 1, `${tag}: слева кнопка «Создать»`);
+    await page.locator('.sidebar .nav-item', { hasText: 'Знания' }).click();
+    await page.waitForTimeout(500);
+    check((await page.locator('.know-tile', { hasText: 'Биология' }).first().isVisible()) && (await page.locator('.know-tile').first().boundingBox()).width > 200, `${tag}: «Знания» слева открывают плитки`);
+    await page.screenshot({ path: `${OUT}/shell-${tag}-knowledge.png` });
+    await page.locator('.sidebar .nav-item', { hasText: 'Профиль' }).click();
+    await page.waitForTimeout(500);
+    check((await page.locator('.prof-links .create-item').count()) === 5, `${tag}: «Профиль» слева открывает экран`);
+    await page.screenshot({ path: `${OUT}/shell-${tag}-profile.png` });
   }
 
   // «Создать»

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Knowledge } from './screens/Knowledge';
+import { Profile } from './screens/Profile';
 import { CreateHost } from './components/CreateMenu';
 import { Trash } from './screens/Trash';
 import { hidesTabBar, TabBar } from './components/TabBar';
@@ -477,6 +479,8 @@ export function App() {
       <main className="main">
         <div className="page-anim" key={route.name + ('id' in route ? route.id : '')}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
+        {route.name === 'knowledge' && <Knowledge go={go} onTree={mobile ? () => setDrawer(true) : undefined} />}
+        {route.name === 'profile' && <Profile go={go} />}
         {route.name === 'today' && <Today go={go} onNewSubject={() => setAddingSubject({})} />}
         {route.name === 'homework' && <HomeworkScreen go={go} />}
         {route.name === 'plugin' && <PluginScreen key={route.id} id={route.id} />}
@@ -492,7 +496,7 @@ export function App() {
         </div>
       </main>
 
-      {mobile && <TabBar route={route} go={go} dueAll={dueAll} knowledgeOpen={drawer} onKnowledge={() => setDrawer(!drawer)} />}
+      {mobile && <TabBar route={route} go={go} dueAll={dueAll} />}
 
       {dragging && <div className="drop-hint">Отпусти файл: тема Мнемы (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</div>}
       {toastPres.mounted && (
