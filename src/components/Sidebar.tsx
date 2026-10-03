@@ -1,6 +1,7 @@
 // Левая панель: предметы → темы → подтемы. Её можно тянуть по ширине и сворачивать,
 // темы — перетаскивать (порядок, в другой предмет, внутрь другой темы), отмечать звёздочкой.
 import { openCreate } from './CreateMenu';
+import { makeCopy } from './copyUi';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
 import { keyFor, prettyCombo } from '../keys';
 import { groupOf } from '../homework';
@@ -108,7 +109,7 @@ export function Sidebar({
     const r = el.getBoundingClientRect();
     setMenu({ x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 4, ...m });
   };
-  /** Щелчок по свободному месту у «Предметы» — создать предмет или папку. */
+  /** Правая кнопка по свободному месту у «Предметы» — создать предмет или папку. */
   const blankMenu = (e: React.MouseEvent) => setMenu({ x: Math.min(e.clientX, window.innerWidth - 250), y: Math.min(e.clientY, window.innerHeight - 120), blank: true });
   const [resizing, setResizing] = useState(false);
   const autoOpen = activePath(data, route);
@@ -509,9 +510,21 @@ export function Sidebar({
             )}
           </button>
         )}
+        {onSearch && (
+          <button className="nav-item search-item" onClick={onSearch} title="Поиск по всему и команды">
+            <Icon name="search" /> <span className="grow">Поиск</span>
+            {!mobile && <kbd className="nav-kbd">{prettyCombo(keyFor(s, 'palette')).join('+')}</kbd>}
+          </button>
+        )}
       </nav>
-      <div className="side-head" onClick={(e) => e.target === e.currentTarget && blankMenu(e)}>
-        <span onClick={blankMenu} className="side-head-title" title="Создать предмет или папку">Предметы</span>
+      <div
+        className="side-head"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          blankMenu(e);
+        }}
+      >
+        <span className="side-head-title" title="Правая кнопка мыши — создать предмет или папку">Предметы</span>
         <span className="row gap2">
           <button className="icon-btn small" aria-label="Новая папка" title="Новая папка предметов" onClick={() => onNewSubject({ as: 'folder' })}>
             <Icon name="folderPlus" size={18} />
@@ -537,7 +550,6 @@ export function Sidebar({
       <div
         className="tree"
         onDragLeave={(e) => e.currentTarget === e.target && setDrop(null)}
-        onClick={(e) => e.target === e.currentTarget && blankMenu(e)}
         onContextMenu={(e) => {
           if (e.target !== e.currentTarget) return;
           e.preventDefault();
@@ -555,12 +567,6 @@ export function Sidebar({
       <div className="side-foot">
         <FootButtons />
       </div>
-      {onSearch && (
-        <button className="nav-item search-item side-search" onClick={onSearch} title="Поиск по всему и команды">
-          <Icon name="search" /> <span className="grow">Поиск</span>
-          {!mobile && <kbd className="nav-kbd">{prettyCombo(keyFor(s, 'palette')).join('+')}</kbd>}
-        </button>
-      )}
       {!mobile && <div className="side-resize" role="separator" aria-orientation="vertical" aria-label="Ширина панели" title="Потяни, чтобы изменить ширину. Двойной щелчок — как было." onPointerDown={startResize} onDoubleClick={() => updateSettings({ sidebarWidth: 248 })} />}
 
       {shownMenu && shownMenu.blank && (
@@ -604,6 +610,15 @@ export function Sidebar({
             }}
           >
             <Icon name="edit" size={18} /> Изменить или удалить папку
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              makeCopy('folder', shownMenu.folder!.id, go);
+              setMenu(null);
+            }}
+          >
+            <Icon name="copy" size={18} /> Сделать копию
           </button>
           <button
             role="menuitem"
@@ -662,6 +677,15 @@ export function Sidebar({
           <button
             role="menuitem"
             onClick={() => {
+              makeCopy('subject', shownMenu.subject!.id, go);
+              setMenu(null);
+            }}
+          >
+            <Icon name="copy" size={18} /> Сделать копию
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
               toggleSel('s:' + shownMenu.subject!.id);
               setMenu(null);
             }}
@@ -699,6 +723,15 @@ export function Sidebar({
             }}
           >
             <Icon name="subtopic" size={18} /> Добавить подтему
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              makeCopy('topic', shownMenu.topic!.id, go);
+              setMenu(null);
+            }}
+          >
+            <Icon name="copy" size={18} /> Сделать копию
           </button>
           <button
             role="menuitem"

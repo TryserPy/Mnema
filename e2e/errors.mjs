@@ -40,9 +40,13 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.screenshot({ path: `${OUT}/errors-${tag}-chips.png` });
   // 1-я карточка: «Перепутал»
   await page.locator('.err-chip', { hasText: 'Перепутал' }).click();
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(300);
   let l = await logs(page);
-  check(l.length === 1 && l[0].rating === 1 && l[0].err === 'mixed', `${tag}: «Перепутал» = «Снова» + причина в журнале: ${JSON.stringify(l[0])}`);
+  check(l.length === 0 && (await page.locator('.err-chip.on').count()) === 1, `${tag}: причина только отмечается — на следующую карточку само не перескакивает`);
+  await page.locator('.grade.again, .grades .grade').first().click();
+  await page.waitForTimeout(400);
+  l = await logs(page);
+  check(l.length === 1 && l[0].rating === 1 && l[0].err === 'mixed', `${tag}: причина + «Снова» — в журнале: ${JSON.stringify(l[0])}`);
   // остальные — «Помню» (обычная оценка, без причины)
   for (let i = 0; i < 12; i++) {
     await closeModal(page);

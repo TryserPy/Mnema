@@ -3,7 +3,7 @@ import { Rating, type Grade } from 'ts-fsrs';
 import { aiAvailable, explainDifferently } from '../ai';
 import { CardEditor } from '../components/CardEditor';
 import { SketchPad, type Stroke } from '../components/Drawing';
-import { canSpeak, speak } from '../speak';
+import { canSpeak, speak, stopSpeaking, useSpeaking } from '../speak';
 import { Markdown } from '../components/Markdown';
 import { PageViewer } from '../components/PageViewer';
 import { Icon, Modal, AnimText, touchUI } from '../components/ui';
@@ -135,6 +135,11 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
     setVoice({ state: 'idle', text: '' });
   }, []);
 
+  // «Ошибся?»: причина только отмечается, карточка не перескакивает — дальше нажимаешь «Снова».
+  const [reason, setReason] = useState<'forgot' | 'mixed' | 'lost' | null>(null);
+  const reasonRef = useRef(reason);
+  reasonRef.current = reason;
+  useEffect(() => setReason(null), [current?.key]);
   const grade = useCallback(
     (rating: Grade) => {
       if (!current || !revealed || !card) return;
@@ -152,6 +157,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         }
       } else {
         const next = recordReview({ key: current.key, cardId: current.cardId, topicId: current.topicId, rating, confidence, ms, now: new Date() });
+        // Причина ошибки, отмеченная до «Снова», — в журнал (по ней находят слабые места).
+        const why = reasonRef.current;
+        if (rating === Rating.Again && why) {
+          tagLastAnswer(current.key, why);
+          setErrCount((c) => ({ ...c, [why]: c[why] + 1 }));
+        }
         const due = new Date(next.due).getTime();
         if (due - Date.now() < 30 * MINUTE) w = [...w, { item: { ...current, isNew: false }, due }];
         // «Трудная» карточка: предложить переписать один раз.
@@ -171,15 +182,6 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
     },
     [current, revealed, card, confidence, waiting, queue, cram, advance, settings, state, route.mini]
   );
-
-  /** «Ошибся — и вот почему»: то же, что «Снова», плюс пометка причины в журнале (она помогает находить слабые места). */
-  const gradeWithReason = (err: 'forgot' | 'mixed' | 'lost') => {
-    if (!current || !revealed || !card || cram) return;
-    const key = current.key;
-    grade(Rating.Again);
-    tagLastAnswer(key, err);
-    setErrCount((c) => ({ ...c, [err]: c[err] + 1 }));
-  };
 
   const blocked = Boolean(leechCard) || onBreak !== null || pageView !== null || whyAsk !== null;
 
@@ -550,7 +552,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         )}
         {revealed && !cram && (
           <div className="err-chips" role="group" aria-label="Если ошибся — что случилось?">
-            <span className="small muted">Ошибся? Отметь, что случилось:</span>
+            <span className="small muted">{reason ? 'Запомню причину. Теперь нажми «Снова» — или выбери другую оценку.' : 'Ошибся? Отметь, что случилось, и нажми «Снова»:'}</span>
             <span className="row gap6 wrap center-row">
               {(
                 [
@@ -559,7 +561,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
                   ['lost', 'Не понял']
                 ] as const
               ).map(([k, label]) => (
-                <button key={k} type="button" className="err-chip" onClick={() => gradeWithReason(k)}>
+                <button key={k} type="button" className={'err-chip' + (reason === k ? ' on' : '')} aria-pressed={reason === k} onClick={() => setReason(reason === k ? null : k)}>
                   {label}
                 </button>
               ))}
@@ -687,7 +689,12 @@ function handViewBox(strokes: { points: [number, number][] }[]): string {
 }
 
 function SpeakBtn({ text, lang }: { text: string; lang: string }) {
-  return (
+  const on = useSpeaking(text);
+  return on ? (
+    <button type="button" className="icon-btn speak-btn speaking" aria-label="Остановить" title="Замолчать" onClick={stopSpeaking}>
+      <Icon name="x" size={20} />
+    </button>
+  ) : (
     <button type="button" className="icon-btn speak-btn" aria-label="Послушать" title="Послушать произношение" onClick={() => speak(text, lang)}>
       <Icon name="speaker" size={20} />
     </button>

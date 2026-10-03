@@ -60,17 +60,49 @@ html[data-no-windows] .guide-step { animation: none; }
 .steps-pics figcaption { font-size: 0.86rem; color: var(--ink-2); }
 @media (max-width: 719px) { .idea { grid-template-columns: 1fr; } .idea .illu { max-height: 120px; } }
 
-/* «О Мнеме → Что нового»: версии рядом, а не колонкой */
-.wn-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px 0; }
-.wn-bar .chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); min-height: 32px; padding: 0 12px; transition: background 0.15s, border-color 0.15s, color 0.15s; }
-.wn-bar .chip:hover { border-color: var(--accent); }
-.wn-bar .chip.on { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: var(--accent); color: var(--accent-text, var(--accent)); }
-.wn-older { width: auto; min-height: 32px; padding: 0 28px 0 10px; font-size: 0.85rem; }
-.whats-new.wn-list { display: block; animation: guideIn 0.25s ease backwards; columns: 2 260px; column-gap: 28px; }
-.wn-list li { break-inside: avoid; margin-bottom: 6px; }
-
-/* Панель выделения подъезжает плавно, когда текст под ней перестроился */
-.bubble.sel-panel[data-settled]:not([data-scrolling]) { transition: left 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
-html[data-no-windows] .bubble.sel-panel, html[data-motion='off'] .bubble.sel-panel { transition: none !important; }
-.wn-list .capped-li { list-style: none; margin-left: -18px; }
 .idea-text p { margin: 0; }
+
+/* Справка «Как пользоваться»: группы по задачам, строка — «что» и «как» */
+.how-group { padding: 0; overflow: hidden; }
+.how-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: transparent; color: var(--ink); text-align: left; min-height: 64px; }
+.how-head:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.how-ico { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--accent) 13%, var(--surface)); color: var(--accent-text, var(--accent)); }
+.how-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.how-count { font-size: 0.8rem; font-weight: 600; color: var(--muted); background: var(--sunken); border-radius: 999px; padding: 1px 9px; }
+.how-head > svg:last-child { color: var(--muted); transition: transform 0.2s ease; flex-shrink: 0; }
+.how-group.open .how-head > svg:last-child { transform: rotate(90deg); }
+.how-list { margin: 0; padding: 0 16px 8px; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.how-row { display: grid; grid-template-columns: minmax(120px, 190px) 1fr; gap: 6px 18px; padding: 11px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.how-row:last-child { border-bottom: none; }
+.how-row dt { font-weight: 600; margin: 0; }
+.how-row dd { margin: 0; color: var(--ink-2); line-height: 1.5; }
+.how-steps .steps-pics { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+@media (max-width: 719px) { .how-row { grid-template-columns: 1fr; gap: 2px; } }
+
+/* «О Мнеме → Что нового»: текущая версия — обычным списком, всё прошлое — в окне */
+.whats-new.wn-list { display: flex; padding: 14px 18px 4px 38px; }
+.wn-foot { padding: 6px 14px 14px; }
+.wn-all { display: flex; flex-direction: column; gap: 6px; max-height: min(68vh, 560px); overflow-y: auto; }
+.wn-ver { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.wn-ver > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; min-height: 48px; }
+.wn-ver > summary::-webkit-details-marker { display: none; }
+.wn-ver > summary::after { content: '›'; color: var(--muted); font-size: 1.2rem; transition: transform 0.2s ease; margin-left: 4px; }
+.wn-ver[open] > summary::after { transform: rotate(90deg); }
+.wn-ver > summary b { flex: 1; }
+.wn-ver .whats-new { padding: 2px 16px 12px 34px; }
+
+/* Знакомство-тренажёр: подсветка и подсказка поверх приложения; клики проходят сквозь подсветку */
+.tut { position: fixed; inset: 0; z-index: 400; pointer-events: none; }
+.tut-ring { position: fixed; border-radius: 14px; border: 3px solid var(--accent); box-shadow: 0 0 0 100vmax rgba(15, 17, 24, 0.38), 0 0 18px 2px color-mix(in srgb, var(--accent) 60%, transparent); pointer-events: none; transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease; animation: tutPulse 1.6s ease-in-out infinite; }
+@keyframes tutPulse { 50% { border-color: color-mix(in srgb, var(--accent) 55%, #fff); } }
+html[data-no-guide] .tut-ring, html[data-motion='off'] .tut-ring { animation: none; }
+.tut-card { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); width: min(440px, calc(100vw - 24px)); background: var(--surface); color: var(--ink); border: 1px solid var(--line-2, var(--line)); border-radius: 16px; box-shadow: var(--shadow-pop); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; animation: itemIn 0.3s ease; }
+.tut-card.at-top { bottom: auto; top: 20px; }
+.tut-card.phone { bottom: calc(var(--tabbar-h, 72px) + 14px); }
+.tut-card.phone.at-top { bottom: auto; top: 64px; }
+.tut-step { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.tut-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--sunken); overflow: hidden; }
+.tut-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.3s ease; }
+.tut-text { margin: 0; font-weight: 600; line-height: 1.4; }
+.tut-hint { margin: 0; }
+.tut-btns { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }

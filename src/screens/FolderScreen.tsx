@@ -1,5 +1,6 @@
 // Папка предметов: предметы внутри, общее повторение по всей папке.
 import { useState } from 'react';
+import { makeCopy } from '../components/copyUi';
 import { EditFolder } from '../components/SubjectDialogs';
 import { Icon, plural, SubjectMark } from '../components/ui';
 import { todayCounts, topicMastery } from '../srs';
@@ -31,6 +32,9 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
               <Icon name="play" size={16} /> Учить всю папку · {due}
             </button>
           )}
+          <button className="btn ghost" onClick={() => makeCopy('folder', id, go)} title="Копия папки вместе со всеми предметами">
+            <Icon name="copy" size={16} /> Копия
+          </button>
           <button className="btn" onClick={() => onNewSubject({ folderId: id })}>
             <Icon name="plus" size={18} /> Предмет
           </button>

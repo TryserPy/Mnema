@@ -1,4 +1,6 @@
-// Озвучка слова (для словарей): голоса системы. На Android — через телефон (TextToSpeech).
+// Озвучка слов и стихов: голоса системы. На Android — через телефон (TextToSpeech). Остановить можно в любой момент.
+import { useSyncExternalStore } from 'react';
+
 export const SPEAK_LANGS: { value: string; label: string }[] = [
   { value: '', label: 'Без озвучки' },
   { value: 'en-US', label: 'Английский' },
@@ -24,11 +26,47 @@ function plain(text: string): string {
     .trim();
 }
 
+let speaking = false;
+let speakingText = '';
+let endTimer: ReturnType<typeof setTimeout> | undefined;
+const subs = new Set<() => void>();
+function setSpeaking(v: boolean) {
+  if (speaking === v) return;
+  speaking = v;
+  subs.forEach((f) => f());
+}
+/** Идёт ли сейчас озвучка (для кнопки «Остановить»). С `text` — именно этого текста: у каждой строки списка своя кнопка. */
+export function useSpeaking(text?: string): boolean {
+  return useSyncExternalStore(
+    (f) => {
+      subs.add(f);
+      return () => subs.delete(f);
+    },
+    () => speaking && (text === undefined || speakingText === plain(text))
+  );
+}
+
+/** Говорит ли Мнема прямо сейчас. */
+export const isSpeaking = () => speaking;
+
+/** Замолчать сразу. */
+export function stopSpeaking() {
+  clearTimeout(endTimer);
+  window.mnemaApi?.speakStop?.();
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  setSpeaking(false);
+}
+
 export function speak(text: string, lang: string) {
   const t = plain(text);
   if (!t || !lang) return;
+  clearTimeout(endTimer);
+  speakingText = t;
   if (window.mnemaApi?.speak) {
     window.mnemaApi.speak(t, lang);
+    // Телефон не говорит, когда закончил, — считаем по длине текста (около 12 знаков в секунду).
+    setSpeaking(true);
+    endTimer = setTimeout(() => setSpeaking(false), Math.max(1500, (t.length / 12) * 1000 + 800));
     return;
   }
   if (!('speechSynthesis' in window)) return;
@@ -39,5 +77,9 @@ export function speak(text: string, lang: string) {
   const voice = synth.getVoices().find((v) => v.lang.replace('_', '-').toLowerCase() === lang.toLowerCase()) ?? synth.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang.slice(0, 2).toLowerCase()));
   if (voice) u.voice = voice;
   u.rate = 0.92;
+  // cancel() у предыдущего тоже вызывает onend — чужой конец не должен гасить новую озвучку.
+  const mine = () => synth.speaking || synth.pending;
+  u.onend = u.onerror = () => setTimeout(() => !mine() && setSpeaking(false), 30);
+  setSpeaking(true);
   synth.speak(u);
 }

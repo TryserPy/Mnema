@@ -53,7 +53,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 800, false], [390, 844, t
   // ---------- 2. «Стили» — отдельный раздел ----------
   const navItems = (await page.locator('.set-nav-item').allInnerTexts()).map((x) => x.trim());
   check(navItems.includes('Стили'), `${tag}: в Настройках есть раздел «Стили» (${navItems.join(' · ')})`);
-  check(navItems.includes('Моды'), `${tag}: раздел «Моды» в Настройках остался`);
+  check(!navItems.includes('Моды'), `${tag}: раздел «Моды» скрыт (1.23.0: моды пока отключены, код сохранён)`);
   await page.locator('.set-nav-item', { hasText: 'Оформление' }).click();
   await page.waitForTimeout(300);
   check((await page.locator('[data-set="styles"]').count()) === 0 && (await page.locator('.st-tile', { hasText: 'Стикеры' }).count()) === 0, `${tag}: в «Оформлении» стилей больше нет`);
@@ -63,24 +63,13 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 800, false], [390, 844, t
   check((await page.locator('.st-tile', { hasText: 'Стикеры' }).count()) === 1, `${tag}: в разделе «Стили» есть переключатель «Стикеры»`);
   await page.screenshot({ path: `${OUT}/v116-styles-${tag}.png` });
 
-  // ---------- 3. Моды: справка без вкладки, «Как писать моды» — окном ----------
+  // ---------- 3. Справка: две вкладки, без «Клавиш» и «Модов» ----------
   if (!phone) {
     if (await page.locator('.set-back').count()) { await page.locator('.set-back').click(); await page.waitForTimeout(300); }
-    await page.locator('.set-nav-item', { hasText: 'Моды' }).click();
-    await page.waitForTimeout(400);
-    const own = page.getByRole('radio', { name: /Сделать свой/ });
-    if (await own.count()) await own.first().click();
-    await page.waitForTimeout(300);
-    await page.getByRole('button', { name: /Как писать моды/ }).click();
-    await page.waitForTimeout(400);
-    check((await page.locator('.modal', { hasText: 'Что умеет app' }).count()) === 1, `${tag}: «Как писать моды» открывает окно с примером`);
-    await page.screenshot({ path: `${OUT}/v116-modsguide-${tag}.png` });
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
     await page.getByRole('button', { name: 'Справка' }).first().click();
     await page.waitForTimeout(400);
     const tabs = await page.getByRole('radiogroup', { name: 'Раздел справки' }).getByRole('radio').allInnerTexts();
-    check(!tabs.some((t) => /Моды/.test(t)), `${tag}: в справке нет вкладки «Моды» (${tabs.join(' · ')})`);
+    check(tabs.join('|') === 'Как учиться|Как пользоваться', `${tag}: во вкладках справки нет «Клавиш» и «Модов» (${tabs.join(' · ')})`);
   }
 
   // ---------- 4. Меню темы ----------

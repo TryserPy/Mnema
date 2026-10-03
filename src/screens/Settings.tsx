@@ -1,6 +1,6 @@
 // Настройки: слева разделы, справа — один раздел. Ничего не надо листать и искать глазами: есть поиск по настройкам.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Icon, Modal, Switch, toast, touchUI } from '../components/ui';
+import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
@@ -12,7 +12,7 @@ import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
 import { CloudDialog } from '../components/CloudDialog';
 import { AiSettings } from '../components/AiSettings';
-import { FEATURES } from '../featureList';
+import { FEATURES, MODS_AVAILABLE } from '../featureList';
 import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
 import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
@@ -20,8 +20,7 @@ import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
 import { openBackups } from '../components/BackupsHost';
-import { Capped } from '../components/Capped';
-import { openGuide } from '../components/Guide';
+import { startTutorial } from '../components/Tutorial';
 import { openChanges } from '../components/ChangesDialog';
 import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
 
@@ -71,7 +70,6 @@ const INDEX: IndexItem[] = [
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
   { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'styles', words: 'css вид моды оформление' },
-  { label: 'Моды', section: 'mods', words: 'плагины расширения' },
   { label: 'Обновления', section: 'about', anchor: 'update', words: 'новая версия github обновить' },
   { label: 'Версия и справка', section: 'about', words: 'о программе' }
 ];
@@ -93,7 +91,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     { id: 'ai', title: 'ИИ-помощник', icon: 'bot', hidden: !s.features.ai },
     { id: 'keys', title: 'Клавиши', icon: 'keyboard', hidden: touchUI() },
     { id: 'data', title: 'Данные', icon: 'database' },
-    { id: 'mods', title: 'Моды', icon: 'puzzle', hidden: !s.features.mods },
+    { id: 'mods', title: 'Моды', icon: 'puzzle', hidden: !MODS_AVAILABLE || !s.features.mods },
     { id: 'about', title: 'О Мнеме', icon: 'info' }
   ];
   const visible = sections.filter((x) => !x.hidden);
@@ -633,6 +631,19 @@ function DataPane({ go }: { go: (r: Route) => void }) {
 /** Что нового — по версиям. Показывается в «О Мнеме» одной панелью с переключателем версий. */
 const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
+    v: '1.23.0',
+    items: [
+      { t: 'Знакомство стало тренажёром: подсвечиваю, куда нажать, а ты сам создаёшь предмет, тему, конспект и карточку — как в игре' },
+      { t: 'Можно сделать копию папки, предмета, темы, подтемы и карточки: «⋯» → «Сделать копию»' },
+      { t: 'Озвучку (стихи, слова) можно остановить кнопкой «Остановить»' },
+      { t: 'Меню «Новый предмет / Новая папка» у пустого места под «Предметы» — только по правой кнопке мыши' },
+      { t: 'Справка «Как пользоваться» разложена по задачам: свёрнутые группы, в каждой — «что» и «как»' },
+      { t: 'В повторении причина ошибки («Не помню», «Перепутал», «Не понял») только отмечается — карточка не перескакивает, пока не нажмёшь «Снова»' },
+      { t: '«Поиск» — в верхнем списке, последним пунктом' },
+      { t: 'Моды пока отключены (код сохранён)' }
+    ]
+  },
+  {
     v: '1.22.0',
     items: [
       { t: 'Знакомство: 5 коротких шагов с рисунками при первом запуске, можно «Пропустить». Вернуться — «Справка → Пройти знакомство» или здесь, в «О Мнеме»' },
@@ -851,33 +862,46 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
 ];
 
 function WhatsNew() {
-  const [v, setV] = useState(WHATS_NEW[0].v);
-  const cur = WHATS_NEW.find((x) => x.v === v) ?? WHATS_NEW[0];
-  const recent = WHATS_NEW.slice(0, 4);
-  const older = WHATS_NEW.slice(4);
+  const [all, setAll] = useState(false);
+  const latest = WHATS_NEW[0];
   return (
-    <Group title="Что нового">
-      <div className="wn-bar">
-        {recent.map((x) => (
-          <button key={x.v} type="button" className={'chip' + (x.v === cur.v ? ' on' : '')} aria-pressed={x.v === cur.v} onClick={() => setV(x.v)}>
-            {x.v}
-          </button>
-        ))}
-        <select className="input wn-older" aria-label="Более старые версии" value={older.some((x) => x.v === cur.v) ? cur.v : ''} onChange={(e) => e.target.value && setV(e.target.value)}>
-          <option value="">Ещё…</option>
-          {older.map((x) => (
-            <option key={x.v} value={x.v}>
-              {x.v}
-            </option>
+    <>
+      <Group title={'Что нового в ' + latest.v}>
+        <ul className="whats-new wn-list">
+          {latest.items.map((it, i) => (
+            <li key={i} className={it.desk ? 'desk-only' : undefined}>
+              {it.t}
+            </li>
           ))}
-        </select>
-      </div>
-      <Capped key={cur.v} as="ul" className="whats-new wn-list" limit={5} items={cur.items} render={(it, i) => (
-        <li key={i} className={it.desk ? 'desk-only' : undefined}>
-          {it.t}
-        </li>
-      )} />
-    </Group>
+        </ul>
+        <div className="wn-foot">
+          <button className="btn small" onClick={() => setAll(true)}>
+            Что было раньше
+          </button>
+        </div>
+      </Group>
+      {all && (
+        <Modal title="Что нового — по версиям" onClose={() => setAll(false)} width={560}>
+          <div className="wn-all">
+            {WHATS_NEW.map((x, k) => (
+              <details key={x.v} className="wn-ver" open={k === 0}>
+                <summary>
+                  <b>{x.v}</b>
+                  <span className="muted small">{x.items.length} {plural(x.items.length, 'изменение', 'изменения', 'изменений')}</span>
+                </summary>
+                <ul className="whats-new">
+                  {x.items.map((it, i) => (
+                    <li key={i} className={it.desk ? 'desk-only' : undefined}>
+                      {it.t}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ))}
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -897,8 +921,8 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
             Открыть
           </button>
         </SRow>
-        <SRow label="Знакомство" hint="Пять коротких шагов с рисунками">
-          <button className="btn small" onClick={openGuide}>
+        <SRow label="Знакомство" hint="Подсвечу, куда нажимать, — всё делаешь сам">
+          <button className="btn small" onClick={startTutorial}>
             Пройти знакомство
           </button>
         </SRow>

@@ -102,6 +102,12 @@ npm run build          # сборка в dist/
 - Конспект на весь экран, экран не «белеет» при ошибке (`ErrorBoundary`), починена пустая карта знаний
 - Быстрее: счётчики «на сегодня» кэшируются, журнал ответов читается с конца, редактор формул/граф/импорт учебника грузятся по требованию
 
+## 1.23.0 — тренажёр-знакомство, копии, «Остановить»
+- `components/Tutorial.tsx`: шаги `STEPS` (цель — функция от экрана, `done` — по данным и DOM), состояние вне React (переживает переход в повторение), опрос раз в 250 мс; `Guide.tsx` — картинки перед тренажёром
+- `copy.ts` (чистые `copyTopic/copySubject/copyFolder/copyCard`, `copyName`), обёртки `duplicate*` в `store.ts`, `components/copyUi.ts`; тесты `v1230-copy.test.ts`
+- `speak.ts`: `useSpeaking(text?)`, `stopSpeaking`, `isSpeaking`; мост `speakStop` (`Bridge.java`, `android.ts`, `store.ts`); тесты `v1230-speak.test.ts`
+- `featureList.ts`: `MODS_AVAILABLE = false` (UI и запуск модов выключены, код цел); `Help.tsx`: `howGroups()` — справка по задачам; `Review.tsx`: причина ошибки отмечается (`reason`), пишется при «Снова»; `Settings.tsx`: `WhatsNew` (текущая версия + окно со всеми); сценарии `e2e/v123.mjs`, `e2e/errors.mjs`
+
 ## 1.22.0 — справка, знакомство, анимации (этап 5б)
 - `components/Illustrations.tsx` + `guide.css` (рисунки SVG, анимация CSS; выключаются видом «Картинки в справке»), `components/Guide.tsx` (`GuideHost`, `openGuide`; знакомство само открывается при `!onboarded` и пустых данных), `screens/Help.tsx` («Как учиться», «Как пользоваться»), `components/BackupsHost.tsx` (`openBackups` из «Профиля» и «Настроек»)
 - `motion2.css`: списки/нажатия/полоски; новые `MotionKind`: `lists`, `press`, `guide` (`types.ts`, `ui.tsx`, `App.tsx`, `LookSettings.tsx`)

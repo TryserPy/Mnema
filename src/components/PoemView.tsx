@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { aiAvailable } from '../ai';
 import { autoChunk, compareRecital, cueLine, dayKey, hardLines, nextReview, pickStarts, poemLearned, poemLines, poemParts, type CueLevel, type Recital } from '../poem';
-import { canSpeak, speak } from '../speak';
+import { canSpeak, speak, stopSpeaking, useSpeaking } from '../speak';
 import { deletePoem, getData, restorePoem, updatePoem, useData } from '../store';
 import type { Poem, Route } from '../types';
 import { recitalVoice, startRecital, type RecitalSession } from '../voice';
@@ -82,11 +82,7 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
             <Icon name="repeat" size={16} /> С любого места
           </button>
         )}
-        {canSpeak() && (
-          <button className="btn" onClick={() => speak(poem.text, 'ru-RU')} title="Мнема прочитает стих вслух">
-            <Icon name="speaker" size={16} /> Послушать
-          </button>
-        )}
+        {canSpeak() && <ListenBtn className="btn" text={poem.text} title="Мнема прочитает стих вслух" />}
         <span className="grow" />
         <button className="icon-btn bordered" aria-label="Изменить стих" title="Изменить текст и размер частей" onClick={() => setMode('edit')}>
           <Icon name="sliders" size={18} />
@@ -562,11 +558,7 @@ function LearnFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; onE
               Больше подсказок
             </button>
           )}
-          {stage === 'read' && canSpeak() && (
-            <button className="btn ghost" onClick={() => speak(partLines.join('\n'), 'ru-RU')}>
-              <Icon name="speaker" size={16} /> Послушать
-            </button>
-          )}
+          {stage === 'read' && canSpeak() && <ListenBtn className="btn ghost" text={partLines.join('\n')} />}
         </div>
       </div>
     );
@@ -699,5 +691,20 @@ function RandomFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; on
         </>
       )}
     </div>
+  );
+}
+
+/** «Послушать» ↔ «Остановить»: пока идёт озвучка, кнопка останавливает её. Уходишь с экрана — тоже замолкает. */
+function ListenBtn({ text, className, title }: { text: string; className: string; title?: string }) {
+  const on = useSpeaking(text);
+  useEffect(() => () => stopSpeaking(), []);
+  return on ? (
+    <button className={className + ' speaking'} onClick={stopSpeaking} title="Замолчать">
+      <Icon name="x" size={16} /> Остановить
+    </button>
+  ) : (
+    <button className={className} onClick={() => speak(text, 'ru-RU')} title={title}>
+      <Icon name="speaker" size={16} /> Послушать
+    </button>
   );
 }
