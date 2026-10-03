@@ -198,7 +198,8 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 12px; box-shadow: var(--shadow-pop); z-index: 100; display: flex; align-items: center; gap: 14px; }
 .toast-btn { background: none; border: 0; color: color-mix(in srgb, var(--accent) 45%, var(--bg)); font-weight: 700; padding: 4px 6px; margin: -4px -6px -4px 0; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 700; }
 .toast-btn:hover { background: color-mix(in srgb, var(--bg) 14%, transparent); }
-.drop-hint { position: absolute; inset: 12px; border: 3px dashed var(--accent); border-radius: 20px; background: color-mix(in srgb, var(--accent) 10%, transparent); display: grid; place-items: center; font-size: 1.2rem; font-weight: 600; color: var(--accent-text, var(--accent)); pointer-events: none; z-index: 90; }
+.drop-hint { position: absolute; inset: 12px; border: 3px dashed var(--accent); border-radius: 20px; background: color-mix(in srgb, var(--accent) 10%, transparent); display: grid; place-items: center; font-size: 1.2rem; font-weight: 600; color: var(--accent-text, var(--accent)); pointer-events: none; z-index: 90; animation: fadeIn 0.15s ease; }
+.drop-hint > span { max-width: min(560px, 86%); text-align: center; padding: 18px 24px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-pop); border: 1px solid var(--line); }
 
 /* Меню «⋯» и «Вставить» */
 .more { position: relative; }
@@ -1444,3 +1445,15 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .prof-links { gap: 8px; }
 @media (max-width: 719px) { .know-grid { grid-template-columns: 1fr; } .prof-kpis .kpi-num { font-size: 1.4rem; } }
 .know-tile .progress.full { flex: none; margin-top: auto; }
+
+/* Длинные списки (1.22): первые N и «Ещё N»; раскрытый — с прокруткой внутри */
+.capped-open { max-height: min(46vh, 420px); overflow-y: auto; padding-right: 4px; }
+.capped-more { border: 1px dashed var(--line-2, var(--line)); background: transparent; color: var(--muted); border-radius: 999px; padding: 6px 14px; font-size: 0.88rem; font-weight: 600; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+.capped-more:hover { border-color: var(--accent); color: var(--accent-text, var(--accent)); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.know-grid > .capped-more, .trash-list > .capped-more, .hw-list > .capped-more { grid-column: 1 / -1; justify-self: start; }
+.dismissible { position: relative; display: flex; }
+.dismissible > :first-child { flex: 1; min-width: 0; padding-right: 44px; }
+.dismiss-x { position: absolute; top: 6px; right: 6px; opacity: 0.7; }
+.dismiss-x:hover { opacity: 1; }
+.subtopic-chip { max-width: 100%; }
+.subtopic-chip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

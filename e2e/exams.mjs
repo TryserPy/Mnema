@@ -14,6 +14,7 @@ async function start(page, w, h) {
   await page.goto(URL);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  await page.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
   await page.getByRole('button', { name: 'Посмотреть на примере' }).click();
   await page.waitForTimeout(1000);
 }

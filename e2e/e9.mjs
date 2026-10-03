@@ -13,6 +13,7 @@ const ph = await electron.launch({ executablePath: EXE, args: [process.cwd() + '
 const w1 = await pc.firstWindow();
 const w2 = await ph.firstWindow();
 // На «компьютере» — пример; на «телефоне» — свой предмет и тема.
+await w1.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await w1.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await w2.getByRole('button', { name: /Добавить предмет/ }).first().click();
 await w2.getByPlaceholder('Например: Биология').fill('Английский');

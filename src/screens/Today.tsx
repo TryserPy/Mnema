@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark, touchUI } from '../components/ui';
+import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark } from '../components/ui';
 import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
+import { openGuide } from '../components/Guide';
 import { duePoems } from '../poem';
 import { dayStart, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
 import { buildSession, SESSION_MINUTES, sessionPrefs, toggledSkip } from '../session';
@@ -53,20 +54,6 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           <div className="logo big">М</div>
           <h1 className="display">Привет! Это Мнема</h1>
           <p className="lead">Она помогает запоминать то, что ты учишь, — и напоминает повторить как раз тогда, когда ты начинаешь забывать.</p>
-          <ol className="steps big-steps">
-            <li>
-              <span><strong>Добавь предмет</strong> — например, «Биология».</span>
-            </li>
-            <li>
-              <span><strong>Создай тему</strong> и коротко запиши главное своими словами.</span>
-            </li>
-            <li>
-              <span><strong>Выдели важное</strong>, {touchUI() ? 'выбери «В карточку» в меню над текстом.' : 'нажми правую кнопку мыши → «В карточку».'}</span>
-            </li>
-            <li>
-              <span><strong>Каждый день</strong> нажимай «Начать» — хватит 10–15 минут.</span>
-            </li>
-          </ol>
           <div className="row gap8 wrap center-row">
             <button className="btn primary big-ish" onClick={onNewSubject}>
               <Icon name="plus" size={18} /> Добавить предмет
@@ -79,6 +66,9 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
               }}
             >
               Посмотреть на примере
+            </button>
+            <button className="btn ghost" onClick={openGuide}>
+              Знакомство
             </button>
           </div>
         </div>

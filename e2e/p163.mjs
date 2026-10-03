@@ -26,6 +26,7 @@ await p.addInitScript(() => {
 const step = (s) => console.log('•', s);
 const shot = async (n) => { await p.waitForTimeout(350); await p.screenshot({ path: `${OUT}/${W}-${n}.png` }); };
 await p.goto('http://localhost:4174');
+await p.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await p.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await p.waitForTimeout(500);
 if (mobile) { await p.locator('button.tab:has-text("Знания")').first().click(); await p.waitForTimeout(300); }

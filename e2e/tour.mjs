@@ -20,6 +20,7 @@ const shot = async (n, full = false) => {
   await win.screenshot({ path: `${OUT}/${n}.png` });
   if (full) { await setH(820); await win.waitForTimeout(200); }
 };
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(500);
 if (process.env.ALL) {

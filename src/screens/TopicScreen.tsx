@@ -1,3 +1,5 @@
+import { Capped } from '../components/Capped';
+import { Dismissible, hideTip } from '../components/Dismissible';
 import { deleteTopicWithUndo } from '../components/SubjectDialogs';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { exportForAi } from '../components/ChangesDialog';
@@ -63,6 +65,12 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const ancestors: { id: string; name: string }[] = [];
   for (let p = data.topics.find((t) => t.id === topic.parentId); p; p = data.topics.find((t) => t.id === p!.parentId)) ancestors.unshift({ id: p.id, name: p.name });
   const kids = childTopics(data, topic.subjectId, id);
+  // Сколько карточек у каждой подтемы — одним проходом (подтем может быть сотни).
+  const cardCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of data.cards) m.set(c.topicId, (m.get(c.topicId) ?? 0) + 1);
+    return m;
+  }, [data.cards]);
   const subCount = topicWithDescendants(data, id).size - 1;
   const listTab = tab?.startsWith('list:') ? lists.find((l) => 'list:' + l.id === tab) : undefined;
   const poems = topic.poems ?? [];
@@ -213,9 +221,13 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       {(kids.length > 0 || addingSub) && (
         <div className="subtopics">
           <span className="label">Подтемы</span>
-          <div className="row gap8 wrap">
-            {kids.map((k) => {
-              const n = data.cards.filter((c) => c.topicId === k.id).length;
+          <Capped
+            items={kids}
+            limit={8}
+            className="row gap8 wrap"
+            render={
+            (k) => {
+              const n = cardCount.get(k.id) ?? 0;
               return (
                 <button key={k.id} className="subtopic-chip" onClick={() => go({ name: 'topic', id: k.id })}>
                   {k.important && (
@@ -227,7 +239,10 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                   {n > 0 && <span className="muted small">{n}</span>}
                 </button>
               );
-            })}
+            }
+            }
+            after={
+              <>
             {addingSub ? (
               <form
                 className="row gap6"
@@ -247,7 +262,9 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                 <Icon name="plus" size={14} /> подтема
               </button>
             )}
-          </div>
+              </>
+            }
+          />
         </div>
       )}
 
@@ -392,7 +409,7 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
   const highlight = useMemo(() => (panel || hs.show ? { ...hs, show: hs.show } : null), [panel, hs]);
   // В теме ещё нет карточек, а в конспекте уже есть важное — подсказать «набор из конспекта» (пока не скрыли).
   const noCards = !data.cards.some((c) => c.topicId === topicId);
-  const [setHint, setSetHint] = useState(true);
+  const setHint = !(data.settings.hiddenTips ?? []).includes('noteSet');
   const [setOpen, setSetOpen] = useState(false);
   // Редактор появляется на следующем кадре: сама страница темы открывается сразу, без задержки.
   const [ready, setReady] = useState(false);
@@ -457,7 +474,7 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
             <button className="btn small primary" onClick={() => setSetOpen(true)}>
               Сделать карточки
             </button>
-            <button className="icon-btn small" aria-label="Скрыть подсказку" onClick={() => setSetHint(false)}>
+            <button className="icon-btn small" aria-label="Скрыть подсказку" onClick={() => hideTip('noteSet', data.settings.hiddenTips)}>
               <Icon name="x" size={16} />
             </button>
           </div>
@@ -489,12 +506,14 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
         />
         )}
         {!topic.note.trim() && (
-          <button className="tb-hint" onClick={() => setImportOpen(true)}>
-            <Icon name="camera" size={22} />
-            <span>
-              <strong>Есть параграф в учебнике?</strong> Сфотографируй страницы — Мнема сделает из них конспект, выделит важное и сохранит ссылки на страницы.
-            </span>
-          </button>
+          <Dismissible id="textbook" className="tb-hint-wrap">
+            <button className="tb-hint" onClick={() => setImportOpen(true)}>
+              <Icon name="camera" size={22} />
+              <span>
+                <strong>Есть параграф в учебнике?</strong> Сфотографируй страницы — Мнема сделает из них конспект, выделит важное и сохранит ссылки на страницы.
+              </span>
+            </button>
+          </Dismissible>
         )}
       </div>
       {panelPres.mounted && (

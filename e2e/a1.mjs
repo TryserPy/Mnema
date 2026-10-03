@@ -110,6 +110,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push('console: ' + m.text()));
 await page.goto('https://mnema.app/index.html');
 step('platform: ' + (await page.evaluate(() => window.mnemaApi?.platform)));
+await page.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await page.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await page.waitForTimeout(1500);
 step('saved via bridge: ' + (await page.evaluate(() => window.__saves)));

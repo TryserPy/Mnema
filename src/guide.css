@@ -1,0 +1,76 @@
+/* Рисунки справки и знакомства (1.22). Цвета — из темы. */
+.illu { width: 100%; height: auto; max-height: 150px; display: block; }
+.illu .i-surface { fill: var(--surface); stroke: var(--line-2, var(--line)); stroke-width: 1.5; }
+.illu .i-sunken { fill: var(--sunken); }
+.illu .i-line { fill: var(--line-2, var(--line)); }
+.illu .i-ink { fill: var(--ink-2, var(--ink)); opacity: 0.8; }
+.illu .i-accent { fill: var(--accent); }
+.illu .i-accent-soft { fill: color-mix(in srgb, var(--accent) 22%, var(--surface)); stroke: var(--accent); stroke-width: 1.5; }
+.illu .i-mark { fill: color-mix(in srgb, var(--accent) 35%, transparent); }
+.illu .i-arrow { fill: none; stroke: var(--muted); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.illu .i-check { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.illu .i-q { font-size: 56px; font-weight: 700; fill: var(--muted); font-family: var(--display, inherit); }
+.illu .i-axis { stroke: var(--line-2, var(--line)); stroke-width: 2; }
+.illu .i-curve { fill: none; stroke: var(--line-2, var(--line)); stroke-width: 3; stroke-dasharray: 5 6; stroke-linecap: round; }
+.illu .i-tick { fill: none; stroke: var(--on-accent, #fff); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.illu .i-ring-bg { fill: none; stroke: var(--sunken); stroke-width: 12; }
+.illu .i-ring { fill: none; stroke: var(--accent); stroke-width: 12; stroke-linecap: round; stroke-dasharray: 264; stroke-dashoffset: 264; transform: rotate(-90deg); transform-origin: 120px 70px; animation: illuRing 4s ease-in-out infinite; }
+.illu .i-play { fill: var(--accent); }
+.illu .i-slide { animation: illuSlide 4.2s ease-in-out infinite backwards; }
+.illu .i-write { transform-box: fill-box; animation: illuWrite 4.2s ease-in-out infinite backwards; }
+.illu .i-pop { transform-box: fill-box; transform-origin: center; animation: illuPop 3.6s ease-in-out infinite; }
+.illu .i-dot { transform-box: fill-box; transform-origin: center; animation: illuDot 4.4s ease-in-out infinite backwards; }
+.illu .i-flip { transform-box: fill-box; transform-origin: center; animation: illuFlip 4s ease-in-out infinite; }
+.illu .i-flip-back { animation-name: illuFlipBack; }
+.illu .i-mix { transform-box: fill-box; animation: illuMix 5s ease-in-out infinite; }
+.illu .i-mix0 { --dx: 62px; --dy: 0px; } .illu .i-mix1 { --dx: -62px; --dy: 46px; } .illu .i-mix2 { --dx: 0px; --dy: 46px; }
+.illu .i-mix3 { --dx: 0px; --dy: -46px; } .illu .i-mix4 { --dx: 62px; --dy: 0px; } .illu .i-mix5 { --dx: -124px; --dy: -46px; }
+@keyframes illuSlide { 0%, 8% { opacity: 0; transform: translateX(-14px); } 24%, 86% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes illuWrite { 0%, 6% { transform: scaleX(0); } 28%, 88% { transform: scaleX(1); } 100% { transform: scaleX(1); opacity: 0; } }
+@keyframes illuPop { 0%, 30% { opacity: 0; transform: scale(0.7); } 48%, 85% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+@keyframes illuDot { 0%, 5% { opacity: 0; transform: scale(0.2); } 14%, 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+@keyframes illuFlip { 0%, 40% { transform: scaleX(1); } 50%, 90% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+@keyframes illuFlipBack { 0%, 40% { transform: scaleX(0); } 50%, 90% { transform: scaleX(1); } 100% { transform: scaleX(0); } }
+@keyframes illuMix { 0%, 20% { transform: none; } 45%, 70% { transform: translate(var(--dx), var(--dy)); } 100% { transform: none; } }
+@keyframes illuRing { 0% { stroke-dashoffset: 264; } 60%, 90% { stroke-dashoffset: 40; } 100% { stroke-dashoffset: 264; } }
+html[data-no-guide] .illu *, html[data-motion='off'] .illu * { animation: none !important; }
+html[data-no-guide] .illu .i-ring, html[data-motion='off'] .illu .i-ring { stroke-dashoffset: 60; }
+html[data-no-guide] .illu .i-flip-back, html[data-motion='off'] .illu .i-flip-back { transform: scaleX(0); }
+
+/* Знакомство */
+.guide { display: flex; flex-direction: column; gap: 14px; }
+.guide-pic { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; }
+.guide-body { display: flex; flex-direction: column; gap: 6px; min-height: 84px; }
+.guide-body h3 { margin: 0; }
+.guide-dots { display: flex; gap: 6px; justify-content: center; }
+.guide-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-2, var(--line)); transition: background 0.2s, transform 0.2s; }
+.guide-dots i.on { background: var(--accent); transform: scale(1.3); }
+.guide-foot { display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.guide-step { animation: guideIn 0.3s ease backwards; }
+@keyframes guideIn { from { opacity: 0; transform: translateX(10px); } }
+html[data-no-windows] .guide-step { animation: none; }
+
+/* Справка: «Как учиться» */
+.idea { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 16px; align-items: center; }
+.idea .illu { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 6px; }
+.idea-text { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.idea-text h3 { margin: 0; }
+.steps-pics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.steps-pics figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.steps-pics figcaption { font-size: 0.86rem; color: var(--ink-2); }
+@media (max-width: 719px) { .idea { grid-template-columns: 1fr; } .idea .illu { max-height: 120px; } }
+
+/* «О Мнеме → Что нового»: версии рядом, а не колонкой */
+.wn-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px 0; }
+.wn-bar .chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); min-height: 32px; padding: 0 12px; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+.wn-bar .chip:hover { border-color: var(--accent); }
+.wn-bar .chip.on { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: var(--accent); color: var(--accent-text, var(--accent)); }
+.wn-older { width: auto; min-height: 32px; padding: 0 28px 0 10px; font-size: 0.85rem; }
+.whats-new.wn-list { display: block; animation: guideIn 0.25s ease backwards; columns: 2 260px; column-gap: 28px; }
+.wn-list li { break-inside: avoid; margin-bottom: 6px; }
+
+/* Панель выделения подъезжает плавно, когда текст под ней перестроился */
+.bubble.sel-panel[data-settled]:not([data-scrolling]) { transition: left 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
+html[data-no-windows] .bubble.sel-panel, html[data-motion='off'] .bubble.sel-panel { transition: none !important; }
+.wn-list .capped-li { list-style: none; margin-left: -18px; }
+.idea-text p { margin: 0; }

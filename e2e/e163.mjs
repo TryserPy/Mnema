@@ -11,6 +11,8 @@ const shot = async (n) => { await win.waitForTimeout(400); await win.screenshot(
 const bubbleVisible = () => win.evaluate(() => { const b = document.querySelector('.bubble'); return !!b && b.isConnected && getComputedStyle(b).visibility !== 'hidden' && b.getBoundingClientRect().width > 0; });
 const selectWord = (w) => win.evaluate((w) => { const pm = document.querySelector('.ProseMirror'); const tw = document.createTreeWalker(pm, NodeFilter.SHOW_TEXT); let n; while ((n = tw.nextNode())) { const i = n.data.indexOf(w); if (i >= 0) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + w.length); getSelection().removeAllRanges(); getSelection().addRange(r); const b = r.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2, r: b.right, cy: b.y + b.height / 2 }; } } return null; }, w);
 
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
+
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.waitForTimeout(400);
 await win.getByRole('button', { name: 'Настройки', exact: true }).click().catch(() => {});

@@ -10,6 +10,7 @@ for (const W of widths) {
   const p = await b.newPage({ viewport: { width: W, height: 820 }, isMobile: mobile, hasTouch: mobile });
   p.on('pageerror', (e) => errors.push(W + ': ' + e.message));
   await p.goto('http://localhost:4174');
+  await p.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
   await p.getByRole('button', { name: 'Посмотреть на примере' }).click();
   await p.waitForTimeout(400);
   // длинные имена — стресс-тест

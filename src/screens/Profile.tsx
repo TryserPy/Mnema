@@ -1,15 +1,16 @@
 // «Профиль»: сверху «Мой прогресс» — три числа и ссылка на подробности, ниже всё остальное (настройки, возможности, корзина, копии, справка).
 import { useMemo } from 'react';
+import { openBackups } from '../components/BackupsHost';
 import { Icon, plural } from '../components/ui';
 import { periodStats } from '../progress';
 import { dayStart, DAY, streak } from '../srs';
 import { useData } from '../store';
 import type { Route } from '../types';
 
-export const profileLinks = (trashCount: number): { icon: string; title: string; hint: string; to: Route }[] => [
+export const profileLinks = (trashCount: number): { icon: string; title: string; hint: string; to?: Route; run?: () => void }[] => [
   { icon: 'sliders', title: 'Настройки', hint: 'Вид, напоминания, данные', to: { name: 'settings' } },
   { icon: 'grid', title: 'Возможности', hint: 'Что включено в Мнеме', to: { name: 'features' } },
-  { icon: 'repeat', title: 'Автокопии', hint: 'Копии твоих данных — можно вернуть вчерашнее', to: { name: 'settings', section: 'data' } },
+  { icon: 'repeat', title: 'Автокопии', hint: 'Копии твоих данных — можно вернуть вчерашнее', run: openBackups },
   { icon: 'trash', title: 'Корзина', hint: trashCount ? `Удалённое можно вернуть (${trashCount})` : 'Пока пусто — удалённое можно вернуть', to: { name: 'trash' } },
   { icon: 'help', title: 'Справка', hint: 'Как учиться и как пользоваться', to: { name: 'help' } }
 ];
@@ -49,7 +50,7 @@ export function Profile({ go }: { go: (r: Route) => void }) {
       </section>
       <div className="create-list prof-links">
         {profileLinks(data.trash?.length ?? 0).map((l) => (
-          <button key={l.title} type="button" className="create-item" onClick={() => go(l.to)}>
+          <button key={l.title} type="button" className="create-item" onClick={() => (l.run ? l.run() : l.to && go(l.to))}>
             <span className="create-ico">
               <Icon name={l.icon} size={22} />
             </span>

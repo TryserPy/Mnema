@@ -169,7 +169,7 @@ export type Density = 'compact' | 'normal' | 'comfy';
 export type FeatureId = 'schedule' | 'obsidian' | 'confidence' | 'ai' | 'handwriting' | 'map' | 'tray' | 'voice' | 'lists' | 'rules' | 'homework' | 'why' | 'poems' | 'mods';
 
 export type MotionLevel = 'all' | 'essential' | 'off' | 'custom';
-export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover';
+export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover' | 'lists' | 'press' | 'guide';
 
 export interface CardTemplate {
   id: string;
@@ -254,6 +254,7 @@ export interface Settings {
   breakMinutes: number;
   leechThreshold: number;
   onboarded: boolean;
+  hiddenTips?: string[]; // подсказки на экранах, которые закрыли крестиком
   reminder: string | null; // время напоминания «ЧЧ:ММ»
   trayHotkey: boolean;
   closeToTray: boolean;
@@ -347,4 +348,4 @@ export type Route =
   | { name: 'trash' }
   | { name: 'settings'; section?: SettingsSection }
   | { name: 'features' }
-  | { name: 'help'; section?: 'start' | 'keys' };
+  | { name: 'help'; section?: 'learn' | 'use' };

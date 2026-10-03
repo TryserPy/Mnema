@@ -7,6 +7,7 @@ await app.evaluate(({ dialog }, dir) => { dialog.showOpenDialog = async () => ({
 const win = await app.firstWindow();
 const errors = [];
 win.on('pageerror', (e) => errors.push(e.message));
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: 'Возможности' }).click();
 await win.getByRole('switch', { name: 'Obsidian' }).click();

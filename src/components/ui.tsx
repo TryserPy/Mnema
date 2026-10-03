@@ -1013,7 +1013,7 @@ export function toast(text: string, action?: { label: string; run: () => void })
 
 // ---------- Анимации ----------
 
-export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover';
+export type MotionKind = 'screens' | 'windows' | 'expand' | 'text' | 'review' | 'hover' | 'lists' | 'press' | 'guide';
 
 /** Включена ли анимация этого вида (настройки «Анимации»). */
 export function motionOn(kind?: MotionKind): boolean {

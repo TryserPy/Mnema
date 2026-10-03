@@ -5,6 +5,7 @@ fs.rmSync('/tmp/mnemaS', { recursive: true, force: true });
 const app = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'], env: { ...process.env, MNEMA_USER_DATA: '/tmp/mnemaS' } });
 const win = await app.firstWindow();
 const errors = []; win.on('pageerror', (e) => errors.push(e.message));
+await win.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2500 }).catch(() => {}); // знакомство при первом запуске
 await win.getByRole('button', { name: 'Посмотреть на примере' }).click();
 await win.getByRole('button', { name: /Добавить расписание/ }).click();
 await win.getByRole('button', { name: 'Заполнить' }).click();
