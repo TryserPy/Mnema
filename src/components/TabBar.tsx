@@ -1,6 +1,6 @@
-// Нижняя панель телефона: Учусь · Знания · ＋ · Профиль. Подписи под значками — без подписей непонятно, куда нажимать.
+// Нижняя панель телефона: Учусь · Знания · Профиль. Подписи под значками — без подписей непонятно, куда нажимать.
+// «Создать» здесь нет (автор: «не уместно») — на телефоне оно в шапке, значком «+» рядом с поиском.
 import type { Route } from '../types';
-import { openCreate } from './CreateMenu';
 import { Icon } from './ui';
 
 /** На этих экранах панель прячется: в повторении и тесте ничто не должно отвлекать. */
@@ -25,14 +25,6 @@ export function TabBar({ route, go, dueAll }: { route: Route; go: (r: Route) => 
           <Icon name="book" size={24} />
         </span>
         <span className="tab-label">Знания</span>
-      </button>
-      <button type="button" className="tab tab-plus" aria-label="Создать" onClick={openCreate}>
-        <span className="tab-ico">
-          <span className="tab-plus-dot">
-            <Icon name="plus" size={24} />
-          </span>
-        </span>
-        <span className="tab-label">Создать</span>
       </button>
       <button type="button" className={'tab' + (inProfile ? ' on' : '')} aria-current={inProfile ? 'page' : undefined} onClick={() => go({ name: 'profile' })}>
         <span className="tab-ico">

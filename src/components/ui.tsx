@@ -906,6 +906,13 @@ function viewBounds(el: HTMLElement) {
 export function fitInView(el: HTMLElement, margin = 8) {
   const st = el.style;
   st.translate = '';
+  st.marginLeft = '';
+  st.marginTop = '';
+  if (el.dataset.fitFixed) {
+    st.position = '';
+    st.width = '';
+    delete el.dataset.fitFixed;
+  }
   st.maxHeight = '';
   st.maxWidth = '';
   st.overflowY = '';
@@ -954,20 +961,48 @@ export function fitInView(el: HTMLElement, margin = 8) {
     st.transformOrigin = fix.side === 'left' ? 'bottom left' : 'bottom right';
     el.classList.add('flip-up');
   }
-  if (fix.dx || fix.dy) st.translate = `${fix.dx}px ${fix.dy}px`;
+  // Сдвиг — отступом, а не свойством translate: его не знают старые WebView на Android (меню оставалось за краем экрана).
+  if (fix.dx) st.marginLeft = fix.dx + 'px';
+  if (fix.dy) st.marginTop = fix.dy + 'px';
   if (fix.maxHeight != null) {
     st.maxHeight = fix.maxHeight + 'px';
     st.overflowY = 'auto';
     el.classList.add('scroll');
   }
+  // Последняя страховка: если и после всего меню вылезает за край (необычная вёрстка, старый WebView) —
+  // ставим его поверх экрана во всю доступную ширину, у того же места по высоте.
+  const b = viewBounds(el);
+  const after = el.getBoundingClientRect();
+  if (after.width && (after.left < b.left - 1 || after.right > b.right + 1)) {
+    const w = Math.min(el.offsetWidth || after.width, b.right - b.left - margin * 2);
+    const wantLeft = Math.max(b.left + margin, Math.min(after.left, b.right - margin - w));
+    if (getComputedStyle(el).position === 'fixed' && !el.dataset.fitFixed) {
+      // Меню в точке нажатия: его left/top задаёт экран — только досдвигаем отступом.
+      if (w < after.width) st.maxWidth = w + 'px';
+      st.marginLeft = (parseFloat(st.marginLeft) || 0) + (wantLeft - after.left) + 'px';
+      return;
+    }
+    el.dataset.fitPos = '1';
+    el.dataset.fitFixed = '1';
+    st.marginLeft = '';
+    st.position = 'fixed';
+    st.width = w + 'px';
+    st.right = 'auto';
+    st.left = wantLeft + 'px';
+    st.top = Math.max(b.top + margin, Math.min(after.top, b.bottom - margin - Math.min(after.height, b.bottom - b.top - margin * 2))) + 'px';
+    st.bottom = 'auto';
+  }
 }
 
 /** Следить за всеми меню (.menu), которые появляются на странице, и поставить их внутрь окна; пересчитывать при повороте экрана,
  *  изменении размера окна и появлении экранной клавиатуры. */
+/** Всё, что всплывает поверх экрана: меню и подсказки правил/ссылок. */
+const FLOATING = '.menu, .rule-tip';
+
 export function keepMenusInView(): () => void {
   const fit = (n: Node) => {
     if (!(n instanceof HTMLElement)) return;
-    const menus = n.matches('.menu') ? [n] : Array.from(n.querySelectorAll<HTMLElement>('.menu'));
+    const menus = n.matches(FLOATING) ? [n] : Array.from(n.querySelectorAll<HTMLElement>(FLOATING));
     // Второй раз — когда закончится анимация появления (она немного уменьшает меню).
     for (const m of menus) {
       requestAnimationFrame(() => m.isConnected && fitInView(m));
@@ -983,7 +1018,7 @@ export function keepMenusInView(): () => void {
     if (raf) return;
     raf = requestAnimationFrame(() => {
       raf = 0;
-      document.querySelectorAll<HTMLElement>('.menu:not(.closing)').forEach((m) => fitInView(m));
+      document.querySelectorAll<HTMLElement>(FLOATING).forEach((m) => !m.classList.contains('closing') && fitInView(m));
     });
   };
   window.addEventListener('resize', refit);

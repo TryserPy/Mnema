@@ -107,3 +107,5 @@ html[data-no-guide] .tut-ring, html[data-motion='off'] .tut-ring { animation: no
 .tut-hint { margin: 0; }
 .tut-btns { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .tut-flash { margin: 0; font-weight: 600; font-size: 0.9rem; color: var(--accent-text, var(--accent)); animation: itemIn 0.25s ease; }
+.how-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.how-acts .chip-btn { min-height: 30px; padding: 0 11px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px; }
