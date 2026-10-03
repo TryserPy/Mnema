@@ -22,7 +22,7 @@ import { UpdateFlow } from '../components/UpdateFlow';
 import { openBackups } from '../components/BackupsHost';
 import { startTutorial } from '../components/Tutorial';
 import { openChanges } from '../components/ChangesDialog';
-import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
+import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, restoreData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
 
@@ -611,7 +611,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
                 onClick={() => {
                   const before = getData();
                   const { data: safe, notes } = neutralizeForeign(pendingBackup, before);
-                  replaceData(safe);
+                  restoreData(safe);
                   setPendingBackup(null);
                   setMsg('Данные восстановлены.' + (notes.length ? ' Не перенесено: ' + notes.join('; ') + '.' : ''));
                   // Ошибся копией — можно вернуть всё, как было до восстановления.

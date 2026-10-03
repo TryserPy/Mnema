@@ -1,6 +1,6 @@
 // Автокопии открываются одним окном из любого места («Профиль», «Настройки → Данные»): выбрал копию → подтвердил → восстановили.
 import { useEffect, useState } from 'react';
-import { getData, neutralizeForeign, normalizeData, replaceData } from '../store';
+import { getData, neutralizeForeign, normalizeData, replaceData, restoreData } from '../store';
 import { BackupsDialog } from './Backups';
 import { Modal, toast } from './ui';
 
@@ -42,7 +42,7 @@ export function BackupsHost() {
                 onClick={() => {
                   const before = getData();
                   const { data: safe, notes } = neutralizeForeign(pending, before);
-                  replaceData(safe);
+                  restoreData(safe);
                   setPending(null);
                   // Ошибся копией — можно вернуть всё, как было до восстановления.
                   toast('Данные восстановлены' + (notes.length ? '. Не перенесено: ' + notes.join('; ') : ''), { label: 'Вернуть как было', run: () => replaceData(before) });

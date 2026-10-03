@@ -55,6 +55,14 @@ function authHeaders(p, key) {
 const isOpenRouter = (p) => /openrouter\.ai/i.test(p.baseUrl || '');
 const extraFor = (p) => (isOpenRouter(p) ? { 'HTTP-Referer': 'https://mnema.local', 'X-Title': 'Mnema' } : {});
 const trimBase = (u) => String(u || '').trim().replace(/\/+$/, '');
+/** Сохранённый ключ годится только для того же сервера: если адрес поменяли, ключ нужно ввести заново — иначе его увёл бы любой, кто подставит свой адрес. */
+export function sameServer(a, b) {
+  try {
+    return new URL(trimBase(a)).origin === new URL(trimBase(b)).origin;
+  } catch {
+    return false;
+  }
+}
 export const FREE_ROUTER = 'openrouter/free';
 const isFreeModel = (m) => /:free$/.test(m || '') || m === FREE_ROUTER;
 /** Бесплатные модели OpenRouter часто перегружены: просим OpenRouter при ошибке взять любую другую бесплатную. */
@@ -354,7 +362,7 @@ export function createAiService({ http, store }) {
           const v = cleanKey(draft.key);
           if (v) c.keys['c:' + p.id] = store.encrypt(v);
           else delete c.keys['c:' + p.id];
-        }
+        } else if (prev && !sameServer(prev.baseUrl, p.baseUrl)) delete c.keys['c:' + p.id];
         if (draft.select) c.provider = 'custom:' + p.id;
         store.write(c);
         return { ok: true, id: p.id, config: publicConfig(c) };
@@ -404,7 +412,7 @@ export function createAiService({ http, store }) {
         if (q && q.draft) {
           const prev = q.draft.id ? c.custom.find((x) => x.id === q.draft.id) : null;
           p = sanitizeCustom(q.draft, prev);
-          key = typeof q.draft.key === 'string' && q.draft.key.trim() ? cleanKey(q.draft.key) : prev ? store.decrypt(c.keys['c:' + prev.id]) : '';
+          key = typeof q.draft.key === 'string' && q.draft.key.trim() ? cleanKey(q.draft.key) : prev && sameServer(prev.baseUrl, p.baseUrl) ? store.decrypt(c.keys['c:' + prev.id]) : '';
         } else {
           const r = resolve(c, (q && q.provider) || c.provider);
           p = r.p;

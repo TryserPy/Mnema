@@ -362,7 +362,7 @@ function CustomAiEditor({ initial, onClose, onSaved, onDeleted }: { initial: Cus
           {insecure && <span className="small warn-text">Адрес без https: ключ пойдёт по сети незашифрованным. Так можно только для своего компьютера или домашней сети.</span>}
         </label>
         <label className="field">
-          <span>Ключ API {initial?.hasKey && <span className="muted">(сохранён — впиши новый, чтобы заменить)</span>}</span>
+          <span>Ключ API {initial?.hasKey && <span className="muted">(сохранён — впиши новый, чтобы заменить; если поменяешь адрес, ключ нужно ввести заново)</span>}</span>
           <input className="input" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={d.auth === 'none' ? 'не нужен' : 'вставь ключ'} disabled={d.auth === 'none'} />
         </label>
         <div className="field">

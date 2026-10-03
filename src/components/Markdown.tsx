@@ -92,7 +92,8 @@ const md = new Marked({
 // Всё остальное (//сервер/…, file:, ../../файл) убираем — иначе на Windows такая ссылка или картинка
 // ведёт в чужую папку или открывает чужую страницу прямо в окне Мнемы.
 const SAFE_URL = /^(#|https?:|mailto:|data:image\/|blob:)/i;
-const LOCAL_REL = /^(?![\\/])(?!.*\.\.)[\w\-./%]+$/;
+// %2e%2e браузер понимает как «..» — его тоже не пропускаем.
+const LOCAL_REL = /^(?![\\/])(?!.*\.\.)(?!.*%2e)[\w\-./%]+$/i;
 let markdownPass = false;
 // В тестах без браузера DOMPurify — заглушка без хуков.
 if (DOMPurify.isSupported) DOMPurify.addHook('afterSanitizeAttributes', (node) => {
