@@ -31,7 +31,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 800, false], [390, 844, t
   const tag = String(w);
 
   // ---------- 1. Поиск в Настройках ----------
-  if (phone) { await page.locator('.tab', { hasText: 'Профиль' }).click(); await page.waitForTimeout(400); await page.getByRole('menuitem', { name: /Настройки/ }).click(); }
+  if (phone) { await page.locator('.tab', { hasText: 'Профиль' }).click(); await page.waitForTimeout(400); await page.locator('.prof-links .create-item', { hasText: 'Настройки' }).click(); }
   else await page.getByRole('button', { name: 'Настройки' }).first().click();
   await page.waitForTimeout(500);
   await page.getByRole('textbox', { name: 'Найти настройку' }).fill('ко');
@@ -84,7 +84,7 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 800, false], [390, 844, t
   }
 
   // ---------- 4. Меню темы ----------
-  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); }
+  if (phone) { await page.locator('.tab', { hasText: 'Знания' }).click(); await page.waitForTimeout(400); await page.getByRole('button', { name: 'Все темы списком' }).click(); await page.waitForTimeout(400); }
   await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();
   await page.waitForTimeout(300);
   await page.locator('.tree-row', { hasText: 'Клетка' }).locator('.tree-label').click();
