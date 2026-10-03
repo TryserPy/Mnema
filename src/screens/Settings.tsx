@@ -1,6 +1,6 @@
 // Настройки: слева разделы, справа — один раздел. Ничего не надо листать и искать глазами: есть поиск по настройкам.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Icon, Modal, Switch, touchUI } from '../components/ui';
+import { Icon, Modal, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
@@ -19,6 +19,7 @@ import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
 import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
+import { BackupsDialog } from '../components/Backups';
 import { openChanges } from '../components/ChangesDialog';
 import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
 
@@ -418,6 +419,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   const [cloud, setCloud] = useState(false);
   const [exportKind, setExportKind] = useState<'anki' | 'print' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ReturnType<typeof normalizeData> | null>(null);
+  const [backupsOpen, setBackupsOpen] = useState(false);
   const api = window.mnemaApi;
   async function runObsidianExport() {
     const { buildObsidianExport } = await import('../obsidianExport');
@@ -441,6 +443,13 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Выбрать файл
           </button>
         </SRow>
+        {api?.backupList && (
+          <SRow label="Автокопии" hint="Мнема сама сохраняет копию каждый день — можно вернуть любой из 8 последних">
+            <button className="btn small" onClick={() => setBackupsOpen(true)}>
+              Открыть
+            </button>
+          </SRow>
+        )}
         <SRow label="Корзина" hint={data.trash?.length ? `Недавно удалённого: ${data.trash.length}. Лежит 30 дней` : 'Недавно удалённое можно вернуть (30 дней)'}>
           <button className="btn small" onClick={() => go({ name: 'trash' })}>
             Открыть
@@ -588,6 +597,15 @@ function DataPane({ go }: { go: (r: Route) => void }) {
           </div>
         </Modal>
       )}
+      {backupsOpen && (
+        <BackupsDialog
+          onClose={() => setBackupsOpen(false)}
+          onRestore={(d) => {
+            setBackupsOpen(false);
+            setPendingBackup(d);
+          }}
+        />
+      )}
       {pendingBackup && (
         <Modal title="Восстановить из копии?" onClose={() => setPendingBackup(null)}>
           <div className="stack gap12">
@@ -601,10 +619,13 @@ function DataPane({ go }: { go: (r: Route) => void }) {
               <button
                 className="btn primary"
                 onClick={() => {
-                  const { data: safe, notes } = neutralizeForeign(pendingBackup, getData());
+                  const before = getData();
+                  const { data: safe, notes } = neutralizeForeign(pendingBackup, before);
                   replaceData(safe);
                   setPendingBackup(null);
                   setMsg('Данные восстановлены.' + (notes.length ? ' Не перенесено: ' + notes.join('; ') + '.' : ''));
+                  // Ошибся копией — можно вернуть всё, как было до восстановления.
+                  toast('Данные восстановлены', { label: 'Вернуть как было', run: () => replaceData(before) });
                 }}
               >
                 Восстановить
@@ -635,6 +656,12 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
         </SRow>
       </Group>
       <UpdatesGroup />
+      <Group title="Новое в 1.19.0">
+        <ul className="whats-new">
+          <li>«Настройки → Данные → Автокопии»: копии, которые Мнема делает сама каждый день. Видно, что в каждой, — и можно вернуть любую</li>
+          <li>После восстановления из копии — кнопка «Вернуть как было», если выбрал не ту</li>
+        </ul>
+      </Group>
       <Group title="Новое в 1.18.0">
         <ul className="whats-new">
           <li>Карточки из конспекта: черновики по группам (определения, даты, термины…), сразу отмечено не больше 12 хороших — понемногу учить легче</li>
