@@ -1,9 +1,10 @@
 // Знакомство «как в играх»: подсвечивает нужное место, а человек делает всё сам — создаёт предмет, тему, пишет конспект, делает карточку.
 // Шаг определяется по тому, что есть на самом деле (есть ли новый предмет, тема, конспект, карточка; открыто ли окно), а не по счётчику:
 // закрыл окно, удалил созданное, ушёл на другой экран — подсказка сама возвращается на нужный шаг.
-// «Пропустить шаг» и «Назад» — вручную; «Выйти» — закончить.
+// «Пропустить шаг» делает шаг за человека (создаёт предмет, тему, пишет пример конспекта, карточку); «Выйти» — закончить.
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { getData, updateSettings, useData } from '../store';
+import { addCard, addSubject, addTopic, getData, updateSettings, updateTopic, useData } from '../store';
+import { noteWriter } from '../noteRegistry';
 import type { AppData, Route, Topic } from '../types';
 import { Icon, selHow, toast } from './ui';
 import '../guide.css';
@@ -122,6 +123,39 @@ function stageOf(c: Ctx): Stage {
   }
 }
 
+const SAMPLE_NOTE = 'Клетка — это наименьшая единица строения и жизни всех организмов. У неё есть оболочка, цитоплазма и ядро.';
+
+/** Закрыть открытые окна (как Esc): иначе «сделанное за тебя» оказалось бы под окном. */
+function closeModals() {
+  for (let i = 0; i < 3 && q('.modal'); i++) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+}
+
+/** «Пропустить шаг»: сделать его за человека, чтобы следующий шаг было на чём делать. */
+function doStep(major: number, c: Ctx, go: (r: Route) => void) {
+  closeModals();
+  const d = getData();
+  const subject = c.newSubjects[c.newSubjects.length - 1] ?? d.subjects[0];
+  const ensureSubject = () => subject ?? addSubject('Биология', '#2BA36B');
+  const ensureTopic = (): Topic => workTopic(context(getData(), c.route)) ?? addTopic(ensureSubject().id, '§1 Клетка');
+  if (major === 0) addSubject('Биология', '#2BA36B');
+  else if (major === 1) {
+    const t = addTopic(ensureSubject().id, '§1 Клетка');
+    go({ name: 'topic', id: t.id });
+  } else if (major === 2) {
+    const t = ensureTopic();
+    const w = noteWriter(t.id);
+    // Редактор этой темы открыт — пишем через него (иначе, закрываясь, он вернул бы свой старый текст).
+    if (w && c.route.name === 'topic' && (c.route as { id: string }).id === t.id) w.append(SAMPLE_NOTE);
+    else {
+      updateTopic(t.id, { note: (t.note.trim() ? t.note.trimEnd() + '\n\n' : '') + SAMPLE_NOTE });
+      go({ name: 'topic', id: t.id });
+    }
+  } else if (major === 3) {
+    const t = c.noteTopic ?? ensureTopic();
+    addCard({ topicId: t.id, type: 'basic', front: 'Что такое клетка?', back: 'Наименьшая единица строения и жизни всех организмов.' });
+  } else if (major === 4) setSt({ learned: true });
+}
+
 interface Rect {
   x: number;
   y: number;
@@ -129,7 +163,31 @@ interface Rect {
   h: number;
 }
 
-export function TutorialHost({ route }: { route: Route }) {
+const CARD_W = 440;
+const CARD_H = 190;
+/** Куда поставить подсказку, чтобы она не закрывала подсвеченное: снизу, сверху, справа или слева от него — где больше места. */
+function cardPlace(r: Rect | null, phone: boolean): React.CSSProperties {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const bottomGap = phone ? 86 : 20; // на телефоне снизу нижняя панель
+  const centerX = { left: '50%', transform: 'translateX(-50%)' };
+  const atBottom = { ...centerX, top: 'auto', bottom: bottomGap };
+  const atTop = { ...centerX, bottom: 'auto', top: phone ? 60 : 16 };
+  if (!r) return atBottom;
+  const below = vh - bottomGap - (r.y + r.h);
+  const above = r.y - (phone ? 60 : 12);
+  if (below >= CARD_H + 16) return atBottom;
+  if (above >= CARD_H + 16) return atTop;
+  const w = Math.min(CARD_W, vw - 24);
+  const right = vw - (r.x + r.w);
+  const top = Math.max(16, Math.min(vh - CARD_H - 16, r.y));
+  if (right >= w + 24) return { left: r.x + r.w + 16, top, bottom: 'auto', transform: 'none' };
+  if (r.x >= w + 24) return { left: r.x - w - 16, top, bottom: 'auto', transform: 'none' };
+  // Места нет нигде (окно на весь экран) — туда, где свободнее, пусть и поверх края.
+  return below >= above ? atBottom : atTop;
+}
+
+export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => void }) {
   const data = useData();
   const s = useSyncExternalStore(
     (f) => {
@@ -184,12 +242,11 @@ export function TutorialHost({ route }: { route: Route }) {
   };
   const last = stage.major === 5;
   const phone = window.innerWidth < 720;
-  // Подсказку держим там, где она не закрывает то, что подсвечено.
-  const top = rect ? rect.y + rect.h / 2 > window.innerHeight / 2 : false;
+  const place = cardPlace(rect, phone);
   return (
     <div className="tut" aria-live="polite">
       {rect && <div className="tut-ring" style={{ left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12 }} />}
-      <div className={'tut-card' + (top ? ' at-top' : '') + (phone ? ' phone' : '')} role="dialog" aria-label="Знакомство">
+      <div className={'tut-card' + (phone ? ' phone' : '')} style={place} role="dialog" aria-label="Знакомство">
         <div className="tut-step">
           Шаг {stage.major + 1} из {MAJORS.length} · {MAJORS[stage.major]}
           <span className="tut-bar">
@@ -204,18 +261,13 @@ export function TutorialHost({ route }: { route: Route }) {
             <button className="btn ghost small" onClick={() => finish(false)}>
               Выйти
             </button>
-            {s.skipped.length > 0 && !last && (
-              <button className="btn ghost small" onClick={() => setSt({ skipped: s.skipped.slice(0, -1) })}>
-                Назад
-              </button>
-            )}
           </span>
           {last ? (
             <button className="btn primary small" onClick={() => finish(true)}>
               <Icon name="check" size={16} /> Закончить
             </button>
           ) : (
-            <button className="btn small" onClick={() => setSt({ skipped: [...s.skipped, stage.major] })}>
+            <button className="btn small" onClick={() => doStep(stage.major, ctx, go)} title="Мнема сделает этот шаг за тебя">
               Пропустить шаг
             </button>
           )}

@@ -1155,3 +1155,51 @@ export const duplicateSubject = (id: string) => applyCopy(copySubject(data, id, 
 export const duplicateFolder = (id: string) => applyCopy(copyFolder(data, id, uid, nowIso()));
 /** Копия одной карточки (в той же теме). */
 export const duplicateCard = (id: string) => applyCopy(copyCard(data, id, uid, nowIso()));
+
+export interface ClipItem {
+  kind: 'folder' | 'subject' | 'topic';
+  id: string;
+}
+/** Где человек сейчас — туда вставляется скопированное (Ctrl+V). */
+export interface PastePlace {
+  folderId?: string;
+  subjectId?: string;
+  topicId?: string;
+}
+
+/** Вставить скопированное (Ctrl+C → Ctrl+V): темы — рядом с открытой темой или в открытый предмет, предметы — в открытую папку. Одно изменение данных на всё. */
+export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] {
+  const stamp = nowIso();
+  let d = data;
+  const out: CopyResult[] = [];
+  const here = place.topicId ? d.topics.find((t) => t.id === place.topicId) : undefined;
+  for (const it of items) {
+    let r: CopyResult | null = null;
+    if (it.kind === 'folder') r = copyFolder(d, it.id, uid, stamp);
+    else if (it.kind === 'subject') {
+      const placeFolder = place.folderId ?? (place.subjectId ? d.subjects.find((x) => x.id === place.subjectId)?.folderId : undefined);
+      r = copySubject(d, it.id, uid, stamp, place.folderId || place.subjectId ? { folderId: placeFolder } : undefined);
+    } else {
+      const subjectId = place.subjectId && d.subjects.some((x) => x.id === place.subjectId) ? place.subjectId : undefined;
+      // Рядом с открытой темой (тот же родитель); если родитель — сама копируемая тема или её подтема, — рядом с оригиналом.
+      let parentId = here?.subjectId === subjectId ? here?.parentId : undefined;
+      for (let p = parentId, guard = 0; p && guard < 500; guard++) {
+        if (p === it.id) {
+          parentId = undefined;
+          break;
+        }
+        p = d.topics.find((t) => t.id === p)?.parentId;
+      }
+      r = copyTopic(d, it.id, uid, stamp, subjectId ? { subjectId, parentId } : undefined);
+    }
+    if (r) {
+      d = r.data;
+      out.push(r);
+    }
+  }
+  if (out.length) {
+    const folders = out.filter((r) => r.what === 'folder').map((r) => r.id);
+    commit({ ...d, settings: { ...d.settings, treeOpen: [...d.settings.treeOpen, ...folders] } });
+  }
+  return out;
+}
