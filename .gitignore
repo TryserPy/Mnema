@@ -9,3 +9,6 @@ out*/
 *.jks
 *.keystore
 undefined/
+# Локальные заметки и настройки инструментов
+CLAUDE.md
+.claude/

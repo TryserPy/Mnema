@@ -3,7 +3,7 @@ import fs from 'fs';
 const EXE = process.cwd() + '/node_modules/electron/dist/electron';
 const app = await electron.launch({ executablePath: EXE, args: [process.cwd() + '', '--no-sandbox'] });
 const userData = await app.evaluate(({ app }) => app.getPath('userData'));
-await app.evaluate(({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); }, '/tmp/claude-0/-home-claude/560a6d29-d5a4-557d-ab05-33ccb349a958/scratchpad/vault');
+await app.evaluate(({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); }, '/tmp/mnema-vault');
 const win = await app.firstWindow();
 const errors = [];
 win.on('pageerror', (e) => errors.push(e.message));

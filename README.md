@@ -28,8 +28,7 @@ npm run build          # сборка в dist/
 
 - Код интерфейса — `src/` (TypeScript + React + Vite), Windows — `electron/`, Android — `android/`
   (своя обёртка WebView без Gradle; сборка `bash android/build.sh` после `npm run build`).
-- Подробное описание проекта — [`docs/PROJECT.md`](docs/PROJECT.md), заметки для Claude — [`CLAUDE.md`](CLAUDE.md),
-  агенты-помощники — [`.claude/agents/`](.claude/agents), сценарии проверки интерфейса — [`e2e/`](e2e).
+- Подробное описание проекта — [`docs/PROJECT.md`](docs/PROJECT.md), сценарии проверки интерфейса — [`e2e/`](e2e).
 
 ### Как выпустить новую версию
 
@@ -189,7 +188,6 @@ npm run build          # сборка в dist/
 - Стили (`mods.ts`, `ModsSettings.tsx`) — блок «Ещё стили» в «Оформлении»; фокус-режим — команда поиска; `dropRemoved` в `store.ts` выбрасывает убранные поля из старых файлов (`v182-subtract.test.ts`)
 - Защита: код мода из файла данных больше не запускается; из CSP убран `blob:` в `script-src`
 - Исправлено: Enter из поиска не открывает ответ (`Review.tsx`, `e2e/palette-enter.mjs`), «Выключить все» стили (`e2e/stage2.mjs`)
-- План и отчёты переработки 2.0 — `docs/redesign-2.0/` (`STATE.md`)
 
 ## 1.8.2 — меню в боковой панели
 - `fitInView` (`src/components/ui.tsx`) больше не стирает `left/top`, которые задаёт сам экран у меню в точке нажатия (`.menu.ctx`, `.sel-menu`, `position: fixed`): сбрасывает только то, что поставила сама (метка `data-fit-pos`). Проверка в браузере — `e2e/ctxmenu.mjs`.
@@ -200,13 +198,11 @@ npm run build          # сборка в dist/
 - Контраст: `src/color.ts` считает `--on-accent` и `--accent-text` для любой темы и акцента; «Углы»/«Плотность» на токенах; свой фон размывается
 - Скорость: `todayCountsByTopic`/`topicStatsByTopic` в `src/srs.ts` (один проход), уровни детализации карты знаний `src/mapLod.ts`
 - Синхронизация: `Topic.noteAt/noteFrom/noteBy`, слияние текста по полям, копия темы при независимых правках (`src/sync.ts`, `src/noteText.ts`)
-- Анализ и план переработки 2.0 — `docs/redesign-2.0/` (отчёты агентов, прототип, `STATE.md`)
 
 ## 1.8 — простой формат для нейросети, таблицы, порядок тем
 - «Мнема-текст» (`src/mnemaText.ts`): `@предмет`, `@тема`, `@карточки`… — нейросети пишут без JSON; наглядный предпросмотр «Как будет»
 - Таблицы в конспекте (`@tiptap/extension-table`, Markdown), темы по названию с учётом чисел (`topicOrder`), выбор нескольких и `deleteMany`
 - Понятная панель выделения, свой фон картинкой (`settings.bgImage`), значок на выбор (`settings.appIcon`)
-- Команда агентов и хранитель контекста (`.claude/agents`, `.claude/context/CONTEXT.md`)
 
 ## 1.7 — нейросеть, телефон и обновления
 - Файл изменений (`src/changes.ts`): нейросеть пишет JSON — Мнема показывает план и применяет (создать и поменять что угодно, «Вернуть»); «Выгрузить для нейросети»; готовая инструкция
