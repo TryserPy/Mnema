@@ -1,10 +1,9 @@
-// Настройки: «Оформление» (стиль, тема, цвет), «Текст и форма», «Анимации».
+// Настройки: «Оформление» (стиль, тема, цвет), «Текст и форма», «Анимации». «Стили» — свой раздел (ModsSettings).
 import { useRef, useState } from 'react';
 import { updateSettings, useData } from '../store';
 import { BACKGROUNDS, DEFAULT_ACCENT, DEFAULT_LOOK, FONTS, HEAD_FONTS, presetFor, STYLES, THEMES, type Palette, type ThemePreset } from '../themes';
 import type { Look, MotionKind, MotionLevel } from '../types';
 import { Collapse, ColorPicker, Icon, Segmented, Switch, toast } from './ui';
-import { StylesSettings } from './ModsSettings';
 import { Group, PaneHead, SRow } from './SettingsKit';
 
 const ACCENTS = ['#4C5BD4', '#3F51D8', '#1F7A6B', '#B4452F', '#6B3FC4', '#2A5BB8', '#3A3F4E', '#C2417A', '#2F8F5B', '#A4591A', '#0E8FA3'];
@@ -121,7 +120,6 @@ export function LookPane({ dark }: { dark: boolean }) {
         </div>
       </Group>
       {window.mnemaApi?.setAppIcon && <AppIconGroup dark={dark} />}
-      <StylesSettings embedded />
     </div>
   );
 }

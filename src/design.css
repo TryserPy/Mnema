@@ -60,6 +60,8 @@ body { overflow-wrap: break-word; }
 .set-nav-item.on svg { color: var(--accent-text, var(--accent)); }
 .set-results { display: flex; flex-direction: column; gap: 2px; animation: fadeIn 0.15s ease; }
 .set-result { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 12px; border: none; border-radius: 10px; background: transparent; text-align: left; color: var(--ink); max-width: 100%; }
+/* Длинное название переносится на новую строку, а не вылезает в соседнюю колонку. */
+.set-result > span { max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
 .set-result:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .pad-note { padding: 8px 12px; }
 .set-pane { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding-top: 6px; animation: paneIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -182,7 +184,8 @@ html[data-no-screens] .set-pane { animation: none; }
 
 @media (max-width: 1000px) {
   .styles-layout { grid-template-columns: minmax(0, 1fr); }
-  .preview-col { position: static; order: -1; }
+  /* Узко: сначала сами стили, предпросмотр — под ними (оформление и так меняется сразу). */
+  .preview-col { position: static; }
   .style-preview { zoom: 0.7; }
 }
 @media (max-width: 760px) {

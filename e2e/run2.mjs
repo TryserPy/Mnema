@@ -125,6 +125,7 @@ await step('test', async () => {
   await page.locator('.topic-row', { hasText: 'Фотосинтез' }).click();
   await page.getByRole('button', { name: 'Действия с темой' }).click();
   await shot('11-topic-menu');
+  await page.getByRole('menuitem', { name: /Проверить себя/ }).click();
   await page.getByRole('menuitem', { name: /Пробная контрольная/ }).click();
   await shot('12-test-setup');
   await page.getByRole('button', { name: 'Учиться' }).click();
@@ -208,6 +209,7 @@ await step('simple buttons + focus', async () => {
   await page.locator('.tree-row .tree-label', { hasText: 'История' }).click();
   await page.locator('.topic-row').first().click();
   await page.getByRole('button', { name: 'Действия с темой' }).click();
+  await page.getByRole('menuitem', { name: /Проверить себя/ }).click();
   await page.getByRole('menuitem', { name: /Повторить всю тему/ }).click();
   await page.getByRole('button', { name: 'Показать ответ' }).click();
   await shot('21-simple-buttons');
