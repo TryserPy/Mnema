@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BackupsHost } from './components/BackupsHost';
+import { TutorialHost } from './components/Tutorial';
 import { GuideHost } from './components/Guide';
 import { Knowledge } from './screens/Knowledge';
 import { Profile } from './screens/Profile';
@@ -16,6 +17,7 @@ import { ChangesDialog } from './components/ChangesDialog';
 import { parseChangeFile } from './changes';
 import type { UpdateInfo } from './update';
 import { PluginScreen } from './screens/PluginScreen';
+import { MODS_AVAILABLE } from './featureList';
 import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
 import { applyLook, FONTS, lookKey } from './themes';
 import { allMods, modsCss } from './mods';
@@ -250,7 +252,7 @@ export function App() {
   }, [s.features.tray, dueForTray, s.reminder, s.trayHotkey, s.closeToTray, s.autostart, s.keys]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Моды с кодом: запустить включённые, остановить выключенные.
-  const pluginKey = s.features.mods && !s.pluginsSafe ? s.plugins.map((p) => p.id + (p.enabled ? '+' : '-') + p.code.length).join('|') : 'off';
+  const pluginKey = MODS_AVAILABLE && s.features.mods && !s.pluginsSafe ? s.plugins.map((p) => p.id + (p.enabled ? '+' : '-') + p.code.length).join('|') : 'off';
   useEffect(() => {
     setNavigator(go);
     void syncPlugins();
@@ -472,6 +474,7 @@ export function App() {
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
           {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId + (route.examId ?? '')} topicId={route.topicId} pretest={route.pretest} examId={route.examId} go={go} />}
         </ErrorBoundary>
+        <TutorialHost route={route} />
       </div>
     );
   }
@@ -557,7 +560,8 @@ export function App() {
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <ExamDialogHost go={go} />
       <BackupsHost />
-      <GuideHost onNewSubject={() => setAddingSubject({})} />
+      <TutorialHost route={route} />
+      <GuideHost />
       <CreateHost route={route} go={go} onNewSubject={(o) => setAddingSubject(o ?? {})} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />
       {addingSubject && (

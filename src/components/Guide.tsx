@@ -1,8 +1,9 @@
-// Знакомство: 5 коротких шагов с рисунками. Всегда можно «Пропустить»; вернуться — «Настройки → О Мнеме → Пройти знакомство».
+// Знакомство при первом запуске: 5 коротких шагов с рисунками, потом — тренажёр (Tutorial.tsx), где всё делаешь сам. Всегда можно «Пропустить».
 import { useEffect, useState, type ReactNode } from 'react';
 import { addExample } from '../seed';
 import { updateSettings, useData } from '../store';
 import { IlluMake, IlluNote, IlluSpaced, IlluStart, IlluTree } from './Illustrations';
+import { startTutorial } from './Tutorial';
 import { Icon, Modal, selHow } from './ui';
 import '../guide.css';
 
@@ -18,7 +19,7 @@ const STEPS: { title: string; text: ReactNode; pic: ReactNode }[] = [
   { title: 'Мнема напомнит вовремя', text: <>Она сама решает, когда повторить каждую карточку: чуть раньше, чем ты забудешь. Чем лучше помнишь, тем реже она появляется.</>, pic: <IlluSpaced /> }
 ];
 
-export function GuideHost({ onNewSubject }: { onNewSubject: () => void }) {
+export function GuideHost() {
   const data = useData();
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -36,10 +37,10 @@ export function GuideHost({ onNewSubject }: { onNewSubject: () => void }) {
     setOpen(false);
     if (!data.settings.onboarded) updateSettings({ onboarded: true });
   };
-  return <Guide onClose={close} onNewSubject={() => (close(), onNewSubject())} onExample={() => (addExample(), close())} />;
+  return <Guide onClose={close} onTutorial={() => (close(), startTutorial())} onExample={() => (addExample(), close())} />;
 }
 
-function Guide({ onClose, onNewSubject, onExample }: { onClose: () => void; onNewSubject: () => void; onExample: () => void }) {
+function Guide({ onClose, onTutorial, onExample }: { onClose: () => void; onTutorial: () => void; onExample: () => void }) {
   const [i, setI] = useState(0);
   const last = i === STEPS.length - 1;
   const st = STEPS[i];
@@ -70,11 +71,11 @@ function Guide({ onClose, onNewSubject, onExample }: { onClose: () => void; onNe
             )}
             {last ? (
               <>
-                <button className="btn" onClick={onExample}>
+                <button className="btn" onClick={onExample} title="Добавить готовый предмет с темой и карточками">
                   Посмотреть на примере
                 </button>
-                <button className="btn primary" onClick={onNewSubject}>
-                  <Icon name="plus" size={18} /> Добавить предмет
+                <button className="btn primary" onClick={onTutorial}>
+                  <Icon name="play" size={16} /> Давай попробуем
                 </button>
               </>
             ) : (

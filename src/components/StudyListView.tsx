@@ -1,6 +1,6 @@
 // Словарь / список в теме: таблица «что спрашиваем — ответ — пример». Каждая строка сама становится карточкой.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { canSpeak, speak, SPEAK_LANGS } from '../speak';
+import { canSpeak, speak, SPEAK_LANGS, stopSpeaking, useSpeaking } from '../speak';
 import { itemKey, itemOrds, normalizeAnswer, todayCounts } from '../srs';
 import { addListRow, addListRows, deleteCardsUndoable, deleteList, getData, LIST_PRESETS, restoreRemoved, updateCard, updateList, useData } from '../store';
 import { orderTabs, reorderTab } from '../tabs';
@@ -157,6 +157,7 @@ export function StudyListView({ topicId, list, go, subjectId }: { topicId: strin
 
 export function ListRow({ card, list, status, speakable, isFormula }: { card: Card; list: StudyList; status: RowStatus; speakable: boolean; isFormula: boolean }) {
   const [a, setA] = useState(card.front);
+  const speaking = useSpeaking(a);
   const [b, setB] = useState(card.back);
   const [c, setC] = useState(card.why ?? '');
   const [editB, setEditB] = useState(false);
@@ -195,8 +196,8 @@ export function ListRow({ card, list, status, speakable, isFormula }: { card: Ca
         <i className={'st-dot ' + status} title={STATUS_LABEL[status]} />
         <textarea rows={1} className="cell cell-a" aria-label={list.cols[0]} value={a} onChange={(e) => setA(e.target.value)} onBlur={save} onKeyDown={nextOnEnter} />
         {speakable && (
-          <button type="button" className="icon-btn tiny speak-btn" tabIndex={-1} aria-label="Послушать" title="Послушать" onClick={() => speak(a, list.lang!)}>
-            <Icon name="speaker" size={16} />
+          <button type="button" className={'icon-btn tiny speak-btn' + (speaking ? ' speaking' : '')} tabIndex={-1} aria-label={speaking ? 'Остановить' : 'Послушать'} title={speaking ? 'Замолчать' : 'Послушать'} onClick={() => (speaking ? stopSpeaking() : speak(a, list.lang!))}>
+            <Icon name={speaking ? 'x' : 'speaker'} size={16} />
           </button>
         )}
       </span>

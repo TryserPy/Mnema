@@ -1,3 +1,4 @@
+import { makeCopy } from '../components/copyUi';
 import { useEffect, useMemo, useState } from 'react';
 import { RulesList } from '../components/Rules';
 import { exportForAi } from '../components/ChangesDialog';
@@ -81,6 +82,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
             items={[
               { label: `Учить весь предмет · ${due}`, icon: 'play', onClick: () => go({ name: 'review', subjectId: id }), hidden: due === 0 },
               { label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
+              { label: 'Сделать копию', icon: 'copy', hint: 'Все темы, конспекты и карточки', onClick: () => makeCopy('subject', id, go) },
               { label: 'Новая контрольная', icon: 'test', hint: 'Выбрать темы и дату — Мнема составит план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },
               { label: 'Импорт из Obsidian', icon: 'folder', onClick: () => setObsidian(true), hidden: !data.settings.features.obsidian },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setExportKind('print') },

@@ -18,6 +18,7 @@ interface AndroidBridge {
   speechStop(): void;
   appVersion(): string;
   speak?(text: string, lang: string): void;
+  speakStop?(): void;
   setReminders?(json: string): void;
   setWidget?(json: string): void;
   notifyPermission?(id: string): void;
@@ -165,6 +166,7 @@ if (RAW) {
     setWidget: A.setWidget ? (json: string) => A.setWidget!(json) : undefined,
     notifyPermission: A.notifyPermission ? () => call<{ ok: boolean }>((id) => A.notifyPermission!(id)).then((r) => r.ok) : undefined,
     speak: A.speak ? (text: string, lang: string) => A.speak!(text, lang) : undefined,
+    speakStop: A.speakStop ? () => A.speakStop!() : undefined,
     print: A.print ? () => A.print!() : undefined,
     // Обновление: скачать APK из выпуска на GitHub и отдать Android на установку.
     updateDownload: A.apkDownload ? (url?: string) => call<{ ok: boolean; error?: string }>((id) => A.apkDownload!(id, url ?? '')) : undefined,

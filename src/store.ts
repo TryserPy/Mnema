@@ -1,4 +1,5 @@
 // Хранилище данных: состояние в памяти + сохранение в файл (Electron) или localStorage (браузер).
+import { copyCard, copyFolder, copySubject, copyTopic, type CopyResult } from './copy';
 import { useSyncExternalStore } from 'react';
 import { bridgeKey } from './platform/bridgeKey';
 import type { Grade } from 'ts-fsrs';
@@ -80,6 +81,7 @@ declare global {
       speechStart?: (lang: string) => { ok: boolean; error?: string } | undefined;
       speechStop?: () => void;
       speak?: (text: string, lang: string) => void;
+      speakStop?: () => void;
       print?: () => void;
       secretGet?: (name: string) => Promise<string>;
       secretSet?: (name: string, value: string) => Promise<boolean>;
@@ -1135,3 +1137,21 @@ export function replaceData(next: AppData) {
 export function exportJson(): string {
   return JSON.stringify(forSync(data), null, 1);
 }
+
+// ---------- Копии ----------
+
+
+function applyCopy(r: CopyResult | null): CopyResult | null {
+  if (!r) return null;
+  const treeOpen = r.what === 'folder' ? [...r.data.settings.treeOpen, r.id] : r.data.settings.treeOpen;
+  commit({ ...r.data, settings: { ...r.data.settings, treeOpen } });
+  return r;
+}
+/** Копия темы вместе с подтемами, конспектом и карточками (без прогресса). */
+export const duplicateTopic = (id: string) => applyCopy(copyTopic(data, id, uid, nowIso()));
+/** Копия предмета: все темы, конспекты и карточки. */
+export const duplicateSubject = (id: string) => applyCopy(copySubject(data, id, uid, nowIso()));
+/** Копия папки вместе со всеми предметами внутри. */
+export const duplicateFolder = (id: string) => applyCopy(copyFolder(data, id, uid, nowIso()));
+/** Копия одной карточки (в той же теме). */
+export const duplicateCard = (id: string) => applyCopy(copyCard(data, id, uid, nowIso()));

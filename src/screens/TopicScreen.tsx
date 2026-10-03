@@ -1,4 +1,5 @@
 import { Capped } from '../components/Capped';
+import { makeCopy } from '../components/copyUi';
 import { Dismissible, hideTip } from '../components/Dismissible';
 import { deleteTopicWithUndo } from '../components/SubjectDialogs';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
@@ -210,6 +211,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                 ]
               },
               { label: 'Добавить подтему', icon: 'subtopic', onClick: () => setAddingSub(true), hidden: topic.kind === 'rule' },
+              { label: 'Сделать копию', icon: 'copy', hint: 'Вместе с подтемами, конспектом и карточками', onClick: () => makeCopy('topic', id, go) },
               { label: 'История конспекта', icon: 'clock', hint: 'Вернуть прежний текст', onClick: () => setHistoryOpen(true), hidden: !data.noteHistory?.[id]?.length },
               ...plugins.topicActions.map((a) => ({ label: a.title, icon: 'puzzle', onClick: () => a.run({ id: topic.id, name: topic.name, note: topic.note, subjectId: topic.subjectId }) })),
               { label: 'Удалить тему', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
@@ -696,6 +698,15 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           <div className="row gap8 mt12 top-line">
             <button className="btn ghost small" onClick={() => resetCardProgress(editingCard.id)}>
               <Icon name="undo" size={16} /> Начать заново
+            </button>
+            <button
+              className="btn ghost small"
+              onClick={() => {
+                makeCopy('card', editingCard.id, () => undefined);
+                setEditing(null);
+              }}
+            >
+              <Icon name="copy" size={16} /> Копия
             </button>
             <span className="grow" />
             <ConfirmButton
