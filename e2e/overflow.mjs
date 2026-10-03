@@ -33,7 +33,7 @@ for (const W of widths) {
         const own = [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ');
         if (own.length >= 8 && r.width < 70 && r.height > parseFloat(cs.lineHeight || '20') * 2.6) out.push('squeezed ' + (e.className || e.tagName) + ' «' + own.slice(0, 20) + '» w=' + Math.round(r.width));
         // ребёнок вылезает за карточку
-        if (e.matches('.card, .modal, .srow, .feat-tile, .plug-row, .plug-card, .style-item, .rule-card, .hw-row, .topic-row, .les-card, .menu')) {
+        if (e.matches('.card, .modal, .srow, .feat-tile, .plug-row, .plug-card, .st-tile, .rule-card, .hw-row, .topic-row, .les-card, .menu')) {
           for (const c of e.children) { const cr = c.getBoundingClientRect(); if (cr.width && cr.right > r.right + 2 && getComputedStyle(e).overflow === 'visible') out.push('child-out ' + e.className + ' > ' + (c.className || c.tagName)); }
         }
       }

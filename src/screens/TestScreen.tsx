@@ -5,6 +5,7 @@ import { allItems, checkTyped } from '../srs';
 import { examById } from '../examList';
 import { addTestResult, getData, useData } from '../store';
 import { buildTest, schoolGrade, type TestQuestion } from '../testgen';
+import { MatchTask, OrderTask } from '../components/TestKinds';
 import type { Route } from '../types';
 
 interface Answer {
@@ -71,7 +72,7 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
           {pretest ? (
             <p className="muted">Ты ещё не учил эту тему — и это нормально. Отвечай наугад: попытка вспомнить до чтения готовит память, и потом запоминается лучше, даже если сейчас ошибёшься. Оценки не будет.</p>
           ) : (
-            <p className="muted">{examId ? 'Вопросы по карточкам всех тем контрольной' : 'Вопросы по карточкам темы'}, без подсказок. Расписание повторений не меняется — это просто проверка, насколько ты готов.</p>
+            <p className="muted">{examId ? 'Вопросы по карточкам всех тем контрольной' : 'Вопросы по карточкам темы'}, без подсказок. Если есть из чего — ещё «Соедини пары» и «Расставь по порядку», как в школьных тестах. Расписание повторений не меняется — это просто проверка, насколько ты готов.</p>
           )}
           <div className="stack gap8">
             <span className="label">Сколько вопросов</span>
@@ -96,7 +97,7 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
             <button
               className="btn primary"
               onClick={() => {
-                const q = buildTest(getData(), topicId, count, Math.random, examTopics);
+                const q = buildTest(getData(), topicId, count, Math.random, examTopics, { extras: !pretest });
                 setQuestions(q);
                 setAnswers(new Array(q.length).fill(undefined));
                 if (timed) setDeadline(Date.now() + q.length * 60_000);
@@ -143,6 +144,8 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
   if (finished || idx >= questions.length) {
     const grade = schoolGrade(correct, questions.length);
     const mistakes = questions.map((q, i) => ({ q, a: answers[i] })).filter((x) => !x.a?.ok);
+    // «Соедини пары» и «По порядку» из дат — несколько карточек; «По порядку» из конспекта — без карточек.
+    const mistakeCards = [...new Set(mistakes.flatMap((m) => (m.q.cardIds ? m.q.cardIds : [m.q.cardId])).filter(Boolean))];
     return (
       <div className="page narrow">
         <div className="card stack gap12 result-card">
@@ -181,8 +184,8 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
           </div>
         )}
         <div className="row gap8">
-          {mistakes.length > 0 && (
-            <button className="btn primary" onClick={() => go({ name: 'review', cardIds: [...new Set(mistakes.map((m) => m.q.cardId))], cram: true, topicId })}>
+          {mistakeCards.length > 0 && (
+            <button className="btn primary" onClick={() => go({ name: 'review', cardIds: mistakeCards, cram: true, topicId })}>
               Повторить ошибки
             </button>
           )}
@@ -243,6 +246,8 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
             })}
           </div>
         )}
+        {q.kind === 'match' && <MatchTask key={q.key} q={q} revealed={revealed} onAnswer={answer} />}
+        {q.kind === 'order' && <OrderTask key={q.key} q={q} revealed={revealed} onAnswer={answer} />}
         {q.kind === 'typed' && (
           <form
             onSubmit={(e) => {

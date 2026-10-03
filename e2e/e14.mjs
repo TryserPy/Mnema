@@ -69,7 +69,7 @@ await win.getByRole('switch', { name: 'Моды' }).click();
 await win.getByRole('switch', { name: 'Карта знаний' }).click();
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
 await sect('Оформление');
-await win.getByRole('switch', { name: 'Стикеры' }).click();
+await win.locator('.st-tile', { hasText: 'Стикеры' }).click();
 await win.getByRole('switch', { name: 'Крупные кнопки' }).click();
 step('mods css: ' + (await win.evaluate(() => document.getElementById('mnema-mods').textContent.length)));
 await win.locator('.style-list').first().scrollIntoViewIfNeeded();

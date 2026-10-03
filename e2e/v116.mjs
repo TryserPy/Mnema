@@ -56,11 +56,11 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 800, false], [390, 844, t
   check(navItems.includes('Моды'), `${tag}: раздел «Моды» в Настройках остался`);
   await page.locator('.set-nav-item', { hasText: 'Оформление' }).click();
   await page.waitForTimeout(300);
-  check((await page.locator('[data-set="styles"]').count()) === 0 && (await page.getByRole('switch', { name: 'Стикеры' }).count()) === 0, `${tag}: в «Оформлении» стилей больше нет`);
+  check((await page.locator('[data-set="styles"]').count()) === 0 && (await page.locator('.st-tile', { hasText: 'Стикеры' }).count()) === 0, `${tag}: в «Оформлении» стилей больше нет`);
   if (await page.locator('.set-back').count()) { await page.locator('.set-back').click(); await page.waitForTimeout(300); }
   await page.locator('.set-nav-item', { hasText: 'Стили' }).click();
   await page.waitForTimeout(400);
-  check((await page.getByRole('switch', { name: 'Стикеры' }).count()) === 1, `${tag}: в разделе «Стили» есть переключатель «Стикеры»`);
+  check((await page.locator('.st-tile', { hasText: 'Стикеры' }).count()) === 1, `${tag}: в разделе «Стили» есть переключатель «Стикеры»`);
   await page.screenshot({ path: `${OUT}/v116-styles-${tag}.png` });
 
   // ---------- 3. Моды: справка без вкладки, «Как писать моды» — окном ----------

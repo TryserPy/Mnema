@@ -102,6 +102,10 @@ npm run build          # сборка в dist/
 - Конспект на весь экран, экран не «белеет» при ошибке (`ErrorBoundary`), починена пустая карта знаний
 - Быстрее: счётчики «на сегодня» кэшируются, журнал ответов читается с конца, редактор формул/граф/импорт учебника грузятся по требованию
 
+## 1.17.0 — «Стили» плитками, «Соедини пары» и «По порядку» (часть этапа 6)
+- `src/styleDemo.ts` (`demoParts` — какие части примера показать по CSS стиля, `cssForDemo` — `sanitizeCss` и `:root/html/body → :host`), `components/StyleGallery.tsx`: пример в Shadow DOM (на него действует только CSS этого стиля), вписывается в плитку через `zoom`, пересчёт после загрузки шрифтов; тесты `styleDemo.test.ts`, сценарий `e2e/styles2.mjs`
+- `testgen.ts`: виды `match` и `order`, `matchQuestion`, `orderQuestion`, `isDate`, `noteSequences`, `buildTest(..., { extras })`; `components/TestKinds.tsx` (нажатия вместо перетаскивания); тесты `testKinds.test.ts`, сценарий `e2e/testkinds.mjs`. Расписание не меняется (как и вся пробная контрольная)
+
 ## 1.16.0 — партия «порядок»
 - Меню «⋯» темы: `MenuItem.items` в `components/ui.tsx` — группа открывается внутри того же меню («Назад», фокус на первый пункт, `fitInView` заново); `menuShown` убирает скрытое и пустые группы, группу из одного пункта заменяет этим пунктом (тесты `menuShown.test.ts`). В `TopicScreen` — «Проверить себя ▸», «Поделиться ▸»; «Отметить важной» только звёздочкой у названия
 - «Стили» — свой раздел Настроек (`SettingsSection` `'styles'`, `StylesSettings` без `embedded`); справка без вкладки «Моды» — пример и API в окне `components/ModsGuide.tsx` из «Моды → Сделать свой»
