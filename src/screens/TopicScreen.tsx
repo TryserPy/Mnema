@@ -390,6 +390,10 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
   const noteLater = useDeferredValue(topic.note);
   const count = useMemo(() => findImportant(noteLater, hs).filter((i) => !(topic.hiddenImportant ?? []).includes(i.id)).length, [noteLater, hs, topic.hiddenImportant]);
   const highlight = useMemo(() => (panel || hs.show ? { ...hs, show: hs.show } : null), [panel, hs]);
+  // В теме ещё нет карточек, а в конспекте уже есть важное — подсказать «набор из конспекта» (пока не скрыли).
+  const noCards = !data.cards.some((c) => c.topicId === topicId);
+  const [setHint, setSetHint] = useState(true);
+  const [setOpen, setSetOpen] = useState(false);
   // Редактор появляется на следующем кадре: сама страница темы открывается сразу, без задержки.
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -444,6 +448,21 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
         </div>
       )}
       <div key="col" className="note-col">
+        {ready && noCards && setHint && count >= 3 && !full && (
+          <div className="ns-hint">
+            <Icon name="sparkle" size={18} />
+            <span>
+              В конспекте нашлось {count} {plural(count, 'важное место', 'важных места', 'важных мест')} — сделать из них карточки?
+            </span>
+            <button className="btn small primary" onClick={() => setSetOpen(true)}>
+              Сделать карточки
+            </button>
+            <button className="icon-btn small" aria-label="Скрыть подсказку" onClick={() => setSetHint(false)}>
+              <Icon name="x" size={16} />
+            </button>
+          </div>
+        )}
+        {setOpen && <NoteToCards topicId={topicId} onClose={() => setSetOpen(false)} />}
         {!ready ? (
           <div className="note-page note-skeleton" aria-busy="true">
             <i style={{ width: '42%' }} />
