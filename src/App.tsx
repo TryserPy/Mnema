@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BackupsHost } from './components/BackupsHost';
 import { TutorialHost } from './components/Tutorial';
+import { ShowMeHost } from './components/ShowMe';
 import { GuideHost } from './components/Guide';
 import { Knowledge } from './screens/Knowledge';
 import { Profile } from './screens/Profile';
-import { CreateHost } from './components/CreateMenu';
+import { CreateHost, openCreate } from './components/CreateMenu';
 import { Trash } from './screens/Trash';
 import { hidesTabBar, TabBar } from './components/TabBar';
 import { sessionPrefs } from './session';
@@ -491,6 +492,9 @@ export function App() {
             <span className="logo small-logo">М</span> Мнема
           </button>
           <span className="grow" />
+          <button className="icon-btn mobile-create" aria-label="Создать" title="Создать: карточку, тему, предмет…" onClick={openCreate}>
+            <Icon name="plus" size={22} />
+          </button>
           <button className="icon-btn" aria-label="Поиск" onClick={() => setPalette(true)}>
             <Icon name="search" size={22} />
           </button>
@@ -561,6 +565,7 @@ export function App() {
       <ExamDialogHost go={go} />
       <BackupsHost />
       <TutorialHost route={route} go={go} />
+      <ShowMeHost go={go} />
       <GuideHost />
       <CreateHost route={route} go={go} onNewSubject={(o) => setAddingSubject(o ?? {})} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />

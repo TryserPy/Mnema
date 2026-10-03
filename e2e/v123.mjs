@@ -25,7 +25,7 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.getByRole('button', { name: 'Давай попробуем' }).click();
   await page.waitForTimeout(600);
   const text = async () => (await page.locator('.tut-text').innerText()).trim();
-  const create = phone ? '.tab-plus' : '.sidebar .create-btn';
+  const create = phone ? '.mobile-bar .mobile-create' : '.sidebar .create-btn';
   check((await page.locator('.tut-card').count()) === 1 && (await stepNo(page)) === '1', `${tag}: тренажёр начался с шага 1`);
   check((await page.locator('.tut-ring').count()) === 1, `${tag}: кнопка «Создать» подсвечена`);
   await page.screenshot({ path: `${OUT}/v123-${tag}-tut1.png` });
