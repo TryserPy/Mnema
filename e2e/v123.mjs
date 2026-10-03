@@ -137,13 +137,10 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
     await page.waitForTimeout(400);
     check((await page.locator('.tut').count()) === 0, `${tag}: «Закончить» закрывает знакомство`);
   } else {
-    // «Пропустить шаг» и «Назад»
+    // «Пропустить шаг» делает шаг за тебя
     await page.getByRole('button', { name: 'Пропустить шаг' }).click();
     await page.waitForTimeout(500);
-    check((await stepNo(page)) === '5', `${tag}: «Пропустить шаг» ведёт на шаг 5`);
-    await page.getByRole('button', { name: 'Назад' }).click();
-    await page.waitForTimeout(500);
-    check((await stepNo(page)) === '4', `${tag}: «Назад» возвращает на шаг 4`);
+    check((await stepNo(page)) === '5', `${tag}: «Пропустить шаг» сделал карточку за тебя — шаг 5`);
     await page.getByRole('button', { name: 'Выйти' }).click();
     check((await page.locator('.tut').count()) === 0, `${tag}: «Выйти» закрывает знакомство`);
   }
@@ -188,7 +185,9 @@ const dataOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mn
   d = await dataOf(page);
   check(d.subjects.some((s) => s.name === 'Биология (копия)'), '1280: «Сделать копию» в меню предмета');
   // тема: «⋯» на экране темы
-  await page.locator('.tree-row.subject').first().locator('.twisty').click();
+  // открытый предмет раскрыт сам (стрелка теперь его сворачивает — не трогаем); раскрываем, только если свёрнут
+  const tw = page.locator('.tree-row.subject').first().locator('.twisty');
+  if (!(await tw.evaluate((e) => e.classList.contains('open')))) await tw.click();
   await page.waitForTimeout(300);
   await page.locator('.tree-row:not(.subject):not(.folder)').first().locator('.tree-label').click();
   await page.waitForTimeout(600);
@@ -220,7 +219,7 @@ const dataOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mn
   // «Что нового»
   await page.locator('.settings-page').getByRole('button', { name: 'О Мнеме' }).first().click();
   await page.waitForTimeout(400);
-  check((await page.locator('.sgroup-title, .group-title, h3, .sgroup > span').filter({ hasText: 'Что нового в 1.23.0' }).count()) >= 1, '1280: «Что нового в 1.23.0»');
+  check((await page.locator('.sgroup-title, .group-title, h3, .sgroup > span').filter({ hasText: 'Что нового в 1.' }).count()) >= 1, '1280: «Что нового в <текущей версии>»');
   await page.getByRole('button', { name: 'Что было раньше' }).click();
   await page.waitForTimeout(400);
   check((await page.locator('.wn-ver').count()) >= 10, '1280: «Что было раньше» — список версий');

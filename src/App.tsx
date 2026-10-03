@@ -474,7 +474,7 @@ export function App() {
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
           {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId + (route.examId ?? '')} topicId={route.topicId} pretest={route.pretest} examId={route.examId} go={go} />}
         </ErrorBoundary>
-        <TutorialHost route={route} />
+        <TutorialHost route={route} go={go} />
       </div>
     );
   }
@@ -560,7 +560,7 @@ export function App() {
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <ExamDialogHost go={go} />
       <BackupsHost />
-      <TutorialHost route={route} />
+      <TutorialHost route={route} go={go} />
       <GuideHost />
       <CreateHost route={route} go={go} onNewSubject={(o) => setAddingSubject(o ?? {})} />
       <CommandPalette open={palette} onClose={() => setPalette(false)} go={go} onNew={(o) => setAddingSubject(o ?? {})} />

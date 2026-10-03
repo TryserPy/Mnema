@@ -1,5 +1,6 @@
 import '../katexCache';
 // Редактор конспекта «как в Word»: без значков разметки на экране, но хранится всё в Markdown.
+import { registerNote } from '../noteRegistry';
 import { Extension, InputRule } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
 import { renderTableToMarkdown, Table, TableKit } from '@tiptap/extension-table';
@@ -373,6 +374,17 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
       }
     });
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Знакомство может дописать пример в открытый конспект — через редактор, как будто это напечатал человек.
+  useEffect(() => {
+    if (!editor || !topicId) return;
+    return registerNote(topicId, {
+      append: (text) => {
+        if (editor.isDestroyed) return;
+        editor.chain().focus('end').insertContent([{ type: 'paragraph', content: [{ type: 'text', text }] }]).run();
+      }
+    });
+  }, [editor, topicId]);
 
   // Горячие клавиши конспекта.
   useEffect(() => {
