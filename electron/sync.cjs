@@ -1,13 +1,15 @@
 // Синхронизация по Wi-Fi: компьютер открывает на время маленький сервер в домашней сети,
-// телефон сканирует QR-код (адрес + одноразовый ключ) и присылает свои данные.
+// телефон сканирует QR-код (адрес + одноразовый код) и присылает свои данные — зашифрованными ключом из кода.
 // Слияние делает окно Мнемы (там живые данные), сервер только передаёт.
 const { ipcMain } = require('electron');
 const http = require('http');
 const os = require('os');
 const crypto = require('crypto');
+const path = require('path');
+const { pathToFileURL } = require('url');
 
 let server = null;
-let session = null; // { token, port, hosts, until }
+let session = null; // { token (код с экрана), port, hosts }
 let getWin = () => null;
 let stopTimer = null;
 const pending = new Map();
@@ -50,36 +52,47 @@ function askRenderer(data) {
   });
 }
 
-function start() {
+let cryptoPromise = null;
+const syncCrypto = () => (cryptoPromise ??= import(pathToFileURL(path.join(__dirname, '..', 'shared', 'syncCrypto.mjs')).href));
+
+async function start() {
   stop();
-  // Код из 8 цифр — его можно и ввести руками. Перебор отсекаем: после 20 неверных попыток сервер закрывается.
-  const token = String(crypto.randomInt(0, 1e8)).padStart(8, '0');
+  // Код из 12 знаков (~60 бит) — его можно и ввести руками. Из кода получается ключ шифрования; сам код в сеть не уходит,
+  // поэтому подслушать или подменить обмен нельзя. Перебор по сети отсекаем: после 20 неверных попыток сервер закрывается.
+  const sc = await syncCrypto();
+  const code = sc.newCode();
+  const key = await sc.syncKey(code);
   let bad = 0;
   return new Promise((resolve, reject) => {
     const srv = http.createServer((req, res) => {
-      const send = (code, obj) => {
-        res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-        res.end(JSON.stringify(obj));
+      const send = (status, body) => {
+        res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(typeof body === 'string' ? body : JSON.stringify(body));
       };
-      if (req.headers['x-mnema-token'] !== token) {
-        if (++bad >= 20) setTimeout(stop, 10);
-        return send(403, { error: 'Неверный код синхронизации' });
-      }
-      if (req.method === 'GET' && req.url === '/mnema/hello') return send(200, { app: 'Mnema', name: os.hostname() });
-      if (req.method !== 'POST' || req.url !== '/mnema/sync') return send(404, { error: 'Нет такого адреса' });
+      // Старая Мнема (код из 8 цифр в заголовке) — с ней обмен без шифрования не ведём.
+      if (req.headers['x-mnema-token'] !== undefined) return send(426, { error: 'Обнови Мнему на этом устройстве — синхронизация теперь зашифрована' });
+      const route = req.method === 'POST' && (req.url === '/mnema/hello' ? 'hello' : req.url === '/mnema/sync' ? 'sync' : null);
+      if (!route) return send(404, { error: 'Нет такого адреса' });
       const chunks = [];
       let size = 0;
       req.on('data', (c) => {
         size += c.length;
-        if (size > 300 * 1024 * 1024) req.destroy();
+        if (size > (route === 'hello' ? 64 * 1024 : 300 * 1024 * 1024)) req.destroy();
         else chunks.push(c);
       });
       req.on('end', async () => {
+        let msg;
         try {
-          const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-          const r = await askRenderer(body.data);
-          send(200, { data: r.data, report: r.report, name: os.hostname() });
-          getWin()?.webContents.send('sync:done', { device: String(body.device || 'телефон').slice(0, 60), report: r.report });
+          msg = await sc.open(key, route + '-req', Buffer.concat(chunks).toString('utf8'));
+        } catch {
+          if (++bad >= 20) setTimeout(stop, 10);
+          return send(403, { error: 'Неверный код синхронизации', v: 2 });
+        }
+        try {
+          if (route === 'hello') return send(200, await sc.seal(key, 'hello-res', { n: msg.n, app: 'Mnema', name: os.hostname() }));
+          const r = await askRenderer(msg.data);
+          send(200, await sc.seal(key, 'sync-res', { n: msg.n, data: r.data, report: r.report, name: os.hostname() }));
+          getWin()?.webContents.send('sync:done', { device: String(msg.device || 'телефон').slice(0, 60), report: r.report });
         } catch (e) {
           send(500, { error: String(e.message || e) });
         }
@@ -89,7 +102,7 @@ function start() {
     srv.listen(0, '0.0.0.0', () => {
       server = srv;
       const port = srv.address().port;
-      session = { token, port, hosts: lanAddresses() };
+      session = { token: code, port, hosts: lanAddresses() };
       // Сервер живёт 15 минут — потом закрывается сам.
       stopTimer = setTimeout(stop, 15 * 60 * 1000);
       resolve(session);

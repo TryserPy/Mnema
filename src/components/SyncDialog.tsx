@@ -1,5 +1,7 @@
-// Синхронизация по Wi-Fi. На компьютере — QR-код и код из 8 цифр; на телефоне — сканер или ручной ввод.
+// Синхронизация по Wi-Fi. На компьютере — QR-код и код из 12 знаков; на телефоне — сканер или ручной ввод.
+// Всё, что идёт по сети, зашифровано ключом из кода (shared/syncCrypto.mjs): код в сеть не уходит.
 import { useEffect, useRef, useState } from 'react';
+import { formatCode, nonce, normCode, open, seal, syncKey } from '../../shared/syncCrypto.mjs';
 import { forSync, getData, normalizeData, replaceData } from '../store';
 import { mergeData, reportText, type MergeReport } from '../sync';
 import { Icon, Modal, Segmented } from './ui';
@@ -7,41 +9,59 @@ import { Icon, Modal, Segmented } from './ui';
 interface Target {
   hosts: string[];
   port: number;
-  token: string;
+  code: string;
 }
 
-/** Содержимое QR-кода: «mnema-sync:192.168.1.5,10.0.0.3:47123:12345678». */
+export const OLD_VERSION = 'На другом устройстве старая версия Мнемы. Обнови Мнему на обоих устройствах — синхронизация теперь зашифрована.';
+
+/** Содержимое QR-кода: «mnema-sync2:192.168.1.5,10.0.0.3:47123:K7QM2XPA9RTD». */
 export function encodeTarget(t: Target): string {
-  return `mnema-sync:${t.hosts.join(',')}:${t.port}:${t.token}`;
+  return `mnema-sync2:${t.hosts.join(',')}:${t.port}:${t.code}`;
 }
-export function decodeTarget(s: string): Target | null {
-  const m = /^mnema-sync:([\d.,]+):(\d{2,5}):(\d{8})$/.exec(s.trim());
-  if (!m) return null;
-  return { hosts: m[1].split(',').filter(Boolean), port: Number(m[2]), token: m[3] };
+/** QR-код → адрес и код; старый QR (код из 8 цифр) — 'old'; не наш — null. */
+export function decodeTarget(s: string): Target | 'old' | null {
+  if (/^mnema-sync:[\d.,]+:\d{2,5}:\d{8}$/.test(s.trim())) return 'old';
+  const m = /^mnema-sync2:([\d.,]+):(\d{2,5}):([0-9A-Z]+)$/.exec(s.trim());
+  const code = m ? normCode(m[3]) : '';
+  if (!m || !code) return null;
+  return { hosts: m[1].split(',').filter(Boolean), port: Number(m[2]), code };
 }
 
 /** Отправить свои данные на другое устройство и получить слитые. */
 export async function syncWith(t: Target, onStep?: (s: string) => void): Promise<MergeReport> {
   const http = window.mnemaApi?.http;
   if (!http) throw new Error('Синхронизация работает в приложении Мнема (Windows или Android).');
+  const key = await syncKey(t.code);
   let base = '';
   for (const h of t.hosts) {
     onStep?.(`Ищу компьютер ${h}…`);
-    const r = await http({ url: `http://${h}:${t.port}/mnema/hello`, headers: { 'x-mnema-token': t.token }, timeout: 4000 });
+    const n = nonce();
+    const r = await http({ url: `http://${h}:${t.port}/mnema/hello`, method: 'POST', headers: { 'content-type': 'application/json' }, body: await seal(key, 'hello-req', { n }), timeout: 4000 });
     if (r.status === 200) {
+      const hi = await open<{ n: string }>(key, 'hello-res', r.text).catch(() => null);
+      if (hi?.n !== n) throw new Error('Ответ компьютера не прошёл проверку. Возможно, в сети кто-то вмешивается — попробуй в другой сети.');
       base = `http://${h}:${t.port}`;
       break;
     }
-    if (r.status === 403) throw new Error('Код не подходит. Открой синхронизацию на компьютере заново.');
+    if (r.status === 403) {
+      let v2 = false;
+      try {
+        v2 = JSON.parse(r.text).v === 2;
+      } catch {
+        /* не JSON */
+      }
+      throw new Error(v2 ? 'Код не подходит. Открой синхронизацию на компьютере заново.' : OLD_VERSION);
+    }
   }
   if (!base) throw new Error('Компьютер не найден. Проверь, что телефон и компьютер в одной сети Wi-Fi и окно синхронизации на компьютере открыто. Если Windows спросила про брандмауэр — разреши доступ.');
   onStep?.('Отправляю и объединяю данные…');
   const local = forSync(getData());
+  const n = nonce();
   const res = await http({
     url: `${base}/mnema/sync`,
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-mnema-token': t.token },
-    body: JSON.stringify({ device: window.mnemaApi?.platform === 'android' ? 'телефон' : 'компьютер', data: local }),
+    headers: { 'content-type': 'application/json' },
+    body: await seal(key, 'sync-req', { n, device: window.mnemaApi?.platform === 'android' ? 'телефон' : 'компьютер', data: local }),
     timeout: 180000
   });
   if (res.status !== 200) {
@@ -53,7 +73,8 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
     }
     throw new Error(msg || 'Не получилось');
   }
-  const body = JSON.parse(res.text) as { data: unknown; report: MergeReport };
+  const body = await open<{ n: string; data: unknown; report: MergeReport }>(key, 'sync-res', res.text).catch(() => null);
+  if (body?.n !== n) throw new Error('Ответ компьютера не прошёл проверку. Возможно, в сети кто-то вмешивается — попробуй в другой сети.');
   const merged = mergeData(getData(), normalizeData(body.data));
   replaceData(merged.data);
   return merged.report;
@@ -102,7 +123,7 @@ function ServePanel() {
     void api.syncStart!().then(async (r) => {
       if (!alive) return;
       if (!r.ok) return setErr(r.error);
-      const t = { hosts: r.hosts, port: r.port, token: r.token };
+      const t = { hosts: r.hosts, port: r.port, code: r.token };
       setS(t);
       const QR = await import('qrcode');
       setQr(await QR.toDataURL(encodeTarget(t), { margin: 1, width: 280, color: { dark: '#1E2230', light: '#FFFFFF' } }));
@@ -124,7 +145,7 @@ function ServePanel() {
       <div className="sync-code">
         <span className="small muted">или введи вручную</span>
         <span className="mono big-code">{s.hosts[0]}:{s.port}</span>
-        <span className="mono big-code">код {s.token.slice(0, 4)} {s.token.slice(4)}</span>
+        <span className="mono big-code">код {formatCode(s.code)}</span>
       </div>
       {last ? <div className="hint ok">{last}</div> : <p className="small muted">Окно можно не закрывать — синхронизироваться можно несколько раз. Через 15 минут доступ закроется сам.</p>}
     </div>
@@ -155,9 +176,10 @@ function ClientPanel({ isPhone, onDone }: { isPhone: boolean; onDone: () => void
 
   const manual = () => {
     const m = /^\s*([\d.]+):(\d{2,5})\s*$/.exec(addr);
-    const c = code.replace(/\D/g, '');
-    if (!m || c.length !== 8) return setResult({ ok: false, text: 'Адрес вида 192.168.1.5:47123 и код из 8 цифр — как на экране компьютера.' });
-    void run({ hosts: [m[1]], port: Number(m[2]), token: c });
+    const c = normCode(code);
+    if (m && !c && /^\d{8}$/.test(code.replace(/\D/g, '')) && !/[^\d\s]/.test(code)) return setResult({ ok: false, text: OLD_VERSION });
+    if (!m || !c) return setResult({ ok: false, text: 'Адрес вида 192.168.1.5:47123 и код из 12 знаков (например K7QM-2XPA-9RTD) — как на экране компьютера.' });
+    void run({ hosts: [m[1]], port: Number(m[2]), code: c });
   };
 
   return (
@@ -166,7 +188,10 @@ function ClientPanel({ isPhone, onDone }: { isPhone: boolean; onDone: () => void
         <QrScanner
           onCode={(txt) => {
             const t = decodeTarget(txt);
-            if (t) void run(t);
+            if (t === 'old') {
+              setScan(false);
+              setResult({ ok: false, text: OLD_VERSION });
+            } else if (t) void run(t);
           }}
           onCancel={() => setScan(false)}
         />
@@ -182,7 +207,7 @@ function ClientPanel({ isPhone, onDone }: { isPhone: boolean; onDone: () => void
             <div className="stack gap8">
               <span className="small muted">{isPhone ? 'Или введи вручную то, что на экране компьютера:' : 'Введи адрес и код, которые показаны на другом устройстве:'}</span>
               <input className="input mono" inputMode="decimal" placeholder="192.168.1.5:47123" value={addr} onChange={(e) => setAddr(e.target.value)} aria-label="Адрес" />
-              <input className="input mono" inputMode="numeric" placeholder="код из 8 цифр" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Код" />
+              <input className="input mono" autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="код: XXXX-XXXX-XXXX" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Код" />
               <button className="btn" onClick={manual}>
                 Синхронизировать
               </button>

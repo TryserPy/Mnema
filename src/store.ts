@@ -283,9 +283,18 @@ function loadInitial(): AppData {
     }
     if (json) return normalizeData(JSON.parse(json));
   } catch (e) {
-    console.error('Не удалось прочитать данные', e);
+    // Файл есть, но он повреждён или не разобрался: тоже не сохраняем поверх. Иначе первое же изменение
+    // (например, отметка о проверке обновлений при запуске) записало бы пустые данные на место настоящих.
+    readOnly = true;
+    console.error('Не удалось прочитать данные — сохранение отключено, чтобы не затереть файл', e);
   }
   return emptyData();
+}
+
+/** Человек сам восстановил данные из копии: теперь их можно сохранять поверх нечитаемого файла. */
+export function restoreData(next: AppData) {
+  readOnly = false;
+  replaceData(next);
 }
 
 let data: AppData = typeof window !== 'undefined' ? loadInitial() : emptyData();

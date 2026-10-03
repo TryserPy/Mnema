@@ -13,8 +13,22 @@ import android.os.Build;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** Напоминания: домашние задания и «пора повторить». Будильник → уведомление, даже если Мнема закрыта. */
+/**
+ * Напоминания: домашние задания и «пора повторить». Будильник → уведомление, даже если Мнема закрыта.
+ * Этот приёмник открыт для системы (включение телефона, обновление Мнемы) и чужие сообщения с текстом не показывает:
+ * будильники приходят в закрытый {@link Fire}, иначе любое приложение могло бы показать уведомление от имени Мнемы.
+ */
 public class Reminders extends BroadcastReceiver {
+    /** Сработал будильник напоминания. Не экспортируется — сюда может прислать только сама Мнема (через AlarmManager). */
+    public static class Fire extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context ctx, Intent intent) {
+            String id = intent.getStringExtra("id");
+            if (id == null) return;
+            show(ctx, code(id), intent.getStringExtra("title"), intent.getStringExtra("body"), intent.getStringExtra("open"));
+        }
+    }
+
     static final String PREFS = "mnema-reminders";
     static final String CHANNEL = "mnema";
     static final int FLAG_IMMUTABLE = 67108864; // PendingIntent.FLAG_IMMUTABLE (Android 12+)
@@ -36,8 +50,9 @@ public class Reminders extends BroadcastReceiver {
         try {
             JSONArray old = new JSONArray(p.getString("ids", "[]"));
             for (int i = 0; i < old.length(); i++) {
-                PendingIntent pi = PendingIntent.getBroadcast(ctx, old.getInt(i), new Intent(ctx, Reminders.class), PendingIntent.FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE);
-                am.cancel(pi);
+                am.cancel(PendingIntent.getBroadcast(ctx, old.getInt(i), new Intent(ctx, Fire.class), PendingIntent.FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE));
+                // будильники, поставленные прошлыми версиями (до Fire)
+                am.cancel(PendingIntent.getBroadcast(ctx, old.getInt(i), new Intent(ctx, Reminders.class), PendingIntent.FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE));
             }
         } catch (Exception ignored) {
         }
@@ -51,7 +66,7 @@ public class Reminders extends BroadcastReceiver {
                 if (at < now - 60000) continue;
                 String id = r.getString("id");
                 int c = code(id);
-                Intent it = new Intent(ctx, Reminders.class);
+                Intent it = new Intent(ctx, Fire.class);
                 it.putExtra("id", id);
                 it.putExtra("title", r.optString("title"));
                 it.putExtra("body", r.optString("body"));
@@ -79,11 +94,8 @@ public class Reminders extends BroadcastReceiver {
                 }
                 show(ctx, 7302, "Мнема обновлена" + v, "Нажми, чтобы открыть. Все карточки и настройки на месте.", "today");
             }
-            return;
         }
-        String id = intent.getStringExtra("id");
-        if (id == null) return;
-        show(ctx, code(id), intent.getStringExtra("title"), intent.getStringExtra("body"), intent.getStringExtra("open"));
+        // Остальное сюда присылать некому: будильники идут в Fire.
     }
 
     static void show(Context ctx, int code, String title, String body, String open) {

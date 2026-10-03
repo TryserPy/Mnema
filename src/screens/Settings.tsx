@@ -22,7 +22,7 @@ import { UpdateFlow } from '../components/UpdateFlow';
 import { openBackups } from '../components/BackupsHost';
 import { startTutorial } from '../components/Tutorial';
 import { openChanges } from '../components/ChangesDialog';
-import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, setFeature, updateSettings, useData } from '../store';
+import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, restoreData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
 
@@ -611,7 +611,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
                 onClick={() => {
                   const before = getData();
                   const { data: safe, notes } = neutralizeForeign(pendingBackup, before);
-                  replaceData(safe);
+                  restoreData(safe);
                   setPendingBackup(null);
                   setMsg('Данные восстановлены.' + (notes.length ? ' Не перенесено: ' + notes.join('; ') + '.' : ''));
                   // Ошибся копией — можно вернуть всё, как было до восстановления.
@@ -630,6 +630,15 @@ function DataPane({ go }: { go: (r: Route) => void }) {
 
 /** Что нового — по версиям. Показывается в «О Мнеме» одной панелью с переключателем версий. */
 const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
+  {
+    v: '1.26.0',
+    items: [
+      { t: 'Синхронизация по Wi-Fi зашифрована: код теперь из 12 знаков (например K7QM-2XPA-9RTD), сам код в сеть не уходит, подслушать или подменить обмен нельзя. Обнови Мнему на обоих устройствах' },
+      { t: 'Если файл данных не открылся, Мнема больше не записывает поверх него пустые данные — восстанови автокопию в «Настройки → Данные»' },
+      { t: 'Свой ИИ: если поменять адрес, сохранённый ключ нужно ввести заново — на чужой адрес он не уйдёт' },
+      { t: 'Закрыты лишние входы: другие приложения на телефоне не могут показывать уведомления от имени Мнемы, встроенные видео не получают доступ к камере и микрофону' }
+    ]
+  },
   {
     v: '1.25.0',
     items: [

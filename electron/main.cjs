@@ -322,6 +322,18 @@ if (!single) {
     // Картинки и ссылки вида //сервер/папка (file://сервер/…) на Windows идут в сетевую папку —
     // это утечка (адрес, данные входа Windows). Такие запросы отменяем.
     session.defaultSession.webRequest.onBeforeRequest((d, cb) => cb({ cancel: /^file:\/\/[^/]/i.test(d.url) }));
+    // Electron по умолчанию выдаёт любые разрешения (камера, микрофон, место…) любому фрейму. Даём их только самой Мнеме
+    // (камера для фото учебника, микрофон для ответов голосом); встроенным плеерам — лишь полный экран.
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => {
+      let own = false;
+      try {
+        const u = new URL(details.requestingUrl || '');
+        own = u.protocol === 'file:' && !u.host && u.pathname.endsWith('/dist/index.html');
+      } catch {
+        /* не адрес — чужой */
+      }
+      cb(own || permission === 'fullscreen');
+    });
     try {
       dailyBackup();
     } catch (err) {

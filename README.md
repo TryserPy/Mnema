@@ -80,7 +80,7 @@ npm run build          # сборка в dist/
 
 ## Новое в 1.3 — «Телефон»
 - Android: APK из той же сборки интерфейса. `android/` — WebView, который отдаёт файлы с `https://mnema.app/` прямо из APK, и мост `MnemaAndroid` (`Bridge.java`): файл данных с ежедневными копиями, сеть без CORS, ключи в AndroidKeyStore, сохранение файлов, распознавание речи. JS-часть — `src/platform/android.ts`, офлайн-распознавание страниц — `src/platform/ocrWeb.ts`
-- Синхронизация по Wi-Fi: компьютер поднимает временный сервер с кодом из 8 цифр (`electron/sync.cjs`), телефон сканирует QR; слияние — `src/sync.ts` (новее побеждает, удаления помнятся)
+- Синхронизация по Wi-Fi: компьютер поднимает временный сервер с кодом из 12 знаков (`electron/sync.cjs`), телефон сканирует QR; всё, что идёт по сети, зашифровано AES-GCM ключом из кода (`shared/syncCrypto.mjs`), сам код в сеть не уходит; слияние — `src/sync.ts` (новее побеждает, удаления помнятся)
 - Облако WebDAV (`src/cloud.ts`): Яндекс Диск, Nextcloud; шифрование AES-GCM паролем
 - Ответ голосом (`src/voice.ts`): на телефоне — встроенное распознавание, на компьютере — ИИ (`/audio/transcriptions` или Gemini)
 - Экспорт в Obsidian (`src/obsidianExport.ts`): папки, заметки, картинки, карточки в формате Spaced Repetition; на телефоне — zip
