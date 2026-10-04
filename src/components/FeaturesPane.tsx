@@ -48,7 +48,7 @@ export function FeaturesPane({ openSection }: { openSection: (id: string) => voi
   const f = data.settings.features;
   const [filter, setFilter] = useState<Filter>('all');
   const [detail, setDetail] = useState<FeatureInfo | null>(null);
-  const android = window.mnemaApi?.platform === 'android';
+  const android = window.mnemaApi?.platform === 'android' || window.mnemaApi?.platform === 'web';
   const list = FEATURES.filter((x) => !(android && x.desktopOnly)).filter((x) => filter === 'all' || (filter === 'on' ? f[x.id] : !f[x.id]));
   const onCount = FEATURES.filter((x) => f[x.id]).length;
   return (

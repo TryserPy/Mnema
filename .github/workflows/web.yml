@@ -1,0 +1,44 @@
+# Веб-версия (PWA): собирается и выкладывается на сайт — в папку app/ репозитория Mnema-site (GitHub Pages).
+# Нужен секрет SITE_DEPLOY_TOKEN: токен с правом записи (Contents: Read and write) в TryserPy/Mnema-site.
+# Без секрета сборка проверяется, а выкладка пропускается.
+name: Веб-версия
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-deploy
+  cancel-in-progress: false
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx tsc --noEmit
+      - run: npx vite build --mode web
+      - name: Выкладка на сайт
+        env:
+          TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "::notice::Нет секрета SITE_DEPLOY_TOKEN — выкладка на сайт пропущена"; exit 0; fi
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/TryserPy/Mnema-site.git" site
+          rm -rf site/app && mkdir -p site/app && cp -r dist-web/. site/app/
+          cd site
+          git config user.name "mnema-web-deploy"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A app
+          if git diff --cached --quiet; then echo "Веб-версия на сайте уже свежая"; exit 0; fi
+          git commit -m "Веб-версия Мнемы из ${GITHUB_SHA::7}"
+          git push

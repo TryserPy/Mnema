@@ -19,6 +19,7 @@ import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
 import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
+import { WebGroup } from '../components/WebInstall';
 import { openBackups } from '../components/BackupsHost';
 import { startTutorial } from '../components/Tutorial';
 import { openChanges } from '../components/ChangesDialog';
@@ -78,7 +79,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
   const data = useData();
   const s = data.settings;
   const android = window.mnemaApi?.platform === 'android';
-  const desktop = Boolean(window.mnemaApi) && !android;
+  const desktop = Boolean(window.mnemaApi) && !android && window.mnemaApi?.platform !== 'web';
   const narrow = useNarrow();
   const sections: SectionInfo[] = [
     { id: 'look', title: 'Оформление', icon: 'palette' },
@@ -426,7 +427,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
     if (r.ok && r.zip) setMsg(`Готово: ${r.written} файлов в архиве «${r.folder}». Распакуй его в хранилище Obsidian.`);
     else if (r.ok) setMsg(`Готово: ${r.written} файлов в папке «${r.folder}».`);
   }
-  const where = api?.platform === 'android' ? 'телефоне' : api ? 'компьютере' : 'устройстве';
+  const where = api?.platform === 'android' ? 'телефоне' : api?.platform === 'web' ? 'устройстве, в браузере' : api ? 'компьютере' : 'устройстве';
   return (
     <div className="stack gap16">
       <PaneHead title="Данные" text={`Всё хранится только на этом ${where}. Каждый день делается резервная копия (последние 8 дней).`} />
@@ -456,7 +457,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         </SRow>
         {api?.openDataFolder && (
           <SRow label="Папка с данными">
-            <button className="btn small" onClick={() => void api.openDataFolder()}>
+            <button className="btn small" onClick={() => void api.openDataFolder?.()}>
               Открыть
             </button>
           </SRow>
@@ -464,7 +465,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
       </Group>
       {(api?.http || api?.secretGet) && (
         <Group title="Между устройствами" id="sync">
-          {api?.http && (
+          {api?.http && api.platform !== 'web' && (
             <SRow label="Синхронизация по Wi-Fi" hint="Компьютер и телефон в одной сети, код с экрана">
               <button className="btn small" onClick={() => setSync(true)}>
                 <Icon name="sync" size={16} /> Открыть
@@ -967,7 +968,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
           </button>
         </SRow>
       </Group>
-      <UpdatesGroup />
+      {window.mnemaApi?.platform === 'web' ? <WebGroup /> : <UpdatesGroup />}
       <WhatsNew />
     </div>
   );

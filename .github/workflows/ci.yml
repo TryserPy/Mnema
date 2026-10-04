@@ -22,3 +22,5 @@ jobs:
         run: npx vitest run
       - name: Сборка
         run: npx vite build
+      - name: Сборка веб-версии
+        run: npx vite build --mode web

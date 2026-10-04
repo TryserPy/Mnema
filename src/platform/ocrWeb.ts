@@ -1,4 +1,4 @@
-// Распознавание страниц прямо в окне (Android): Tesseract в фоновом потоке, файлы — внутри приложения (/ocr/).
+// Распознавание страниц прямо в окне (Android и веб): Tesseract в фоновом потоке, файлы лежат рядом с приложением (ocr/).
 import type { Worker } from 'tesseract.js';
 
 let workerPromise: Promise<Worker> | null = null;
@@ -6,7 +6,8 @@ let workerPromise: Promise<Worker> | null = null;
 async function getWorker(): Promise<Worker> {
   workerPromise ??= (async () => {
     const { createWorker } = await import('tesseract.js');
-    return createWorker(['rus', 'eng'], 1, { workerPath: '/ocr/worker.min.js', corePath: '/ocr', langPath: '/ocr', gzip: true, workerBlobURL: false, cacheMethod: 'none' });
+    const dir = new URL('ocr', document.baseURI).href.replace(/\/?$/, '/');
+    return createWorker(['rus', 'eng'], 1, { workerPath: dir + 'worker.min.js', corePath: dir.slice(0, -1), langPath: dir.slice(0, -1), gzip: true, workerBlobURL: false, cacheMethod: 'none' });
   })().catch((e) => {
     workerPromise = null;
     throw e;

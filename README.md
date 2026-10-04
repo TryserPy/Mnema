@@ -4,7 +4,8 @@
 Цель — **запоминать больше, тратя меньше времени**: Мнема встраивает в учёбу то, что по исследованиям
 действительно работает, — вспоминание без подсказки и повторение с перерывами.
 
-Работает на **Windows** и **Android**. Всё хранится на устройстве, аккаунт не нужен, рекламы нет.
+Работает на **Windows** и **Android**, а также **онлайн в браузере** — на компьютере, планшете, Android, iPhone и iPad
+(можно поставить как приложение). Всё хранится на устройстве, аккаунт не нужен, рекламы нет.
 
 ## Скачать
 
@@ -12,6 +13,10 @@
 
 - **Windows** — `Mnema-Setup-<версия>.exe`: запусти и следуй установщику.
 - **Android** — `Mnema-<версия>-Android.apk`: открой на телефоне и разреши установку из этого источника.
+
+- **В браузере** — [Мнема онлайн](https://tryserpy.github.io/Mnema-site/app/) (веб-версия лежит на [сайте](https://github.com/TryserPy/Mnema-site) в папке `app/`).
+  Chrome, Edge, Safari, Firefox. «Установить» в адресной строке — и она открывается как обычное приложение и работает без интернета;
+  на iPhone и iPad: Safari → «Поделиться» → «На экран „Домой“».
 
 Дальше Мнема обновляется сама: раз в день проверяет выпуски и предлагает поставить новую версию
 («Настройки → О Мнеме → Обновления»). Карточки, предметы и настройки при обновлении сохраняются.
@@ -23,12 +28,34 @@ npm ci
 npm run dev            # в браузере: http://localhost:5173
 npx tsc --noEmit       # проверка типов
 npx vitest run         # модульные тесты
-npm run build          # сборка в dist/
+npm run build          # сборка для Windows и Android в dist/
+npm run build:web      # веб-версия (PWA) в dist-web/; посмотреть: npm run preview:web
 ```
 
 - Код интерфейса — `src/` (TypeScript + React + Vite), Windows — `electron/`, Android — `android/`
   (своя обёртка WebView без Gradle; сборка `bash android/build.sh` после `npm run build`).
 - Подробное описание проекта — [`docs/PROJECT.md`](docs/PROJECT.md), сценарии проверки интерфейса — [`e2e/`](e2e).
+
+### Веб-версия
+
+Тот же код, что на Windows и Android: вместо `electron/` и `android/` мост `window.mnemaApi` собирает
+[`src/platform/web.ts`](src/platform/web.ts). Отличия:
+
+- **Данные** — в IndexedDB браузера ([`webStorage.ts`](src/platform/webStorage.ts)); автокопия раз в день, последние 8.
+  Две вкладки одновременно не открываются (Web Locks), чтобы не затирать друг друга. Старые данные из `localStorage` переносятся сами.
+- **Без интернета** — service worker ([`web/sw.js`](web/sw.js)); новая версия включается кнопкой «Обновить» внизу экрана.
+- **Сеть** (ИИ, облако, моды) — обычный `fetch`, поэтому нужен CORS на стороне сервера. Для Anthropic добавляется
+  `anthropic-dangerous-direct-browser-access`. Политика безопасности в веб-сборке шире, чем в `index.html`
+  (`connect-src https:`), — её подменяет [`web/vite-plugin.ts`](web/vite-plugin.ts).
+- **Нет**: синхронизации по Wi-Fi, значка у часов, уведомлений, виджета, автообновления из GitHub, выбора папки Obsidian (экспорт — zip).
+  Ключи ИИ хранятся в браузере без системного шифрования.
+- **Распознавание страниц** — Tesseract работает и в браузере (папка `ocr/`, ~17 МБ, скачивается при первом использовании).
+
+Проверка в Chromium: `npm run build:web && npm run preview:web -- --port 4180`, затем `node e2e/web.mjs`.
+
+Выкладка: workflow [`web.yml`](.github/workflows/web.yml) собирает `dist-web/` и кладёт его в папку `app/` репозитория
+[Mnema-site](https://github.com/TryserPy/Mnema-site). Нужен секрет **`SITE_DEPLOY_TOKEN`** — токен с правом записи в Mnema-site
+(fine-grained, «Contents: Read and write»). Без секрета выкладка пропускается.
 
 ### Как выпустить новую версию
 
