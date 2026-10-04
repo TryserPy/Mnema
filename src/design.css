@@ -544,7 +544,7 @@ textarea.cell { field-sizing: content; }
 }
 
 /* ---------- 1.6.3: стихи наизусть ---------- */
-.poem-status { margin-top: -6px; }
+.poem-status { margin-top: -4px; }
 .poem-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; max-width: 680px; }
 .poem-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
 .poem-head strong { font-family: var(--display); font-size: 1.15rem; }
@@ -557,7 +557,9 @@ textarea.cell { field-sizing: content; }
 .poem-line { line-height: 1.65; overflow-wrap: break-word; }
 .poem-line.hard { width: fit-content; max-width: 100%; background: linear-gradient(transparent 58%, color-mix(in srgb, var(--hard-ink, #c77a12) 26%, transparent) 58%); border-radius: 2px; }
 .poem-plan { max-width: 680px; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--ink-2); }
-.poem-bar { max-width: 680px; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow-pop, 0 6px 20px rgba(16, 24, 40, 0.12)); position: sticky; top: 8px; z-index: 6; }
+.poem-bar { max-width: 680px; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow-pop, 0 6px 20px rgba(16, 24, 40, 0.12)); position: sticky; top: 8px; z-index: 6; }
+.poem-adv { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); }
+.poem-more { align-self: flex-start; }
 .poem-bar.quiet { position: static; box-shadow: none; border-style: dashed; border-color: var(--line); background: transparent; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .poem-bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .poem-bar .chip-btn.small { min-height: 30px; padding: 0 11px; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 5px; }
