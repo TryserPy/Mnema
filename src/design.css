@@ -556,6 +556,36 @@ textarea.cell { field-sizing: content; }
 .poem-part-lines { min-width: 0; }
 .poem-line { line-height: 1.65; overflow-wrap: break-word; }
 .poem-line.hard { width: fit-content; max-width: 100%; background: linear-gradient(transparent 58%, color-mix(in srgb, var(--hard-ink, #c77a12) 26%, transparent) 58%); border-radius: 2px; }
+.poem-plan { max-width: 680px; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--ink-2); }
+.poem-bar { max-width: 680px; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow-pop, 0 6px 20px rgba(16, 24, 40, 0.12)); position: sticky; top: 8px; z-index: 6; }
+.poem-bar.quiet { position: static; box-shadow: none; border-style: dashed; border-color: var(--line); background: transparent; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.poem-bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.poem-bar .chip-btn.small { min-height: 30px; padding: 0 11px; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 5px; }
+.poem-bar .btn.small { min-height: 30px; }
+.chip-btn.static { pointer-events: none; opacity: 0.7; }
+.poem-line.pick, .poem-line.pickrow { display: flex; align-items: baseline; gap: 8px; width: calc(100% + 16px); margin: 0 -8px; padding: 2px 8px; border: 1px solid transparent; border-radius: 9px; background: none; font: inherit; color: inherit; text-align: left; }
+.poem-line.pick { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.poem-line.pick:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.poem-line.pick.sel { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.poem-line.hard .pl-text { flex: 0 1 auto; background: linear-gradient(transparent 58%, color-mix(in srgb, var(--hard-ink, #c77a12) 26%, transparent) 58%); border-radius: 2px; }
+.poem-line.pick.hard, .poem-line.pickrow.hard { background-image: none; }
+.poem-line.skip .pl-text { opacity: 0.45; text-decoration: line-through; text-decoration-thickness: 1px; }
+.pl-text { min-width: 0; flex: 1; overflow-wrap: break-word; }
+.pl-badges { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; color: var(--muted); font-size: 0.74rem; }
+.pl-ok { color: var(--good-ink); display: inline-flex; }
+.pl-star { color: var(--accent); display: inline-flex; }
+.pl-tag { padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 7%, transparent); white-space: nowrap; }
+.poem-part-mark { border: 0; font-family: inherit; cursor: pointer; padding: 0; }
+.poem-part-mark:disabled { cursor: default; }
+.poem-part.skipped .poem-part-mark { opacity: 0.4; }
+.pw-pick { font: inherit; color: inherit; background: none; border: 0; border-bottom: 2px dashed color-mix(in srgb, var(--ink) 25%, transparent); padding: 0 1px; margin: 0 1px; border-radius: 3px; cursor: pointer; }
+.pw-pick:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.pw-pick.on, .pw-pin { border-bottom: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.pw-pin { border-radius: 3px; padding: 0 1px; }
+.pw-tap { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.pw-blank.pw-tap { border-bottom: 2px solid color-mix(in srgb, var(--ink) 22%, transparent); }
+.pw-blank.pw-tap:hover { border-bottom-color: var(--accent); }
+.pw-letter.pw-tap { color: var(--accent-text, var(--accent)); font-weight: 600; letter-spacing: 0.04em; }
 .poem-how { max-width: 680px; }
 .poem-textarea { font-family: inherit; line-height: 1.6; min-height: 220px; resize: vertical; }
 .poem-trainer { max-width: 720px; }
@@ -593,6 +623,7 @@ textarea.cell { field-sizing: content; }
 .poem-due { width: 100%; text-align: left; font: inherit; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 .poem-due:hover { border-color: var(--accent); }
 @media (max-width: 720px) {
+  .poem-bar:not(.quiet) { max-height: 46vh; overflow-y: auto; padding: 8px 10px; top: 4px; }
   .poem-stage { padding: 16px; }
   .poem-cue { font-size: 1.05rem; }
   .poem-card { padding: 14px 14px; }

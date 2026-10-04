@@ -2,7 +2,42 @@
 // рассказ целиком (голосом или самопроверкой) и «с любого места».
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { aiAvailable } from '../ai';
-import { autoChunk, compareRecital, cueLine, dayKey, hardLines, nextReview, pickStarts, poemLearned, poemLines, poemParts, type CueLevel, type Recital } from '../poem';
+import {
+  activeLines,
+  autoChunk,
+  compareRecital,
+  cueLine,
+  dayKey,
+  deadlinePlan,
+  effCue,
+  enabledSteps,
+  focusSet,
+  hardLines,
+  isPinned,
+  knownSet,
+  learnedCount,
+  learnedLines,
+  learnTargets,
+  learnUnits,
+  nextReview,
+  pickStarts,
+  poemLearned,
+  poemLines,
+  poemParts,
+  remapPatch,
+  setCue,
+  setFocus,
+  setKnown,
+  setSkip,
+  skipSet,
+  togetherWindow,
+  togglePin,
+  tokenize,
+  type CueLevel,
+  type CueToken,
+  type LearnStep,
+  type Recital
+} from '../poem';
 import { canSpeak, speak, stopSpeaking, useSpeaking } from '../speak';
 import { deletePoem, getData, restorePoem, updatePoem, useData } from '../store';
 import type { Poem, Route } from '../types';
@@ -10,13 +45,16 @@ import { recitalVoice, startRecital, type RecitalSession } from '../voice';
 import { ConfirmButton, Icon, plural, Segmented, toast } from './ui';
 
 const fmtDay = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+const nLines = (n: number) => `${n} ${plural(n, 'строка', 'строки', 'строк')}`;
 
 function save(topicId: string, poemId: string, patch: Partial<Poem>) {
   updatePoem(topicId, poemId, patch);
 }
+/** Свежий стих из хранилища: экран мог перерисоваться, а замыкание — остаться со старым. */
+const fresh = (topicId: string, poem: Poem): Poem => getData().topics.find((t) => t.id === topicId)?.poems?.find((x) => x.id === poem.id) ?? poem;
 
 /** Записать итог проверки: трудные строки, история, и (если стих выучен и рассказан целиком) — следующий повтор. */
-function record(topicId: string, poemId: string, r: { acc: number; lines: number[]; bad: number[]; mode: 'learn' | 'whole' | 'random' }) {
+function record(topicId: string, poemId: string, r: { acc: number; lines: number[]; bad: number[]; mode: 'learn' | 'whole' | 'random' | 'pick' }) {
   const p = getData().topics.find((t) => t.id === topicId)?.poems?.find((x) => x.id === poemId);
   if (!p) return;
   const miss = [...(p.lineMiss ?? [])];
@@ -33,22 +71,46 @@ function record(topicId: string, poemId: string, r: { acc: number; lines: number
 
 /* ---------- Главный экран вкладки ---------- */
 
+type Job =
+  | { kind: 'learn'; target: number[] }
+  | { kind: 'whole'; idx: number[]; pick?: string } // pick — подпись, если это не «весь стих», а выбранное
+  | { kind: 'random'; pool: number[]; starts?: number[]; span: number };
+
+const CUE_OPTIONS: { value: 'auto' | '0' | '1' | '2'; label: string }[] = [
+  { value: 'auto', label: 'Как обычно' },
+  { value: '0', label: 'Открыта' },
+  { value: '1', label: 'Половина слов' },
+  { value: '2', label: 'Первые буквы' }
+];
+const CUE_TAG: Record<number, string> = { 0: 'открыта', 1: '½ слов', 2: 'буквы' };
+
 export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: Poem; start?: 'whole'; go: (r: Route) => void }) {
-  const [mode, setMode] = useState<null | 'learn' | 'whole' | 'random' | 'edit'>(start ?? (poem.text.trim() ? null : 'edit'));
   const lines = useMemo(() => poemLines(poem.text), [poem.text]);
   const parts = useMemo(() => poemParts(poem.text, poem.chunk), [poem.text, poem.chunk]);
+  const known = knownSet(poem);
+  const skip = skipSet(poem);
+  const focus = focusSet(poem);
   const hard = hardLines(poem);
-  const learned = Math.min(poem.learned, parts.length);
-  const all = learned >= parts.length && parts.length > 0;
+  const active = activeLines(poem);
+  const done = learnedLines(poem);
+  const targets = learnTargets(poem);
+  const all = poemLearned(poem);
   const today = dayKey(new Date());
   const last = poem.history?.filter((h) => h.mode === 'whole').at(-1);
+  const plan = deadlinePlan(poem, new Date());
 
-  if (mode === 'edit')
+  const [job, setJob] = useState<Job | 'edit' | null>(start === 'whole' && done.length ? { kind: 'whole', idx: done } : poem.text.trim() ? null : 'edit');
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [anchor, setAnchor] = useState<number | null>(null);
+  const [pinMode, setPinMode] = useState(false);
+  useEffect(() => setSel(new Set()), [poem.text]);
+
+  if (job === 'edit')
     return (
       <PoemEditor
         topicId={topicId}
         poem={poem}
-        onDone={() => setMode(null)}
+        onDone={() => setJob(null)}
         onDeleted={() => {
           const removed = deletePoem(topicId, poem.id);
           go({ name: 'topic', id: topicId, tab: 'note' });
@@ -56,45 +118,181 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
         }}
       />
     );
-  if (mode === 'learn') return <LearnFlow topicId={topicId} poem={poem} onExit={() => setMode(null)} />;
-  if (mode === 'whole') return <WholeCheck topicId={topicId} poem={poem} onExit={() => setMode(null)} />;
-  if (mode === 'random') return <RandomFlow topicId={topicId} poem={poem} onExit={() => setMode(null)} />;
+  if (job?.kind === 'learn') return <LearnFlow topicId={topicId} poem={poem} target={job.target} onExit={() => setJob(null)} />;
+  if (job?.kind === 'whole') return <WholeCheck topicId={topicId} poem={poem} idx={job.idx} pick={job.pick} onExit={() => setJob(null)} />;
+  if (job?.kind === 'random') return <RandomFlow topicId={topicId} poem={poem} pool={job.pool} starts={job.starts} span={job.span} onExit={() => setJob(null)} />;
+
+  const patch = (p: Partial<Poem>) => save(topicId, poem.id, p);
+  const selArr = [...sel].sort((a, b) => a - b);
+  const selActive = selArr.filter((i) => !skip.has(i));
+  const toggleLine = (i: number, range: boolean) => {
+    setSel((cur) => {
+      const next = new Set(cur);
+      if (range && anchor !== null) for (let k = Math.min(anchor, i); k <= Math.max(anchor, i); k++) next.add(k);
+      else next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+    setAnchor(i);
+  };
+  const togglePart = (from: number, to: number) => {
+    const idx = Array.from({ length: to - from }, (_, i) => from + i);
+    setSel((cur) => {
+      const next = new Set(cur);
+      const every = idx.every((i) => next.has(i));
+      idx.forEach((i) => (every ? next.delete(i) : next.add(i)));
+      return next;
+    });
+  };
+  const learnFrom = () => {
+    const from = selActive[0] ?? selArr[0];
+    const t = learnTargets(poem, from);
+    if (!t.length) return toast('С этого места всё уже выучено');
+    setJob({ kind: 'learn', target: t });
+  };
+  const continueFrom = () => {
+    const s0 = selActive[0];
+    if (s0 === undefined || active.indexOf(s0) >= active.length - 1) return toast('Выбери строку, после которой есть ещё строки');
+    setJob({ kind: 'random', pool: active, starts: [s0], span: 4 });
+  };
+  const cueNow = (() => {
+    const v = new Set(selArr.map((i) => String(poem.lineCue?.[i] ?? 'auto')));
+    return v.size === 1 ? ([...v][0] as 'auto' | '0' | '1' | '2') : null;
+  })();
+  const allIn = (set: Set<number>) => selArr.length > 0 && selArr.every((i) => set.has(i));
+
+  const partState = (pt: { from: number; to: number }) => {
+    const idx = Array.from({ length: pt.to - pt.from }, (_, i) => pt.from + i).filter((i) => !skip.has(i));
+    return idx.length === 0 ? 'skip' : idx.every((i) => known.has(i)) ? 'learned' : 'todo';
+  };
+  const nextPart = parts.findIndex((pt) => partState(pt) === 'todo');
 
   return (
     <div className="stack gap16 tab-pane poem-view">
       <div className="row gap8 wrap">
         {!all ? (
-          <button className="btn primary" onClick={() => setMode('learn')}>
-            <Icon name="play" size={16} /> {learned === 0 ? 'Начать учить' : `Учить дальше · часть ${learned + 1} из ${parts.length}`}
+          <button className="btn primary" disabled={!targets.length} onClick={() => setJob({ kind: 'learn', target: targets })}>
+            <Icon name="play" size={16} /> {done.length === 0 ? 'Начать учить' : `Учить дальше · осталось ${nLines(targets.length)}`}
           </button>
         ) : (
-          <button className="btn primary" onClick={() => setMode('whole')}>
+          <button className="btn primary" onClick={() => setJob({ kind: 'whole', idx: done })}>
             <Icon name="mic" size={16} /> Рассказать наизусть
           </button>
         )}
-        {!all && learned > 0 && (
-          <button className="btn" onClick={() => setMode('whole')} title="Проверить, что уже выучено">
+        {!all && done.length > 0 && (
+          <button className="btn" onClick={() => setJob({ kind: 'whole', idx: done })} title="Проверить, что уже выучено">
             <Icon name="mic" size={16} /> Рассказать выученное
           </button>
         )}
-        {learned > 0 && lines.length > 3 && (
-          <button className="btn" onClick={() => setMode('random')} title="Мнема показывает строку — продолжаешь с этого места">
+        {done.length >= 2 && (
+          <button className="btn" onClick={() => setJob({ kind: 'random', pool: done, span: 2 })} title="Мнема показывает строку — продолжаешь с этого места">
             <Icon name="repeat" size={16} /> С любого места
+          </button>
+        )}
+        {focus.size > 0 && (
+          <button className="btn" onClick={() => setJob({ kind: 'whole', idx: [...focus].filter((i) => !skip.has(i)).sort((a, b) => a - b), pick: 'Отмеченное ★' })} title="Рассказать строки, которые ты отметил «повторять чаще»">
+            <Icon name="star" size={16} /> Повторить отмеченное
           </button>
         )}
         {canSpeak() && <ListenBtn className="btn" text={poem.text} title="Мнема прочитает стих вслух" />}
         <span className="grow" />
-        <button className="icon-btn bordered" aria-label="Изменить стих" title="Изменить текст и размер частей" onClick={() => setMode('edit')}>
+        <button className="icon-btn bordered" aria-label="Изменить стих" title="Текст, размер частей, шаги учёбы, срок" onClick={() => setJob('edit')}>
           <Icon name="sliders" size={18} />
         </button>
       </div>
 
       <div className="small muted poem-status">
-        {all ? 'Выучен целиком' : `Выучено ${learned} из ${parts.length} ${plural(parts.length, 'части', 'частей', 'частей')}`}
+        {all ? 'Выучен целиком' : `Выучено ${done.length} из ${nLines(active.length)}`}
+        {skip.size > 0 && ` · не учу: ${skip.size}`}
         {poem.review && all && (poem.review.due <= today ? ' · пора повторить' : ` · повторить ${fmtDay(poem.review.due)}`)}
         {last && ` · в прошлый раз ${Math.round(last.acc * 100)}%`}
         {hard.size > 0 && ` · трудных строк: ${hard.size}`}
       </div>
+      {plan && !all && (
+        <div className="small poem-plan">
+          {plan.days < 0
+            ? `Срок (${fmtDay(poem.deadline!)}) прошёл — осталось ${nLines(plan.left)}.`
+            : plan.days === 0
+              ? `Срок — сегодня: осталось ${nLines(plan.left)}.`
+              : `К ${fmtDay(poem.deadline!)} — ${plan.days} ${plural(plan.days, 'день', 'дня', 'дней')}: осталось ${nLines(plan.left)}, примерно по ${plan.perDay} в день.`}
+        </div>
+      )}
+
+      {pinMode ? (
+        <div className="poem-bar">
+          <span className="small">Нажимай на слова: <b>всегда открытое</b> слово не прячется, когда ты рассказываешь по памяти. Ещё раз — вернуть как было.</span>
+          <div className="row gap8 wrap">
+            <button className="btn small primary" onClick={() => setPinMode(false)}>
+              <Icon name="check" size={14} /> Готово
+            </button>
+            {(poem.pinWords?.length ?? 0) > 0 && (
+              <button className="btn small ghost" onClick={() => patch({ pinWords: undefined })}>
+                Закрыть все слова
+              </button>
+            )}
+          </div>
+        </div>
+      ) : selArr.length > 0 ? (
+        <div className="poem-bar" role="toolbar" aria-label="Что сделать с выбранными строками">
+          <div className="row between gap8 wrap">
+            <strong className="small">Выбрано: {nLines(selArr.length)}</strong>
+            <span className="row gap8">
+              <button className="btn small ghost" onClick={() => setSel(new Set(lines.map((_, i) => i)))}>
+                Все
+              </button>
+              <button className="btn small ghost" onClick={() => (setSel(new Set()), setAnchor(null))}>
+                Снять
+              </button>
+            </span>
+          </div>
+          <div className="poem-bar-row">
+            <span className="small muted">Сделать:</span>
+            <button className="btn small primary" disabled={!selActive.length} onClick={() => setJob({ kind: 'learn', target: selActive })} title="Учить только выбранные строки">
+              Учить выбранное
+            </button>
+            <button className="btn small" onClick={learnFrom} title="Начать с первой выбранной строки и идти до конца">
+              Начать с этой строки
+            </button>
+            <button className="btn small" disabled={!selActive.length} onClick={() => setJob({ kind: 'whole', idx: selActive, pick: 'Выбранное' })}>
+              Рассказать
+            </button>
+            <button className="btn small" disabled={!selActive.length} onClick={continueFrom} title="Мнема покажет выбранную строку — ты продолжишь дальше">
+              Продолжить с неё
+            </button>
+          </div>
+          <div className="poem-bar-row">
+            <span className="small muted">Отметить:</span>
+            <button className={'chip-btn small' + (allIn(known) ? ' on' : '')} onClick={() => patch(setKnown(poem, selArr, !allIn(known)))} title="Уже знаю — тренажёр эти строки пропустит, но в пересказе они будут">
+              {allIn(known) ? 'Ещё учу' : 'Уже знаю'}
+            </button>
+            <button className={'chip-btn small' + (allIn(skip) ? ' on' : '')} onClick={() => patch(setSkip(poem, selArr, !allIn(skip)))} title="Не учу — строка остаётся в тексте, но в тренировку не попадает">
+              {allIn(skip) ? 'Вернуть в учёбу' : 'Не учу'}
+            </button>
+            <button className={'chip-btn small' + (allIn(focus) ? ' on' : '')} onClick={() => patch(setFocus(poem, selArr, !allIn(focus)))} title="Повторять чаще — такие строки чаще попадаются в «С любого места»">
+              <Icon name="star" size={13} /> Повторять чаще
+            </button>
+          </div>
+          <div className="poem-bar-row">
+            <span className="small muted">Подсказка:</span>
+            {CUE_OPTIONS.map((o) => (
+              <button key={o.value} className={'chip-btn small' + (cueNow === o.value ? ' on' : '')} onClick={() => patch(setCue(poem, selArr, o.value === 'auto' ? null : (Number(o.value) as 0 | 1 | 2)))}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="poem-bar quiet">
+          <span className="small muted">Нажимай на строки — выбери, какие учить, повторять и как подсказывать. Нажми на номер части — выберется вся часть.</span>
+          <span className="row gap8 wrap">
+            <button className="btn small ghost" onClick={() => setSel(new Set(lines.map((_, i) => i)))}>
+              Выбрать всё
+            </button>
+            <button className="btn small ghost" onClick={() => setPinMode(true)} title="Слова, которые никогда не прячутся при рассказе по памяти">
+              Слова-подсказки{(poem.pinWords?.length ?? 0) > 0 ? ` · ${poem.pinWords!.length}` : ''}
+            </button>
+          </span>
+        </div>
+      )}
 
       <div className="poem-card">
         {(poem.title || poem.author) && (
@@ -103,48 +301,109 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
             {poem.author && <span className="muted">{poem.author}</span>}
           </div>
         )}
-        {parts.map((pt, k) => (
-          <div key={k} className={'poem-part' + (k < learned ? ' learned' : k === learned ? ' next' : '')}>
-            <span className="poem-part-mark" title={k < learned ? 'Выучено' : k === learned ? 'Следующая часть' : ''}>
-              {k < learned ? <Icon name="check" size={14} /> : k + 1}
-            </span>
-            <div className="poem-part-lines">
-              {lines.slice(pt.from, pt.to).map((l, i) => (
-                <div key={i} className={'poem-line' + (hard.has(pt.from + i) ? ' hard' : '')} title={hard.has(pt.from + i) ? 'Здесь чаще всего ошибаешься' : undefined}>
-                  {l.text}
-                </div>
-              ))}
+        {parts.map((pt, k) => {
+          const st = partState(pt);
+          return (
+            <div key={k} className={'poem-part' + (st === 'learned' ? ' learned' : k === nextPart ? ' next' : '') + (st === 'skip' ? ' skipped' : '')}>
+              <button type="button" className="poem-part-mark" title="Выбрать всю часть" aria-label={`Выбрать часть ${k + 1}`} onClick={() => togglePart(pt.from, pt.to)} disabled={pinMode}>
+                {st === 'learned' ? <Icon name="check" size={14} /> : k + 1}
+              </button>
+              <div className="poem-part-lines">
+                {lines.slice(pt.from, pt.to).map((l, i) => {
+                  const li = pt.from + i;
+                  const cls = (known.has(li) && !skip.has(li) ? ' known' : '') + (skip.has(li) ? ' skip' : '') + (hard.has(li) ? ' hard' : '');
+                  const words = tokenize(l.text);
+                  let wk = 0;
+                  const badges = (
+                    <span className="pl-badges">
+                      {poem.lineCue?.[li] !== undefined && <span className="pl-tag">{CUE_TAG[poem.lineCue[li]]}</span>}
+                      {skip.has(li) && <span className="pl-tag">не учу</span>}
+                      {focus.has(li) && <span className="pl-star" title="Повторять чаще"><Icon name="star" size={13} /></span>}
+                      {known.has(li) && !skip.has(li) && <span className="pl-ok" title="Выучено"><Icon name="check" size={13} /></span>}
+                    </span>
+                  );
+                  if (pinMode)
+                    return (
+                      <div key={li} className={'poem-line pickrow' + cls}>
+                        <span className="pl-text">
+                          {words.map((t, w) => {
+                            if (!t.word) return <span key={w}>{t.text}</span>;
+                            const idx = wk++;
+                            const on = isPinned(poem, li, idx);
+                            return (
+                              <button key={w} type="button" className={'pw-pick' + (on ? ' on' : '')} aria-pressed={on} onClick={() => patch(togglePin(poem, li, idx))}>
+                                {t.text}
+                              </button>
+                            );
+                          })}
+                        </span>
+                      </div>
+                    );
+                  return (
+                    <button key={li} type="button" className={'poem-line pick' + cls + (sel.has(li) ? ' sel' : '')} aria-pressed={sel.has(li)} title={hard.has(li) ? 'Здесь чаще всего ошибаешься' : undefined} onClick={(e) => toggleLine(li, e.shiftKey)}>
+                      <span className="pl-text">
+                        {words.map((t, w) => (t.word ? <span key={w} className={isPinned(poem, li, wk++) ? 'pw-pin' : undefined}>{t.text}</span> : <span key={w}>{t.text}</span>))}
+                      </span>
+                      {badges}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <p className="small muted poem-how">
-        Как учим: стих делится на части. Каждую — вслух, пока подсказки исчезают: весь текст → половина слов → первые буквы → по памяти, потом вместе с предыдущими. Выученный стих Мнема напомнит повторить через 1, 3, 7… дней. Хорошо учить вечером и повторить утром — во сне память закрепляется.
+        Как учим: стих делится на части. Каждую — вслух, пока подсказки исчезают: весь текст → половина слов → первые буквы → по памяти, потом вместе с предыдущими. Какие строки учить, с какой начать, что уже знаешь и как подсказывать — решаешь ты (и шаги учёбы можно поменять в настройках стиха). Выученный стих Мнема напомнит повторить через 1, 3, 7… дней. Хорошо учить вечером и повторить утром — во сне память закрепляется.
       </p>
     </div>
   );
 }
 
-/* ---------- Текст стиха ---------- */
+/* ---------- Текст стиха и личные настройки ---------- */
+
+const STEP_LABELS: { id: Exclude<LearnStep, 'recall'>; label: string }[] = [
+  { id: 'read', label: 'Прочитать' },
+  { id: 'half', label: 'Половина слов' },
+  { id: 'letters', label: 'Первые буквы' },
+  { id: 'together', label: 'Вместе с прошлыми' }
+];
 
 function PoemEditor({ topicId, poem, onDone, onDeleted }: { topicId: string; poem: Poem; onDone: () => void; onDeleted: () => void }) {
   const [title, setTitle] = useState(poem.title);
   const [author, setAuthor] = useState(poem.author ?? '');
   const [text, setText] = useState(poem.text);
   const [chunk, setChunk] = useState<string>(poem.text.trim() ? String(poem.chunk) : 'auto');
+  const [steps, setSteps] = useState<Set<string>>(new Set(poem.steps ?? ['read', 'half', 'letters', 'together']));
+  const [win, setWin] = useState(String(togetherWindow(poem)));
+  const [deadline, setDeadline] = useState(poem.deadline ?? '');
   const effChunk = chunk === 'auto' ? autoChunk(text) : Number(chunk);
   const parts = poemParts(text, effChunk);
   const lines = poemLines(text);
-  const changedText = text.trim() !== poem.text.trim() || effChunk !== poem.chunk;
+  const textChanged = poem.text.trim() !== '' && text.trim() !== poem.text.trim();
+  const hasProgress = knownSet(poem).size > 0 || (poem.skipLines?.length ?? 0) > 0;
   return (
     <form
       className="stack gap12 tab-pane poem-edit"
       onSubmit={(e) => {
         e.preventDefault();
         if (!text.trim()) return;
-        // Текст или части поменялись — прогресс по частям начинаем заново (трудные строки тоже).
-        const reset = changedText && poem.text.trim() ? { learned: 0, lineMiss: [], review: undefined } : {};
-        save(topicId, poem.id, { title: title.trim() || lines[0]?.text.replace(/[,.;:!?…—-]+$/, '') || 'Стихотворение', author: author.trim() || undefined, text: text.trim(), chunk: effChunk, ...reset });
+        const body = text.trim();
+        // Личное (выучено, не учу, подсказки) привязано к строкам: при правке текста переносим на те же строки, при смене частей — оставляем как есть.
+        const kept: Partial<Poem> = poem.text.trim() ? (textChanged ? remapPatch(poem, body) : { knownLines: [...knownSet(poem)].sort((a, b) => a - b) }) : {};
+        const next: Poem = { ...poem, ...kept, text: body, chunk: effChunk };
+        const allSteps = steps.size === 4;
+        save(topicId, poem.id, {
+          title: title.trim() || lines[0]?.text.replace(/[,.;:!?…—-]+$/, '') || 'Стихотворение',
+          author: author.trim() || undefined,
+          text: body,
+          chunk: effChunk,
+          ...kept,
+          learned: learnedCount(next),
+          steps: allSteps ? undefined : (['read', 'half', 'letters', 'together'] as const).filter((s) => steps.has(s)),
+          window: Number(win) === 4 ? undefined : Number(win),
+          deadline: deadline || undefined
+        });
         onDone();
       }}
     >
@@ -176,11 +435,43 @@ function PoemEditor({ topicId, poem, onDone, onDeleted }: { topicId: string; poe
           ]}
         />
         <span className="small muted">
-          {lines.length ? `${lines.length} ${plural(lines.length, 'строка', 'строки', 'строк')} → ${parts.length} ${plural(parts.length, 'часть', 'части', 'частей')}. ` : ''}
-          Маленькие части легче. Для длинных строк или если учится трудно — по 2 строки.
+          {lines.length ? `${nLines(lines.length)} → ${parts.length} ${plural(parts.length, 'часть', 'части', 'частей')}. ` : ''}
+          Маленькие части легче. Для длинных строк или если учится трудно — по 2 строки. Размер частей можно менять в любой момент — выученное не пропадёт.
         </span>
       </div>
-      {changedText && poem.text.trim() && poem.learned > 0 && <div className="hint warn small">Текст или части поменялись — учить части придётся заново.</div>}
+      <div className="field">
+        <span>Шаги при учёбе</span>
+        <div className="row gap8 wrap">
+          {STEP_LABELS.map((s) => (
+            <button key={s.id} type="button" className={'chip-btn' + (steps.has(s.id) ? ' on' : '')} aria-pressed={steps.has(s.id)} onClick={() => setSteps((cur) => new Set(cur.has(s.id) ? [...cur].filter((x) => x !== s.id) : [...cur, s.id]))}>
+              {s.label}
+            </button>
+          ))}
+          <span className="chip-btn on static" aria-hidden>
+            По памяти — всегда
+          </span>
+        </div>
+        <span className="small muted">Знаешь стих наполовину — убери «Прочитать» и «Половину слов». Трудный — оставь всё.</span>
+      </div>
+      {steps.has('together') && (
+        <div className="field">
+          <span>«Вместе с прошлыми» — сколько прошлых частей добавлять</span>
+          <Segmented ariaLabel="Сколько частей вместе" value={win} onChange={setWin} options={[{ value: '1', label: '1' }, { value: '2', label: '2' }, { value: '4', label: '4' }, { value: '8', label: '8' }]} />
+        </div>
+      )}
+      <div className="field">
+        <span>Выучить к дате (необязательно)</span>
+        <div className="row gap8 wrap">
+          <input className="input" type="date" min="2000-01-01" max="2100-12-31" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Выучить к дате" />
+          {deadline && (
+            <button type="button" className="btn ghost small" onClick={() => setDeadline('')}>
+              Убрать срок
+            </button>
+          )}
+        </div>
+        <span className="small muted">Мнема подскажет, сколько строк в день, и не отложит повтор позже этого срока.</span>
+      </div>
+      {textChanged && hasProgress && <div className="hint warn small">Текст изменился: выученное и твои отметки сохранятся для строк, которые остались прежними.</div>}
       <div className="row gap8 wrap">
         <button className="btn primary" type="submit" disabled={!text.trim()}>
           {poem.text.trim() ? 'Сохранить' : 'Готово — учить'}
@@ -201,19 +492,64 @@ function PoemEditor({ topicId, poem, onDone, onDeleted }: { topicId: string; poe
 
 /* ---------- Строки с подсказкой ---------- */
 
-function CueLines({ lines, level, offset = 0, revealed = 0 }: { lines: string[]; level: CueLevel; offset?: number; revealed?: number }) {
-  let wi = 0;
+interface PlanWord {
+  t: CueToken;
+  key: string; // «строка:слово» (с нуля)
+  state: 'plain' | 'pinned' | 'hidden' | 'opened';
+}
+interface CuePlan {
+  rows: { li: number; level: CueLevel; words: PlanWord[] }[];
+  hidden: string[]; // ключи спрятанных слов по порядку
+}
+
+/** Что показать в каждой строке: свой уровень подсказки строки, «всегда открытые» слова и слова, которые уже открыл. */
+function cuePlan(poem: Poem, idx: number[], base: CueLevel, opened: Set<string>): CuePlan {
+  const all = poemLines(poem.text);
+  const rows = idx.map((li) => {
+    const level = effCue(poem, li, base);
+    let wk = 0;
+    const words: PlanWord[] = cueLine(all[li]?.text ?? '', level, li).map((t) => {
+      if (!t.word) return { t, key: '', state: 'plain' };
+      const key = `${li}:${wk}`;
+      const pin = isPinned(poem, li, wk++);
+      return { t, key, state: !t.hidden ? 'plain' : pin ? 'pinned' : opened.has(key) ? 'opened' : 'hidden' };
+    });
+    return { li, level, words };
+  });
+  return { rows, hidden: rows.flatMap((r) => r.words.filter((w) => w.state === 'hidden').map((w) => w.key)) };
+}
+
+function CueLines({ plan, onOpen }: { plan: CuePlan; onOpen?: (key: string) => void }) {
+  return (
+    <div className="poem-cue level0">
+      {plan.rows.map((r) => (
+        <div key={r.li} className="poem-line">
+          {r.words.map(({ t, key, state }, k) => {
+            if (!t.word) return <span key={k}>{r.level === 3 ? (/[.,!?;:—–-]/.test(t.text) ? t.text : ' ') : t.text}</span>;
+            if (state === 'plain') return <span key={k}>{t.text}</span>;
+            if (state === 'pinned') return <span key={k} className="pw-pin">{t.full}</span>;
+            if (state === 'opened') return <span key={k} className="pw-hinted">{t.full}</span>;
+            return r.level === 3 ? (
+              <button key={k} type="button" className="pw-blank pw-tap" aria-label="Открыть слово" style={{ width: Math.min(9, 0.6 * t.full.length + 0.6) + 'em' }} onClick={() => onOpen?.(key)} />
+            ) : (
+              <button key={k} type="button" className="pw-letter pw-tap" aria-label="Открыть слово" onClick={() => onOpen?.(key)}>
+                {t.text}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Для учёбы по частям: строки с общим уровнем подсказки (без своих правок «как открывать»). */
+function StaticCue({ lines, level, offset }: { lines: string[]; level: CueLevel; offset: number }) {
   return (
     <div className={'poem-cue level' + level}>
       {lines.map((l, i) => (
         <div key={i} className="poem-line">
-          {cueLine(l, level, offset + i).map((t, k) => {
-            if (!t.word) return <span key={k}>{level === 3 ? (/[.,!?;:—–-]/.test(t.text) ? t.text : ' ') : t.text}</span>;
-            const idx = wi++;
-            if (!t.hidden) return <span key={k}>{t.text}</span>;
-            if (idx < revealed) return <span key={k} className="pw-hinted">{t.full}</span>;
-            return level === 3 ? <span key={k} className="pw-blank" style={{ width: Math.min(9, 0.6 * t.full.length + 0.6) + 'em' }} /> : <span key={k} className="pw-letter">{t.text}</span>;
-          })}
+          {cueLine(l, level, offset + i).map((t, k) => (!t.word ? <span key={k}>{t.text}</span> : !t.hidden ? <span key={k}>{t.text}</span> : <span key={k} className="pw-letter">{t.text}</span>))}
         </div>
       ))}
     </div>
@@ -228,11 +564,15 @@ interface RecallResult {
   pass: boolean;
 }
 
-function Recall({ lines, offset, title, hint, onPass, onRetry, retryLabel = 'Ещё раз', oneWay }: { lines: string[]; offset: number; title: string; hint?: string; onPass: (r: RecallResult) => void; onRetry: (r: RecallResult) => void; retryLabel?: string; oneWay?: string }) {
+function Recall({ poem, idx, title, hint, onPass, onRetry, retryLabel = 'Ещё раз', oneWay }: { poem: Poem; idx: number[]; title: string; hint?: string; onPass: (r: RecallResult) => void; onRetry: (r: RecallResult) => void; retryLabel?: string; oneWay?: string }) {
   const data = useData();
+  const lines = useMemo(() => {
+    const all = poemLines(poem.text);
+    return idx.map((i) => all[i]?.text ?? '');
+  }, [poem.text, idx]);
   const voice = recitalVoice(aiAvailable(data));
   const [phase, setPhase] = useState<'hidden' | 'rec' | 'wait' | 'voice' | 'self'>('hidden');
-  const [hints, setHints] = useState(0);
+  const [opened, setOpened] = useState<Set<string>>(new Set());
   const [letters, setLetters] = useState(false);
   const [live, setLive] = useState('');
   const [err, setErr] = useState('');
@@ -240,7 +580,9 @@ function Recall({ lines, offset, title, hint, onPass, onRetry, retryLabel = 'Е�
   const [marked, setMarked] = useState<Set<number>>(new Set());
   const session = useRef<RecitalSession | null>(null);
   useEffect(() => () => session.current?.cancel(), []);
-  const helped = hints > 0 || letters;
+  const helped = opened.size > 0 || letters;
+  const plan = cuePlan(poem, idx, letters ? 2 : 3, opened);
+  const open = (...keys: string[]) => setOpened((cur) => new Set([...cur, ...keys]));
 
   const begin = async () => {
     setErr('');
@@ -314,7 +656,6 @@ function Recall({ lines, offset, title, hint, onPass, onRetry, retryLabel = 'Е�
     );
   }
 
-  const words = lines.reduce((n, l) => n + cueLine(l, 3).filter((t) => t.word).length, 0);
   return (
     <div className="stack gap12 poem-recall">
       <div className="stack gap2">
@@ -327,7 +668,7 @@ function Recall({ lines, offset, title, hint, onPass, onRetry, retryLabel = 'Е�
           <span className="grow">{live || 'Слушаю… рассказывай вслух.'}</span>
         </div>
       ) : (
-        <CueLines lines={lines} level={letters ? 2 : 3} offset={offset} revealed={hints} />
+        <CueLines plan={plan} onOpen={(k) => open(k)} />
       )}
       {err && <div className="hint warn small">{err}</div>}
       <div className="row gap8 wrap">
@@ -364,13 +705,24 @@ function Recall({ lines, offset, title, hint, onPass, onRetry, retryLabel = 'Е�
                 Первые буквы
               </button>
             )}
-            <button className="btn ghost small" disabled={hints >= words} onClick={() => setHints((h) => h + 1)} title="Открыть следующее слово">
-              Подсказка{hints ? ` · ${hints}` : ''}
+            <button className="btn ghost small" disabled={!plan.hidden.length} onClick={() => open(plan.hidden[0])} title="Открыть следующее слово (или нажми на нужное слово сам)">
+              Подсказка{opened.size ? ` · ${opened.size}` : ''}
+            </button>
+            <button
+              className="btn ghost small"
+              disabled={!plan.hidden.length}
+              title="Открыть следующую строку целиком"
+              onClick={() => {
+                const row = plan.rows.find((r) => r.words.some((w) => w.state === 'hidden'));
+                if (row) open(...row.words.filter((w) => w.state === 'hidden').map((w) => w.key));
+              }}
+            >
+              Строку
             </button>
           </>
         )}
       </div>
-      {!voice && phase === 'hidden' && <span className="small muted">Расскажи вслух, потом нажми «Рассказал — проверить». {window.mnemaApi?.speechStart ? '' : 'Рассказывать голосом с проверкой можно на телефоне или с ИИ-помощником (Настройки → Возможности).'}</span>}
+      {!voice && phase === 'hidden' && <span className="small muted">Расскажи вслух (спрятанное слово можно открыть нажатием), потом нажми «Рассказал — проверить». {window.mnemaApi?.speechStart ? '' : 'Рассказывать голосом с проверкой можно на телефоне или с ИИ-помощником (Настройки → Возможности).'}</span>}
     </div>
   );
 }
@@ -435,93 +787,121 @@ function RecitalText({ lines, rec }: { lines: string[]; rec: Recital }) {
 /* ---------- Учить по частям ---------- */
 
 type Stage = 'read' | 'half' | 'letters' | 'recall' | 'together' | 'final' | 'done';
-const STAGES: { id: Stage; label: string }[] = [
+const STAGES: { id: Exclude<Stage, 'final' | 'done'>; label: string }[] = [
   { id: 'read', label: 'Прочитай' },
   { id: 'half', label: 'Половина' },
   { id: 'letters', label: 'Буквы' },
   { id: 'recall', label: 'Сам' },
   { id: 'together', label: 'Вместе' }
 ];
-const WINDOW = 4; // «вместе» — не больше 4 последних частей, целиком — в конце
+const CUE_STAGES: Stage[] = ['read', 'half', 'letters', 'recall'];
 
-function LearnFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; onExit: () => void }) {
-  const lines = poemLines(poem.text).map((l) => l.text);
-  const parts = poemParts(poem.text, poem.chunk);
-  const [k, setK] = useState(Math.min(poem.learned, parts.length - 1));
-  const [stage, setStage] = useState<Stage>(poem.learned >= parts.length ? 'final' : 'read');
+/** Учим строки из target по частям (в порядке стиха); каждая выученная часть сразу запоминается. */
+function LearnFlow({ topicId, poem, target, onExit }: { topicId: string; poem: Poem; target: number[]; onExit: () => void }) {
+  const all = poemLines(poem.text).map((l) => l.text);
+  const units = useMemo(() => learnUnits(poem, target), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const steps = enabledSteps(poem);
+  const win = togetherWindow(poem);
+  const enabled = (s: Stage) => s === 'recall' || s === 'final' || s === 'done' || steps.has(s as LearnStep);
+  const firstStage = (CUE_STAGES.find(enabled) ?? 'recall') as Stage;
+  const [k, setK] = useState(0);
+  const [stage, setStage] = useState<Stage>(firstStage);
   const [round, setRound] = useState(0);
-  const part = parts[k];
-  const partLines = lines.slice(part.from, part.to);
-  const winFrom = parts[Math.max(0, k - WINDOW + 1)].from;
   const go = (s: Stage) => {
     setStage(s);
     setRound((r) => r + 1);
   };
-  const rec = (from: number, count: number, r: RecallResult) => record(topicId, poem.id, { acc: r.acc, lines: Array.from({ length: count }, (_, i) => from + i), bad: r.bad.map((b) => b + from), mode: 'learn' });
+  if (!units.length)
+    return (
+      <div className="stack gap12 tab-pane poem-trainer">
+        <strong>Нечего учить</strong>
+        <span className="muted">Выбранные строки отмечены «не учу». Вернуть их в учёбу можно в списке строк.</span>
+        <button className="btn primary start-self" onClick={onExit}>
+          Назад
+        </button>
+      </div>
+    );
+  const unit = units[Math.min(k, units.length - 1)];
+  const unitLines = unit.map((i) => all[i]);
+  // «Вместе»: эта часть и несколько предыдущих (из тех, что учили раньше или только что), без ещё не выученных.
+  const chain = learnUnits(poem, activeLines(poem));
+  const pos = chain.findIndex((u) => u.includes(unit[0]));
+  const known = knownSet(fresh(topicId, poem));
+  const togetherIdx = chain
+    .slice(Math.max(0, pos - win + 1), pos + 1)
+    .flat()
+    .filter((i) => known.has(i) || unit.includes(i));
+  const hasTogether = steps.has('together') && togetherIdx.length > unit.length;
+  const afterCue = (s: Stage): Stage => CUE_STAGES.slice(CUE_STAGES.indexOf(s) + 1).find(enabled) ?? 'recall';
+  const beforeCue = (s: Stage): Stage => [...CUE_STAGES.slice(0, CUE_STAGES.indexOf(s))].reverse().find((x) => x !== 'recall' && enabled(x)) ?? s;
+  const retryStage = (): Stage => [...CUE_STAGES].reverse().find((x) => x !== 'recall' && enabled(x)) ?? 'recall';
+
+  const rec = (idx: number[], r: RecallResult) => record(topicId, poem.id, { acc: r.acc, lines: idx, bad: r.bad.map((b) => idx[b]), mode: 'learn' });
   const partDone = () => {
-    const next = k + 1;
-    save(topicId, poem.id, { learned: Math.max(poem.learned, next) });
-    if (next >= parts.length) {
-      if (parts.length > WINDOW) go('final');
-      else finishAll();
-    } else {
-      setK(next);
-      go('read');
-    }
-  };
-  const finishAll = () => {
-    const p = getData().topics.find((t) => t.id === topicId)?.poems?.find((x) => x.id === poem.id);
-    if (p && !p.review) save(topicId, poem.id, { learned: parts.length, review: { due: dayKey(new Date(Date.now() + 86400000)), interval: 1, reps: 0 } });
-    go('done');
+    save(topicId, poem.id, setKnown(fresh(topicId, poem), unit, true));
+    if (k + 1 < units.length) {
+      setK(k + 1);
+      go(firstStage);
+    } else if (poemLearned(fresh(topicId, poem)) && units.length > win) go('final');
+    else go('done');
   };
 
   const body = (() => {
-    if (stage === 'done')
+    if (stage === 'done') {
+      const learnedAll = poemLearned(fresh(topicId, poem));
+      const left = learnTargets(fresh(topicId, poem)).length;
       return (
         <div className="stack gap12 poem-done">
           <div className="poem-done-ico">🎉</div>
-          <strong>Стих выучен!</strong>
-          <span className="muted">Завтра Мнема напомнит рассказать его целиком — потом через 3 дня, неделю и дальше. Так он останется надолго, а не до конца урока. Лучше всего повторить вечером и утром.</span>
+          <strong>{learnedAll ? 'Стих выучен!' : 'Выбранное выучено!'}</strong>
+          <span className="muted">
+            {learnedAll
+              ? 'Завтра Мнема напомнит рассказать его целиком — потом через 3 дня, неделю и дальше. Так он останется надолго, а не до конца урока. Лучше всего повторить вечером и утром.'
+              : `Остальное — когда захочешь${left ? ` (осталось ${nLines(left)})` : ''}. Выученные строки сохранены.`}
+          </span>
           <button className="btn primary start-self" onClick={onExit}>
             Готово
           </button>
         </div>
       );
-    if (stage === 'final')
+    }
+    if (stage === 'final') {
+      const idx = activeLines(fresh(topicId, poem));
       return (
         <Recall
           key={'f' + round}
-          lines={lines}
-          offset={0}
+          poem={fresh(topicId, poem)}
+          idx={idx}
           title="А теперь весь стих целиком"
           hint="Без подсказок, от первой до последней строки."
           onPass={(r) => {
-            rec(0, lines.length, r);
-            finishAll();
+            rec(idx, r);
+            go('done');
           }}
           onRetry={(r) => {
-            rec(0, lines.length, r);
+            rec(idx, r);
             go('final');
           }}
         />
       );
+    }
     if (stage === 'recall')
       return (
         <Recall
           key={'r' + round}
-          lines={partLines}
-          offset={part.from}
+          poem={poem}
+          idx={unit}
           title="Теперь по памяти"
           hint="Расскажи эту часть вслух, не подглядывая."
-          retryLabel="Ещё раз с буквами"
+          retryLabel={retryStage() === 'recall' ? 'Ещё раз' : 'Ещё раз с буквами'}
           onPass={(r) => {
-            rec(part.from, partLines.length, r);
-            if (k === 0) partDone();
-            else go('together');
+            rec(unit, r);
+            if (hasTogether) go('together');
+            else partDone();
           }}
           onRetry={(r) => {
-            rec(part.from, partLines.length, r);
-            go('letters');
+            rec(unit, r);
+            go(retryStage());
           }}
         />
       );
@@ -529,16 +909,16 @@ function LearnFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; onE
       return (
         <Recall
           key={'t' + round}
-          lines={lines.slice(winFrom, part.to)}
-          offset={winFrom}
-          title={winFrom === 0 ? 'Теперь всё с начала' : 'Теперь вместе с предыдущими частями'}
+          poem={poem}
+          idx={togetherIdx}
+          title={togetherIdx[0] === 0 ? 'Теперь всё с начала' : 'Теперь вместе с предыдущими частями'}
           hint="Так части сцепляются: конец одной подсказывает начало следующей."
           onPass={(r) => {
-            rec(winFrom, part.to - winFrom, r);
+            rec(togetherIdx, r);
             partDone();
           }}
           onRetry={(r) => {
-            rec(winFrom, part.to - winFrom, r);
+            rec(togetherIdx, r);
             go('together');
           }}
         />
@@ -548,31 +928,32 @@ function LearnFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; onE
     return (
       <div className="stack gap12" key={stage + round}>
         <span className="muted">{text}</span>
-        <CueLines lines={partLines} level={level} offset={part.from} />
+        <StaticCue lines={unitLines} level={level} offset={unit[0]} />
         <div className="row gap8 wrap">
-          <button className="btn primary" autoFocus onClick={() => go(stage === 'read' ? 'half' : stage === 'half' ? 'letters' : 'recall')}>
+          <button className="btn primary" autoFocus onClick={() => go(afterCue(stage))}>
             {stage === 'read' ? 'Прочитал — дальше' : 'Рассказал — дальше'} →
           </button>
-          {stage !== 'read' && (
-            <button className="btn ghost" onClick={() => go(stage === 'half' ? 'read' : 'half')}>
+          {beforeCue(stage) !== stage && (
+            <button className="btn ghost" onClick={() => go(beforeCue(stage))}>
               Больше подсказок
             </button>
           )}
-          {stage === 'read' && canSpeak() && <ListenBtn className="btn ghost" text={partLines.join('\n')} />}
+          {stage === 'read' && canSpeak() && <ListenBtn className="btn ghost" text={unitLines.join('\n')} />}
         </div>
       </div>
     );
   })();
 
-  const si = STAGES.findIndex((s) => s.id === stage);
+  const shown = STAGES.filter((s) => enabled(s.id) && (s.id !== 'together' || hasTogether));
+  const si = shown.findIndex((s) => s.id === stage);
   return (
     <div className="stack gap16 tab-pane poem-trainer">
       <div className="row between gap8 wrap">
         <div className="stack gap2">
-          <strong>{stage === 'final' ? 'Весь стих' : stage === 'done' ? poem.title : `Часть ${k + 1} из ${parts.length}`}</strong>
+          <strong>{stage === 'final' ? 'Весь стих' : stage === 'done' ? poem.title : `Часть ${k + 1} из ${units.length} · ${unit.length === 1 ? `строка ${unit[0] + 1}` : `строки ${unit[0] + 1}–${unit[unit.length - 1] + 1}`}`}</strong>
           {stage !== 'final' && stage !== 'done' && (
             <div className="poem-steps" aria-label="Шаги">
-              {STAGES.filter((s) => s.id !== 'together' || k > 0).map((s, i) => (
+              {shown.map((s, i) => (
                 <span key={s.id} className={'poem-step' + (i < si ? ' done' : i === si ? ' on' : '')}>
                   {s.label}
                 </span>
@@ -587,32 +968,29 @@ function LearnFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; onE
         )}
       </div>
       <div className="poem-progress" aria-hidden>
-        <span style={{ width: (stage === 'done' ? 100 : (100 * k) / parts.length) + '%' }} />
+        <span style={{ width: (stage === 'done' ? 100 : (100 * k) / units.length) + '%' }} />
       </div>
       <div className="poem-stage">{body}</div>
     </div>
   );
 }
 
-/* ---------- Рассказать целиком ---------- */
+/* ---------- Рассказать (весь стих, выученное или выбранные строки) ---------- */
 
-function WholeCheck({ topicId, poem, onExit }: { topicId: string; poem: Poem; onExit: () => void }) {
-  const lines = poemLines(poem.text).map((l) => l.text);
-  const parts = poemParts(poem.text, poem.chunk);
-  const all = poem.learned >= parts.length;
-  const upto = all ? lines.length : parts[Math.max(0, Math.min(poem.learned, parts.length) - 1)]?.to ?? lines.length;
-  const shown = lines.slice(0, upto);
+function WholeCheck({ topicId, poem, idx, pick, onExit }: { topicId: string; poem: Poem; idx: number[]; pick?: string; onExit: () => void }) {
   const [round, setRound] = useState(0);
   const [done, setDone] = useState<null | { acc: number; due?: string }>(null);
+  const whole = !pick;
+  const full = poemLearned(poem);
   const finish = (r: RecallResult) => {
-    record(topicId, poem.id, { acc: r.acc, lines: shown.map((_, i) => i), bad: r.bad, mode: 'whole' });
-    const p = getData().topics.find((t) => t.id === topicId)?.poems?.find((x) => x.id === poem.id);
-    setDone({ acc: r.acc, due: all ? p?.review?.due : undefined });
+    record(topicId, poem.id, { acc: r.acc, lines: idx, bad: r.bad.map((b) => idx[b]), mode: whole ? 'whole' : 'pick' });
+    const p = fresh(topicId, poem);
+    setDone({ acc: r.acc, due: whole && full ? p.review?.due : undefined });
   };
   return (
     <div className="stack gap16 tab-pane poem-trainer">
       <div className="row between gap8">
-        <strong>{all ? 'Расскажи наизусть' : 'Расскажи выученное'}</strong>
+        <strong>{pick ?? (full ? 'Расскажи наизусть' : 'Расскажи выученное')}</strong>
         <button className="btn ghost small" onClick={onExit}>
           Закрыть
         </button>
@@ -641,7 +1019,7 @@ function WholeCheck({ topicId, poem, onExit }: { topicId: string; poem: Poem; on
           </div>
         </div>
       ) : (
-        <Recall key={round} lines={shown} offset={0} title={poem.title || 'Стихотворение'} hint={poem.author} onPass={finish} onRetry={finish} oneWay="Готово" />
+        <Recall key={round} poem={poem} idx={idx} title={poem.title || 'Стихотворение'} hint={poem.author} onPass={finish} onRetry={finish} oneWay="Готово" />
       )}
     </div>
   );
@@ -649,25 +1027,25 @@ function WholeCheck({ topicId, poem, onExit }: { topicId: string; poem: Poem; on
 
 /* ---------- С любого места ---------- */
 
-function RandomFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; onExit: () => void }) {
-  const lines = poemLines(poem.text).map((l) => l.text);
-  const parts = poemParts(poem.text, poem.chunk);
-  const known = poem.learned >= parts.length ? lines.length : parts[Math.max(0, poem.learned - 1)]?.to ?? lines.length;
-  const starts = useMemo(() => pickStarts({ ...poem, text: lines.slice(0, known).join('\n') }, 5), []); // eslint-disable-line react-hooks/exhaustive-deps
+/** Мнема показывает строку — ты продолжаешь. Места выбираются случайно (трудные и отмеченные чаще) или задаёшь сам (starts). */
+function RandomFlow({ topicId, poem, pool, starts: manual, span, onExit }: { topicId: string; poem: Poem; pool: number[]; starts?: number[]; span: number; onExit: () => void }) {
+  const all = poemLines(poem.text).map((l) => l.text);
+  const starts = useMemo(() => manual ?? pickStarts(poem, 5, Math.random, pool), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [i, setI] = useState(0);
   const [score, setScore] = useState(0);
   if (!starts.length) return null;
-  const s = starts[i];
-  const target = lines.slice(s + 1, Math.min(known, s + 3));
+  const s = starts[Math.min(i, starts.length - 1)];
+  const at = pool.indexOf(s);
+  const target = pool.slice(at + 1, at + 1 + span);
   const next = (r: RecallResult) => {
-    record(topicId, poem.id, { acc: r.acc, lines: target.map((_, j) => s + 1 + j), bad: r.bad.map((b) => b + s + 1), mode: 'random' });
+    record(topicId, poem.id, { acc: r.acc, lines: target, bad: r.bad.map((b) => target[b]), mode: manual ? 'pick' : 'random' });
     if (r.acc >= 0.9) setScore((x) => x + 1);
     setI((x) => x + 1);
   };
   return (
     <div className="stack gap16 tab-pane poem-trainer">
       <div className="row between gap8">
-        <strong>С любого места · {Math.min(i + 1, starts.length)} из {starts.length}</strong>
+        <strong>{manual ? 'Продолжи с этого места' : `С любого места · ${Math.min(i + 1, starts.length)} из ${starts.length}`}</strong>
         <button className="btn ghost small" onClick={onExit}>
           Закрыть
         </button>
@@ -685,9 +1063,9 @@ function RandomFlow({ topicId, poem, onExit }: { topicId: string; poem: Poem; on
       ) : (
         <>
           <div className="poem-cue level0 poem-given">
-            <div className="poem-line">{lines[s]}</div>
+            <div className="poem-line">{all[s]}</div>
           </div>
-          <Recall key={i} lines={target} offset={s + 1} title="Продолжи" hint="Расскажи следующие строки." onPass={next} onRetry={next} oneWay="Дальше" />
+          <Recall key={i} poem={poem} idx={target} title="Продолжи" hint="Расскажи следующие строки." onPass={next} onRetry={next} oneWay="Дальше" />
         </>
       )}
     </div>
