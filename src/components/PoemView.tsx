@@ -42,7 +42,7 @@ import { canSpeak, speak, stopSpeaking, useSpeaking } from '../speak';
 import { deletePoem, getData, restorePoem, updatePoem, useData } from '../store';
 import type { Poem, Route } from '../types';
 import { recitalVoice, startRecital, type RecitalSession } from '../voice';
-import { ConfirmButton, Icon, plural, Segmented, toast } from './ui';
+import { ConfirmButton, Icon, MoreMenu, plural, Segmented, toast, type MenuItem } from './ui';
 
 const fmtDay = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 const nLines = (n: number) => `${n} ${plural(n, 'строка', 'строки', 'строк')}`;
@@ -96,14 +96,15 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
   const targets = learnTargets(poem);
   const all = poemLearned(poem);
   const today = dayKey(new Date());
-  const last = poem.history?.filter((h) => h.mode === 'whole').at(-1);
   const plan = deadlinePlan(poem, new Date());
 
   const [job, setJob] = useState<Job | 'edit' | null>(start === 'whole' && done.length ? { kind: 'whole', idx: done } : poem.text.trim() ? null : 'edit');
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [anchor, setAnchor] = useState<number | null>(null);
   const [pinMode, setPinMode] = useState(false);
+  const speaking = useSpeaking(poem.text);
   useEffect(() => setSel(new Set()), [poem.text]);
+  useEffect(() => () => stopSpeaking(), []);
 
   if (job === 'edit')
     return (
@@ -166,12 +167,29 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
   };
   const nextPart = parts.findIndex((pt) => partState(pt) === 'todo');
 
+  const cueItem = (o: (typeof CUE_OPTIONS)[number]): MenuItem => ({ label: (cueNow === o.value ? '✓ ' : '') + o.label, onClick: () => patch(setCue(poem, selArr, o.value === 'auto' ? null : (Number(o.value) as 0 | 1 | 2))) });
+  const selMenu: MenuItem[] = [
+    { label: 'Начать с этой строки', icon: 'play', hint: 'и до конца стиха', onClick: learnFrom },
+    { label: 'Рассказать выбранное', icon: 'mic', hidden: !selActive.length, onClick: () => setJob({ kind: 'whole', idx: selActive, pick: 'Выбранное' }) },
+    { label: 'Продолжить с этой строки', icon: 'repeat', hidden: !selActive.length, hint: 'Мнема покажет строку, ты продолжишь', onClick: continueFrom },
+    { label: 'Подсказка для строк', icon: 'bulb', items: CUE_OPTIONS.map(cueItem) },
+    { label: allIn(focus) ? 'Не повторять чаще' : 'Повторять чаще', icon: 'star', onClick: () => patch(setFocus(poem, selArr, !allIn(focus))) },
+    { label: allIn(skip) ? 'Вернуть в учёбу' : 'Не учу эти строки', icon: 'x', hint: allIn(skip) ? undefined : 'останутся в тексте', onClick: () => patch(setSkip(poem, selArr, !allIn(skip))) }
+  ];
+  const topMenu: MenuItem[] = [
+    { label: 'С любого места', icon: 'repeat', hidden: done.length < 2, onClick: () => setJob({ kind: 'random', pool: done, span: 2 }) },
+    { label: 'Повторить отмеченное', icon: 'star', hidden: focus.size === 0, onClick: () => setJob({ kind: 'whole', idx: [...focus].filter((i) => !skip.has(i)).sort((a, b) => a - b), pick: 'Отмеченное ★' }) },
+    { label: speaking ? 'Остановить' : 'Послушать', icon: 'speaker', hidden: !canSpeak(), onClick: () => (speaking ? stopSpeaking() : speak(poem.text, 'ru-RU')) },
+    { label: 'Слова, которые не прячутся', icon: 'pen', onClick: () => setPinMode(true) },
+    { label: 'Настройки стиха', icon: 'sliders', hint: 'текст, части, шаги, срок', onClick: () => setJob('edit') }
+  ];
+
   return (
-    <div className="stack gap16 tab-pane poem-view">
+    <div className="stack gap12 tab-pane poem-view">
       <div className="row gap8 wrap">
         {!all ? (
           <button className="btn primary" disabled={!targets.length} onClick={() => setJob({ kind: 'learn', target: targets })}>
-            <Icon name="play" size={16} /> {done.length === 0 ? 'Начать учить' : `Учить дальше · осталось ${nLines(targets.length)}`}
+            <Icon name="play" size={16} /> {done.length === 0 ? 'Начать учить' : 'Учить дальше'}
           </button>
         ) : (
           <button className="btn primary" onClick={() => setJob({ kind: 'whole', idx: done })}>
@@ -179,33 +197,17 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
           </button>
         )}
         {!all && done.length > 0 && (
-          <button className="btn" onClick={() => setJob({ kind: 'whole', idx: done })} title="Проверить, что уже выучено">
-            <Icon name="mic" size={16} /> Рассказать выученное
+          <button className="btn" onClick={() => setJob({ kind: 'whole', idx: done })} title="Рассказать то, что уже выучено">
+            <Icon name="mic" size={16} /> Рассказать
           </button>
         )}
-        {done.length >= 2 && (
-          <button className="btn" onClick={() => setJob({ kind: 'random', pool: done, span: 2 })} title="Мнема показывает строку — продолжаешь с этого места">
-            <Icon name="repeat" size={16} /> С любого места
-          </button>
-        )}
-        {focus.size > 0 && (
-          <button className="btn" onClick={() => setJob({ kind: 'whole', idx: [...focus].filter((i) => !skip.has(i)).sort((a, b) => a - b), pick: 'Отмеченное ★' })} title="Рассказать строки, которые ты отметил «повторять чаще»">
-            <Icon name="star" size={16} /> Повторить отмеченное
-          </button>
-        )}
-        {canSpeak() && <ListenBtn className="btn" text={poem.text} title="Мнема прочитает стих вслух" />}
         <span className="grow" />
-        <button className="icon-btn bordered" aria-label="Изменить стих" title="Текст, размер частей, шаги учёбы, срок" onClick={() => setJob('edit')}>
-          <Icon name="sliders" size={18} />
-        </button>
+        <MoreMenu items={topMenu} title="Ещё" />
       </div>
 
       <div className="small muted poem-status">
         {all ? 'Выучен целиком' : `Выучено ${done.length} из ${nLines(active.length)}`}
-        {skip.size > 0 && ` · не учу: ${skip.size}`}
         {poem.review && all && (poem.review.due <= today ? ' · пора повторить' : ` · повторить ${fmtDay(poem.review.due)}`)}
-        {last && ` · в прошлый раз ${Math.round(last.acc * 100)}%`}
-        {hard.size > 0 && ` · трудных строк: ${hard.size}`}
       </div>
       {plan && !all && (
         <div className="small poem-plan">
@@ -213,85 +215,42 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
             ? `Срок (${fmtDay(poem.deadline!)}) прошёл — осталось ${nLines(plan.left)}.`
             : plan.days === 0
               ? `Срок — сегодня: осталось ${nLines(plan.left)}.`
-              : `К ${fmtDay(poem.deadline!)} — ${plan.days} ${plural(plan.days, 'день', 'дня', 'дней')}: осталось ${nLines(plan.left)}, примерно по ${plan.perDay} в день.`}
+              : `К ${fmtDay(poem.deadline!)}: осталось ${nLines(plan.left)}, примерно по ${plan.perDay} в день.`}
         </div>
       )}
 
       {pinMode ? (
         <div className="poem-bar">
-          <span className="small">Нажимай на слова: <b>всегда открытое</b> слово не прячется, когда ты рассказываешь по памяти. Ещё раз — вернуть как было.</span>
-          <div className="row gap8 wrap">
-            <button className="btn small primary" onClick={() => setPinMode(false)}>
-              <Icon name="check" size={14} /> Готово
-            </button>
+          <span className="small">Нажимай на слова, которые должны быть всегда видны, когда рассказываешь по памяти.</span>
+          <span className="row gap8">
             {(poem.pinWords?.length ?? 0) > 0 && (
               <button className="btn small ghost" onClick={() => patch({ pinWords: undefined })}>
-                Закрыть все слова
+                Сбросить
               </button>
             )}
-          </div>
-        </div>
-      ) : selArr.length > 0 ? (
-        <div className="poem-bar" role="toolbar" aria-label="Что сделать с выбранными строками">
-          <div className="row between gap8 wrap">
-            <strong className="small">Выбрано: {nLines(selArr.length)}</strong>
-            <span className="row gap8">
-              <button className="btn small ghost" onClick={() => setSel(new Set(lines.map((_, i) => i)))}>
-                Все
-              </button>
-              <button className="btn small ghost" onClick={() => (setSel(new Set()), setAnchor(null))}>
-                Снять
-              </button>
-            </span>
-          </div>
-          <div className="poem-bar-row">
-            <span className="small muted">Сделать:</span>
-            <button className="btn small primary" disabled={!selActive.length} onClick={() => setJob({ kind: 'learn', target: selActive })} title="Учить только выбранные строки">
-              Учить выбранное
-            </button>
-            <button className="btn small" onClick={learnFrom} title="Начать с первой выбранной строки и идти до конца">
-              Начать с этой строки
-            </button>
-            <button className="btn small" disabled={!selActive.length} onClick={() => setJob({ kind: 'whole', idx: selActive, pick: 'Выбранное' })}>
-              Рассказать
-            </button>
-            <button className="btn small" disabled={!selActive.length} onClick={continueFrom} title="Мнема покажет выбранную строку — ты продолжишь дальше">
-              Продолжить с неё
-            </button>
-          </div>
-          <div className="poem-bar-row">
-            <span className="small muted">Отметить:</span>
-            <button className={'chip-btn small' + (allIn(known) ? ' on' : '')} onClick={() => patch(setKnown(poem, selArr, !allIn(known)))} title="Уже знаю — тренажёр эти строки пропустит, но в пересказе они будут">
-              {allIn(known) ? 'Ещё учу' : 'Уже знаю'}
-            </button>
-            <button className={'chip-btn small' + (allIn(skip) ? ' on' : '')} onClick={() => patch(setSkip(poem, selArr, !allIn(skip)))} title="Не учу — строка остаётся в тексте, но в тренировку не попадает">
-              {allIn(skip) ? 'Вернуть в учёбу' : 'Не учу'}
-            </button>
-            <button className={'chip-btn small' + (allIn(focus) ? ' on' : '')} onClick={() => patch(setFocus(poem, selArr, !allIn(focus)))} title="Повторять чаще — такие строки чаще попадаются в «С любого места»">
-              <Icon name="star" size={13} /> Повторять чаще
-            </button>
-          </div>
-          <div className="poem-bar-row">
-            <span className="small muted">Подсказка:</span>
-            {CUE_OPTIONS.map((o) => (
-              <button key={o.value} className={'chip-btn small' + (cueNow === o.value ? ' on' : '')} onClick={() => patch(setCue(poem, selArr, o.value === 'auto' ? null : (Number(o.value) as 0 | 1 | 2)))}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="poem-bar quiet">
-          <span className="small muted">Нажимай на строки — выбери, какие учить, повторять и как подсказывать. Нажми на номер части — выберется вся часть.</span>
-          <span className="row gap8 wrap">
-            <button className="btn small ghost" onClick={() => setSel(new Set(lines.map((_, i) => i)))}>
-              Выбрать всё
-            </button>
-            <button className="btn small ghost" onClick={() => setPinMode(true)} title="Слова, которые никогда не прячутся при рассказе по памяти">
-              Слова-подсказки{(poem.pinWords?.length ?? 0) > 0 ? ` · ${poem.pinWords!.length}` : ''}
+            <button className="btn small primary" onClick={() => setPinMode(false)}>
+              Готово
             </button>
           </span>
         </div>
+      ) : (
+        selArr.length > 0 && (
+          <div className="poem-bar" role="toolbar" aria-label="Что сделать с выбранными строками">
+            <strong className="small">Выбрано: {selArr.length}</strong>
+            <span className="row gap8 wrap">
+              <button className="btn small primary" disabled={!selActive.length} onClick={() => setJob({ kind: 'learn', target: selActive })}>
+                Учить
+              </button>
+              <button className={'btn small' + (allIn(known) ? ' on' : '')} onClick={() => patch(setKnown(poem, selArr, !allIn(known)))} title="Тренажёр такие строки пропустит">
+                {allIn(known) ? 'Ещё учу' : 'Уже знаю'}
+              </button>
+              <MoreMenu items={selMenu} title="Ещё с выбранными строками" />
+              <button className="icon-btn bordered" aria-label="Снять выбор" title="Снять выбор" onClick={() => (setSel(new Set()), setAnchor(null))}>
+                <Icon name="x" size={16} />
+              </button>
+            </span>
+          </div>
+        )
       )}
 
       <div className="poem-card">
@@ -317,7 +276,6 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
                   const badges = (
                     <span className="pl-badges">
                       {poem.lineCue?.[li] !== undefined && <span className="pl-tag">{CUE_TAG[poem.lineCue[li]]}</span>}
-                      {skip.has(li) && <span className="pl-tag">не учу</span>}
                       {focus.has(li) && <span className="pl-star" title="Повторять чаще"><Icon name="star" size={13} /></span>}
                       {known.has(li) && !skip.has(li) && <span className="pl-ok" title="Выучено"><Icon name="check" size={13} /></span>}
                     </span>
@@ -353,9 +311,7 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
           );
         })}
       </div>
-      <p className="small muted poem-how">
-        Как учим: стих делится на части. Каждую — вслух, пока подсказки исчезают: весь текст → половина слов → первые буквы → по памяти, потом вместе с предыдущими. Какие строки учить, с какой начать, что уже знаешь и как подсказывать — решаешь ты (и шаги учёбы можно поменять в настройках стиха). Выученный стих Мнема напомнит повторить через 1, 3, 7… дней. Хорошо учить вечером и повторить утром — во сне память закрепляется.
-      </p>
+      {!pinMode && selArr.length === 0 && <p className="small muted poem-how">Нажми на строку (или на номер части) — выберешь, что с ней делать: учить, отметить «уже знаю», начать с неё.</p>}
     </div>
   );
 }
@@ -377,6 +333,8 @@ function PoemEditor({ topicId, poem, onDone, onDeleted }: { topicId: string; poe
   const [steps, setSteps] = useState<Set<string>>(new Set(poem.steps ?? ['read', 'half', 'letters', 'together']));
   const [win, setWin] = useState(String(togetherWindow(poem)));
   const [deadline, setDeadline] = useState(poem.deadline ?? '');
+  const customised = steps.size !== 4 || Number(win) !== 4 || !!poem.deadline;
+  const [more, setMore] = useState(customised);
   const effChunk = chunk === 'auto' ? autoChunk(text) : Number(chunk);
   const parts = poemParts(text, effChunk);
   const lines = poemLines(text);
@@ -436,41 +394,48 @@ function PoemEditor({ topicId, poem, onDone, onDeleted }: { topicId: string; poe
         />
         <span className="small muted">
           {lines.length ? `${nLines(lines.length)} → ${parts.length} ${plural(parts.length, 'часть', 'части', 'частей')}. ` : ''}
-          Маленькие части легче. Для длинных строк или если учится трудно — по 2 строки. Размер частей можно менять в любой момент — выученное не пропадёт.
+          Маленькие части легче. Размер можно менять в любой момент — выученное не пропадёт.
         </span>
       </div>
-      <div className="field">
-        <span>Шаги при учёбе</span>
-        <div className="row gap8 wrap">
-          {STEP_LABELS.map((s) => (
-            <button key={s.id} type="button" className={'chip-btn' + (steps.has(s.id) ? ' on' : '')} aria-pressed={steps.has(s.id)} onClick={() => setSteps((cur) => new Set(cur.has(s.id) ? [...cur].filter((x) => x !== s.id) : [...cur, s.id]))}>
-              {s.label}
-            </button>
-          ))}
-          <span className="chip-btn on static" aria-hidden>
-            По памяти — всегда
-          </span>
-        </div>
-        <span className="small muted">Знаешь стих наполовину — убери «Прочитать» и «Половину слов». Трудный — оставь всё.</span>
-      </div>
-      {steps.has('together') && (
+      <button type="button" className="btn ghost small poem-more" aria-expanded={more} onClick={() => setMore(!more)}>
+        {more ? 'Скрыть дополнительное' : 'Дополнительно: шаги учёбы, срок'}
+      </button>
+      {more && (
+        <div className="stack gap12 poem-adv">
         <div className="field">
-          <span>«Вместе с прошлыми» — сколько прошлых частей добавлять</span>
-          <Segmented ariaLabel="Сколько частей вместе" value={win} onChange={setWin} options={[{ value: '1', label: '1' }, { value: '2', label: '2' }, { value: '4', label: '4' }, { value: '8', label: '8' }]} />
+          <span>Шаги при учёбе</span>
+          <div className="row gap8 wrap">
+            {STEP_LABELS.map((s) => (
+              <button key={s.id} type="button" className={'chip-btn' + (steps.has(s.id) ? ' on' : '')} aria-pressed={steps.has(s.id)} onClick={() => setSteps((cur) => new Set(cur.has(s.id) ? [...cur].filter((x) => x !== s.id) : [...cur, s.id]))}>
+                {s.label}
+              </button>
+            ))}
+            <span className="chip-btn on static" aria-hidden>
+              По памяти — всегда
+            </span>
+          </div>
+          <span className="small muted">Стих уже наполовину знаешь — убери «Прочитать» и «Половина слов».</span>
+        </div>
+        {steps.has('together') && (
+          <div className="field">
+            <span>«Вместе с прошлыми» — сколько прошлых частей добавлять</span>
+            <Segmented ariaLabel="Сколько частей вместе" value={win} onChange={setWin} options={[{ value: '1', label: '1' }, { value: '2', label: '2' }, { value: '4', label: '4' }, { value: '8', label: '8' }]} />
+          </div>
+        )}
+        <div className="field">
+          <span>Выучить к дате (необязательно)</span>
+          <div className="row gap8 wrap">
+            <input className="input" type="date" min="2000-01-01" max="2100-12-31" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Выучить к дате" />
+            {deadline && (
+              <button type="button" className="btn ghost small" onClick={() => setDeadline('')}>
+                Убрать срок
+              </button>
+            )}
+          </div>
+          <span className="small muted">Мнема подскажет, сколько строк в день.</span>
+        </div>
         </div>
       )}
-      <div className="field">
-        <span>Выучить к дате (необязательно)</span>
-        <div className="row gap8 wrap">
-          <input className="input" type="date" min="2000-01-01" max="2100-12-31" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Выучить к дате" />
-          {deadline && (
-            <button type="button" className="btn ghost small" onClick={() => setDeadline('')}>
-              Убрать срок
-            </button>
-          )}
-        </div>
-        <span className="small muted">Мнема подскажет, сколько строк в день, и не отложит повтор позже этого срока.</span>
-      </div>
       {textChanged && hasProgress && <div className="hint warn small">Текст изменился: выученное и твои отметки сохранятся для строк, которые остались прежними.</div>}
       <div className="row gap8 wrap">
         <button className="btn primary" type="submit" disabled={!text.trim()}>
@@ -707,17 +672,6 @@ function Recall({ poem, idx, title, hint, onPass, onRetry, retryLabel = 'Ещё 
             )}
             <button className="btn ghost small" disabled={!plan.hidden.length} onClick={() => open(plan.hidden[0])} title="Открыть следующее слово (или нажми на нужное слово сам)">
               Подсказка{opened.size ? ` · ${opened.size}` : ''}
-            </button>
-            <button
-              className="btn ghost small"
-              disabled={!plan.hidden.length}
-              title="Открыть следующую строку целиком"
-              onClick={() => {
-                const row = plan.rows.find((r) => r.words.some((w) => w.state === 'hidden'));
-                if (row) open(...row.words.filter((w) => w.state === 'hidden').map((w) => w.key));
-              }}
-            >
-              Строку
             </button>
           </>
         )}

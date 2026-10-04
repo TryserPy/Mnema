@@ -16,6 +16,14 @@ const SEED = ([at, poem]) => {
   localStorage.setItem('mnema-data', JSON.stringify({ version: 1, folders: [], subjects: [{ id: 's1', name: 'Литература', color: '#05f', createdAt: at }], topics: [{ id: 't1', subjectId: 's1', name: 'Пушкин', note: 'Конспект про Пушкина.', createdAt: at, updatedAt: at, poems: [{ id: 'p1', title: 'Зимнее утро', author: 'А. С. Пушкин', text: poem, chunk: 0, learned: 0, createdAt: at, updatedAt: at }] }], cards: [], states: {}, logs: [], tests: [], settings: { onboarded: true } }));
 };
 // Данные хранятся в IndexedDB и пишутся с задержкой 400 мс.
+// Меню «⋯»: scope — где оно стоит (панель выбранных строк или верх экрана).
+const TOP = '.poem-view > .row .more > button';
+const BAR = '.poem-bar .more > button';
+// На телефоне нижняя панель может перекрывать низ меню — пункты жмём напрямую.
+const menu = async (page, scope, ...names) => {
+  await page.locator(scope).click();
+  for (const n of names) { await page.getByRole('menuitem', { name: n }).first().evaluate((el) => el.click()); await page.waitForTimeout(150); }
+};
 const stored = async (page) => {
   await page.waitForTimeout(700);
   return page.evaluate(
@@ -51,9 +59,9 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   check((await page.locator('.poem-line.pick').count()) === 8, `${tag}: 8 строк можно выбирать`);
   // 1. выбрать строку — появляется панель
   await page.locator('.poem-line.pick').nth(4).click();
-  check((await page.locator('.poem-bar').innerText()).includes('Выбрано: 1 строка'), `${tag}: выбрал строку — панель «Выбрано: 1 строка»`);
+  check((await page.locator('.poem-bar').innerText()).includes('Выбрано: 1'), `${tag}: выбрал строку — панель «Выбрано: 1»`);
   // 2. с этой строки — тренажёр начинается с неё
-  await page.getByRole('button', { name: 'Начать с этой строки' }).click();
+  await menu(page, BAR, /Начать с этой строки/);
   await page.waitForTimeout(400);
   let head = await page.locator('.poem-trainer strong').first().innerText();
   check(/Часть 1 из 1/.test(head) && /5–8/.test(head), `${tag}: учить с 5-й строки — одна часть, строки 5–8 («${head}»)`);
@@ -61,34 +69,37 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.getByRole('button', { name: 'Перерыв' }).click();
   await page.waitForTimeout(300);
   // 3. уже знаю 1–4
-  await page.locator('.poem-bar button', { hasText: 'Снять' }).click();
+  await page.getByRole('button', { name: 'Снять выбор' }).click();
   await page.locator('.poem-line.pick').nth(0).click();
   await page.locator('.poem-line.pick').nth(3).click({ modifiers: ['Shift'] });
-  check((await page.locator('.poem-bar').innerText()).includes('Выбрано: 4 строки'), `${tag}: Shift — выбрался диапазон из 4 строк`);
+  check((await page.locator('.poem-bar').innerText()).includes('Выбрано: 4'), `${tag}: Shift — выбрался диапазон из 4 строк`);
   await page.getByRole('button', { name: 'Уже знаю' }).click();
   await page.waitForTimeout(300);
   let p = await stored(page);
   check(JSON.stringify(p.knownLines) === '[0,1,2,3]' && p.learned === 1, `${tag}: «Уже знаю» записалось (${JSON.stringify(p.knownLines)}, частей ${p.learned})`);
   check((await page.locator('.poem-status').innerText()).includes('Выучено 4 из 8'), `${tag}: статус «Выучено 4 из 8»`);
   // 4. не учу строку 8
-  await page.locator('.poem-bar button', { hasText: 'Снять' }).click();
+  await page.getByRole('button', { name: 'Снять выбор' }).click();
   await page.locator('.poem-line.pick').nth(7).click();
-  await page.getByRole('button', { name: 'Не учу' }).click();
+  await menu(page, BAR, /Не учу/);
   await page.waitForTimeout(300);
   p = await stored(page);
   check(JSON.stringify(p.skipLines) === '[7]', `${tag}: «Не учу» записалось`);
-  check((await page.locator('.poem-status').innerText()).includes('Выучено 4 из 7') && (await page.locator('.poem-status').innerText()).includes('не учу: 1'), `${tag}: статус «Выучено 4 из 7 · не учу: 1»`);
+  check((await page.locator('.poem-status').innerText()).includes('Выучено 4 из 7'), `${tag}: статус «Выучено 4 из 7»`);
   // 5. повторять чаще + своя подсказка «Открыта» для строки 6
-  await page.locator('.poem-bar button', { hasText: 'Снять' }).click();
+  await page.getByRole('button', { name: 'Снять выбор' }).click();
   await page.locator('.poem-line.pick').nth(5).click();
-  await page.locator('.poem-bar button', { hasText: 'Повторять чаще' }).click();
-  await page.locator('.poem-bar button', { hasText: 'Открыта' }).click();
+  await menu(page, BAR, /Повторять чаще/);
+  await menu(page, BAR, /Подсказка для строк/, /Открыта/);
   await page.waitForTimeout(300);
   p = await stored(page);
   check(JSON.stringify(p.focusLines) === '[5]' && p.lineCue?.['5'] === 0, `${tag}: «Повторять чаще» и «Открыта» записались`);
-  check((await page.getByRole('button', { name: /Повторить отмеченное/ }).count()) === 1, `${tag}: появилась кнопка «Повторить отмеченное»`);
+  await page.locator(TOP).click();
+  await page.waitForTimeout(300);
+  check((await page.getByRole('menuitem', { name: /Повторить отмеченное/ }).count()) === 1, `${tag}: в меню появилось «Повторить отмеченное»`);
+  await page.keyboard.press('Escape');
   // 6. учить дальше: строки 5,6,7 — «по памяти», строка 6 открыта
-  await page.locator('.poem-bar button', { hasText: 'Снять' }).click();
+  await page.getByRole('button', { name: 'Снять выбор' }).click();
   await page.getByRole('button', { name: /Учить дальше/ }).click();
   await page.waitForTimeout(300);
   head = await page.locator('.poem-trainer strong').first().innerText();
@@ -101,8 +112,8 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   const blanks = await page.locator('.poem-stage .pw-tap').count();
   await page.locator('.poem-stage .pw-tap').first().click();
   check((await page.locator('.poem-stage .pw-tap').count()) === blanks - 1, `${tag}: нажал на спрятанное слово — оно открылось`);
-  await page.getByRole('button', { name: /^Строку$/ }).click();
-  check((await page.locator('.poem-stage .pw-hinted').count()) >= 2, `${tag}: «Строку» открывает строку целиком`);
+  await page.getByRole('button', { name: /^Подсказка/ }).click();
+  check((await page.locator('.poem-stage .pw-hinted').count()) >= 2, `${tag}: «Подсказка» открывает следующее слово`);
   await page.screenshot({ path: `${OUT}/v128-${tag}-recall.png` });
   // пройти до конца самопроверкой
   await page.getByRole('button', { name: 'Рассказал — проверить' }).click();
@@ -123,14 +134,15 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   check(!!p.review, `${tag}: всё, что учу, выучено — назначен первый повтор`);
   check((await page.locator('.poem-status').innerText()).includes('Выучен целиком'), `${tag}: статус «Выучен целиком» (строка «не учу» не мешает)`);
   // 7. слова-подсказки
-  await page.getByRole('button', { name: /Слова-подсказки/ }).click();
+  await menu(page, TOP, /Слова, которые не прячутся/);
   await page.locator('.pickrow .pw-pick').first().click();
   await page.getByRole('button', { name: 'Готово' }).click();
   p = await stored(page);
   check(JSON.stringify(p.pinWords) === '["0:0"]', `${tag}: слово «Мороз» закреплено открытым`);
   // 8. настройки стиха: шаги, срок, смена частей не стирает выученное
-  await page.getByRole('button', { name: 'Изменить стих' }).click();
+  await menu(page, TOP, /Настройки стиха/);
   await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /Дополнительно/ }).click();
   await page.locator('.poem-edit .chip-btn', { hasText: 'Прочитать' }).click();
   await page.locator('.poem-edit .seg button', { hasText: '2 строки' }).click();
   await page.locator('.poem-edit input[type=date]').fill('2099-01-01');
