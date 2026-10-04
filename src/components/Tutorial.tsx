@@ -39,6 +39,8 @@ const anyModal = () => Boolean(q('.modal'));
 
 /** Крупные шаги — для полоски «Шаг N из 6». */
 const MAJORS = ['Предмет', 'Тема', 'Конспект', 'Карточка', 'Повторение', 'Готово'];
+/** Через сколько на одном шаге напомнить про «Пропустить шаг». */
+const STUCK_MS = 25000;
 const DONE_FLASH = ['Предмет создан', 'Тема создана', 'Конспект написан', 'Карточка готова', 'Повторение открыто'];
 
 interface Ctx {
@@ -47,13 +49,20 @@ interface Ctx {
   newSubjects: { id: string; name: string }[];
   newTopics: Topic[];
   noteTopic?: Topic;
+  /** Тема, где конспект уже начат, но ещё короче нужного, — чтобы подсказать «допиши», а не молчать. */
+  shortNoteTopic?: Topic;
   cardsNew: number;
 }
+
+/** Сколько знаков конспекта хватает, чтобы шаг засчитался: короткая запись «Клетка — основа жизни» тоже годится. */
+export const NOTE_MIN = 8;
+const noteLen = (t: Topic) => t.note.replace(/\s+/g, ' ').trim().length;
 
 function context(data: AppData, route: Route): Ctx {
   const newSubjects = data.subjects.filter((s) => !st.base.subjects.has(s.id));
   const newTopics = data.topics.filter((t) => !t.kind && !st.base.topics.has(t.id));
-  return { data, route, newSubjects, newTopics, noteTopic: newTopics.find((t) => t.note.trim().length >= 25), cardsNew: data.cards.filter((c) => !st.base.cards.has(c.id)).length };
+  const noteTopic = newTopics.find((t) => noteLen(t) >= NOTE_MIN);
+  return { data, route, newSubjects, newTopics, noteTopic, shortNoteTopic: noteTopic ? undefined : newTopics.find((t) => noteLen(t) > 0), cardsNew: data.cards.filter((c) => !st.base.cards.has(c.id)).length };
 }
 
 /** Какой крупный шаг сейчас: первый, который не сделан (и не пропущен). */
@@ -109,7 +118,12 @@ function stageOf(c: Ctx): Stage {
     case 2:
       if (!inOurTopic) return topic ? { major, text: <>Открой свою тему «{topic.name}» — в ней пишется конспект.</>, target: anyModal() ? q('.modal') : openTopicTarget(c, topic) } : { major, text: 'Открой любую тему — в ней пишется конспект.', target: byText('.tab', 'Знания') ?? byText('.sidebar .nav-item', 'Знания') };
       if (!q('.ProseMirror')) return { major, text: 'Открой вкладку «Конспект».', target: byText('.topic-tabs [role="tab"], .topic-tabs button', 'Конспект') };
-      return { major, text: 'Напиши в конспекте пару предложений своими словами — главное из темы.', hint: 'Не переписывай учебник: своими словами запоминается лучше.', target: q('.ProseMirror') };
+      return {
+        major,
+        text: 'Напиши в конспекте пару предложений своими словами — главное из темы.',
+        hint: c.shortNoteTopic ? 'Почти! Допиши ещё пару слов — и пойдём дальше.' : 'Не переписывай учебник: своими словами запоминается лучше.',
+        target: q('.ProseMirror')
+      };
     case 3:
       if (anyModal()) return { major, text: 'Заполни вопрос и ответ и нажми «Сохранить».', target: q('.modal') };
       if (!inOurTopic) return topic ? { major, text: <>Вернись в тему «{topic.name}» — карточку делают из конспекта.</>, target: openTopicTarget(c, topic) } : { major, text: 'Открой тему с конспектом.', target: byText('.tab', 'Знания') };
@@ -117,6 +131,8 @@ function stageOf(c: Ctx): Stage {
       return { major, text: <>Сделай карточку: {selHow('В карточку')}.</>, hint: 'Одна карточка — один факт.', target: q('.ProseMirror') };
     case 4:
       if (anyModal()) return { major, text: 'Закрой это окно — и вернёмся к повторению.', target: q('.modal') };
+      // Нажимать нечего (на сегодня ничего не назначено) — не оставляем человека с мёртвой кнопкой.
+      if (c.route.name === 'today' && (q('.hero-btn') as HTMLButtonElement | null)?.disabled) return { major, text: 'Сегодня повторять пока нечего — так бывает. Нажми «Пропустить шаг», чтобы закончить знакомство.', target: null };
       return { major, text: 'Теперь повторение. Вернись на «Сегодня» и нажми «Учиться».', target: c.route.name === 'today' ? q('.hero-btn') : (byText('.tab', 'Учусь') ?? byText('.sidebar .nav-item', 'Сегодня')) };
     default:
       return { major: 5, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Мнема сама решит, когда показать карточку снова.', target: null };
@@ -133,6 +149,8 @@ function closeModals() {
 /** «Пропустить шаг»: сделать его за человека, чтобы следующий шаг было на чём делать. */
 function doStep(major: number, c: Ctx, go: (r: Route) => void) {
   closeModals();
+  // Шаг считаем пройденным сразу — не дожидаясь, что приложение «заметит» созданное: кнопка не должна подвести.
+  if (!st.skipped.includes(major)) setSt({ skipped: [...st.skipped, major] });
   const d = getData();
   const subject = c.newSubjects[c.newSubjects.length - 1] ?? d.subjects[0];
   const ensureSubject = () => subject ?? addSubject('Биология', '#2BA36B');
@@ -200,6 +218,7 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
   const [rect, setRect] = useState<Rect | null>(null);
   const [flash, setFlash] = useState('');
   const prevMajor = useRef(0);
+  const since = useRef({ major: -1, at: 0 }); // когда пришли на текущий шаг: если долго стоим — подсказываем про «Пропустить шаг»
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Раз в четверть секунды смотрим на экран: окно закрыли? тему удалили? куда подсвечивать?
@@ -233,6 +252,8 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
   }, [tick, data, route, s]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!s.active || !stage) return null;
+  if (since.current.major !== stage.major) since.current = { major: stage.major, at: Date.now() };
+  const stuck = stage.major < MAJORS.length - 1 && Date.now() - since.current.at > STUCK_MS;
   const finish = (completed: boolean) => {
     setSt({ active: false });
     setRect(null);
@@ -256,6 +277,7 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
         {flash && <p className="tut-flash">{flash}</p>}
         <p className="tut-text">{stage.text}</p>
         {stage.hint && <p className="small muted tut-hint">{stage.hint}</p>}
+        {stuck && <p className="small muted tut-hint">Не получается или шаг не засчитывается? Нажми «Пропустить шаг» — Мнема сделает его за тебя.</p>}
         <div className="tut-btns">
           <span className="row gap6">
             <button className="btn ghost small" onClick={() => finish(false)}>

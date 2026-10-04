@@ -3,7 +3,7 @@
 // и применяет одним нажатием (с кнопкой «Вернуть»). Всё находится по названиям, а не по внутренним номерам,
 // поэтому такой файл легко написать руками или попросить у любой нейросети.
 import { looksLikeMnemaText, MNEMA_TEXT_GUIDE, parseMnemaText, splitDash, toMnemaText } from './mnemaText';
-import { autoChunk } from './poem';
+import { autoChunk, learnedCount, remapPatch } from './poem';
 import { noteEdit } from './noteText';
 import { validExamDate } from './safeData';
 import { itemKey, itemOrds } from './srs';
@@ -542,10 +542,15 @@ export function planChanges(src: AppData, pack: ChangePack, env: PlanEnv = {}): 
         const old = poems.find((p) => norm(p.title) === norm(t2));
         if (old) {
           const patch: Partial<Poem> = { ...(str(c.author) !== undefined && (str(c.author) || undefined) !== old.author ? { author: str(c.author) || undefined } : {}), ...(str(c.rename) && str(c.rename) !== old.title ? { title: str(c.rename) } : {}) };
-          if (text && text !== old.text.trim()) Object.assign(patch, { text, chunk: autoChunk(text), learned: 0, lineMiss: [], review: undefined });
+          if (text && text !== old.text.trim()) {
+            // Выученное и личные отметки остаются за теми строками, которые в новом тексте прежние.
+            const chunk = autoChunk(text);
+            const kept = remapPatch(old, text);
+            Object.assign(patch, { text, chunk, ...kept, learned: learnedCount({ ...old, ...kept, text, chunk }) });
+          }
           if (Object.keys(patch).length) {
             setTopic(topic.id, { poems: poems.map((p) => (p.id === old.id ? { ...p, ...patch, updatedAt: stamp } : p)) });
-            edit(`Стихотворение ${q(old.title)}${patch.text ? ' — новый текст (учить заново)' : ''}`);
+            edit(`Стихотворение ${q(old.title)}${patch.text ? ' — новый текст (выученное сохранено для прежних строк)' : ''}`);
           }
         } else {
           if (!text) {

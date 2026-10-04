@@ -68,7 +68,8 @@ export function cloneTopics(d: AppData, rootIds: string[], target: { subjectId: 
       updatedAt: stamp
     };
     if (t.lists) copy.lists = t.lists.map((l) => ({ ...l, id: listMap.get(l.id)! }));
-    if (t.poems) copy.poems = t.poems.map((p) => ({ id: poemMap.get(p.id)!, title: p.title, author: p.author, text: p.text, chunk: p.chunk, learned: 0, createdAt: stamp, updatedAt: stamp }));
+    // Копия начинает с нуля (прогресса нет), но личные настройки — какие строки не учу, подсказки, шаги, срок — переезжают.
+    if (t.poems) copy.poems = t.poems.map((p) => ({ id: poemMap.get(p.id)!, title: p.title, author: p.author, text: p.text, chunk: p.chunk, learned: 0, skipLines: p.skipLines, focusLines: p.focusLines, lineCue: p.lineCue, pinWords: p.pinWords, steps: p.steps, window: p.window, deadline: p.deadline, createdAt: stamp, updatedAt: stamp }));
     if (t.tabOrder) copy.tabOrder = t.tabOrder.map((x) => (x.startsWith('list:') ? 'list:' + (listMap.get(x.slice(5)) ?? x.slice(5)) : x.startsWith('poem:') ? 'poem:' + (poemMap.get(x.slice(5)) ?? x.slice(5)) : x));
     if (copy.pages) copy.pages = copy.pages.map((p) => ({ ...p }));
     delete copy.examDate; // дата контрольной — у оригинала, копия её не наследует
