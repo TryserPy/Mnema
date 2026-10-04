@@ -134,7 +134,7 @@ function makeApi(p: PluginRec) {
   return {
     id: p.id,
     version: '1.5',
-    platform: window.mnemaApi?.platform ?? 'browser',
+    platform: window.mnemaApi?.platform === 'web' ? 'browser' : (window.mnemaApi?.platform ?? 'browser'), // в документации модов браузер — "browser"
     commands: {
       add(c: { id: string; name: string; hotkey?: string; run: () => void }) {
         reg.commands.push({ ...c, id: p.id + ':' + c.id, plugin: p.id });

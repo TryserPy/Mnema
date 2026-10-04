@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { mnemaWeb } from './web/vite-plugin';
 
 const require = createRequire(import.meta.url);
 
@@ -19,9 +20,10 @@ function sqlWasm(): Plugin {
   };
 }
 
-export default defineConfig({
+// `vite build --mode web` — версия для браузера и PWA (npm run build:web); без mode — для Windows и Android.
+export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [react(), sqlWasm()],
-  build: { outDir: 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1500 },
+  plugins: [react(), sqlWasm(), ...(mode === 'web' ? [mnemaWeb()] : [])],
+  build: { outDir: mode === 'web' ? 'dist-web' : 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1500 },
   test: { environment: 'node' }
-} as any);
+})) as any;

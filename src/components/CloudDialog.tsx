@@ -59,6 +59,7 @@ export function CloudDialog({ onClose }: { onClose: () => void }) {
     <Modal title="Облачная копия" onClose={onClose} width={560} sticky={busy}>
       <div className="stack gap12">
         <p className="small muted">Мнема хранит копию в твоём облаке и объединяет её с данными на каждом устройстве. Так и телефон, и компьютер всегда будут с одинаковыми карточками — даже без общей сети Wi-Fi.</p>
+        {api.platform === 'web' && <p className="hint small">В браузере облако работает только с серверами, которые разрешают доступ с других сайтов (CORS), — например, с Nextcloud, где это включено. Если облако не отвечает, скорее всего, оно такого доступа не даёт: тогда используй приложение для Windows или Android.</p>}
         <label className="field">
           <span>Облако</span>
           <select className="input" value={preset.name} onChange={(e) => set({ url: PRESETS.find((p) => p.name === e.target.value)!.url })}>

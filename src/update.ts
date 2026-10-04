@@ -46,6 +46,7 @@ export async function checkUpdate(): Promise<UpdateInfo> {
   const { owner, repo } = UPDATE_REPO;
   const api = window.mnemaApi;
   updateSettings({ update: { ...getData().settings.update, lastCheck: new Date().toISOString() } });
+  if (api?.platform === 'web') return { ok: false, error: 'Веб-версия обновляется сама: новая версия подтягивается при открытии' };
   if (api?.updateCheck) {
     const r = await api.updateCheck({ owner, repo });
     return { ok: r.ok, error: r.error, latest: r.latest, available: Boolean(r.available), notes: r.notes };
@@ -69,6 +70,6 @@ export async function checkUpdate(): Promise<UpdateInfo> {
 /** Проверять не чаще раза в сутки. */
 export function dueForAutoCheck(): boolean {
   const u = getData().settings.update;
-  if (!u.auto || !window.mnemaApi) return false; // в обычном браузере обновлять нечего
+  if (!u.auto || !window.mnemaApi || window.mnemaApi.platform === 'web') return false; // в браузере обновлять нечего: версию приносит сам сайт
   return !u.lastCheck || Date.now() - Date.parse(u.lastCheck) > 20 * 3600_000;
 }

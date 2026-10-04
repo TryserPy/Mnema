@@ -7,7 +7,7 @@ import { assemble, recognizeOffline, recognizeWithAi, recropFigure, type Box, ty
 import type { PagePhoto } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { Markdown } from './Markdown';
-import { Icon, Modal, plural, Segmented, AnimText } from './ui';
+import { Icon, Modal, plural, Segmented, AnimText, touchUI } from './ui';
 
 type Step = 'pages' | 'reading' | 'review';
 let uidN = 0;
@@ -44,7 +44,8 @@ export function TextbookImport({
   const [editText, setEditText] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [camera, setCamera] = useState(false);
-  const hasCamera = Boolean(navigator.mediaDevices?.getUserMedia) && window.mnemaApi?.platform === 'android';
+  const phoneLike = window.mnemaApi?.platform === 'android' || (window.mnemaApi?.platform === 'web' && touchUI());
+  const hasCamera = Boolean(navigator.mediaDevices?.getUserMedia) && phoneLike;
   const inputRef = useRef<HTMLInputElement>(null);
   const cancelRef = useRef(false);
 
@@ -156,7 +157,7 @@ export function TextbookImport({
               <button className="tb-empty" onClick={() => inputRef.current?.click()}>
                 <Icon name="book" size={40} />
                 <strong>Выбери фото страниц</strong>
-                <span className="muted">{window.mnemaApi?.platform === 'android' ? 'из галереи или файлов телефона.' : 'или перетащи их сюда, или вставь Ctrl+V.'} Снимай страницу целиком, ровно и при хорошем свете.</span>
+                <span className="muted">{phoneLike ? 'из галереи или файлов телефона.' : 'или перетащи их сюда, или вставь Ctrl+V.'} Снимай страницу целиком, ровно и при хорошем свете.</span>
               </button>
               {hasCamera && (
                 <button className="btn big" onClick={() => setCamera(true)}>

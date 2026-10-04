@@ -9,8 +9,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:web": "tsc --noEmit && vite build --mode web",
     "test": "vitest run",
     "preview": "vite preview",
+    "preview:web": "vite preview --mode web --outDir dist-web",
     "dist": "npm run build && electron-builder --win --x64"
   },
   "devDependencies": {
