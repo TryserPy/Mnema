@@ -210,8 +210,8 @@ await step('simple buttons + focus', async () => {
   await page.locator('.tree-row .tree-label', { hasText: 'История' }).click();
   await page.locator('.topic-row').first().click();
   await page.getByRole('button', { name: 'Действия с темой' }).click();
-  await page.getByRole('menuitem', { name: /Проверить себя/ }).click();
-  await page.getByRole('menuitem', { name: /Повторить всю тему/ }).click();
+  await page.getByRole('menuitem', { name: /Повторить ещё раз/ }).click();
+  await page.getByRole('button', { name: /^Начать/ }).click();
   await page.getByRole('button', { name: 'Показать ответ' }).click();
   await shot('21-simple-buttons');
 });

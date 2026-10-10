@@ -10,6 +10,8 @@ import { Icon, Modal, AnimText, touchUI } from '../components/ui';
 import { checkNumber } from '../problems';
 import { compareSpoken, startVoice, voiceSupported, type VoiceSession } from '../voice';
 import { buildSession } from '../session';
+import { buildRepeatQueue, REPEAT_TEXT } from '../repeat';
+import { openRepeatDialog, repeatAtOf } from '../components/RepeatDialog';
 import '../session.css';
 import { buildPrompt, buildQueue, cardLapses, checkTyped, formatInterval, GRADES, MINUTE, previewIntervals, type QueueItem } from '../srs';
 import { getData, markLeechSeen, recordReview, tagLastAnswer, updateCard, useData } from '../store';
@@ -36,14 +38,16 @@ function fmtClock(ms: number) {
 
 export function Review({ route, go }: { route: Extract<Route, { name: 'review' }>; go: (r: Route) => void }) {
   const data = useData();
-  const cram = Boolean(route.cram);
+  const cram = Boolean(route.cram || route.only); // «Повторить ещё раз» — всегда без изменения расписания
   const settings = data.settings;
   const initial = useMemo(
     () =>
       route.session
         ? buildSession(getData(), new Date(), route.session).items // «Учиться»: план на сегодня с учётом времени и пропущенных шагов
-        : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead) }).slice(0, route.limit ?? Infinity),
-    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session]
+        : route.only
+          ? buildRepeatQueue(getData(), new Date(), route.topicIds ? { topicIds: route.topicIds, cardIds: route.cardIds } : { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds }, route.only).slice(0, route.limit ?? Infinity) // «Повторить ещё раз»
+          : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead) }).slice(0, route.limit ?? Infinity),
+    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session, route.only, route.topicIds]
   );
   const [queue, setQueue] = useState<QueueItem[]>(initial.slice(1));
   const [waiting, setWaiting] = useState<Waiting[]>([]);
@@ -190,7 +194,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (blocked) return;
+      // Поверх повторения открыто окно (например, «Повторить ещё раз» на экране «Готово!»): клавиши — ему, а не повторению.
+      if (blocked || document.querySelector('.modal-back')) return;
       const inInput = typingTarget(e);
       if (matches(e, settings, 'exitReview') || e.key === 'Escape') {
         exitRef.current();
@@ -284,10 +289,15 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
 
   const remaining = queue.length + waiting.length + (current ? 1 : 0);
   const total = stats.done + remaining;
+  // Куда вернуться: туда, откуда запустили (тема, папка, предмет), а без места — на «Сегодня».
+  const back: Route = route.topicId ? { name: 'topic', id: route.topicId } : route.folderId ? { name: 'folder', id: route.folderId } : route.subjectId ? { name: 'subject', id: route.subjectId } : { name: 'today' };
   const exit = () => {
     if (route.mini) window.mnemaApi?.miniEnd?.();
-    go(route.topicId ? { name: 'topic', id: route.topicId } : { name: 'today' });
+    go(back);
   };
+  const mistakes = Object.keys(againByCard);
+  // «Повторить ещё раз» можно предложить, когда есть место, откуда его запустили (тема, предмет, папка) или это общий план дня.
+  const canRepeatMore = !cram && !route.mini && !route.cardIds;
   exitRef.current = exit;
 
   // Перерыв в фокус-режиме.
@@ -339,11 +349,26 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           )}
           <div className="row gap8">
             <button className="btn primary" onClick={exit}>
-              {route.mini ? 'Закрыть' : 'На главную'}
+              {route.mini ? 'Закрыть' : route.topicId ? 'На главную' : route.folderId ? 'К папке' : route.subjectId ? 'К предмету' : 'На главную'}
             </button>
-            {!cram && !route.mini && Object.keys(againByCard).length > 0 && (
-              <button className="btn" onClick={() => go({ name: 'review', cardIds: Object.keys(againByCard), ahead: true, run: Date.now() })}>
-                Повторить ошибки · {Object.keys(againByCard).length}
+            {!cram && !route.mini && mistakes.length > 0 && (
+              <button className="btn" onClick={() => go({ name: 'review', cardIds: mistakes, ahead: true, run: Date.now() })}>
+                Повторить ошибки · {mistakes.length}
+              </button>
+            )}
+            {cram && !route.mini && mistakes.length > 0 && (
+              <button className="btn" onClick={() => go({ name: 'review', topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, folderId: route.folderId, topicIds: route.topicIds, cardIds: mistakes, cram: true, only: route.topicIds ? 'all' : undefined, run: Date.now() })}>
+                Повторить ошибки · {mistakes.length}
+              </button>
+            )}
+            {cram && !route.mini && stats.done > 0 && (
+              <button className="btn" onClick={() => go({ ...route, run: Date.now() })} title="Ещё раз то же самое — в другом порядке">
+                <Icon name="repeat" size={16} /> Ещё круг
+              </button>
+            )}
+            {canRepeatMore && (
+              <button className="btn" onClick={() => openRepeatDialog(repeatAtOf(route))} title="Выбрать, что повторить ещё раз: сегодняшнее, всё начатое, слабые места…">
+                <Icon name="repeat" size={16} /> Повторить ещё раз
               </button>
             )}
             {route.topicId && (
@@ -384,6 +409,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           <span className="dot" style={{ background: subject?.color }} />
           <span>{topic?.name}</span>
           {cram && <span className="chip neutral">без изменения расписания</span>}
+          {route.only && !route.cardIds && <span className="chip neutral">{REPEAT_TEXT[route.only].short}</span>}
           {route.ahead && <span className="chip neutral">заранее — слабые места</span>}
         </div>
         <div className="q-row">

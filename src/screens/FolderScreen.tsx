@@ -2,7 +2,9 @@
 import { useState } from 'react';
 import { makeCopy } from '../components/copyUi';
 import { EditFolder } from '../components/SubjectDialogs';
+import { openRepeatDialog } from '../components/RepeatDialog';
 import { Icon, plural, SubjectMark } from '../components/ui';
+import { hasRepeatable } from '../repeat';
 import { todayCounts, topicMastery } from '../srs';
 import { childTopics, sortedSubjects, useData } from '../store';
 import type { Route } from '../types';
@@ -16,6 +18,7 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
   const now = new Date();
   const counts = subjects.length ? todayCounts(data, now, { subjectIds: subjects.map((s) => s.id) }) : { learning: 0, review: 0, newCount: 0 };
   const due = counts.learning + counts.review + counts.newCount;
+  const canRepeat = subjects.length > 0 && hasRepeatable(data, { subjectIds: subjects.map((s) => s.id) });
   return (
     <div className="page narrow">
       <div className="row between end-align gap12 wrap">
@@ -28,8 +31,13 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
         </div>
         <div className="row gap8">
           {due > 0 && (
-            <button className="btn primary" onClick={() => go({ name: 'review', subjectIds: subjects.map((s) => s.id) })}>
+            <button className="btn primary" onClick={() => go({ name: 'review', subjectIds: subjects.map((s) => s.id), folderId: id })}>
               <Icon name="play" size={16} /> Учить всю папку · {due}
+            </button>
+          )}
+          {canRepeat && (
+            <button className={'btn' + (due > 0 ? '' : ' primary')} onClick={() => openRepeatDialog({ folderId: id })} title={due > 0 ? 'Повторить ещё раз: повторённое сегодня, всё начатое, слабые места' : 'На сегодня всё повторено — можно повторить ещё раз'}>
+              <Icon name="repeat" size={16} /> Повторить ещё раз
             </button>
           )}
           <button className="btn ghost" onClick={() => makeCopy('folder', id, go)} title="Копия папки вместе со всеми предметами">

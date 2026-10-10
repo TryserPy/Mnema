@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark } from '../components/ui';
+import { openRepeatDialog } from '../components/RepeatDialog';
 import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
@@ -120,6 +121,11 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           <>
             <div className="hero-num small-num">Всё повторено ✓</div>
             <div className="hero-sub">Новые повторения появятся завтра. Можно дописать конспект или добавить карточки.</div>
+            {data.cards.length > 0 && (
+              <button className="hero-alt" onClick={() => openRepeatDialog()} title="Повторённое сегодня, всё начатое, слабые места — расписание не изменится">
+                <Icon name="repeat" size={18} /> Повторить ещё раз
+              </button>
+            )}
           </>
         )}
       </div>

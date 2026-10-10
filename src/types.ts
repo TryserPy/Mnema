@@ -341,6 +341,9 @@ export interface AppData {
 
 export type SettingsSection = 'look' | 'text' | 'motion' | 'styles' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'mods' | 'about';
 
+/** «Повторить ещё раз»: какие карточки взять — повторённые сегодня, все начатые, слабые места или все подряд. */
+export type RepeatKind = 'today' | 'started' | 'weak' | 'all';
+
 export type Route =
   | { name: 'today' }
   | { name: 'knowledge' }
@@ -351,7 +354,7 @@ export type Route =
   | { name: 'plugin'; id: string }
   | { name: 'exam'; id: string } // экран подготовки к контрольной; id вида `topic:<id>` — контрольная из старой даты темы
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
-  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; cardIds?: string[]; cram?: boolean; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean }
+  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; folderId?: string; topicIds?: string[]; cardIds?: string[]; cram?: boolean; only?: RepeatKind; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean } // folderId — папка, из которой запущено (subjectIds — её предметы): после повторения вернёмся в неё; only — «Повторить ещё раз»: что именно брать (вместе с cram); topicIds — выбранные темы (только их карточки): тогда topicId/subjectId/folderId лишь говорят, куда вернуться
   | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
   | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'trash' }

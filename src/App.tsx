@@ -38,6 +38,7 @@ import { widgetState, notificationPlan } from './homework';
 import { TestScreen } from './screens/TestScreen';
 import { ExamScreen } from './screens/ExamScreen';
 import { ExamDialogHost } from './components/ExamDialog';
+import { RepeatDialogHost } from './components/RepeatDialog';
 import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
 import { importTopicPackage, isTopicPackage } from './share';
@@ -475,6 +476,7 @@ export function App() {
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
           {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId + (route.examId ?? '')} topicId={route.topicId} pretest={route.pretest} examId={route.examId} go={go} />}
         </ErrorBoundary>
+        <RepeatDialogHost go={go} />
         <TutorialHost route={route} go={go} />
       </div>
     );
@@ -563,6 +565,7 @@ export function App() {
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
       <ExamDialogHost go={go} />
+      <RepeatDialogHost go={go} />
       <BackupsHost />
       <TutorialHost route={route} go={go} />
       <ShowMeHost go={go} />

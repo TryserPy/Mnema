@@ -293,7 +293,7 @@ export function allItems(data: AppData, scope: QueueScope = {}): QueueItem[] {
 }
 
 /** Ответы, начиная с момента `since` (журнал идёт по времени — читаем с конца, пока не станет раньше). */
-function logsSince(data: AppData, since: number): AppData['logs'] {
+export function logsSince(data: AppData, since: number): AppData['logs'] {
   const out: AppData['logs'] = [];
   const iso = new Date(since).toISOString();
   for (let i = data.logs.length - 1; i >= 0; i--) {
@@ -318,7 +318,7 @@ export function newIntroducedToday(data: AppData, now: Date): number {
 }
 
 /** Перемешивание (детерминированное, если передан seed — для тестов). */
-function shuffle<T>(arr: T[], rnd: () => number = Math.random): T[] {
+export function shuffle<T>(arr: T[], rnd: () => number = Math.random): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
@@ -328,7 +328,7 @@ function shuffle<T>(arr: T[], rnd: () => number = Math.random): T[] {
 }
 
 /** Чередование тем: по одной карточке из каждой темы по кругу (interleaving). */
-function interleaveByTopic(items: QueueItem[]): QueueItem[] {
+export function interleaveByTopic(items: QueueItem[]): QueueItem[] {
   const groups = new Map<string, QueueItem[]>();
   for (const it of items) {
     const g = groups.get(it.topicId) ?? [];
