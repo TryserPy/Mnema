@@ -11,6 +11,7 @@ import { updateSettings, useData } from '../store';
 import type { Route } from '../types';
 import { Icon, SubjectMark, usePresence } from './ui';
 import { openExamDialog } from './ExamDialog';
+import { openRepeatDialog } from './RepeatDialog';
 import { openCreate } from './CreateMenu';
 import { examsOf } from '../examList';
 
@@ -78,6 +79,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
       ['Создать…', 'plus', () => openCreate()],
       ['Корзина — вернуть удалённое', 'trash', () => go({ name: 'trash' })],
       ['Начать повторение на сегодня', 'play', () => go({ name: 'review', session: sessionPrefs(data, new Date()), run: Date.now() })],
+      ['Повторить ещё раз…', 'repeat', () => openRepeatDialog()],
       [`Фокус: ${data.settings.focusMinutes} минут, потом перерыв`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
       ...(f.homework ? ([['Записать домашнее задание', 'homework', () => go({ name: 'homework' })], ['Открыть домашку', 'homework', () => go({ name: 'homework' })]] as [string, string, () => void][]) : []),

@@ -1,6 +1,8 @@
 /* «Учиться»: время на главной кнопке, «Что в плане и почему», одна строка про ближайшую контрольную. */
 .hero-btn:disabled { opacity: 0.55; cursor: default; }
 .hero-btn:disabled:hover { filter: none; }
+.hero-alt { display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--on-accent) 55%, transparent); background: transparent; color: var(--on-accent); font-size: 1.02rem; font-weight: 600; margin-top: 4px; transition: background 0.15s; }
+.hero-alt:hover { background: color-mix(in srgb, var(--on-accent) 16%, transparent); }
 .hero-sub2 { font-size: 0.92rem; opacity: 0.85; margin-top: 2px; }
 .hero-time { display: flex; gap: 8px; flex-wrap: wrap; }
 .hero-chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--on-accent) 45%, transparent); background: transparent; color: var(--on-accent); font-size: 0.92rem; transition: background 0.15s, color 0.15s; }
@@ -15,7 +17,7 @@
 .plan-steps { list-style: none; margin: 0; padding: 4px 0 0; display: flex; flex-direction: column; gap: 10px; }
 .plan-steps li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
 .plan-steps li.skipped { opacity: 0.6; }
-.plan-n { font-family: var(--display); font-weight: 600; font-size: 1.25rem; text-align: center; font-variant-numeric: tabular-nums; }
+.plan-n { font-family: var(--display); font-weight: 600; font-size: 1.25rem; text-align: center; }
 .plan-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .plan-text .small { overflow-wrap: anywhere; }
 .plan-later { margin: 8px 4px 0; }
@@ -32,3 +34,28 @@
 .err-chip:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 
 .err-chip.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); color: var(--accent-text, var(--accent)); font-weight: 600; }
+
+/* «Повторить ещё раз»: выбор, что повторять — список с кружком и числом. */
+.rp-opts { display: flex; flex-direction: column; gap: 8px; }
+.rp-opt { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--line-2); background: var(--surface); color: var(--ink); text-align: left; transition: border-color 0.15s, background 0.15s; }
+.rp-opt:hover:not(:disabled) { border-color: var(--accent); }
+.rp-opt[aria-checked='true'] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+.rp-opt:disabled { opacity: 0.55; cursor: default; }
+.rp-dot { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-2); box-sizing: border-box; }
+.rp-opt[aria-checked='true'] .rp-dot { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 4px, transparent 5px); }
+.rp-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.rp-text .small { overflow-wrap: anywhere; }
+.rp-n { flex: none; font-family: var(--display); font-weight: 600; font-size: 1.15rem; }
+.rp-note { display: flex; align-items: center; gap: 6px; margin: 0; }
+.rp-where { min-width: 0; }
+.rp-where strong { overflow-wrap: anywhere; }
+.rp-tree { display: flex; flex-direction: column; max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.rp-group + .rp-group { border-top: 1px solid var(--line); }
+.rp-pick { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 3px 10px; cursor: pointer; }
+.rp-pick:hover { background: var(--sunken); }
+.rp-pick input { flex: none; }
+.rp-folder { background: var(--sunken); min-height: 38px; }
+.rp-subj { padding-left: 4px; cursor: default; }
+.rp-subj:hover { background: transparent; }
+.rp-label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 34px; cursor: pointer; }
+.rp-topic { border-top: 1px solid var(--line); }

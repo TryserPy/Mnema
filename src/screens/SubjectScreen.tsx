@@ -9,6 +9,7 @@ import { ObsidianImport } from '../components/ObsidianImport';
 import { DeleteSubject, EditSubject } from '../components/SubjectDialogs';
 import { Icon, MoreMenu, plural, Segmented, SubjectMark } from '../components/ui';
 import { openExamDialog } from '../components/ExamDialog';
+import { openRepeatDialog } from '../components/RepeatDialog';
 import { cardsByTopic, todayCounts, topicStatsByTopic } from '../srs';
 import { addTopic, childTopics, subjectRules, updateSubject, useData } from '../store';
 import type { Route, Topic } from '../types';
@@ -55,6 +56,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
   const byTopic = cardsByTopic(data);
   const counts = todayCounts(data, now, { subjectId: id });
   const due = counts.learning + counts.review + counts.newCount;
+  const hasCards = data.topics.some((t) => t.subjectId === id && (byTopic.get(t.id)?.length ?? 0) > 0);
 
   return (
     <div className="page narrow">
@@ -81,6 +83,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
             label="Действия с предметом"
             items={[
               { label: `Учить весь предмет · ${due}`, icon: 'play', onClick: () => go({ name: 'review', subjectId: id }), hidden: due === 0 },
+              { label: 'Повторить ещё раз', icon: 'repeat', hint: 'Все темы и подтемы: повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ subjectId: id }), hidden: !hasCards },
               { label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
               { label: 'Сделать копию', icon: 'copy', hint: 'Все темы, конспекты и карточки', onClick: () => makeCopy('subject', id, go) },
               { label: 'Новая контрольная', icon: 'test', hint: 'Выбрать темы и дату — Мнема составит план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },

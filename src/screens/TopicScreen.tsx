@@ -26,6 +26,8 @@ import { makeRuleMatcher } from '../rules';
 import { sameLook } from '../notePhantom';
 import { orderTabs, reorderTab } from '../tabs';
 import { ExamPlanLine } from './Today';
+import { openRepeatDialog } from '../components/RepeatDialog';
+import { hasRepeatable } from '../repeat';
 import { PrintDialog } from '../components/ExportDialogs';
 import { keyFor, matches, prettyCombo } from '../keys';
 import type { Card, CardType, ListKind, Route } from '../types';
@@ -73,6 +75,8 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
     return m;
   }, [data.cards]);
   const subCount = topicWithDescendants(data, id).size - 1;
+  // Повторять можно всё в теме вместе с подтемами, а не только её собственные карточки.
+  const canRepeat = useMemo(() => hasRepeatable(data, { topicId: id }), [data.cards, data.topics, id]); // eslint-disable-line react-hooks/exhaustive-deps
   const listTab = tab?.startsWith('list:') ? lists.find((l) => 'list:' + l.id === tab) : undefined;
   const poems = topic.poems ?? [];
   const poemTab = tab?.startsWith('poem:') ? poems.find((p) => tab.split(':')[1] === p.id) : undefined;
@@ -182,12 +186,19 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
           {topic.examDate && topic.kind !== 'rule' && examInfo && examInfo.total > 0 && <ExamPlanLine plan={examInfo} />}
         </div>
         <div className="row gap8">
-          <button className="btn primary big-ish" disabled={due === 0} onClick={() => go({ name: 'review', topicId: id })}>
-            <AnimText value={due === 0 ? (allCards.length ? 'Всё повторено' : 'Нет карточек') : `Учить · ${due}`} />
-          </button>
+          {due === 0 && canRepeat ? (
+            <button className="btn primary big-ish" title="На сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id })}>
+              <Icon name="repeat" size={18} /> Повторить ещё раз
+            </button>
+          ) : (
+            <button className="btn primary big-ish" disabled={due === 0} onClick={() => go({ name: 'review', topicId: id })}>
+              <AnimText value={due === 0 ? 'Нет карточек' : `Учить · ${due}`} />
+            </button>
+          )}
           <MoreMenu
             label="Действия с темой"
             items={[
+              { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id }), hidden: !canRepeat },
               { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
               { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
               {
@@ -196,8 +207,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                 items: [
                   { label: 'Закрой и перескажи', icon: 'eyeOff', hint: 'Расскажи по памяти и сравни с конспектом', onClick: () => setRecall(true), hidden: !topic.note.trim() },
                   { label: 'Проверь себя до чтения', icon: 'bulb', hint: 'Угадай ответы — потом запомнится лучше', onClick: () => go({ name: 'test', topicId: id, pretest: true }), hidden: cards.length < 2 || cards.some((c) => itemOrds(c).some((o) => data.states[itemKey(c.id, o)])) },
-                  { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 },
-                  { label: 'Повторить всю тему', icon: 'repeat', hint: 'Все карточки, даже те, что ещё рано', onClick: () => go({ name: 'review', topicId: id, cram: true }), hidden: cards.length === 0 }
+                  { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 }
                 ]
               },
               { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Мнема составит план', onClick: () => openExamDialog({ topicId: id }) },
