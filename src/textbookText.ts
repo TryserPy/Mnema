@@ -668,6 +668,11 @@ export function buildPage(input: LayoutInput): LayoutResult {
     return ok / full.length > 0.45;
   })();
 
+  const boxStats = new Map<number, { left: number; right: number }>();
+  for (const bi of new Set(lineItems.filter((l) => l.box >= 0).map((l) => l.box))) {
+    const ls = lineItems.filter((l) => l.box === bi);
+    boxStats.set(bi, { left: median(ls.map((l) => l.x0)), right: percentile(ls.map((l) => l.x1), 0.85) });
+  }
   // 8. Строки → абзацы.
   const paras: Para[] = [];
   let cur: Para | null = null;
@@ -689,7 +694,10 @@ export function buildPage(input: LayoutInput): LayoutResult {
       continue;
     }
     const l = it.info;
-    const st = colStats.get(l.col)!;
+    const st0 = colStats.get(l.col)!;
+    // Внутри рамки поля свои: текст сдвинут внутрь на поля рамки.
+    const bs = l.box >= 0 ? boxStats.get(l.box) : undefined;
+    const st = bs ? { left: bs.left, right: bs.right, width: Math.max(1, bs.right - bs.left) } : st0;
     const plain = l.text.replace(/\*\*/g, '');
     const gapUnit = pitch;
     const dy = prevInfo ? l.yb - prevInfo.yb : 0;
@@ -992,7 +1000,7 @@ export function mergeRows(lines: OcrLine[], gs: Gutter[], mh: number): OcrLine[]
         if (Math.abs(baseY(cur) - baseY(b)) > mh * 0.3) continue;
         if (Math.abs(rectH(cur.bbox) - rectH(b.bbox)) > mh * 0.8) continue;
         const gap = b.bbox.x0 - cur.bbox.x1;
-        if (gap < -mh * 0.3 || gap > mh * 4.5) continue;
+        if (gap < -mh * 0.3 || gap > mh * 12) continue;
         if (sideOf(gs, cur.bbox.x1) !== sideOf(gs, b.bbox.x0)) continue;
         used.add(b);
         const words = [...cur.words, ...b.words].sort((x, y) => x.bbox.x0 - y.bbox.x0);

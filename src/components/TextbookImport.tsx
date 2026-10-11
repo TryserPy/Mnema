@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEven
 import { aiAvailable } from '../ai';
 import { findImportant, IMPORTANT_TYPES } from '../important';
 import { updateSettings, useData } from '../store';
-import { assemble, recognizeOffline, recognizeWithAi, recropFigure, type Box, type PageInput, type PageResult } from '../textbook';
+import { assemble, friendlyOcrError, recognizeOffline, recognizeWithAi, recropFigure, type Box, type PageInput, type PageResult } from '../textbook';
 import type { PagePhoto } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { Markdown } from './Markdown';
@@ -32,7 +32,8 @@ export function TextbookImport({
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [step, setStep] = useState<Step>('pages');
   const [mode, setMode] = useState<'ai' | 'offline'>(ts.mode === 'offline' || !ai ? 'offline' : ts.mode === 'ai' ? 'ai' : ai ? 'ai' : 'offline');
-  const [progress, setProgress] = useState({ i: 0, text: '' });
+  const [progress, setProgress] = useState({ i: 0, text: '', frac: 0 });
+  const [runError, setRunError] = useState('');
   const [results, setResults] = useState<PageResult[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [fixes, setFixes] = useState<Record<string, string>>({});
@@ -89,6 +90,7 @@ export function TextbookImport({
 
   async function run() {
     setStep('reading');
+    setRunError('');
     cancelRef.current = false;
     updateSettings({ textbook: { ...ts, mode: mode === 'ai' ? 'ai' : 'offline' } });
     const out: PageResult[] = [];
@@ -96,16 +98,24 @@ export function TextbookImport({
     for (let i = 0; i < pages.length; i++) {
       if (cancelRef.current) return;
       const p = pages[i];
-      setProgress({ i, text: 'Готовлю фото…' });
+      setProgress({ i, text: 'Готовлю фото…', frac: 0 });
       try {
-        const onP = (text: string) => setProgress({ i, text });
+        const onP = (text: string, frac?: number) => setProgress((cur) => ({ i, text, frac: frac ?? (cur.i === i ? cur.frac : 0) }));
         const r = mode === 'ai' ? await recognizeWithAi(p, onP) : await recognizeOffline(p, onP);
+        if (cancelRef.current) return;
         out.push(r);
       } catch (e) {
-        errs.push(`Стр. ${p.n}: ${(e as Error).message}`);
+        errs.push(`Стр. ${p.n}: ${friendlyOcrError(e)}`);
       }
     }
     if (cancelRef.current) return;
+    if (!out.length) {
+      // Ни одна страница не прочиталась — возвращаем к фото с понятным объяснением, а не к пустому окну.
+      setErrors([]);
+      setRunError(errs.join('\n'));
+      setStep('pages');
+      return;
+    }
     // Если на фото виден другой номер страницы — предлагаем его (только когда все номера нашлись и идут подряд).
     const detected = out.map((r) => r.detectedPage);
     if (detected.every((d) => d !== undefined) && detected.every((d, i) => i === 0 || d === detected[i - 1]! + 1)) out.forEach((r, i) => (r.n = detected[i]!));
@@ -113,6 +123,11 @@ export function TextbookImport({
     setErrors(errs);
     setView(0);
     setStep('review');
+  }
+
+  function stopReading() {
+    cancelRef.current = true;
+    setStep('pages');
   }
 
   const markdown = useMemo(() => (editText !== null ? editText : assemble(results, fixes)), [results, fixes, editText]);
@@ -152,12 +167,19 @@ export function TextbookImport({
           }}
           onPaste={(e) => addFiles([...e.clipboardData.files])}
         >
+          {runError && (
+            <div className="hint warn tb-error" role="alert">
+              {runError.split('\n').map((l, k) => (
+                <div key={k}>{l}</div>
+              ))}
+            </div>
+          )}
           {pages.length === 0 ? (
             <div className="stack gap8">
               <button className="tb-empty" onClick={() => inputRef.current?.click()}>
                 <Icon name="book" size={40} />
                 <strong>Выбери фото страниц</strong>
-                <span className="muted">{phoneLike ? 'из галереи или файлов телефона.' : 'или перетащи их сюда, или вставь Ctrl+V.'} Снимай страницу целиком, ровно и при хорошем свете.</span>
+                <span className="muted">{phoneLike ? 'из галереи или файлов телефона.' : 'или перетащи их сюда, или вставь Ctrl+V.'} Снимай страницу целиком при хорошем свете. Наклон, тени и стол вокруг Мнема уберёт сама.</span>
               </button>
               {hasCamera && (
                 <button className="btn big" onClick={() => setCamera(true)}>
@@ -200,6 +222,9 @@ export function TextbookImport({
                       <button className="icon-btn small" title="Раньше" aria-label="Переставить раньше" disabled={i === 0} onClick={() => setPages((c) => swap(c, i, i - 1))}>
                         <Icon name="left" size={17} />
                       </button>
+                      <button className="icon-btn small" title="Позже" aria-label="Переставить позже" disabled={i === pages.length - 1} onClick={() => setPages((c) => swap(c, i, i + 1))}>
+                        <Icon name="right" size={17} />
+                      </button>
                       <button className="icon-btn small" title="Убрать" aria-label="Убрать страницу" onClick={() => setPages((c) => c.filter((x) => x.id !== p.id))}>
                         <Icon name="trash" size={17} />
                       </button>
@@ -236,8 +261,8 @@ export function TextbookImport({
                   ? 'ИИ восстановит заголовки, жирный, таблицы, формулы и вырежет рисунки. Фото уходит только выбранному ИИ.'
                   : 'Для точного режима включи «ИИ-помощник» в «Возможностях».'
                 : offlineOk
-                  ? 'Читает прямо на устройстве, без интернета. Жирный и рисунки находятся по картинке — примерно; сомнительные слова покажу для проверки.'
-                  : 'Работает в приложении для Windows.'}
+                  ? 'Читает прямо на устройстве, без интернета: выпрямляет страницу, убирает тени, находит колонки, заголовки, жирный, рамки и рисунки. Сомнительные слова покажу для проверки.'
+                  : 'Распознавание без интернета здесь недоступно.'}
             </span>
           </div>
           <div className="row end gap8">
@@ -252,7 +277,7 @@ export function TextbookImport({
       )}
 
       {step === 'reading' && (
-        <div className="stack gap16 center tb-reading">
+        <div className="stack gap16 center tb-reading" aria-live="polite">
           <div className="tb-scan">
             {thumbs[pages[progress.i]?.id] && <img src={thumbs[pages[progress.i].id]} alt="" />}
             <span className="scan-line" />
@@ -261,9 +286,13 @@ export function TextbookImport({
             <AnimText value={`Страница ${progress.i + 1} из ${pages.length}`} />
           </strong>
           <span className="muted">{progress.text}</span>
-          <div className="progress wide">
-            <span style={{ width: `${((progress.i + 0.5) / pages.length) * 100}%`, background: 'var(--accent)' }} />
+          <div className="progress wide" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((progress.i + progress.frac) / pages.length) * 100)}>
+            <span style={{ width: `${Math.max(3, ((progress.i + progress.frac) / pages.length) * 100)}%`, background: 'var(--accent)' }} />
           </div>
+          <span className="small muted">{mode === 'ai' ? 'Обычно до минуты на страницу.' : 'Читаю прямо на устройстве, обычно 5–15 секунд на страницу.'}</span>
+          <button className="btn ghost" onClick={stopReading}>
+            Отмена
+          </button>
         </div>
       )}
 
@@ -295,7 +324,23 @@ export function TextbookImport({
                 </div>
               </div>
             )}
-            {errors.length > 0 && <div className="hint warn">{errors.join('. ')}</div>}
+            {errors.length > 0 && (
+              <div className="hint warn" role="alert">
+                {errors.map((e, k) => (
+                  <div key={k}>{e}</div>
+                ))}
+              </div>
+            )}
+            {results.filter((r) => r.note).map((r) => (
+              <div key={'n' + r.n} className="hint warn">
+                Стр. {r.n}: {r.note}
+              </div>
+            ))}
+            {results.filter((r) => weak(r)).map((r) => (
+              <div key={'w' + r.n} className="hint">
+                Стр. {r.n} прочитана не очень уверенно ({r.quality?.conf}%). Проверь текст ниже — или сфотографируй страницу ещё раз: ровнее, ближе и при хорошем свете.
+              </div>
+            ))}
           </div>
           <div className="tb-right">
             <div className="row gap8">
@@ -392,6 +437,12 @@ export function TextbookImport({
       )}
     </Modal>
   );
+}
+
+/** Страница прочитана неуверенно: мало узнанных слов или низкая уверенность. */
+function weak(r: PageResult): boolean {
+  const q = r.quality;
+  return Boolean(q && q.words >= 8 && (q.conf < 72 || q.unsure / q.words > 0.3));
 }
 
 function swap<T>(a: T[], i: number, j: number): T[] {

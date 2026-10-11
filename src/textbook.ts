@@ -10,6 +10,9 @@ import { buildPage, median, parseAiMarkdown, type Box, type Doubt, type Figure, 
 export { assemble, fixOcrText, parseAiMarkdown, sanitizeAiText } from './textbookText';
 export type { Box, Doubt, Figure, PageResult } from './textbookText';
 
+/** Ход распознавания одной страницы: что делаю сейчас и (если знаю) какая доля работы сделана, 0..1. */
+export type Progress = (text: string, frac?: number) => void;
+
 export interface PageInput {
   id: string;
   file: Blob;
@@ -124,9 +127,9 @@ const tickUi = () => new Promise<void>((r) => setTimeout(r, 0));
 /**
  * Подготовка: страница на столе → ровный прямоугольник, ровный свет, строки горизонтально, буквы нужного размера.
  */
-export async function prepareOffline(p: PageInput, onProgress?: (t: string) => void): Promise<Prepared> {
+export async function prepareOffline(p: PageInput, onProgress?: Progress): Promise<Prepared> {
   const tick = makeYielder();
-  onProgress?.('Ищу страницу на фото…');
+  onProgress?.('Ищу страницу на фото…', 0.04);
   const src = await renderPage(p, WORK_SIDE);
   await tickUi();
   let W = src.width;
@@ -138,14 +141,14 @@ export async function prepareOffline(p: PageInput, onProgress?: (t: string) => v
     await tickUi();
     if (quad) {
       const sz = quadSize(quad, WORK_SIDE);
-      onProgress?.('Выпрямляю страницу…');
+      onProgress?.('Выпрямляю страницу…', 0.14);
       rgba = await warpQuad(rgba, W, H, quad, sz.w, sz.h, tick);
       W = sz.w;
       H = sz.h;
       quadUsed = true;
     }
   }
-  onProgress?.('Выравниваю свет…');
+  onProgress?.('Выравниваю свет и тени…', 0.24);
   const flat = await flattenLight(rgba, W, H, tick);
   await tickUi();
   const skew = skewOf(flat.gray, 14);
@@ -210,16 +213,16 @@ export function setDebugHook(f: ((x: unknown) => void) | null) {
   debugHook = f;
 }
 
-export async function recognizeOffline(p: PageInput, onProgress?: (t: string) => void): Promise<PageResult> {
+export async function recognizeOffline(p: PageInput, onProgress?: Progress): Promise<PageResult> {
   const api = window.mnemaApi;
   if (!api?.ocrRecognize) throw new Error('Распознавание без интернета работает в приложении для Windows, телефона и в браузере.');
   const prep = await prepareOffline(p, onProgress);
-  onProgress?.('Читаю текст…');
+  onProgress?.('Читаю текст…', 0.36);
   const gray = prep.gray;
   const ocrImg = prep.info.noise > 9 ? stretchContrast(boxBlur(gray, 1), 60, 240) : stretchContrast(gray, 60, 240);
   const res = await api.ocrRecognize(await grayPng(ocrImg));
   if (!res.ok) throw new Error(res.error);
-  onProgress?.('Собираю страницу…');
+  onProgress?.('Собираю абзацы, заголовки и рисунки…', 0.9);
   await tickUi();
   const lines = (res.lines as OcrLine[]).filter((l) => l.words?.some((w) => w.text.trim()));
   markBold(lines, gray);
@@ -249,6 +252,7 @@ export async function recognizeOffline(p: PageInput, onProgress?: (t: string) =>
     return { box, caption: layout.captions[i] ?? '', uri: cropUri(canvas, box) };
   });
   debugHook?.({ info: prep.info, lines, layout, regions });
+  if (!markdown.trim() && !figures.length) throw new Error('на фото не нашлось текста. Проверь, что страница видна целиком, резкая и не повёрнута боком (кнопка «Повернуть»).');
   return { n: p.n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts, detectedPage: layout.detectedPage, quality: layout.quality };
 }
 
@@ -271,16 +275,16 @@ export const AI_SYSTEM = `Ты переводишь фото страницы ш
 
 const REFUSAL = /(^|\s)(не могу|к сожалению|извините|я не вижу|sorry|i can(?:no|')t|unable to|as an ai)/i;
 
-export async function recognizeWithAi(p: PageInput, onProgress?: (t: string) => void): Promise<PageResult> {
+export async function recognizeWithAi(p: PageInput, onProgress?: Progress): Promise<PageResult> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, телефона и в браузере.');
-  onProgress?.('Готовлю фото…');
+  onProgress?.('Готовлю фото…', 0.05);
   const canvas = await renderPage(p, 1800);
   const photo = canvasToJpeg(canvas, 0.85);
-  onProgress?.('ИИ читает страницу…');
+  onProgress?.('ИИ читает страницу…', 0.2);
   const fallback = async (why: string): Promise<PageResult> => {
     if (!api.ocrRecognize) throw new Error(why);
-    onProgress?.('ИИ не справился — читаю без интернета…');
+    onProgress?.('ИИ не справился — читаю без интернета…', 0.1);
     const r = await recognizeOffline(p, onProgress);
     return { ...r, note: `${why} Страница прочитана без интернета — проверь её внимательнее.` };
   };
@@ -299,6 +303,16 @@ export async function recognizeWithAi(p: PageInput, onProgress?: (t: string) => 
   if (plain.length < 160 && REFUSAL.test(plain) && !/[.!?]\s*[А-ЯЁ]/.test(plain.slice(60))) return fallback('ИИ ответил не по делу.');
   const figures: Figure[] = parsed.figures.map((f) => ({ box: f.box, caption: f.caption, uri: cropUri(canvas, f.box) }));
   return { n: p.n, photo: canvasToJpeg(await renderPage(p, 1600)), markdown: parsed.markdown, figures, doubts: [], detectedPage: parsed.detectedPage };
+}
+
+/** Ошибка распознавания — понятным текстом: что случилось и что сделать. */
+export function friendlyOcrError(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e ?? '');
+  if (/createImageBitmap|decode|InvalidState|image source|The source image/i.test(m)) return 'не получилось открыть это фото. Сохрани его как JPEG или PNG и добавь снова.';
+  if (/memory|allocation|RangeError|Array buffer/i.test(m)) return 'фото слишком большое для этого устройства. Уменьши его (например, сфотографируй с меньшим разрешением) и попробуй ещё раз.';
+  if (/Failed to fetch|load.*(worker|traineddata|wasm)|NetworkError|importScripts|404/i.test(m)) return 'не загрузились файлы распознавания. Обнови страницу и попробуй снова.';
+  if (/Слишком большой файл/.test(m)) return 'фото слишком большое. Сфотографируй с меньшим разрешением.';
+  return m || 'неизвестная ошибка. Попробуй ещё раз.';
 }
 
 /** Перерезать рисунок по новой рамке. */

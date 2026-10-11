@@ -759,7 +759,9 @@ input[type='range'] { accent-color: var(--accent); }
 .tb-scan img { width: 100%; height: 100%; object-fit: contain; }
 .scan-line { position: absolute; left: 0; right: 0; height: 26%; background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent) 35%, transparent), transparent); animation: scan 1.8s ease-in-out infinite alternate; }
 @keyframes scan { from { top: -26%; } to { top: 100%; } }
-.progress.wide { width: 320px; height: 8px; }
+.progress.wide { width: 320px; max-width: 100%; height: 8px; }
+.tb-error { text-align: left; }
+.tb-error > div + div { margin-top: 4px; }
 .tb-review { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 20px; min-height: 60vh; }
 .tb-left, .tb-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .tb-photo { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); max-height: 72vh; overflow-y: auto; }
