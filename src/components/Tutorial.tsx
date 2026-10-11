@@ -7,6 +7,11 @@ import { addCard, addSubject, addTopic, getData, updateSettings, updateTopic, us
 import { noteWriter } from '../noteRegistry';
 import type { AppData, Route, Topic } from '../types';
 import { Icon, selHow, toast } from './ui';
+import { MAJORS, needsScroll, stepInfo, type Rect } from './guideTarget';
+import { useTargetRect } from './useTargetRect';
+
+/** Телефонная раскладка — по тому же условию, что у приложения (useMobile в App.tsx и @media (max-width: 720px) в стилях). */
+export const isPhone = () => window.matchMedia('(max-width: 720px)').matches;
 import '../guide.css';
 
 // Состояние живёт вне компонента: при переходе в повторение приложение перерисовывается целиком, а знакомство должно продолжаться.
@@ -32,13 +37,12 @@ export function startTutorial() {
 export const q = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
 const visible = (e: HTMLElement) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
 export const byText = (sel: string, text: string): HTMLElement | null => [...document.querySelectorAll<HTMLElement>(sel)].find((e) => visible(e) && (e.textContent ?? '').includes(text)) ?? null;
-export const createBtn = () => q('.mobile-bar .mobile-create') ?? q('.sidebar .create-btn');
+/** Кнопка «Создать»: на телефоне — в верхней полосе, иначе в панели; берём ту, что сейчас видна (стиль мог спрятать одну из них). */
+export const createBtn = () => [...document.querySelectorAll<HTMLElement>('.mobile-bar .mobile-create, .sidebar .create-btn')].find(visible) ?? q('.mobile-bar .mobile-create') ?? q('.sidebar .create-btn');
 const menuOpen = () => Boolean(q('.modal .create-item'));
 const dialogTitle = () => q('.modal h2')?.textContent ?? '';
 const anyModal = () => Boolean(q('.modal'));
 
-/** Крупные шаги — для полоски «Шаг N из 6». */
-const MAJORS = ['Предмет', 'Тема', 'Конспект', 'Карточка', 'Повторение', 'Готово'];
 /** Через сколько на одном шаге напомнить про «Пропустить шаг». */
 const STUCK_MS = 25000;
 const DONE_FLASH = ['Предмет создан', 'Тема создана', 'Конспект написан', 'Карточка готова', 'Повторение открыто'];
@@ -96,6 +100,8 @@ function openTopicTarget(c: Ctx, t: Topic): HTMLElement | null {
 
 interface Stage {
   major: number;
+  /** Какое по счёту действие внутри крупного шага (с единицы): для «Шаг N из М» — см. guideTarget.ts. */
+  step: number;
   text: ReactNode;
   hint?: ReactNode;
   target: HTMLElement | null;
@@ -106,36 +112,38 @@ function stageOf(c: Ctx): Stage {
   const onTopic = c.route.name === 'topic';
   const topic = workTopic(c);
   const inOurTopic = Boolean(topic && onTopic && (c.route as { id: string }).id === topic.id);
+  // step — какое по счёту действие внутри крупного шага (число действий в шагах — ACTIONS в guideTarget.ts).
   switch (major) {
     case 0:
-      if (dialogTitle() === 'Новый предмет') return { major, text: 'Назови предмет — например, «Биология» — и нажми «Создать».', target: q('.modal') };
-      if (menuOpen()) return { major, text: 'Выбери «Новый предмет».', target: byText('.modal .create-item', 'Новый предмет') };
-      return { major, text: 'Нажми «Создать» — отсюда создаётся всё.', target: createBtn() };
+      if (dialogTitle() === 'Новый предмет') return { major, step: 3, text: 'Назови предмет — например, «Биология» — и нажми «Создать».', target: q('.modal') };
+      if (menuOpen()) return { major, step: 2, text: 'Выбери «Новый предмет».', target: byText('.modal .create-item', 'Новый предмет') };
+      return { major, step: 1, text: 'Нажми «Создать» — отсюда создаётся всё.', target: createBtn() };
     case 1:
-      if (dialogTitle() === 'Новая тема') return { major, text: 'Назови тему — например, «§1 Клетка» — и нажми «Создать».', target: q('.modal') };
-      if (menuOpen()) return { major, text: 'Выбери «Новая тема».', target: byText('.modal .create-item', 'Новая тема') };
-      return { major, text: 'Теперь тема — один параграф или раздел. Нажми «Создать» и выбери «Новая тема».', target: createBtn() };
+      if (dialogTitle() === 'Новая тема') return { major, step: 3, text: 'Назови тему — например, «§1 Клетка» — и нажми «Создать».', target: q('.modal') };
+      if (menuOpen()) return { major, step: 2, text: 'Выбери «Новая тема».', target: byText('.modal .create-item', 'Новая тема') };
+      return { major, step: 1, text: 'Теперь тема — один параграф или раздел. Нажми «Создать» и выбери «Новая тема».', target: createBtn() };
     case 2:
-      if (!inOurTopic) return topic ? { major, text: <>Открой свою тему «{topic.name}» — в ней пишется конспект.</>, target: anyModal() ? q('.modal') : openTopicTarget(c, topic) } : { major, text: 'Открой любую тему — в ней пишется конспект.', target: byText('.tab', 'Знания') ?? byText('.sidebar .nav-item', 'Знания') };
-      if (!q('.ProseMirror')) return { major, text: 'Открой вкладку «Конспект».', target: byText('.topic-tabs [role="tab"], .topic-tabs button', 'Конспект') };
+      if (!inOurTopic) return topic ? { major, step: 1, text: <>Открой свою тему «{topic.name}» — в ней пишется конспект.</>, target: anyModal() ? q('.modal') : openTopicTarget(c, topic) } : { major, step: 1, text: 'Открой любую тему — в ней пишется конспект.', target: byText('.tab', 'Знания') ?? byText('.sidebar .nav-item', 'Знания') };
+      if (!q('.ProseMirror')) return { major, step: 2, text: 'Открой вкладку «Конспект».', target: byText('.topic-tabs [role="tab"], .topic-tabs button', 'Конспект') };
       return {
         major,
+        step: 3,
         text: 'Напиши в конспекте пару предложений своими словами — главное из темы.',
         hint: c.shortNoteTopic ? 'Почти! Допиши ещё пару слов — и пойдём дальше.' : 'Не переписывай учебник: своими словами запоминается лучше.',
         target: q('.ProseMirror')
       };
     case 3:
-      if (anyModal()) return { major, text: 'Заполни вопрос и ответ и нажми «Сохранить».', target: q('.modal') };
-      if (!inOurTopic) return topic ? { major, text: <>Вернись в тему «{topic.name}» — карточку делают из конспекта.</>, target: openTopicTarget(c, topic) } : { major, text: 'Открой тему с конспектом.', target: byText('.tab', 'Знания') };
-      if (!q('.ProseMirror')) return { major, text: 'Открой вкладку «Конспект».', target: byText('.topic-tabs [role="tab"], .topic-tabs button', 'Конспект') };
-      return { major, text: <>Сделай карточку: {selHow('В карточку')}.</>, hint: 'Одна карточка — один факт.', target: q('.ProseMirror') };
+      if (anyModal()) return { major, step: 4, text: 'Заполни вопрос и ответ и нажми «Сохранить».', target: q('.modal') };
+      if (!inOurTopic) return topic ? { major, step: 1, text: <>Вернись в тему «{topic.name}» — карточку делают из конспекта.</>, target: openTopicTarget(c, topic) } : { major, step: 1, text: 'Открой тему с конспектом.', target: byText('.tab', 'Знания') };
+      if (!q('.ProseMirror')) return { major, step: 2, text: 'Открой вкладку «Конспект».', target: byText('.topic-tabs [role="tab"], .topic-tabs button', 'Конспект') };
+      return { major, step: 3, text: <>Сделай карточку: {selHow('В карточку')}.</>, hint: 'Одна карточка — один факт.', target: q('.ProseMirror') };
     case 4:
-      if (anyModal()) return { major, text: 'Закрой это окно — и вернёмся к повторению.', target: q('.modal') };
+      if (anyModal()) return { major, step: 1, text: 'Закрой это окно — и вернёмся к повторению.', target: q('.modal') };
       // Нажимать нечего (на сегодня ничего не назначено) — не оставляем человека с мёртвой кнопкой.
-      if (c.route.name === 'today' && (q('.hero-btn') as HTMLButtonElement | null)?.disabled) return { major, text: 'Сегодня повторять пока нечего — так бывает. Нажми «Пропустить шаг», чтобы закончить знакомство.', target: null };
-      return { major, text: 'Теперь повторение. Вернись на «Сегодня» и нажми «Учиться».', target: c.route.name === 'today' ? q('.hero-btn') : (byText('.tab', 'Учусь') ?? byText('.sidebar .nav-item', 'Сегодня')) };
+      if (c.route.name === 'today' && (q('.hero-btn') as HTMLButtonElement | null)?.disabled) return { major, step: 2, text: 'Сегодня повторять пока нечего — так бывает. Нажми «Пропустить шаг», чтобы закончить знакомство.', target: null };
+      return { major, step: c.route.name === 'today' ? 2 : 1, text: 'Теперь повторение. Вернись на «Сегодня» и нажми «Учиться».', target: c.route.name === 'today' ? q('.hero-btn') : (byText('.tab', 'Учусь') ?? byText('.sidebar .nav-item', 'Сегодня')) };
     default:
-      return { major: 5, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Мнема сама решит, когда показать карточку снова.', target: null };
+      return { major: 5, step: 1, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Мнема сама решит, когда показать карточку снова.', target: null };
   }
 }
 
@@ -174,17 +182,10 @@ function doStep(major: number, c: Ctx, go: (r: Route) => void) {
   } else if (major === 4) setSt({ learned: true });
 }
 
-interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 const CARD_W = 440;
-const CARD_H = 190;
+const CARD_H = 190; // запасная высота плашки, пока настоящую не измерили
 /** Куда поставить подсказку, чтобы она не закрывала подсвеченное: снизу, сверху, справа или слева от него — где больше места. */
-export function cardPlace(r: Rect | null, phone: boolean): React.CSSProperties {
+export function cardPlace(r: Rect | null, phone: boolean, cardH = CARD_H): React.CSSProperties {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const bottomGap = phone ? 86 : 20; // на телефоне снизу нижняя панель
@@ -194,15 +195,38 @@ export function cardPlace(r: Rect | null, phone: boolean): React.CSSProperties {
   if (!r) return atBottom;
   const below = vh - bottomGap - (r.y + r.h);
   const above = r.y - (phone ? 60 : 12);
-  if (below >= CARD_H + 16) return atBottom;
-  if (above >= CARD_H + 16) return atTop;
+  if (below >= cardH + 16) return atBottom;
+  if (above >= cardH + 16) return atTop;
   const w = Math.min(CARD_W, vw - 24);
   const right = vw - (r.x + r.w);
-  const top = Math.max(16, Math.min(vh - CARD_H - 16, r.y));
+  const top = Math.max(16, Math.min(vh - cardH - 16, r.y));
   if (right >= w + 24) return { left: r.x + r.w + 16, top, bottom: 'auto', transform: 'none' };
   if (r.x >= w + 24) return { left: r.x - w - 16, top, bottom: 'auto', transform: 'none' };
   // Места нет нигде (окно на весь экран) — туда, где свободнее, пусть и поверх края.
   return below >= above ? atBottom : atTop;
+}
+
+/** Видимая область элемента: экран, суженный каждым родителем с прокруткой (окно «Создать» со своим списком и т. п.). */
+function visibleArea(el: HTMLElement): Rect {
+  let x1 = 0, y1 = 0, x2 = window.innerWidth, y2 = window.innerHeight;
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const cs = getComputedStyle(p);
+    if (/(auto|scroll|hidden|clip)/.test(cs.overflowY + cs.overflowX)) {
+      const b = p.getBoundingClientRect();
+      x1 = Math.max(x1, b.left); y1 = Math.max(y1, b.top); x2 = Math.min(x2, b.right); y2 = Math.min(y2, b.bottom);
+    }
+  }
+  return { x: x1, y: y1, w: Math.max(0, x2 - x1), h: Math.max(0, y2 - y1) };
+}
+
+/** Цель частично за краем экрана или окна (прокрутили, список длиннее окна) — прокручиваем ровно настолько, чтобы она влезла. */
+function ensureVisible(el: HTMLElement, phone: boolean) {
+  const b = el.getBoundingClientRect();
+  const inModal = Boolean(el.closest('.modal'));
+  // На телефоне сверху полоса приложения, снизу панель вкладок; в окне они закрыты затемнением, а само окно держится у края.
+  const top = phone && !inModal ? 56 : 0;
+  const bottom = phone && !inModal ? 80 : 0;
+  if (needsScroll({ x: b.left, y: b.top, w: b.width, h: b.height }, visibleArea(el), top, bottom)) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => void }) {
@@ -215,17 +239,38 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
     () => st
   );
   const [tick, setTick] = useState(0);
-  const [rect, setRect] = useState<Rect | null>(null);
   const [flash, setFlash] = useState('');
   const prevMajor = useRef(0);
   const since = useRef({ major: -1, at: 0 }); // когда пришли на текущий шаг: если долго стоим — подсказываем про «Пропустить шаг»
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const targetRef = useRef<HTMLElement | null>(null); // что подсвечиваем сейчас; рамку по нему двигает useTargetRect каждый кадр
+  const scrolledTo = useRef<HTMLElement | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardH, setCardH] = useState(CARD_H);
+  const rect = useTargetRect(targetRef, s.active, () => setTick((t) => t + 1));
 
   // Раз в четверть секунды смотрим на экран: окно закрыли? тему удалили? куда подсвечивать?
   useEffect(() => {
     if (!s.active) return;
     const id = setInterval(() => setTick((t) => t + 1), 250);
     return () => clearInterval(id);
+  }, [s.active]);
+  // Окно открылось или закрылось, строка появилась — не ждём четверть секунды, пересматриваем экран сразу (раз в кадр, не чаще).
+  useEffect(() => {
+    if (!s.active) return;
+    let raf = 0;
+    const mo = new MutationObserver((list) => {
+      if (raf || list.every((m) => (m.target as Element).closest?.('.tut'))) return; // свои же изменения не считаем
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setTick((t) => t + 1);
+      });
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      mo.disconnect();
+      cancelAnimationFrame(raf);
+    };
   }, [s.active]);
   useEffect(() => () => clearTimeout(flashTimer.current), []);
 
@@ -244,11 +289,14 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
     }
     prevMajor.current = stage.major;
     const el = stage.target;
-    if (el) {
-      const r = el.getBoundingClientRect();
-      const next = { x: r.left, y: r.top, w: r.width, h: r.height };
-      setRect((o) => (o && Math.abs(o.x - next.x) < 1 && Math.abs(o.y - next.y) < 1 && Math.abs(o.w - next.w) < 1 && Math.abs(o.h - next.h) < 1 ? o : next));
-    } else setRect(null);
+    targetRef.current = el;
+    // Новая цель, а она частично за краем — подкручиваем (один раз на цель, чтобы не спорить с пальцем человека).
+    if (el && scrolledTo.current !== el) {
+      scrolledTo.current = el;
+      ensureVisible(el, isPhone());
+    } else if (!el) scrolledTo.current = null;
+    const h = cardRef.current?.offsetHeight;
+    if (h && Math.abs(h - cardH) > 2) setCardH(h);
   }, [tick, data, route, s]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!s.active || !stage) return null;
@@ -256,22 +304,23 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
   const stuck = stage.major < MAJORS.length - 1 && Date.now() - since.current.at > STUCK_MS;
   const finish = (completed: boolean) => {
     setSt({ active: false });
-    setRect(null);
+    targetRef.current = null;
     setFlash('');
     if (!getData().settings.onboarded) updateSettings({ onboarded: true });
     if (completed) toast('Знакомство пройдено. Справка и знакомство — в «Профиле»');
   };
   const last = stage.major === 5;
-  const phone = window.innerWidth < 720;
-  const place = cardPlace(rect, phone);
+  const phone = isPhone();
+  const place = cardPlace(rect, phone, cardH);
+  const info = stepInfo(stage.major, stage.step);
   return (
     <div className="tut" aria-live="polite">
       {rect && <div className="tut-ring" style={{ left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12 }} />}
-      <div className={'tut-card' + (phone ? ' phone' : '')} style={place} role="dialog" aria-label="Знакомство">
+      <div ref={cardRef} className={'tut-card' + (phone ? ' phone' : '')} style={place} role="dialog" aria-label="Знакомство">
         <div className="tut-step">
-          Шаг {stage.major + 1} из {MAJORS.length} · {MAJORS[stage.major]}
+          Шаг {info.n} из {info.total} · {info.title}
           <span className="tut-bar">
-            <i style={{ width: ((stage.major + 1) / MAJORS.length) * 100 + '%' }} />
+            <i style={{ width: info.pct + '%' }} />
           </span>
         </div>
         {flash && <p className="tut-flash">{flash}</p>}

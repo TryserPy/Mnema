@@ -1,9 +1,10 @@
 // «Показать, где это»: из справки ведёт на нужный экран и подсвечивает кнопку или строку — по шагам, с подписью.
 // Тот же вид, что у знакомства (кольцо + подсказка), но человек ничего не обязан делать: «Дальше» / «Понятно».
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Route } from '../types';
-import { byText, cardPlace, q } from './Tutorial';
+import { byText, cardPlace, isPhone, q } from './Tutorial';
 import { Icon } from './ui';
+import { useTargetRect } from './useTargetRect';
 import '../guide.css';
 
 export interface WhereStep {
@@ -39,7 +40,8 @@ export function ShowMeHost({ go }: { go: (r: Route) => void }) {
     () => tour
   );
   const [i, setI] = useState(0);
-  const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const targetRef = useRef<HTMLElement | null>(null); // рамку по нему двигает useTargetRect каждый кадр: не отстаёт при прокрутке и анимации
+  const rect = useTargetRect(targetRef, Boolean(steps));
   const [missing, setMissing] = useState(false);
   useEffect(() => setI(0), [steps]);
   const step = steps?.[i];
@@ -47,7 +49,7 @@ export function ShowMeHost({ go }: { go: (r: Route) => void }) {
   useEffect(() => {
     if (!step) return;
     if (step.go) go(step.go);
-    setRect(null);
+    targetRef.current = null;
     setMissing(false);
     let tries = 0;
     let scrolled = false;
@@ -58,15 +60,14 @@ export function ShowMeHost({ go }: { go: (r: Route) => void }) {
           el.scrollIntoView({ block: 'center', behavior: 'smooth' });
           scrolled = true;
         }
-        const r = el.getBoundingClientRect();
-        setRect({ x: r.left, y: r.top, w: r.width, h: r.height });
+        targetRef.current = el;
       } else if (++tries > 12 && step.target) setMissing(true);
     }, 200);
     return () => clearInterval(id);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!steps || !step) return null;
   const last = i === steps.length - 1;
-  const phone = window.innerWidth < 720;
+  const phone = isPhone();
   return (
     <div className="tut show-me" aria-live="polite">
       {rect && <div className="tut-ring" style={{ left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12 }} />}
