@@ -719,7 +719,7 @@ export function IconPicker({ value, onChange, color }: { value?: string; onChang
               }}
               aria-label={`Значок ${i}`}
             >
-              {i}
+              <Glyph ch={i} />
             </button>
           ))}
         </div>
@@ -728,12 +728,95 @@ export function IconPicker({ value, onChange, color }: { value?: string; onChang
   );
 }
 
+// ---------- Значки-эмодзи: ровно по центру плитки ----------
+// У разных шрифтов эмодзи (Segoe UI Emoji на Windows, Apple Color Emoji, Noto Color Emoji) рисунок сидит в строке выше или ниже,
+// левее или правее, поэтому одного «центрирования» в CSS мало. Мы один раз для каждого значка: рисуем его на невидимом холсте и
+// находим, где у него «чернила» относительно базовой линии; в самой странице (DOM) узнаём, где этот шрифт ставит базовую линию
+// внутри строки высотой в размер шрифта; и сдвигаем значок на разницу с центром (в долях размера шрифта).
+export const EMOJI_FONT = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', 'EmojiOne Color', sans-serif";
+const glyphShift = new Map<string, [number, number]>();
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+export function glyphOffset(ch: string): [number, number] {
+  const hit = glyphShift.get(ch);
+  if (hit) return hit;
+  let res: [number, number] = [0, 0];
+  let probe: HTMLElement | null = null;
+  try {
+    if (measureCtx === undefined) {
+      const c = document.createElement('canvas');
+      c.width = 200;
+      c.height = 200;
+      measureCtx = c.getContext('2d', { willReadFrequently: true });
+    }
+    const ctx = measureCtx;
+    if (ctx) {
+      const SIZE = 100;
+      const X0 = 40;
+      const BASE = 130;
+      ctx.clearRect(0, 0, 200, 200);
+      ctx.font = `${SIZE}px ${EMOJI_FONT}`;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#000';
+      ctx.fillText(ch, X0, BASE);
+      const adv = ctx.measureText(ch).width;
+      const px = ctx.getImageData(0, 0, 200, 200).data;
+      let x0 = 200, x1 = -1, y0 = 200, y1 = -1;
+      for (let y = 0; y < 200; y++)
+        for (let x = 0; x < 200; x++)
+          if (px[(y * 200 + x) * 4 + 3] > 40) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+      if (x1 >= 0) {
+        // Чернила относительно базовой линии и левого края (в долях размера).
+        const inkUp = (BASE - (y0 + y1 + 1) / 2) / SIZE; // насколько центр чернил выше базовой линии
+        const inkX = ((x0 + x1 + 1) / 2 - X0) / SIZE; // центр чернил от левого края
+        // Где базовая линия в DOM: строка высотой 1em, внутри — «якорь» нулевого размера, который садится на базовую линию.
+        probe = document.createElement('div');
+        probe.style.cssText = `position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;white-space:nowrap;font:${SIZE}px ${EMOJI_FONT};line-height:1`;
+        probe.append(document.createTextNode(ch));
+        const anchor = document.createElement('span');
+        anchor.style.cssText = 'display:inline-block;width:0;height:0';
+        probe.append(anchor);
+        document.body.append(probe);
+        const top = probe.getBoundingClientRect().top;
+        const baseDown = (anchor.getBoundingClientRect().bottom - top) / SIZE; // базовая линия ниже верха строки
+        const width = (probe.getBoundingClientRect().width || adv) / SIZE;
+        const inkDown = baseDown - inkUp; // центр чернил ниже верха строки
+        const clamp = (v: number) => Math.max(-0.14, Math.min(0.14, v));
+        const dy = clamp(0.5 - inkDown);
+        const dx = clamp(width / 2 - inkX);
+        res = [Math.abs(dx) < 0.012 ? 0 : Math.round(dx * 1000) / 1000, Math.abs(dy) < 0.012 ? 0 : Math.round(dy * 1000) / 1000];
+      }
+    }
+  } catch {
+    /* нет холста — оставляем как есть */
+  } finally {
+    probe?.remove();
+  }
+  glyphShift.set(ch, res);
+  return res;
+}
+
+/** Эмодзи или знак, поставленный точно по центру своего места (см. glyphOffset). */
+export function Glyph({ ch }: { ch: string }) {
+  const [dx, dy] = glyphOffset(ch);
+  return (
+    <span className="glyph" style={dx || dy ? { transform: `translate(${dx}em, ${dy}em)` } : undefined}>
+      {ch}
+    </span>
+  );
+}
+
 /** Значок предмета: эмодзи на цветной подложке или просто цветная точка. */
 export function SubjectMark({ color, icon, size = 'small' }: { color: string; icon?: string; size?: 'small' | 'big' }) {
   if (!icon) return <span className={size === 'big' ? 'subject-badge' : 'dot'} style={{ background: color }} />;
   return (
     <span className={'subj-ico ' + size} style={{ background: `color-mix(in srgb, ${color} 22%, transparent)`, borderColor: color }}>
-      {icon}
+      <Glyph ch={icon} />
     </span>
   );
 }
