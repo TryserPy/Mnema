@@ -27,6 +27,8 @@ for (const [name, opts] of devices) {
   await page.reload();
   await page.waitForSelector('#root > *');
   await page.waitForTimeout(2500);
+  await page.getByRole('button', { name: 'Понятно' }).click({ timeout: 1500 }).catch(() => {});
+  await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/${name}-00-start.png` });
   if (name === 'phone') await page.getByText('Знания', { exact: true }).last().click();
   await page.waitForTimeout(500);

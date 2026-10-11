@@ -1,4 +1,4 @@
-// Новые версии Мнемы из выпусков на GitHub. На компьютере — скачать и поставить внутри приложения
+// Новые версии Refrain из выпусков на GitHub. На компьютере — скачать и поставить внутри приложения
 // (electron-updater), на телефоне — скачать APK из выпуска и отдать Android на установку (Updater.java).
 import { getData, updateSettings } from './store';
 
@@ -17,7 +17,11 @@ export interface UpdateInfo {
   available?: boolean;
   notes?: string;
   apk?: string; // ссылка на APK (телефон)
-  size?: number; // размер APK, байт
+  size?: number; // размер APK или файла для Linux, байт
+  /** Linux (пакет .deb, архив): сама Refrain не обновляется — показываем ссылку на файл выпуска. */
+  manual?: boolean;
+  url?: string; // ссылка на файл (или страницу выпуска) для ручной установки
+  fileName?: string;
 }
 
 /** 1.10.0 > 1.9.3 */
@@ -49,13 +53,13 @@ export async function checkUpdate(): Promise<UpdateInfo> {
   if (api?.platform === 'web') return { ok: false, error: 'Веб-версия обновляется сама: новая версия подтягивается при открытии' };
   if (api?.updateCheck) {
     const r = await api.updateCheck({ owner, repo });
-    return { ok: r.ok, error: r.error, latest: r.latest, available: Boolean(r.available), notes: r.notes };
+    return { ok: r.ok, error: r.error, latest: r.latest, available: Boolean(r.available), notes: r.notes, manual: r.manual, url: r.url, fileName: r.fileName, size: r.size };
   }
   // Телефон: спросить у GitHub последний выпуск.
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
     // Только через мост приложения (в окне сеть к GitHub закрыта правилами безопасности страницы).
-    if (!api?.http) return { ok: false, error: 'Обновления проверяются только в установленной Мнеме' };
+    if (!api?.http) return { ok: false, error: 'Обновления проверяются только в установленной Refrain' };
     const { status, text } = await api.http({ url, headers: { Accept: 'application/vnd.github+json' }, timeout: 15000 });
     if (status === 404) return { ok: false, error: 'Новых выпусков пока нет' };
     if (status === 403 || status === 429) return { ok: false, error: 'GitHub просит подождать — попробуй через час' };

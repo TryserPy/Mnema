@@ -1,4 +1,4 @@
-// Экспорт в Anki (.apkg): колоды «Мнема::Предмет::Тема», типы карточек Anki, прогресс повторений.
+// Экспорт в Anki (.apkg): колоды «Refrain::Предмет::Тема», типы карточек Anki, прогресс повторений.
 import { zipSync, strToU8 } from 'fflate';
 import type { SqlJsStatic } from 'sql.js';
 import { itemKey } from './srs';
@@ -28,11 +28,11 @@ const tmpl = (name: string, ord: number, qfmt: string, afmt: string) => ({ name,
 function models(now: number) {
   const base = { mod: now, usn: -1, sortf: 0, did: 1, css: CSS, latexPre: '\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n', latexPost: '\\end{document}', tags: [], vers: [] };
   return {
-    basic: { ...base, id: 1700000000001, name: 'Мнема: вопрос — ответ', type: 0, flds: [field('Front', 0), field('Back', 1)], tmpls: [tmpl('Card 1', 0, '{{Front}}', '{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}')], req: [[0, 'any', [0]]] },
+    basic: { ...base, id: 1700000000001, name: 'Refrain: вопрос — ответ', type: 0, flds: [field('Front', 0), field('Back', 1)], tmpls: [tmpl('Card 1', 0, '{{Front}}', '{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}')], req: [[0, 'any', [0]]] },
     reverse: {
       ...base,
       id: 1700000000002,
-      name: 'Мнема: в обе стороны',
+      name: 'Refrain: в обе стороны',
       type: 0,
       flds: [field('Front', 0), field('Back', 1)],
       tmpls: [tmpl('Card 1', 0, '{{Front}}', '{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}'), tmpl('Card 2', 1, '{{Back}}', '{{FrontSide}}\n\n<hr id=answer>\n\n{{Front}}')],
@@ -41,8 +41,8 @@ function models(now: number) {
         [1, 'any', [1]]
       ]
     },
-    typing: { ...base, id: 1700000000003, name: 'Мнема: ввести ответ', type: 0, flds: [field('Front', 0), field('Back', 1)], tmpls: [tmpl('Card 1', 0, '{{Front}}\n\n{{type:Back}}', '{{Front}}\n\n<hr id=answer>\n\n{{type:Back}}')], req: [[0, 'any', [0]]] },
-    cloze: { ...base, id: 1700000000004, name: 'Мнема: с пропуском', type: 1, flds: [field('Text', 0), field('Back Extra', 1)], tmpls: [tmpl('Cloze', 0, '{{cloze:Text}}', '{{cloze:Text}}<br>\n{{Back Extra}}')], req: [[0, 'any', [0]]] }
+    typing: { ...base, id: 1700000000003, name: 'Refrain: ввести ответ', type: 0, flds: [field('Front', 0), field('Back', 1)], tmpls: [tmpl('Card 1', 0, '{{Front}}\n\n{{type:Back}}', '{{Front}}\n\n<hr id=answer>\n\n{{type:Back}}')], req: [[0, 'any', [0]]] },
+    cloze: { ...base, id: 1700000000004, name: 'Refrain: с пропуском', type: 1, flds: [field('Text', 0), field('Back Extra', 1)], tmpls: [tmpl('Cloze', 0, '{{cloze:Text}}', '{{cloze:Text}}<br>\n{{Back Extra}}')], req: [[0, 'any', [0]]] }
   };
 }
 
@@ -59,7 +59,7 @@ function esc(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Markdown Мнемы → HTML поля Anki. */
+/** Markdown Refrain → HTML поля Anki. */
 export function toAnkiHtml(md: string): string {
   const math: string[] = [];
   let s = md.replace(/\$\$([\s\S]+?)\$\$/g, (_, t: string) => (math.push(`\\[${t.trim()}\\]`), `\u0000${math.length - 1}\u0000`));
@@ -74,7 +74,7 @@ export function toAnkiHtml(md: string): string {
   return s;
 }
 
-/** Пропуски Мнемы {{слово}} / {{c2::слово::подсказка}} → {{c1::…}} Anki. */
+/** Пропуски Refrain {{слово}} / {{c2::слово::подсказка}} → {{c1::…}} Anki. */
 export function toAnkiCloze(front: string): string {
   let n = 0;
   const used = new Set<number>();
@@ -134,7 +134,7 @@ export async function buildApkg(data: AppData, SQL: SqlJsStatic, opts: AnkiExpor
     deckFor.set(name, id);
     return id;
   };
-  ensureDeck('Мнема');
+  ensureDeck('Refrain');
 
   const subjects = sortedSubjects(data).filter((s) => !opts.subjectIds || opts.subjectIds.includes(s.id));
   const topicPath = (id: string): string[] => {
@@ -180,7 +180,7 @@ export async function buildApkg(data: AppData, SQL: SqlJsStatic, opts: AnkiExpor
     for (const t of topics) {
       const cards = data.cards.filter((c) => c.topicId === t.id);
       if (!cards.length) continue;
-      const deck = ensureDeck(['Мнема', s.name.replace(/::/g, ':'), ...(t.kind === 'rule' ? ['Правила'] : []), ...topicPath(t.id)].join('::'));
+      const deck = ensureDeck(['Refrain', s.name.replace(/::/g, ':'), ...(t.kind === 'rule' ? ['Правила'] : []), ...topicPath(t.id)].join('::'));
       for (const c of cards) {
         pos++;
         const why = c.why ? `<br><br><i>${toAnkiHtml(c.why)}</i>` : '';
@@ -206,7 +206,7 @@ export async function buildApkg(data: AppData, SQL: SqlJsStatic, opts: AnkiExpor
           ords = [0];
         }
         const noteId = ++nid;
-        const tags = ` Мнема ${s.name.replace(/\s+/g, '_')} ${t.important ? 'важное ' : ''}`;
+        const tags = ` Refrain ${s.name.replace(/\s+/g, '_')} ${t.important ? 'важное ' : ''}`;
         insNote.run([noteId, guid(), mid, now, -1, tags, flds.join('\u001f'), stripHtml(flds[0]), await csum(flds[0]), 0, '']);
         nNotes++;
         for (const o of ords) cardRow(c, o, deck, noteId);

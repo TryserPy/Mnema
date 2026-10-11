@@ -10,7 +10,7 @@ import { Icon, Modal, Segmented, toast } from './ui';
 /** Предмет или тема — файлом для нейросети (картинки заменены короткими подписями, потом вернутся). */
 export function exportForAi(scope: { subjectId?: string; topicId?: string }) {
   const pack = exportChanges(getData(), scope);
-  const name = (pack.title ?? 'Мнема').replace(/[«»"<>:/\\|?*]/g, '').trim();
+  const name = (pack.title ?? 'Refrain').replace(/[«»"<>:/\\|?*]/g, '').trim();
   downloadFile(`${name} — для нейросети.txt`, packToMnemaText(pack), 'text/plain');
   toast('Файл сохранён. Отдай его нейросети вместе с инструкцией — «Настройки → Данные → Инструкция».', { label: 'Инструкция', run: () => openChanges('#guide') });
 }
@@ -85,7 +85,7 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
             <textarea className="input changes-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={'@предмет Русский язык\n@тема §1. …\nконспект…\n@карточки\nВопрос :: Ответ'} rows={6} />
           </label>
           {error && <span className="small hint warn">{error}</span>}
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={onClose}>
               Отмена
             </button>
@@ -164,7 +164,7 @@ function PlanView({ plan, onBack, onApply }: { plan: Plan; onBack: () => void; o
         </div>
       )}
       {counts.del > 0 && <span className="small muted">Удалённое можно вернуть кнопкой «Вернуть» сразу после применения.</span>}
-      <div className="row end gap8">
+      <div className="row end gap8 wrap">
         <button className="btn ghost" onClick={onBack}>
           Назад
         </button>
@@ -187,7 +187,7 @@ function noteHow(before: string, after: string): string {
   return ' · заменён';
 }
 
-/** «Как будет»: каждая затронутая тема так, как она будет выглядеть в Мнеме, — конспект, карточки, термины. */
+/** «Как будет»: каждая затронутая тема так, как она будет выглядеть в Refrain, — конспект, карточки, термины. */
 function PlanLook({ plan }: { plan: Plan }) {
   const before = getData();
   const d = plan.data;
@@ -330,14 +330,14 @@ function GuideDialog({ onBack, onClose }: { onBack: () => void; onClose: () => v
         <ol className="steps small" style={{ margin: 0 }}>
           <li>Нажми «Скопировать инструкцию» и вставь её в чат с нейросетью (ChatGPT, Claude, GigaChat, Алиса…).</li>
           <li>Ниже напиши, что нужно. Например: «Сделай тему „§12 Фотосинтез“ по биологии: конспект, 10 карточек и термины» или приложи фото параграфа.</li>
-          <li>Сохрани ответ в файл (или просто скопируй) и загрузи его здесь — Мнема покажет, что поменяется.</li>
+          <li>Сохрани ответ в файл (или просто скопируй) и загрузи его здесь — Refrain покажет, что поменяется.</li>
         </ol>
         <label className="row gap8 small">
           <input type="checkbox" checked={withList} onChange={(e) => setWithList(e.target.checked)} /> Добавить список моих предметов и тем — чтобы нейросеть правила их, а не создавала заново
         </label>
         <textarea className="input changes-text" readOnly value={text} rows={8} />
         <span className="small muted">Хочешь, чтобы нейросеть поправила уже готовое? В меню «⋯» предмета или темы — «Выгрузить для нейросети»: отдай этот файл вместе с инструкцией.</span>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onBack}>
             Назад
           </button>

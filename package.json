@@ -1,8 +1,8 @@
 {
   "name": "mnema",
-  "productName": "Mnema",
+  "productName": "Refrain",
   "version": "1.28.0",
-  "description": "Мнема — приложение для запоминания учебного материала",
+  "description": "Refrain — приложение для запоминания учебного материала",
   "private": true,
   "main": "electron/main.cjs",
   "type": "module",
@@ -13,7 +13,10 @@
     "test": "vitest run",
     "preview": "vite preview",
     "preview:web": "vite preview --mode web --outDir dist-web",
-    "dist": "npm run build && electron-builder --win --x64"
+    "dist": "npm run build && electron-builder --win --x64",
+    "dist:linux": "npm run build && electron-builder --linux AppImage deb tar.gz --x64 --publish never",
+    "dist:linux:arm64": "npm run build && electron-builder --linux AppImage deb tar.gz --arm64 --publish never",
+    "icons:linux": "node scripts/linux-icons.mjs"
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",
@@ -56,10 +59,12 @@
     "vite": "^8.3.1",
     "vitest": "^5.0.1"
   },
-  "author": "Mnema",
+  "author": "Refrain",
+  "homepage": "https://tryserpy.github.io/Mnema-site/",
+  "desktopName": "refrain.desktop",
   "build": {
     "appId": "app.mnema.study",
-    "productName": "Mnema",
+    "productName": "Refrain",
     "publish": [
       {
         "provider": "github",
@@ -93,15 +98,90 @@
       "signAndEditExecutable": true,
       "signExecutable": false
     },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icons",
+      "executableName": "refrain",
+      "syncDesktopName": true,
+      "category": "Education",
+      "packageCategory": "education",
+      "maintainer": "Refrain <noreply@users.noreply.github.com>",
+      "vendor": "Refrain",
+      "synopsis": "Refrain — запоминать учебный материал и повторять с перерывами",
+      "description": "Refrain — приложение для запоминания учебного материала: конспект, карточки и повторения по расписанию (FSRS). Всё хранится на компьютере, интернет и аккаунт не нужны.",
+      "artifactName": "Refrain-${version}-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "Name": "Refrain",
+          "GenericName": "Study cards",
+          "GenericName[ru]": "Учебные карточки",
+          "Comment[en]": "Remember what you study: notes, flashcards and spaced repetition",
+          "Comment[ru]": "Запоминай учебный материал: конспект, карточки и повторения по расписанию",
+          "Keywords": "flashcards;study;memory;spaced repetition;fsrs;anki;school;notes;",
+          "Keywords[ru]": "карточки;учёба;запоминание;повторение;школа;конспект;экзамен;анки;",
+          "StartupWMClass": "refrain"
+        }
+      },
+      "fileAssociations": [
+        {
+          "ext": "mnema",
+          "name": "Тема Refrain",
+          "description": "Тема Refrain",
+          "mimeType": "application/x-refrain-topic"
+        },
+        {
+          "ext": "refrainstyle",
+          "name": "Стиль Refrain",
+          "description": "Стиль оформления Refrain",
+          "mimeType": "application/x-refrain-style"
+        },
+        {
+          "ext": "mnemamod",
+          "name": "Стиль Refrain (старый)",
+          "description": "Стиль оформления Refrain (старый формат)",
+          "mimeType": "application/x-mnema-style"
+        }
+      ]
+    },
+    "appImage": {
+      "artifactName": "Refrain-${version}-${arch}.AppImage"
+    },
+    "deb": {
+      "packageName": "refrain",
+      "artifactName": "Refrain_${version}_${arch}.deb",
+      "priority": "optional"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Мнема",
-      "uninstallDisplayName": "Мнема",
-      "artifactName": "Mnema-Setup-${version}.exe",
+      "shortcutName": "Refrain",
+      "uninstallDisplayName": "Refrain",
+      "artifactName": "Refrain-Setup-${version}.exe",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerLanguages": [

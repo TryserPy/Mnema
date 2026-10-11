@@ -7,7 +7,7 @@ export function aiAvailable(data: AppData): boolean {
 
 async function ask(req: { system?: string; text: string; image?: { mime: string; data: string }; maxTokens?: number }): Promise<string> {
   const api = window.mnemaApi;
-  if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows.');
+  if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows и Linux.');
   const r = await api.aiAsk(req);
   if (!r.ok) throw new Error(humanError(r.error));
   if (!r.text) throw new Error('Модель вернула пустой ответ.');
@@ -31,7 +31,7 @@ export function humanError(e: string): string {
   if (code === 403) return 'Доступ запрещён: модель недоступна для этого ключа или в твоей стране. Попробуй другую модель.' + tail;
   if (code === 404) return 'Сервис не нашёл модель или она не умеет такой запрос. Выбери модель через «Найти модели».' + tail;
   if (code === 429 && /rate-limited upstream|temporarily rate-limited|Provider returned error/i.test(e))
-    return 'Бесплатная модель сейчас перегружена у поставщика — дело не в твоём ключе. Мнема уже пробовала взять другую бесплатную модель, но все были заняты. Подожди пару минут или выбери в настройках ИИ модель «openrouter/free» (любая свободная бесплатная) или платную.' + tail;
+    return 'Бесплатная модель сейчас перегружена у поставщика — дело не в твоём ключе. Refrain уже пробовала взять другую бесплатную модель, но все были заняты. Подожди пару минут или выбери в настройках ИИ модель «openrouter/free» (любая свободная бесплатная) или платную.' + tail;
   if (code === 429 && /free-models-per-day|per.day/i.test(e))
     return 'На сегодня закончились бесплатные запросы OpenRouter (50 в день, если счёт ни разу не пополняли; после пополнения на 10$ — 1000 в день). Лимит обновится в полночь по UTC (у тебя это ' + resetLocal() + ').' + tail;
   if (code === 429) return 'Слишком много запросов или закончился лимит. Подожди минуту и попробуй снова.' + tail;

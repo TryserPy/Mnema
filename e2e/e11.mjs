@@ -1,4 +1,4 @@
-// Облако WebDAV: две копии Мнемы синхронизируются через поддельный WebDAV, с шифрованием.
+// Облако WebDAV: две копии Refrain синхронизируются через поддельный WebDAV, с шифрованием.
 import { _electron as electron } from 'playwright';
 import fs from 'fs';
 import http from 'http';

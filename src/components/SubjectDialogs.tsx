@@ -1,6 +1,6 @@
 // Окна «Изменить предмет» и «Удалить предмет» — открываются из левой панели и со страницы предмета.
 import { useState } from 'react';
-import { addFolder, addSubject, deleteFolder, deleteSubject, deleteTopic, getData, restoreRemoved, sortedFolders, updateFolder, updateSubject, useData } from '../store';
+import { addFolder, addSubject, deleteFolder, deleteMany, deleteSubject, deleteTopic, getData, restoreRemoved, sortedFolders, updateFolder, updateSubject, useData } from '../store';
 import { ColorPicker, IconPicker, Modal, plural, Segmented, SUBJECT_COLORS, toast } from './ui';
 
 function FolderSelect({ value, onChange }: { value?: string; onChange: (v?: string) => void }) {
@@ -30,6 +30,7 @@ export function NewSubjectDialog({ onClose, onCreated, folderId: presetFolder, s
   const [name, setName] = useState('');
   const [color, setColor] = useState(SUBJECT_COLORS[(data.subjects.length + data.folders.length) % SUBJECT_COLORS.length]);
   const [icon, setIcon] = useState<string | undefined>();
+  const [iconImg, setIconImg] = useState<string | undefined>();
   const [folderId, setFolderId] = useState<string | undefined>(presetFolder);
   return (
     <Modal title={kind === 'subject' ? 'Новый предмет' : 'Новая папка'} onClose={onClose}>
@@ -38,10 +39,10 @@ export function NewSubjectDialog({ onClose, onCreated, folderId: presetFolder, s
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          if (kind === 'folder') onCreated(addFolder(name, color, icon).id, 'folder');
+          if (kind === 'folder') onCreated(addFolder(name, color, icon, iconImg).id, 'folder');
           else {
             const sub = addSubject(name, color);
-            if (icon || folderId) updateSubject(sub.id, { icon, folderId });
+            if (icon || iconImg || folderId) updateSubject(sub.id, { icon, iconImg, folderId });
             onCreated(sub.id, 'subject');
           }
         }}
@@ -66,7 +67,7 @@ export function NewSubjectDialog({ onClose, onCreated, folderId: presetFolder, s
         </div>
         <div className="field">
           <span>Значок</span>
-          <IconPicker value={icon} onChange={setIcon} color={color} />
+          <IconPicker value={icon} onChange={setIcon} color={color} image={iconImg} onImage={setIconImg} />
         </div>
         {kind === 'subject' && <FolderSelect value={folderId} onChange={setFolderId} />}
         <div className="row end">
@@ -85,6 +86,7 @@ export function EditSubject({ id, onClose, onDelete }: { id: string; onClose: ()
   const [name, setName] = useState(s?.name ?? '');
   const [color, setColor] = useState(s?.color ?? '#3B5BDB');
   const [icon, setIcon] = useState<string | undefined>(s?.icon);
+  const [iconImg, setIconImg] = useState<string | undefined>(s?.iconImg);
   const [folderId, setFolderId] = useState<string | undefined>(s?.folderId);
   if (!s) return null;
   return (
@@ -94,7 +96,7 @@ export function EditSubject({ id, onClose, onDelete }: { id: string; onClose: ()
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          updateSubject(id, { name: name.trim(), color, icon, folderId });
+          updateSubject(id, { name: name.trim(), color, icon, iconImg, folderId });
           onClose();
         }}
       >
@@ -108,7 +110,7 @@ export function EditSubject({ id, onClose, onDelete }: { id: string; onClose: ()
         </div>
         <div className="field">
           <span>Значок</span>
-          <IconPicker value={icon} onChange={setIcon} color={color} />
+          <IconPicker value={icon} onChange={setIcon} color={color} image={iconImg} onImage={setIconImg} />
         </div>
         <FolderSelect value={folderId} onChange={setFolderId} />
         <div className="row between">
@@ -134,6 +136,7 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
   const [name, setName] = useState(f?.name ?? '');
   const [color, setColor] = useState(f?.color ?? '#3A3F4E');
   const [icon, setIcon] = useState<string | undefined>(f?.icon);
+  const [iconImg, setIconImg] = useState<string | undefined>(f?.iconImg);
   const [armed, setArmed] = useState(false);
   if (!f) return null;
   const inside = data.subjects.filter((s) => s.folderId === id).length;
@@ -144,7 +147,7 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          updateFolder(id, { name: name.trim(), color, icon });
+          updateFolder(id, { name: name.trim(), color, icon, iconImg });
           onClose();
         }}
       >
@@ -158,9 +161,9 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
         </div>
         <div className="field">
           <span>Значок</span>
-          <IconPicker value={icon} onChange={setIcon} color={color} />
+          <IconPicker value={icon} onChange={setIcon} color={color} image={iconImg} onImage={setIconImg} />
         </div>
-        <div className="row between">
+        <div className="row between wrap">
           <button
             type="button"
             className="btn ghost danger-text"
@@ -182,6 +185,47 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
   );
 }
 
+/** Удалить папку из меню: предметы можно оставить (выйдут на верхний уровень) или удалить вместе с папкой. Всё уходит в корзину, сразу есть «Вернуть». */
+export function DeleteFolder({ id, onClose, onDeleted }: { id: string; onClose: () => void; onDeleted?: () => void }) {
+  const data = useData();
+  const f = data.folders.find((x) => x.id === id);
+  if (!f) return null;
+  const subjects = data.subjects.filter((s) => s.folderId === id);
+  const tIds = new Set(data.topics.filter((t) => subjects.some((s) => s.id === t.subjectId)).map((t) => t.id));
+  const cards = data.cards.filter((c) => tIds.has(c.topicId)).length;
+  const run = (withSubjects: boolean) => {
+    const undo = deleteMany({ folders: [id], subjects: withSubjects ? subjects.map((s) => s.id) : [] });
+    onDeleted?.();
+    onClose();
+    toast(withSubjects ? `Папка «${f.name}» удалена вместе с предметами` : `Папка «${f.name}» удалена, предметы остались`, { label: 'Вернуть', run: undo });
+  };
+  return (
+    <Modal title="Удалить папку?" onClose={onClose}>
+      <div className="stack gap12">
+        <p>
+          {subjects.length
+            ? `В папке «${f.name}» — ${subjects.length} ${plural(subjects.length, 'предмет', 'предмета', 'предметов')} (${tIds.size} ${plural(tIds.size, 'тема', 'темы', 'тем')}, ${cards} ${plural(cards, 'карточка', 'карточки', 'карточек')}). Что с ними сделать?`
+            : `Папка «${f.name}» пустая.`}
+        </p>
+        <p className="small muted">Сразу после удаления можно нажать «Вернуть»; удалённые предметы лежат в корзине.</p>
+        <div className="row end gap8 wrap">
+          <button className="btn ghost" onClick={onClose}>
+            Отмена
+          </button>
+          <button className="btn" onClick={() => run(false)}>
+            {subjects.length ? 'Удалить папку, предметы оставить' : 'Удалить папку'}
+          </button>
+          {subjects.length > 0 && (
+            <button className="btn danger-solid" onClick={() => run(true)}>
+              Удалить вместе с предметами
+            </button>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function DeleteSubject({ id, onClose, onDeleted }: { id: string; onClose: () => void; onDeleted?: () => void }) {
   const data = useData();
   const s = data.subjects.find((x) => x.id === id);
@@ -195,7 +239,7 @@ export function DeleteSubject({ id, onClose, onDeleted }: { id: string; onClose:
         <p>
           «{s.name}» будет удалён вместе с {topics.length} {plural(topics.length, 'темой', 'темами', 'темами')} и {cards} {plural(cards, 'карточкой', 'карточками', 'карточками')}. Сразу после удаления его можно вернуть кнопкой внизу экрана.
         </p>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>

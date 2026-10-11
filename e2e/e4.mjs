@@ -147,7 +147,7 @@ step('pad status after auto insert: ' + (await win.locator('.hand-pad-status').i
 await win.waitForTimeout(700);
 await app.close();
 srv.close();
-const d = JSON.parse(fs.readFileSync(userData + '/mnema-data.json', 'utf8'));
+const d = JSON.parse(fs.readFileSync(userData + '/Мои данные/refrain-data.json', 'utf8'));
 const ohmT = d.topics.find((t) => t.name.includes('Ома'));
 console.log('formula in note:', ohmT.note.includes('F = ma'), 'important:', d.topics.filter((t) => t.important).map((t) => t.name));
 console.log('photosynthesis parent:', d.topics.find((t) => t.name.includes('Фотосинтез')).parentId === ohmT.id, 'sub parent ok:', d.topics.find((t) => t.name === 'Сопротивление проводника')?.parentId === ohmT.id);

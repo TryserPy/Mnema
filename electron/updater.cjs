@@ -1,5 +1,8 @@
-// Обновление Мнемы из выпусков на GitHub (electron-updater): проверить, скачать, установить при перезапуске.
+// Обновление Refrain из выпусков на GitHub (electron-updater): проверить, скачать, установить при перезапуске.
+// Linux: AppImage обновляется сам (electron-updater по latest-linux.yml); пакет .deb и распакованный архив — только уведомление
+// о новой версии со ссылкой на нужный файл: ставить пакеты без пароля администратора нельзя, и пытаться не надо.
 const { app, ipcMain } = require('electron');
+const linux = require('./linux.cjs');
 
 const REPO = { owner: 'TryserPy', repo: 'Mnema' };
 let updater = null;
@@ -13,6 +16,27 @@ function get() {
   return updater;
 }
 
+const manualMode = () => linux.updateMode({ platform: process.platform, env: process.env }) === 'manual';
+
+// Linux без AppImage: спросить у GitHub последний выпуск и выбрать подходящий файл.
+async function manualCheck() {
+  if (!app.isPackaged) return { ok: false, error: 'Обновления проверяются только в установленной Refrain' };
+  const { net } = require('electron');
+  const fallbackUrl = `https://github.com/${REPO.owner}/${REPO.repo}/releases/latest`;
+  try {
+    const res = await net.fetch(`https://api.github.com/repos/${REPO.owner}/${REPO.repo}/releases/latest`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Refrain' },
+      signal: AbortSignal.timeout(15000)
+    });
+    if (res.status === 404) return { ok: false, error: 'В репозитории пока нет выпусков' };
+    if (res.status === 403 || res.status === 429) return { ok: false, error: 'GitHub просит подождать — попробуй через час' };
+    if (!res.ok) return { ok: false, error: 'GitHub ответил ошибкой ' + res.status };
+    return linux.manualUpdateInfo(await res.json(), { current: app.getVersion(), arch: process.arch, packageType: linux.installedPackageType(), fallbackUrl });
+  } catch {
+    return { ok: false, error: 'Нет интернета или GitHub недоступен' };
+  }
+}
+
 function register(getWin) {
   const send = (payload) => {
     const w = getWin();
@@ -20,6 +44,7 @@ function register(getWin) {
   };
   // Репозиторий зашит здесь, а не приходит из окна: иначе чужой файл резервной копии мог бы подсунуть «обновление».
   ipcMain.handle('update:check', async () => {
+    if (manualMode()) return manualCheck();
     try {
       const u = get();
       u.setFeedURL({ provider: 'github', owner: REPO.owner, repo: REPO.repo });
@@ -28,7 +53,7 @@ function register(getWin) {
       u.on('download-progress', (p) => send({ type: 'progress', percent: Math.round(p.percent || 0) }));
       u.on('update-downloaded', (i) => send({ type: 'ready', version: i.version }));
       const r = await u.checkForUpdates();
-      if (!r) return { ok: false, error: 'Обновления проверяются только в установленной Мнеме' };
+      if (!r) return { ok: false, error: 'Обновления проверяются только в установленной Refrain' };
       const info = r && r.updateInfo;
       const latest = info ? info.version : null;
       const available = Boolean(r && (r.isUpdateAvailable ?? (latest && latest !== app.getVersion())));
@@ -40,6 +65,7 @@ function register(getWin) {
     }
   });
   ipcMain.handle('update:download', async () => {
+    if (manualMode()) return { ok: false, error: 'Скачай новую версию по ссылке — этот вариант Refrain сама не обновляется' };
     try {
       await get().downloadUpdate();
       return { ok: true };
@@ -48,6 +74,7 @@ function register(getWin) {
     }
   });
   ipcMain.handle('update:install', () => {
+    if (manualMode()) return false;
     app.isQuitting = true;
     setImmediate(() => get().quitAndInstall(false, true));
     return true;

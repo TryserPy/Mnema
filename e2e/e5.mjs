@@ -135,7 +135,7 @@ void d0;
 
 await app.close();
 srv.close();
-const d = JSON.parse(fs.readFileSync(userData + '/mnema-data.json', 'utf8'));
+const d = JSON.parse(fs.readFileSync(userData + '/Мои данные/refrain-data.json', 'utf8'));
 const t = d.topics.find((x) => x.name === '§ 7. Реформы');
 console.log('note start:', JSON.stringify(t.note.replace(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/g, 'DATA').slice(0, 900)));
 console.log('pages stored:', (t.pages ?? []).map((p) => p.n), 'cards in topic:', d.cards.filter((c) => c.topicId === t.id).map((c) => c.type + ':' + c.front.slice(0, 50) + (c.page ? ' p' + c.page : '')));

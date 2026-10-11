@@ -1,5 +1,10 @@
-// Напоминания о домашних заданиях: окно присылает список «что и когда напомнить», здесь — таймеры и уведомления Windows.
-const { ipcMain, Notification } = require('electron');
+// Напоминания о домашних заданиях: окно присылает список «что и когда напомнить», здесь — таймеры и системные уведомления
+// (Windows; на Linux — через libnotify/D-Bus, их показывает оболочка рабочего стола).
+const { ipcMain, Notification, nativeImage } = require('electron');
+const path = require('path');
+
+// На Linux значок уведомления берём из файла: в AppImage и при запуске не из меню приложений .desktop-файла рядом может не быть.
+const linuxIcon = () => (process.platform === 'linux' ? { icon: nativeImage.createFromPath(path.join(__dirname, 'icon.png')) } : {});
 
 let timers = [];
 let getWin = () => null;
@@ -13,7 +18,7 @@ function clear() {
 function fire(r) {
   if (shown.has(r.id + '@' + r.at) || !Notification.isSupported()) return;
   shown.add(r.id + '@' + r.at);
-  const n = new Notification({ title: r.title, body: r.body, silent: false });
+  const n = new Notification({ title: r.title, body: r.body, silent: false, ...linuxIcon() });
   n.on('click', () => {
     const w = getWin();
     if (!w) return;

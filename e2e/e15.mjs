@@ -165,6 +165,6 @@ step('imgs: ' + JSON.stringify(await win.evaluate(() => window.__imgs)));
 step(`segmented overflow: inner=${segs} outOfCard=${out}`);
 console.log('errors', JSON.stringify(errors));
 await app.close();
-const data = JSON.parse(fs.readFileSync(dir + '/mnema-data.json', 'utf8'));
+const data = JSON.parse(fs.readFileSync(dir + '/Мои данные/refrain-data.json', 'utf8'));
 const t = data.topics.find((x) => x.name.includes('Закон Ома'));
 console.log('saved video md:', /!\[video\]\(https:\/\/www\.youtube\.com\/watch\?v=dQw4w9WgXcQ/.test(t.note), 'folders', data.folders.length, 'hw', data.homework.length, 'plugins', data.settings.plugins.length);

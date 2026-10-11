@@ -46,7 +46,7 @@ export function useSpeaking(text?: string): boolean {
   );
 }
 
-/** Говорит ли Мнема прямо сейчас. */
+/** Говорит ли Refrain прямо сейчас. */
 export const isSpeaking = () => speaking;
 
 /** Замолчать сразу. */

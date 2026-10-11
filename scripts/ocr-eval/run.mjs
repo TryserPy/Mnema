@@ -1,4 +1,4 @@
-// Прогон офлайн-конвейера Мнемы на всех фото. Использование: node run.mjs <метка> [фильтр]
+// Прогон офлайн-конвейера Refrain на всех фото. Использование: node run.mjs <метка> [фильтр]
 import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
 import fs from 'fs';
 const tag = process.argv[2] || 'x';

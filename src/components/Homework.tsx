@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { defaultRemind, dueLabel, fromYmd, GROUP_LABEL, groupOf, nextLesson, ymd, type HwGroup } from '../homework';
-import { addHomework, deleteHomework, sortedSubjects, toggleHomework, updateHomework, useData } from '../store';
+import { addHomework, deleteHomeworkMany, pruneDoneHomework, sortedSubjects, toggleHomework, updateHomework, useData } from '../store';
 import type { Homework, Route } from '../types';
 import { AnimText, Collapse, Icon, Modal, plural, SubjectMark, Switch, toast, usePresence, touchUI } from './ui';
 
@@ -178,7 +178,7 @@ export function HomeworkForm({ initial, subjectId: presetSubject, onDone }: { in
           <div className="hw-subjects">
             {subjects.map((s) => (
               <button type="button" key={s.id} className={'hw-subj' + (s.id === subjectId ? ' on' : '')} style={{ ['--c' as string]: s.color }} onClick={() => pickSubject(s.id)}>
-                <SubjectMark color={s.color} icon={s.icon} /> {s.name}
+                <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} /> {s.name}
               </button>
             ))}
           </div>
@@ -201,8 +201,8 @@ export function HomeworkForm({ initial, subjectId: presetSubject, onDone }: { in
         <span className="grow">Напомнить</span>
         {remindOn && <input className="input" type="datetime-local" aria-label="Когда напомнить" value={localDateTime(shownRemind)} onChange={(e) => setRemind(e.target.value ? new Date(e.target.value).toISOString() : undefined)} />}
       </div>
-      {remindOn && !shownRemind && <span className="small muted">Выбери дату — и Мнема напомнит накануне в {data.settings.homeworkRemind.time}.</span>}
-      <div className="row end gap8">
+      {remindOn && !shownRemind && <span className="small muted">Выбери дату — и Refrain напомнит накануне в {data.settings.homeworkRemind.time}.</span>}
+      <div className="row end gap8 wrap">
         <button type="button" className="btn ghost" onClick={onDone}>
           Отмена
         </button>
@@ -214,16 +214,43 @@ export function HomeworkForm({ initial, subjectId: presetSubject, onDone }: { in
   );
 }
 
-/** Одна строка задания: кружок «сделано», текст, предмет и срок. Нажал на текст — изменить. */
+/** Удалить задание(я) с «Вернуть». */
+export function removeHomework(ids: string[], what = 'Задание удалено') {
+  const undo = deleteHomeworkMany(ids);
+  toast(what, { label: 'Вернуть', run: undo });
+}
+
+/** Одна строка задания: кружок «сделано», текст, предмет и срок. Нажал на текст — изменить; правая кнопка — меню; корзина — удалить. */
 function HwRow({ h, go, i = 0 }: { h: Homework; go?: (r: Route) => void; i?: number }) {
   const data = useData();
   const [edit, setEdit] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const s = data.subjects.find((x) => x.id === h.subjectId);
   const g = groupOf(h);
   const remind = h.remind && !h.done && Date.parse(h.remind) > Date.now();
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    window.addEventListener('mousedown', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('keydown', esc);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [menu]);
   return (
-    <div className={'hw-row' + (h.done ? ' done' : '') + (g === 'overdue' ? ' overdue' : '')} style={{ animationDelay: Math.min(i, 10) * 25 + 'ms' }}>
+    <div
+      className={'hw-row' + (h.done ? ' done' : '') + (g === 'overdue' ? ' overdue' : '')}
+      style={{ animationDelay: Math.min(i, 10) * 25 + 'ms' }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setMenu({ x: Math.min(e.clientX, window.innerWidth - 230), y: Math.min(e.clientY, window.innerHeight - 170) });
+      }}
+    >
       <button className={'hw-circle' + (h.done ? ' on' : '')} role="checkbox" aria-checked={Boolean(h.done)} aria-label={h.done ? 'Не сделано' : 'Сделано'} onClick={() => toggleHomework(h.id)} style={{ ['--c' as string]: s?.color ?? 'var(--accent)' }}>
         <Icon name="check" size={13} />
       </button>
@@ -256,6 +283,22 @@ function HwRow({ h, go, i = 0 }: { h: Homework; go?: (r: Route) => void; i?: num
           <Icon name="right" size={16} />
         </button>
       )}
+      <button className="icon-btn tiny hw-del" title="Удалить задание" aria-label="Удалить задание" onClick={() => removeHomework([h.id])}>
+        <Icon name="trash" size={15} />
+      </button>
+      {menu && (
+        <div className="menu ctx hw-menu" role="menu" style={{ left: menu.x, top: menu.y }} onMouseDown={(e) => e.stopPropagation()}>
+          <button role="menuitem" onClick={() => (setMenu(null), setEdit(true))}>
+            <Icon name="edit" size={18} /> Изменить
+          </button>
+          <button role="menuitem" onClick={() => (setMenu(null), toggleHomework(h.id))}>
+            <Icon name="check" size={18} /> {h.done ? 'Вернуть в список' : 'Отметить сделанным'}
+          </button>
+          <button role="menuitem" className="danger" onClick={() => (setMenu(null), removeHomework([h.id]))}>
+            <Icon name="trash" size={18} /> Удалить
+          </button>
+        </div>
+      )}
       {edit && (
         <Modal title="Задание" onClose={() => setEdit(false)} width={560}>
           <HomeworkForm initial={h} onDone={() => setEdit(false)} />
@@ -263,9 +306,8 @@ function HwRow({ h, go, i = 0 }: { h: Homework; go?: (r: Route) => void; i?: num
             <button
               className="btn ghost danger-text small"
               onClick={() => {
-                deleteHomework(h.id);
                 setEdit(false);
-                toast('Задание удалено');
+                removeHomework([h.id]);
               }}
             >
               <Icon name="trash" size={16} /> Удалить
@@ -392,7 +434,7 @@ function QuickAdd({ presetSubject }: { presetSubject?: string }) {
           </button>
           {subjects.map((x) => (
             <button type="button" role="menuitem" key={x.id} onClick={() => (setSubjectId(x.id), setMenu(null))}>
-              <SubjectMark color={x.color} icon={x.icon} /> <span className="grow clamp1">{x.name}</span>
+              <SubjectMark color={x.color} icon={x.icon} img={x.iconImg} /> <span className="grow clamp1">{x.name}</span>
             </button>
           ))}
         </Pill>
@@ -437,6 +479,10 @@ export function HomeworkScreen({ go }: { go: (r: Route) => void }) {
   const usedSubjects = sortedSubjects(data).filter((s) => data.homework.some((h) => !h.done && h.subjectId === s.id));
   const nearest = open.filter((h) => h.due).sort((a, b) => a.due!.localeCompare(b.due!))[0];
   const doneList = groups.get('done') ?? [];
+  // Сделанное за прошлые дни убираем само (при открытии экрана).
+  useEffect(() => {
+    pruneDoneHomework();
+  }, []);
 
   return (
     <div className="page narrow hw-page">
@@ -476,16 +522,23 @@ export function HomeworkScreen({ go }: { go: (r: Route) => void }) {
       {open.length === 0 && data.homework.length > 0 && !filter && <div className="hw-alldone">Все задания сделаны. Отдыхай — или повтори карточки 🙂</div>}
       {doneList.length > 0 && (
         <section className="hw-sec">
-          <button className="hw-sec-title hw-done-toggle" aria-expanded={showDone} onClick={() => setShowDone(!showDone)}>
-            Сделано <span>{doneList.length}</span>
-            <span className={'chev' + (showDone ? ' open' : '')}>›</span>
-          </button>
+          <div className="row gap8 wrap hw-done-head">
+            <button className="hw-sec-title hw-done-toggle" aria-expanded={showDone} onClick={() => setShowDone(!showDone)}>
+              Сделано <span>{doneList.length}</span>
+              <span className={'chev' + (showDone ? ' open' : '')}>›</span>
+            </button>
+            <span className="grow" />
+            <button className="link-btn small" onClick={() => removeHomework(doneList.map((h) => h.id), `Убрано сделанных: ${doneList.length}`)}>
+              Очистить сделанные
+            </button>
+          </div>
           <Collapse open={showDone}>
             <div className="hw-list">
               {doneList.slice(0, 50).map((h) => (
                 <HwRow key={h.id} h={h} />
               ))}
             </div>
+            <p className="small muted hw-done-note">Сделанное остаётся здесь до конца дня — вдруг отметил по ошибке. Завтра оно исчезнет само.</p>
           </Collapse>
         </section>
       )}

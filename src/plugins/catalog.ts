@@ -46,7 +46,7 @@ export const CATALOG_PLUGINS: { id: string; name: string; description: string; c
 // @icon 🍅
 // @name Помодоро
 // @version 1.0
-// @author Мнема
+// @author Refrain
 // @description Таймер 25/5 со своим экраном
 
 let timer = null;
@@ -105,7 +105,7 @@ export default {
 // @icon 🎉
 // @name Конфетти
 // @version 1.0
-// @author Мнема
+// @author Refrain
 // @description Салют за 10 верных ответов подряд
 
 let streak = 0;
@@ -151,7 +151,7 @@ export default {
 // @icon ∑
 // @name Шпаргалка формул
 // @version 1.0
-// @author Мнема
+// @author Refrain
 // @description Все формулы из конспектов на одном экране
 
 export default {
@@ -196,7 +196,7 @@ export default {
 // @icon 📏
 // @name Размер конспекта
 // @version 1.0
-// @author Мнема
+// @author Refrain
 // @description Слова и время чтения конспекта
 
 export default {
@@ -222,7 +222,7 @@ export default {
 // @icon 🤖
 // @name Вопросы от ИИ
 // @version 1.0
-// @author Мнема
+// @author Refrain
 // @description 5 карточек по конспекту от ИИ
 
 export default {

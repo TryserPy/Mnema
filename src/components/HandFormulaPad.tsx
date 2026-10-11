@@ -1,4 +1,4 @@
-// Формула от руки прямо в конспекте: пишешь на панели внизу, Мнема сама распознаёт
+// Формула от руки прямо в конспекте: пишешь на панели внизу, Refrain сам распознаёт
 // (после паузы) и вставляет формулу туда, где стоял курсор. Панель остаётся открытой для следующей.
 import { useEffect, useRef, useState } from 'react';
 import { aiAvailable, recognizeFormula } from '../ai';
@@ -108,8 +108,8 @@ export function HandFormulaPad({ onInsert, onFix, onClose }: { onInsert: (latex:
       </div>
       <SketchPad strokes={strokes} onChange={changed} height={170} label="Пиши формулу здесь" />
       <div className="hand-pad-status" aria-live="polite">
-        {!ai && <span className="warn-text small">Чтобы Мнема понимала почерк, включи «ИИ-помощник» в «Возможностях».</span>}
-        {ai && phase.name === 'idle' && <span className="muted small">{inserted ? `Вставлено: ${inserted}. Пиши следующую — курсор остался на месте.` : 'Пиши крупно, как в тетради. Остановишься — Мнема распознает и вставит формулу туда, где стоит курсор.'}</span>}
+        {!ai && <span className="warn-text small">Чтобы Refrain понимала почерк, включи «ИИ-помощник» в «Возможностях».</span>}
+        {ai && phase.name === 'idle' && <span className="muted small">{inserted ? `Вставлено: ${inserted}. Пиши следующую — курсор остался на месте.` : 'Пиши крупно, как в тетради. Остановишься — Refrain распознает и вставит формулу туда, где стоит курсор.'}</span>}
         {phase.name === 'waiting' && <span className="muted small">Жду, пока допишешь…</span>}
         {phase.name === 'reading' && (
           <span className="row gap8 small">

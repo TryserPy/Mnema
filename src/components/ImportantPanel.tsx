@@ -1,4 +1,4 @@
-// Меню «Важное»: всё, что Мнема нашла в конспекте, по группам — со ссылкой на страницу,
+// Меню «Важное»: всё, что Refrain нашла в конспекте, по группам — со ссылкой на страницу,
 // кнопками «В карточку», «Показать», «Скрыть» и созданием карточек из всего сразу.
 import { useMemo, useState } from 'react';
 import { cardDraft, findImportant, IMPORTANT_TYPES, type ImportantItem } from '../important';
@@ -45,7 +45,7 @@ export function ImportantPanel({ topicId, onShow, onPage, onClose }: { topicId: 
       ) : items.length === 0 ? (
         <div className="imp-empty">
           <p>Пока ничего не найдено.</p>
-          <p className="small muted">Мнема отмечает жирное, определения («X — это…»), даты, имена, формулы и рамки «Запомните». Выдели главное в конспекте жирным — оно появится здесь.</p>
+          <p className="small muted">Refrain отмечает жирное, определения («X — это…»), даты, имена, формулы и рамки «Запомните». Выдели главное в конспекте жирным — оно появится здесь.</p>
         </div>
       ) : (
         <div className="imp-list">
@@ -252,7 +252,7 @@ function BulkCards({ topicId, items, onClose, title = 'Карточки из «�
             );
           })}
         </div>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>
@@ -294,7 +294,7 @@ export function NoteToCards({ topicId, onClose }: { topicId: string; onClose: ()
       <Modal title="Карточки из конспекта" onClose={onClose}>
         <div className="stack gap12">
           <p>{topic.note.trim() ? 'Всё важное из конспекта уже в карточках — или в нём пока нет выделенного: жирного, определений, дат.' : 'Конспект пока пустой.'}</p>
-          <p className="small muted">Выдели главное жирным или напиши определение «X — это …», и Мнема найдёт его.</p>
+          <p className="small muted">Выдели главное жирным или напиши определение «X — это …», и Refrain найдёт его.</p>
           <div className="row end">
             <button className="btn primary" onClick={onClose}>
               Понятно

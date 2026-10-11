@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { placeMenu } from '../menuPlace';
 
@@ -187,6 +187,13 @@ const paths: Record<string, ReactNode> = {
     <>
       <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
       <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+    </>
+  ),
+  paste: (
+    <>
+      <rect x="5" y="5.5" width="14" height="15" rx="2" />
+      <path d="M9 5.5V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5v1" />
+      <path d="M9 12h6M9 16h4" />
     </>
   ),
   magic: (
@@ -415,7 +422,7 @@ export function Modal({ title, onClose, children, width = 520, sticky = false }:
   // Окно всегда в <body>: иначе карточка с анимацией (transform) обрезает его и перекрывает соседями.
   return createPortal(
     <div className={'modal-back' + (closing ? ' closing' : '')} onMouseDown={(e) => !sticky && e.target === e.currentTarget && close()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
+      <div className="modal" data-part="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button className="icon-btn" onClick={close} aria-label="Закрыть">
@@ -681,9 +688,12 @@ export const SUBJECT_ICONS = [
   '💻', '🤖', '🎨', '🎵', '⚽', '🏃', '🧠', '🍳', '🛠️', '⭐'
 ];
 
-/** Значок: одна кнопка, по нажатию — сетка значков. */
-export function IconPicker({ value, onChange, color }: { value?: string; onChange: (v?: string) => void; color?: string }) {
+const IconCropDialog = lazy(() => import('./IconCrop').then((m) => ({ default: m.IconCropDialog })));
+
+/** Значок: одна кнопка, по нажатию — сетка значков и «Своя картинка…». image/onImage — своя картинка (iconImg) предмета или папки. */
+export function IconPicker({ value, onChange, color, image, onImage }: { value?: string; onChange: (v?: string) => void; color?: string; image?: string; onImage?: (v?: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [cropping, setCropping] = useState(false);
   const pres = usePresence(open, 140);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -692,17 +702,24 @@ export function IconPicker({ value, onChange, color }: { value?: string; onChang
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
   }, [open]);
+  const has = Boolean(value || image);
   return (
     <div className="icon-pick" ref={ref}>
       <button type="button" className={'icon-pick-btn' + (open ? ' open' : '')} aria-expanded={open} onClick={() => setOpen(!open)}>
-        {value ? <SubjectMark color={color ?? 'var(--accent)'} icon={value} /> : <span className="icon-pick-none" />}
-        <span>{value ? 'Сменить значок' : 'Выбрать значок'}</span>
+        {has ? <SubjectMark color={color ?? 'var(--accent)'} icon={value} img={image} /> : <span className="icon-pick-none" />}
+        <span>{has ? 'Сменить значок' : 'Выбрать значок'}</span>
         <Icon name="chevron" size={12} />
       </button>
-      {value && (
-        <button type="button" className="link-btn small" onClick={() => onChange(undefined)}>
-          убрать
+      {image ? (
+        <button type="button" className="link-btn small" onClick={() => onImage?.(undefined)}>
+          убрать картинку
         </button>
+      ) : (
+        value && (
+          <button type="button" className="link-btn small" onClick={() => onChange(undefined)}>
+            убрать
+          </button>
+        )
       )}
       {pres.mounted && (
         <div className={'icon-pop' + (pres.closing ? ' closing' : '')} role="listbox" aria-label="Значки">
@@ -711,29 +728,143 @@ export function IconPicker({ value, onChange, color }: { value?: string; onChang
               key={i}
               type="button"
               role="option"
-              aria-selected={value === i}
-              className={'ico-opt' + (value === i ? ' on' : '')}
+              aria-selected={!image && value === i}
+              className={'ico-opt' + (!image && value === i ? ' on' : '')}
               onClick={() => {
                 onChange(i);
+                if (image) onImage?.(undefined); // выбрал эмодзи — картинка больше не нужна
                 setOpen(false);
               }}
               aria-label={`Значок ${i}`}
             >
-              {i}
+              <Glyph ch={i} />
             </button>
           ))}
+          {onImage && (
+            <button
+              type="button"
+              className={'ico-opt ico-own' + (image ? ' on' : '')}
+              onClick={() => {
+                setOpen(false);
+                setCropping(true);
+              }}
+            >
+              <Icon name="upload" size={15} /> Своя картинка…
+            </button>
+          )}
         </div>
+      )}
+      {cropping && onImage && (
+        <Suspense fallback={null}>
+          <IconCropDialog
+            color={color}
+            onClose={() => setCropping(false)}
+            onDone={(uri) => {
+              onImage(uri);
+              setCropping(false);
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );
 }
 
-/** Значок предмета: эмодзи на цветной подложке или просто цветная точка. */
-export function SubjectMark({ color, icon, size = 'small' }: { color: string; icon?: string; size?: 'small' | 'big' }) {
+// ---------- Значки-эмодзи: ровно по центру плитки ----------
+// У разных шрифтов эмодзи (Segoe UI Emoji на Windows, Apple Color Emoji, Noto Color Emoji) рисунок сидит в строке выше или ниже,
+// левее или правее, поэтому одного «центрирования» в CSS мало. Мы один раз для каждого значка: рисуем его на невидимом холсте и
+// находим, где у него «чернила» относительно базовой линии; в самой странице (DOM) узнаём, где этот шрифт ставит базовую линию
+// внутри строки высотой в размер шрифта; и сдвигаем значок на разницу с центром (в долях размера шрифта).
+export const EMOJI_FONT = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', 'EmojiOne Color', sans-serif";
+const glyphShift = new Map<string, [number, number]>();
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+export function glyphOffset(ch: string): [number, number] {
+  const hit = glyphShift.get(ch);
+  if (hit) return hit;
+  let res: [number, number] = [0, 0];
+  let probe: HTMLElement | null = null;
+  try {
+    if (measureCtx === undefined) {
+      const c = document.createElement('canvas');
+      c.width = 200;
+      c.height = 200;
+      measureCtx = c.getContext('2d', { willReadFrequently: true });
+    }
+    const ctx = measureCtx;
+    if (ctx) {
+      const SIZE = 100;
+      const X0 = 40;
+      const BASE = 130;
+      ctx.clearRect(0, 0, 200, 200);
+      ctx.font = `${SIZE}px ${EMOJI_FONT}`;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#000';
+      ctx.fillText(ch, X0, BASE);
+      const adv = ctx.measureText(ch).width;
+      const px = ctx.getImageData(0, 0, 200, 200).data;
+      let x0 = 200, x1 = -1, y0 = 200, y1 = -1;
+      for (let y = 0; y < 200; y++)
+        for (let x = 0; x < 200; x++)
+          if (px[(y * 200 + x) * 4 + 3] > 40) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+      if (x1 >= 0) {
+        // Чернила относительно базовой линии и левого края (в долях размера).
+        const inkUp = (BASE - (y0 + y1 + 1) / 2) / SIZE; // насколько центр чернил выше базовой линии
+        const inkX = ((x0 + x1 + 1) / 2 - X0) / SIZE; // центр чернил от левого края
+        // Где базовая линия в DOM: строка высотой 1em, внутри — «якорь» нулевого размера, который садится на базовую линию.
+        probe = document.createElement('div');
+        probe.style.cssText = `position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;white-space:nowrap;font:${SIZE}px ${EMOJI_FONT};line-height:1`;
+        probe.append(document.createTextNode(ch));
+        const anchor = document.createElement('span');
+        anchor.style.cssText = 'display:inline-block;width:0;height:0';
+        probe.append(anchor);
+        document.body.append(probe);
+        const top = probe.getBoundingClientRect().top;
+        const baseDown = (anchor.getBoundingClientRect().bottom - top) / SIZE; // базовая линия ниже верха строки
+        const width = (probe.getBoundingClientRect().width || adv) / SIZE;
+        const inkDown = baseDown - inkUp; // центр чернил ниже верха строки
+        const clamp = (v: number) => Math.max(-0.14, Math.min(0.14, v));
+        const dy = clamp(0.5 - inkDown);
+        const dx = clamp(width / 2 - inkX);
+        res = [Math.abs(dx) < 0.012 ? 0 : Math.round(dx * 1000) / 1000, Math.abs(dy) < 0.012 ? 0 : Math.round(dy * 1000) / 1000];
+      }
+    }
+  } catch {
+    /* нет холста — оставляем как есть */
+  } finally {
+    probe?.remove();
+  }
+  glyphShift.set(ch, res);
+  return res;
+}
+
+/** Эмодзи или знак, поставленный точно по центру своего места (см. glyphOffset). */
+export function Glyph({ ch }: { ch: string }) {
+  const [dx, dy] = glyphOffset(ch);
+  return (
+    <span className="glyph" style={dx || dy ? { transform: `translate(${dx}em, ${dy}em)` } : undefined}>
+      {ch}
+    </span>
+  );
+}
+
+/** Значок предмета: своя картинка или эмодзи на цветной подложке, а без них — просто цветная точка. */
+export function SubjectMark({ color, icon, img, size = 'small' }: { color: string; icon?: string; img?: string; size?: 'small' | 'big' }) {
+  if (img)
+    return (
+      <span className={'subj-ico has-img ' + size} style={{ borderColor: color }}>
+        <img src={img} alt="" draggable={false} />
+      </span>
+    );
   if (!icon) return <span className={size === 'big' ? 'subject-badge' : 'dot'} style={{ background: color }} />;
   return (
     <span className={'subj-ico ' + size} style={{ background: `color-mix(in srgb, ${color} 22%, transparent)`, borderColor: color }}>
-      {icon}
+      <Glyph ch={icon} />
     </span>
   );
 }

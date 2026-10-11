@@ -43,7 +43,7 @@ for (const [name, opts] of devices) {
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`${name} console: ${m.text()}`));
   await page.goto(URL);
-  await page.evaluate(seed); // как будто до веб-версии Мнема уже писала в localStorage
+  await page.evaluate(seed); // как будто до веб-версии Refrain уже писала в localStorage
   await page.reload();
   await page.waitForSelector('#root > *', { timeout: 15000 });
   await page.waitForTimeout(800);

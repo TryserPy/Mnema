@@ -1,6 +1,6 @@
 // Фото страниц учебника → конспект в Markdown.
 // Без интернета: фото выпрямляется (страница на столе, перспектива, тени, наклон), Tesseract читает слова,
-// а колонки, абзацы, заголовки, списки, жирный, рисунки, рамки «Запомните» и формулы Мнема восстанавливает сама.
+// а колонки, абзацы, заголовки, списки, жирный, рисунки, рамки «Запомните» и формулы Refrain восстанавливает сама.
 // Точный режим — ИИ с зрением; если он не справился, страница читается без интернета.
 import { humanError } from './ai';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';

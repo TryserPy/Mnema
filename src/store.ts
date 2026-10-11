@@ -1,4 +1,5 @@
 // Хранилище данных: состояние в памяти + сохранение в файл (Electron) или localStorage (браузер).
+import { splitDoneHomework } from './homework';
 import { copyCard, copyFolder, copySubject, copyTopic, type CopyResult } from './copy';
 import { useSyncExternalStore } from 'react';
 import { bridgeKey } from './platform/bridgeKey';
@@ -9,6 +10,10 @@ import { emit } from './plugins/bus';
 import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
+import { cleanIconImg, cleanIconImgs } from './iconImage';
+import { applyImportPlan } from './mdApply';
+import type { ImportPlan } from './mdImport';
+import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
@@ -67,6 +72,7 @@ declare global {
       save: (json: string) => Promise<boolean>;
       saveSync: (json: string) => boolean;
       openDataFolder?: () => Promise<string>;
+      dataFolderPath?: () => Promise<string>; // Windows: полный путь к папке «Мои данные»
       backupList?: () => Promise<{ name: string; size: number }[]>; // автокопии (раз в день, последние 8)
       backupRead?: (name: string) => Promise<string | null>;
       obsidianPick?: () => Promise<Vault | null>;
@@ -91,16 +97,18 @@ declare global {
       ocrRecognize?: (bytes: Uint8Array) => Promise<{ ok: true; lines: unknown[] } | { ok: false; error: string }>;
       scheduleNotifications?: (list: { id: string; at: number; title: string; body: string; open: string }[]) => void;
       setWidget?: (json: string) => void;
-      updateCheck?: (src: { owner: string; repo: string }) => Promise<{ ok: boolean; error?: string; current?: string; latest?: string | null; available?: boolean; notes?: string }>;
+      updateCheck?: (src: { owner: string; repo: string }) => Promise<{ ok: boolean; error?: string; current?: string; latest?: string | null; available?: boolean; notes?: string; manual?: boolean; url?: string; fileName?: string; size?: number }>;
       /** Скачать обновление. На телефоне — APK по ссылке из выпуска (url), на компьютере url не нужен. */
       updateDownload?: (url?: string) => Promise<{ ok: boolean; error?: string }>;
       /** Поставить скачанное. На телефоне может попросить разрешение «ставить приложения» (permission). */
       updateInstall?: (ask?: boolean) => Promise<boolean | { ok: boolean; permission?: boolean; error?: string }>;
       onUpdateEvent?: (cb: (e: { type: 'progress'; percent: number } | { type: 'ready'; version: string } | { type: 'error'; message: string }) => void) => () => void;
-      /** Пункты «Мнемы» в меню выделения текста Android (пустой список — убрать). */
+      /** Пункты «Refrain» в меню выделения текста Android (пустой список — убрать). */
       setSelMenu?: (items: { id: string; title: string }[]) => void;
       /** Значок приложения на рабочем столе телефона (под тему). */
       setAppIcon?: (name: string) => void;
+      /** Файл Refrain (.mnema, .refrainstyle, .mnemamod), открытый двойным щелчком или из командной строки (компьютер). */
+      onOpenFile?: (cb: (f: { name: string; text: string }) => void) => () => void;
       onNotifyOpen?: (cb: (what: string) => void) => () => void;
       notifyPermission?: () => Promise<boolean>;
       trayState?: (s: { enabled: boolean; due: number; reminder: string | null; hotkey: boolean; accelerator?: string; closeToTray: boolean; autostart: boolean }) => void;
@@ -136,6 +144,8 @@ export const DEFAULT_SETTINGS: Settings = {
   modsOn: [],
   customMods: [],
   userCss: '',
+  cssSnippets: [],
+  styleValues: {},
   motion: 'all',
   motionOff: [],
   retention: 0.9,
@@ -182,7 +192,7 @@ export function dropRemoved(d: AppData): AppData {
 
 /** Данные пришли «со стороны» (копия из файла): то, что может запустить чужой код или увести пароль, берём у ЭТОГО устройства, а не из файла.
  *  — моды из копии остаются в списке, но не запускаются, пока их не разрешат здесь (`pluginsSafe`);
- *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Мнема сама отправила бы сохранённый пароль на чужой сервер. */
+ *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Refrain сам отправила бы сохранённый пароль на чужой сервер. */
 export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; notes: string[] } {
   const notes: string[] = [];
   const ownCloud = local.settings.cloud ?? null;
@@ -206,18 +216,18 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
 export function normalizeData(raw: unknown): AppData {
-  if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Мнемы');
+  if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Refrain');
   const r = raw as Partial<AppData>;
   if (r.version !== 1 || !Array.isArray(r.subjects) || !Array.isArray(r.topics) || !Array.isArray(r.cards)) {
-    throw new Error('Файл не похож на данные Мнемы');
+    throw new Error('Файл не похож на данные Refrain');
   }
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
   const out: AppData = {
     version: 1,
-    folders: Array.isArray(r.folders) ? r.folders : [],
+    folders: Array.isArray(r.folders) ? cleanIconImgs(r.folders) : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
     exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
-    subjects: r.subjects,
+    subjects: cleanIconImgs(r.subjects),
     ...(Array.isArray(r.trash) && r.trash.length ? { trash: cleanTrash(r.trash) } : {}),
     topics: cleanTopics(r.topics),
     cards: r.cards,
@@ -240,8 +250,10 @@ export function normalizeData(raw: unknown): AppData {
       motionOff: Array.isArray(r.settings?.motionOff) ? r.settings!.motionOff : [],
       cardTemplates: Array.isArray(r.settings?.cardTemplates) ? r.settings!.cardTemplates : [],
       modsOn: Array.isArray(r.settings?.modsOn) ? r.settings!.modsOn.map((m) => (m === 'neon' ? 'glow' : m)) : [],
-      customMods: Array.isArray(r.settings?.customMods) ? r.settings!.customMods : [],
-      userCss: typeof r.settings?.userCss === 'string' ? r.settings.userCss : '',
+      customMods: cleanCustomMods(r.settings?.customMods),
+      userCss: '',
+      cssSnippets: cleanSnippets(r.settings?.cssSnippets, r.settings?.userCss),
+      styleValues: cleanStyleValues(r.settings?.styleValues),
       // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
       bgImage:
         typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
@@ -909,8 +921,8 @@ export function addListRows(topicId: string, list: StudyList, rows: { a: string;
 
 // ---------- Папки предметов ----------
 
-export function addFolder(name: string, color: string, icon?: string): Folder {
-  const f: Folder = { id: uid(), name: name.trim() || 'Папка', color, icon, order: data.folders.length + 1, createdAt: nowIso(), updatedAt: nowIso() };
+export function addFolder(name: string, color: string, icon?: string, iconImg?: string): Folder {
+  const f: Folder = { id: uid(), name: name.trim() || 'Папка', color, icon, ...(iconImg ? { iconImg } : {}), order: data.folders.length + 1, createdAt: nowIso(), updatedAt: nowIso() };
   commit({ ...data, folders: [...data.folders, f], settings: { ...data.settings, treeOpen: [...data.settings.treeOpen, f.id] } });
   return f;
 }
@@ -958,6 +970,33 @@ export function toggleHomework(id: string) {
 
 export function deleteHomework(id: string) {
   commit(tomb({ ...data, homework: data.homework.filter((h) => h.id !== id) }, ['hw:' + id]));
+}
+
+/** Вернуть удалённые задания (кнопка «Вернуть» после удаления): те же задания с теми же id, метка удаления снимается. */
+export function restoreHomework(list: Homework[]) {
+  if (!list.length) return;
+  const have = new Set(data.homework.map((h) => h.id));
+  const back = list.filter((h) => !have.has(h.id));
+  const deleted = { ...(data.deleted ?? {}) };
+  for (const h of list) delete deleted['hw:' + h.id];
+  commit({ ...data, homework: [...data.homework, ...back.map((h) => ({ ...h, updatedAt: nowIso() }))], deleted });
+}
+
+/** Удалить задания (все выбранные одним действием). Возвращает «Вернуть». */
+export function deleteHomeworkMany(ids: string[]): () => void {
+  const set = new Set(ids);
+  const gone = data.homework.filter((h) => set.has(h.id));
+  if (!gone.length) return () => undefined;
+  commit(tomb({ ...data, homework: data.homework.filter((h) => !set.has(h.id)) }, gone.map((h) => 'hw:' + h.id)));
+  return () => restoreHomework(gone);
+}
+
+/** Убрать сделанные задания прошлых дней (сегодняшние остаются в «Сделано» — их можно вернуть). Возвращает, сколько убрано. */
+export function pruneDoneHomework(now = new Date()): number {
+  const { old } = splitDoneHomework(data.homework, now, data.settings.dayStartHour);
+  if (!old.length) return 0;
+  deleteHomeworkMany(old.map((h) => h.id));
+  return old.length;
 }
 
 export function sortedSubjects(d: AppData): Subject[] {
@@ -1096,6 +1135,8 @@ export function importTopics(
   items: {
     subjectName: string;
     subjectColor?: string;
+    subjectIcon?: string; // значок нового предмета (эмодзи) и/или своя картинка — только если предмет создаётся
+    subjectIconImg?: string;
     topic: Pick<Topic, 'name' | 'note'> & Partial<Pick<Topic, 'examDate' | 'source' | 'lists' | 'kind' | 'poems'>>;
     cards?: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId'>> & {
       states?: Record<number, ItemState>;
@@ -1114,7 +1155,7 @@ export function importTopics(
       const existing = d.subjects.find((s) => s.name.trim().toLowerCase() === it.subjectName.trim().toLowerCase());
       if (existing) subjectId = existing.id;
       else {
-        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', createdAt: nowIso() };
+        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', ...(it.subjectIcon ? { icon: it.subjectIcon } : {}), ...(cleanIconImg(it.subjectIconImg) ? { iconImg: it.subjectIconImg } : {}), createdAt: nowIso() };
         d = { ...d, subjects: [...d.subjects, s] };
         subjectId = s.id;
       }
@@ -1136,6 +1177,13 @@ export function importTopics(
   }
   commit(d);
   return { topics, cards, firstTopicId };
+}
+
+/** Импорт папки Markdown / архива / хранилища Obsidian (план из mdImport.planImport): папки, предметы, темы с подтемами, словари, карточки. Одно изменение данных. */
+export function importTree(plan: ImportPlan, targetSubjectId?: string): { folders: number; subjects: number; topics: number; cards: number; firstTopicId?: string } {
+  const r = applyImportPlan(data, plan, uid, nowIso(), targetSubjectId);
+  commit(r.data);
+  return { folders: r.folders, subjects: r.subjects, topics: r.topics, cards: r.cards, firstTopicId: r.firstTopicId };
 }
 
 export function replaceData(next: AppData) {
@@ -1174,9 +1222,17 @@ export interface PastePlace {
   folderId?: string;
   subjectId?: string;
   topicId?: string;
+  /** Вставить на верхний уровень списка предметов (правая кнопка по свободному месту): предметы — вне папок. */
+  root?: boolean;
 }
 
-/** Вставить скопированное (Ctrl+C → Ctrl+V): темы — рядом с открытой темой или в открытый предмет, предметы — в открытую папку. Одно изменение данных на всё. */
+/**
+ * Вставить скопированное (Ctrl+C → Ctrl+V или «Вставить» в меню). Куда:
+ * - папка вставляется на верхний уровень; предмет — в папку, на которую нажал (или в папку открытого предмета; по свободному месту — вне папок);
+ * - тема — в предмет, на который нажал (в корень предмета), а если нажал на тему — рядом с ней; без предмета тему вставить некуда.
+ * Имя остаётся прежним, «(2)» — только если в этом месте уже есть такое. Копируется всё содержимое (подтемы, конспекты, карточки, словари, стихи),
+ * прогресс повторений не копируется: у копии расписание начинается с нуля. Одно изменение данных на всё.
+ */
 export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] {
   const stamp = nowIso();
   let d = data;
@@ -1184,13 +1240,14 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
   const here = place.topicId ? d.topics.find((t) => t.id === place.topicId) : undefined;
   for (const it of items) {
     let r: CopyResult | null = null;
-    if (it.kind === 'folder') r = copyFolder(d, it.id, uid, stamp);
+    if (it.kind === 'folder') r = copyFolder(d, it.id, uid, stamp, 'paste');
     else if (it.kind === 'subject') {
       const placeFolder = place.folderId ?? (place.subjectId ? d.subjects.find((x) => x.id === place.subjectId)?.folderId : undefined);
-      r = copySubject(d, it.id, uid, stamp, place.folderId || place.subjectId ? { folderId: placeFolder } : undefined);
+      r = copySubject(d, it.id, uid, stamp, place.root || place.folderId || place.subjectId ? { folderId: placeFolder } : undefined, 'paste');
     } else {
       const subjectId = place.subjectId && d.subjects.some((x) => x.id === place.subjectId) ? place.subjectId : undefined;
-      // Рядом с открытой темой (тот же родитель); если родитель — сама копируемая тема или её подтема, — рядом с оригиналом.
+      if (!subjectId) continue; // тему некуда вставить: нужен предмет
+      // Рядом с темой, на которую нажал (тот же родитель); если родитель — сама копируемая тема или её подтема, — в корень предмета.
       let parentId = here?.subjectId === subjectId ? here?.parentId : undefined;
       for (let p = parentId, guard = 0; p && guard < 500; guard++) {
         if (p === it.id) {
@@ -1199,7 +1256,7 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
         }
         p = d.topics.find((t) => t.id === p)?.parentId;
       }
-      r = copyTopic(d, it.id, uid, stamp, subjectId ? { subjectId, parentId } : undefined);
+      r = copyTopic(d, it.id, uid, stamp, { subjectId, parentId }, 'paste');
     }
     if (r) {
       d = r.data;
@@ -1207,8 +1264,9 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
     }
   }
   if (out.length) {
-    const folders = out.filter((r) => r.what === 'folder').map((r) => r.id);
-    commit({ ...d, settings: { ...d.settings, treeOpen: [...d.settings.treeOpen, ...folders] } });
+    // Раскрываем в левой панели то, во что вставили (иначе вставленного не видно).
+    const open = [...out.filter((r) => r.what === 'folder').map((r) => r.id), ...[place.folderId, place.subjectId].filter((x): x is string => Boolean(x))];
+    commit({ ...d, settings: { ...d.settings, treeOpen: [...new Set([...d.settings.treeOpen, ...open])] } });
   }
   return out;
 }

@@ -1,5 +1,6 @@
 // Настройки: слева разделы, справа — один раздел. Ничего не надо листать и искать глазами: есть поиск по настройкам.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Logo } from '../components/Logo';
 import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
@@ -8,6 +9,7 @@ import { PluginsSettings } from '../components/PluginsSettings';
 import { StylesSettings } from '../components/ModsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
+import { MarkdownImport } from '../components/MarkdownImport';
 import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
 import { CloudDialog } from '../components/CloudDialog';
@@ -15,7 +17,7 @@ import { AiSettings } from '../components/AiSettings';
 import { FEATURES, MODS_AVAILABLE } from '../featureList';
 import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
-import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
+import { downloadBytes, downloadFile, importTopicPackage, isTopicPackage } from '../share';
 import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
@@ -93,7 +95,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
     { id: 'keys', title: 'Клавиши', icon: 'keyboard', hidden: touchUI() },
     { id: 'data', title: 'Данные', icon: 'database' },
     { id: 'mods', title: 'Моды', icon: 'puzzle', hidden: !MODS_AVAILABLE || !s.features.mods },
-    { id: 'about', title: 'О Мнеме', icon: 'info' }
+    { id: 'about', title: 'О Refrain', icon: 'info' }
   ];
   const visible = sections.filter((x) => !x.hidden);
   const [section, setSection] = useState<SettingsSection | null>(initial ?? (narrow ? null : 'look'));
@@ -333,7 +335,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
   const hwOn = s.features.homework;
   return (
     <div className="stack gap16">
-      <PaneHead title="Напоминания" text={android ? 'Уведомления приходят, даже если Мнема закрыта. Если телефон спросит — разреши.' : 'Уведомления Windows приходят, пока Мнема открыта или работает у часов.'} />
+      <PaneHead title="Напоминания" text={android ? 'Уведомления приходят, даже если Refrain закрыта. Если телефон спросит — разреши.' : `Уведомления ${window.mnemaApi?.platform === 'win32' ? 'Windows' : 'компьютера'} приходят, пока Refrain открыта или работает у часов.`} />
       <Group title="Домашка" id="hw">
         {hwOn ? (
           <>
@@ -369,7 +371,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
             </div>
           </SRow>
         ) : (
-          <SRow label="Нужно расписание уроков" hint="Включи его, и Мнема будет вечером напоминать повторить завтрашние предметы">
+          <SRow label="Нужно расписание уроков" hint="Включи его, и Refrain будет вечером напоминать повторить завтрашние предметы">
             <button className="btn small" onClick={() => setFeature('schedule', true)}>
               Включить
             </button>
@@ -386,7 +388,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
       </Group>
       {desktop && (
         <Group title="Значок у часов" id="tray">
-          <SRow label="Показывать значок у часов" hint="Число карточек на сегодня и напоминания">
+          <SRow label="Показывать значок у часов" hint={window.mnemaApi?.platform === 'linux' ? 'Число карточек и напоминания. В GNOME нужно расширение «AppIndicator»; без значка закрытие окна сворачивает Refrain' : 'Число карточек на сегодня и напоминания'}>
             <Switch label="Значок у часов" checked={s.features.tray} onChange={(v) => setFeature('tray', v)} />
           </SRow>
           {s.features.tray && (
@@ -397,7 +399,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
               <SRow label="При закрытии окна оставаться у часов" hint="Тогда напоминания работают, даже если окно закрыто">
                 <Switch label="Оставаться у часов" checked={s.closeToTray} onChange={(v) => updateSettings({ closeToTray: v })} />
               </SRow>
-              <SRow label="Запускать вместе с Windows" hint="Тихо, сразу у часов">
+              <SRow label={window.mnemaApi?.platform === 'linux' ? 'Запускать при входе в систему' : 'Запускать вместе с Windows'} hint="Тихо, сразу у часов">
                 <Switch label="Автозапуск" checked={s.autostart} onChange={(v) => updateSettings({ autostart: v })} />
               </SRow>
             </>
@@ -416,6 +418,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   const [msg, setMsg] = useState('');
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [anki, setAnki] = useState(false);
+  const [mdImport, setMdImport] = useState(false);
   const [sync, setSync] = useState(false);
   const [cloud, setCloud] = useState(false);
   const [exportKind, setExportKind] = useState<'anki' | 'print' | null>(null);
@@ -426,6 +429,29 @@ function DataPane({ go }: { go: (r: Route) => void }) {
     const r = await api!.obsidianExport!(buildObsidianExport(data));
     if (r.ok && r.zip) setMsg(`Готово: ${r.written} файлов в архиве «${r.folder}». Распакуй его в хранилище Obsidian.`);
     else if (r.ok) setMsg(`Готово: ${r.written} файлов в папке «${r.folder}».`);
+  }
+  const [dataDir, setDataDir] = useState('');
+  useEffect(() => {
+    void api?.dataFolderPath?.().then(setDataDir, () => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const desktop = Boolean(api?.dataFolderPath);
+  async function runMarkdownExport(flavor: 'plain' | 'obsidian') {
+    try {
+      const { buildMarkdownExport, zipExport } = await import('../mdExport');
+      const files = buildMarkdownExport(data, { flavor });
+      const name = `Refrain конспекты ${new Date().toISOString().slice(0, 10)}.zip`;
+      const ok = await downloadBytes(name, await zipExport(files), 'application/zip');
+      setMsg(ok ? `Готово: ${files.length} файлов в архиве «${name}». Распакуй его — внутри папка с конспектами.` : 'Сохранение отменено.');
+    } catch (e) {
+      setMsg('Не получилось: ' + (e as Error).message);
+    }
+  }
+  async function runCardsExport(kind: 'csv' | 'md') {
+    const { cardsToCsv, cardsToMarkdown } = await import('../mdCards');
+    const flat = data.subjects.flatMap((s) => data.topics.filter((t) => t.subjectId === s.id).flatMap((t) => data.cards.filter((c) => c.topicId === t.id).map((c) => ({ subject: s.name, topic: t.name, type: c.type, front: c.front, back: c.back, why: c.why }))));
+    if (!flat.length) return setMsg('Карточек пока нет.');
+    const day = new Date().toISOString().slice(0, 10);
+    downloadFile(kind === 'csv' ? `Карточки ${day}.csv` : `Карточки ${day}.md`, kind === 'csv' ? cardsToCsv(flat) : cardsToMarkdown(flat), kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/markdown;charset=utf-8');
   }
   const where = api?.platform === 'android' ? 'телефоне' : api?.platform === 'web' ? 'устройстве, в браузере' : api ? 'компьютере' : 'устройстве';
   return (
@@ -444,7 +470,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
           </button>
         </SRow>
         {api?.backupList && (
-          <SRow label="Автокопии" hint="Мнема сама сохраняет копию каждый день — можно вернуть любой из 8 последних">
+          <SRow label="Автокопии" hint="Refrain сам сохраняет копию каждый день — можно вернуть любой из 8 последних">
             <button className="btn small" onClick={openBackups}>
               Открыть
             </button>
@@ -455,13 +481,25 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Открыть
           </button>
         </SRow>
-        {api?.openDataFolder && (
-          <SRow label="Папка с данными">
-            <button className="btn small" onClick={() => void api.openDataFolder?.()}>
+        {desktop ? (
+          <SRow
+            label="Папка с данными"
+            hint={
+              <>
+                Здесь лежат твои предметы, конспекты и карточки (один файл refrain-data.json) и папка «Резервные копии»; в «ПРОЧТИ.txt» написано, как перенести всё на другой компьютер. Служебные файлы программы лежат отдельно — открывать их не нужно.
+                {dataDir && <span style={{ display: 'block', marginTop: 4, userSelect: 'text', wordBreak: 'break-all' }}>{dataDir}</span>}
+              </>
+            }
+          >
+            <button className="btn small" onClick={() => void api?.openDataFolder?.()}>
               Открыть
             </button>
           </SRow>
-        )}
+        ) : api?.platform === 'android' ? (
+          <SRow label="Где лежат данные" hint="В памяти приложения на этом телефоне — отдельной папки с файлами нет. Перенести на другое устройство можно через «Сохранить копию» и «Восстановить из копии» или через «Между устройствами»." />
+        ) : api?.platform === 'web' ? (
+          <SRow label="Где лежат данные" hint="В хранилище этого браузера на этом устройстве — папки с файлами нет. Если очистить данные сайтов или сменить браузер, они пропадут, поэтому иногда сохраняй копию. Перенести на другое устройство: «Сохранить копию» и «Восстановить из копии» или «Между устройствами»." />
+        ) : null}
       </Group>
       {(api?.http || api?.secretGet) && (
         <Group title="Между устройствами" id="sync">
@@ -499,6 +537,11 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Выбрать файл
           </button>
         </SRow>
+        <SRow label="Из папки Markdown, Obsidian или .zip" hint="Конспекты .md с картинками и карточками; подойдёт и архив из «Всё в Markdown»">
+          <button className="btn small" onClick={() => setMdImport(true)}>
+            Выбрать
+          </button>
+        </SRow>
         <SRow label="Тема из файла" hint="Файл .mnema, которым поделился друг">
           <button className="btn small" onClick={() => topicRef.current?.click()}>
             Выбрать файл
@@ -519,6 +562,22 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         <SRow label="Распечатать карточки" hint="Для вырезания или списком">
           <button className="btn small" onClick={() => setExportKind('print')}>
             Печать
+          </button>
+        </SRow>
+        <SRow label="Всё в Markdown (.zip)" hint="Папки, предметы и темы — файлами .md, картинки и рисунки — в attachments, карточки внутри тем, формулы $…$. Откроется в Obsidian, Typora, VS Code; вернуть в приложение можно через «Импорт»">
+          <button className="btn small" onClick={() => void runMarkdownExport('plain')} title="Обычные ссылки между темами">
+            Экспорт
+          </button>
+          <button className="btn small" onClick={() => void runMarkdownExport('obsidian')} title="Ссылки [[между темами]], выноски и видео в стиле Obsidian">
+            Для Obsidian
+          </button>
+        </SRow>
+        <SRow label="Карточки таблицей и текстом" hint="CSV для Excel, Anki и Quizlet или Markdown со всеми карточками">
+          <button className="btn small" onClick={() => void runCardsExport('csv')}>
+            CSV
+          </button>
+          <button className="btn small" onClick={() => void runCardsExport('md')}>
+            Markdown
           </button>
         </SRow>
         {api?.obsidianExport && (
@@ -563,7 +622,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
           if (!f) return;
           try {
             const pkg = JSON.parse(await f.text());
-            if (!isTopicPackage(pkg)) throw new Error('это не файл темы Мнемы');
+            if (!isTopicPackage(pkg)) throw new Error('это не файл темы Refrain');
             const r = importTopicPackage(pkg);
             setMsg(`Добавлена тема «${pkg.topic.name}» — ${r.cards} карточек.`);
           } catch (err) {
@@ -575,12 +634,22 @@ function DataPane({ go }: { go: (r: Route) => void }) {
       {cloud && <CloudDialog onClose={() => setCloud(false)} />}
       {exportKind === 'anki' && <AnkiExportDialog onClose={() => setExportKind(null)} />}
       {exportKind === 'print' && <PrintDialog onClose={() => setExportKind(null)} />}
+      {mdImport && (
+        <MarkdownImport
+          onClose={() => setMdImport(false)}
+          onDone={(id) => {
+            setMdImport(false);
+            setMsg('Импорт готов.');
+            if (id) go({ name: 'topic', id });
+          }}
+        />
+      )}
       {anki && <AnkiImport onClose={() => setAnki(false)} onOpenTopic={(id) => go({ name: 'topic', id })} />}
       {confirmWipe && (
         <Modal title="Удалить все данные?" onClose={() => setConfirmWipe(false)}>
           <div className="stack gap12">
             <p>Будут удалены все предметы, темы, карточки и прогресс. Настройки останутся. Перед этим лучше сохранить копию.</p>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button className="btn ghost" onClick={() => setConfirmWipe(false)}>
                 Отмена
               </button>
@@ -603,7 +672,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             <p>
               В копии: {pendingBackup.subjects.length} предм., {pendingBackup.topics.length} тем, {pendingBackup.cards.length} карточек. Текущие данные будут заменены.
             </p>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button className="btn ghost" onClick={() => setPendingBackup(null)}>
                 Отмена
               </button>
@@ -629,8 +698,20 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   );
 }
 
-/** Что нового — по версиям. Показывается в «О Мнеме» одной панелью с переключателем версий. */
+/** Что нового — по версиям. Показывается в «О Refrain» одной панелью с переключателем версий. */
 const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
+  {
+    v: '1.29.0',
+    items: [
+      { t: 'Настоящие стили: не только цвета, но и раскладка. «Настройки → Стили»: панель слева, справа, сверху или узкая со значками; плотность, ширина, плитки вместо списка тем, вид карточек, кнопок оценки и вкладок. Встроенные: Компакт, Фокус, Плитки, Панель сверху и справа, Крупно для планшета, Стекло — у каждого живой пример' },
+      { t: 'Можно включить несколько стилей сразу и расставить их по порядку (нижний перекрывает верхние); у стиля есть свои настройки — цвета, ползунки, переключатели' },
+      { t: 'Свои стили: редактор справа от настоящего интерфейса — конструктор без кода, режим CSS с подсказками переменных и классов, настройки для тех, кто будет пользоваться стилем, справка. «Создать на основе» любого стиля, файлы .refrainstyle (старые .mnemamod открываются), сниппеты «Мой CSS»' },
+      { t: 'Стили — только оформление, программ в них нет: ссылки в интернет и скрипты из файла не работают' },
+      { t: 'Заставка при запуске в цвет твоей темы и больше не играет дважды; в веб-версии обновление применяется тихо, без плашки' },
+      { t: 'Новый логотип Refrain — R с эхо: играет при появлении и при наведении (в «анимациях выкл» стоит спокойно)' },
+      { t: 'Исправлено: текст не вылезает за рамки, подписи на кнопках оценки («через сколько вернётся»), «Всё повторено» только когда правда повторено, копирование и вставка папок, предметов и тем, удаление папки, домашка (удаление и очистка сделанного), значки по центру, знакомство без задержек' }
+    ]
+  },
   {
     v: '1.28.0',
     items: [
@@ -645,25 +726,25 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
     v: '1.27.0',
     items: [
-      { t: 'Мнема онлайн: открывается в браузере на компьютере, планшете, Android, iPhone и iPad — ничего ставить не нужно' },
+      { t: 'Refrain онлайн: открывается в браузере на компьютере, планшете, Android, iPhone и iPad — ничего ставить не нужно' },
       { t: 'Можно поставить как приложение: «Установить» в Chrome и Edge или «На экран „Домой“» в Safari. После первого открытия работает без интернета' },
       { t: 'Данные лежат в браузере этого устройства; раз в день делается автокопия. Между устройствами их переносят файлом-копией (в браузере нет синхронизации по Wi-Fi, значка у часов, уведомлений и виджета)' },
-      { t: 'Две вкладки Мнемы одновременно не открываются — иначе они затёрли бы изменения друг друга' }
+      { t: 'Две вкладки Refrain одновременно не открываются — иначе они затёрли бы изменения друг друга' }
     ]
   },
   {
     v: '1.26.0',
     items: [
-      { t: 'Синхронизация по Wi-Fi зашифрована: код теперь из 12 знаков (например K7QM-2XPA-9RTD), сам код в сеть не уходит, подслушать или подменить обмен нельзя. Обнови Мнему на обоих устройствах' },
-      { t: 'Если файл данных не открылся, Мнема больше не записывает поверх него пустые данные — восстанови автокопию в «Настройки → Данные»' },
+      { t: 'Синхронизация по Wi-Fi зашифрована: код теперь из 12 знаков (например K7QM-2XPA-9RTD), сам код в сеть не уходит, подслушать или подменить обмен нельзя. Обнови Refrain на обоих устройствах' },
+      { t: 'Если файл данных не открылся, Refrain больше не записывает поверх него пустые данные — восстанови автокопию в «Настройки → Данные»' },
       { t: 'Свой ИИ: если поменять адрес, сохранённый ключ нужно ввести заново — на чужой адрес он не уйдёт' },
-      { t: 'Закрыты лишние входы: другие приложения на телефоне не могут показывать уведомления от имени Мнемы, встроенные видео не получают доступ к камере и микрофону' }
+      { t: 'Закрыты лишние входы: другие приложения на телефоне не могут показывать уведомления от имени Refrain, встроенные видео не получают доступ к камере и микрофону' }
     ]
   },
   {
     v: '1.25.0',
     items: [
-      { t: 'Справка «Как пользоваться»: у пунктов кнопки «Где это?» (Мнема сама откроет нужный экран и подсветит кнопку) и «Пример» — игрушечная Мнема, где можно понажимать: перенос по Wi-Fi, облако, «Учиться», ошибка, карточка из конспекта, Ctrl+C/V, «Вернуть»' },
+      { t: 'Справка «Как пользоваться»: у пунктов кнопки «Где это?» (Refrain сам откроет нужный экран и подсветит кнопку) и «Пример» — игрушечная Refrain, где можно понажимать: перенос по Wi-Fi, облако, «Учиться», ошибка, карточка из конспекта, Ctrl+C/V, «Вернуть»' },
       { t: 'Телефон: в нижней панели больше нет «Создать» — оно значком «+» в шапке, рядом с поиском' },
       { t: 'Исправлено: меню и окна больше не вылезают за край экрана (на телефоне меню «⋯» уезжало влево)' }
     ]
@@ -702,13 +783,13 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
     v: '1.22.0',
     items: [
-      { t: 'Знакомство: 5 коротких шагов с рисунками при первом запуске, можно «Пропустить». Вернуться — «Справка → Пройти знакомство» или здесь, в «О Мнеме»' },
+      { t: 'Знакомство: 5 коротких шагов с рисунками при первом запуске, можно «Пропустить». Вернуться — «Справка → Пройти знакомство» или здесь, в «О Refrain»' },
       { t: 'Справка стала понятнее: «Как учиться» (три главные идеи с анимированными рисунками) и «Как пользоваться». Вкладки «Клавиши» там больше нет — сочетания меняются в «Настройки → Горячие клавиши»' },
       { t: 'Анимации почти везде: списки и плитки появляются по очереди, кнопки «вдавливаются», полоски растут. В «Настройки → Анимации» есть новые пункты «Списки и плитки», «Нажатия», «Картинки в справке»' },
       { t: '«+» вернулись у предметов, тем и папок в левой панели. Щёлкни по свободному месту у «Предметы» — создать предмет или папку' },
       { t: '«Поиск» теперь в самом низу левой панели' },
       { t: '«Автокопии» в «Профиле» открываются сразу окном, без перехода в настройки' },
-      { t: 'Подсказки можно закрыть крестиком — они больше не вернутся (вернуть: «Настройки → О Мнеме → Показать подсказки снова»)' },
+      { t: 'Подсказки можно закрыть крестиком — они больше не вернутся (вернуть: «Настройки → О Refrain → Показать подсказки снова»)' },
       { t: 'Длинные списки не раздувают экран: подтемы в конспекте, предметы и темы собираются в строку с «Ещё N»' },
       { t: 'Исправлено: «Отпусти файл» не пропадало, если файл перетащили в другое окно или передумали' },
       { t: 'Исправлено (Windows): левый Alt больше не выдвигает сверху меню «File Edit View Window»' },
@@ -733,7 +814,7 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
     v: '1.19.0',
     items: [
-      { t: '«Настройки → Данные → Автокопии»: копии, которые Мнема делает сама каждый день. Видно, что в каждой, — и можно вернуть любую' },
+      { t: '«Настройки → Данные → Автокопии»: копии, которые Refrain делает сама каждый день. Видно, что в каждой, — и можно вернуть любую' },
       { t: 'После восстановления из копии — кнопка «Вернуть как было», если выбрал не ту' },
     ]
   },
@@ -763,7 +844,7 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
     v: '1.15.0',
     items: [
-      { t: 'История конспекта: Мнема помнит прежние версии текста (до 15 на тему, 60 дней, только на этом устройстве). «⋯» у темы → «История конспекта» — можно вернуть любую' },
+      { t: 'История конспекта: Refrain помнит прежние версии текста (до 15 на тему, 60 дней, только на этом устройстве). «⋯» у темы → «История конспекта» — можно вернуть любую' },
     ]
   },
   {
@@ -790,7 +871,7 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
     v: '1.11.0',
     items: [
-      { t: '«Сегодня»: одна кнопка «Учиться» вместо шести. Выбери 5, 10 или 20 минут — Мнема соберёт столько карточек, сколько успеешь; остальное останется на потом' },
+      { t: '«Сегодня»: одна кнопка «Учиться» вместо шести. Выбери 5, 10 или 20 минут — Refrain соберёт столько карточек, сколько успеешь; остальное останется на потом' },
       { t: '«Что в плане и почему»: из чего состоит занятие и зачем. Любой шаг можно пропустить на сегодня' },
       { t: 'Про ближайшую контрольную — одна строка; подготовка к ней — на её экране' },
     ]
@@ -847,9 +928,9 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
     v: '1.7',
     items: [
-      { t: 'Файл изменений: попроси нейросеть — она пришлёт файл, а Мнема покажет, что поменяется, и применит. Можно создать и поменять что угодно: предметы, темы, конспекты, карточки, словари, правила, домашку («Настройки → Данные»)' },
+      { t: 'Файл изменений: попроси нейросеть — она пришлёт файл, а Refrain покажет, что поменяется, и применит. Можно создать и поменять что угодно: предметы, темы, конспекты, карточки, словари, правила, домашку («Настройки → Данные»)' },
       { t: '«Выгрузить для нейросети» в меню предмета и темы — нейросеть поправит готовое и вернёт файл' },
-      { t: 'Обновления сами: на телефоне Мнема скачивает новую версию и ставит её в два нажатия' },
+      { t: 'Обновления сами: на телефоне Refrain скачивает новую версию и ставит её в два нажатия' },
       { t: 'Телефон: окошко при выделении больше не мешает — «В карточку», «Маркер», «Правило» прямо в меню выделения Android' },
       { t: 'Телефон: «Важное» выезжает снизу, меню не уходят за край, у инструментов конспекта есть подписи, вкладки не налезают друг на друга' },
       { t: 'Граф знаний приближается двумя пальцами, растения в саду радуются, когда их гладишь' },
@@ -861,9 +942,9 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
     v: '1.6.4',
     items: [
       { t: 'Стихи наизусть: «+» у вкладок темы → «Стихотворение». Учишь по частям с исчезающими подсказками, потом части вместе' },
-      { t: 'Рассказать вслух: Мнема покажет пропуски, ошибки и запинки и посчитает точность. Без голоса — открыть текст и отметить строки с ошибками' },
+      { t: 'Рассказать вслух: Refrain покажет пропуски, ошибки и запинки и посчитает точность. Без голоса — открыть текст и отметить строки с ошибками' },
       { t: '«С любого места» — продолжить с случайной строки; трудные строки попадаются чаще и подсвечены в тексте' },
-      { t: 'Выученный стих Мнема напомнит рассказать через 1, 3, 7… дней — на экране «Сегодня»' },
+      { t: 'Выученный стих Refrain напомнит рассказать через 1, 3, 7… дней — на экране «Сегодня»' },
     ]
   },
   {
@@ -899,8 +980,8 @@ const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
       { t: '«Почему?» после ответа — объясни себе одной фразой' },
       { t: 'Карточки из всего конспекта одной кнопкой' },
       { t: 'Фото к домашке' },
-      { t: 'Виджет на рабочий стол телефона: долго нажми на пустое место экрана → «Виджеты» → «Мнема»' },
-      { t: 'Обновление прямо из Мнемы' },
+      { t: 'Виджет на рабочий стол телефона: долго нажми на пустое место экрана → «Виджеты» → «Refrain»' },
+      { t: 'Обновление прямо из Refrain' },
     ]
   },
   {
@@ -965,9 +1046,9 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
   return (
     <div className="stack gap16">
       <div className="about">
-        <div className="logo big">М</div>
+        <Logo size={64} />
         <div className="stack gap4">
-          <h2>Мнема {VERSION}</h2>
+          <h2>Refrain {VERSION}</h2>
           <span className="muted">Конспекты, карточки и повторение по науке о памяти.</span>
         </div>
       </div>
@@ -994,7 +1075,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
   );
 }
 
-/** Обновления: проверить, скачать и поставить. Берутся из выпусков Мнемы на GitHub. */
+/** Обновления: проверить, скачать и поставить. Берутся из выпусков Refrain на GitHub. */
 function UpdatesGroup() {
   const data = useData();
   const u = data.settings.update;
@@ -1006,7 +1087,7 @@ function UpdatesGroup() {
   const info = state.info;
   return (
     <Group title="Обновления" id="update">
-      <SRow label="Проверять раз в день" hint="При запуске; если вышла новая версия — Мнема скажет">
+      <SRow label="Проверять раз в день" hint="При запуске; если вышла новая версия — Refrain скажет">
         <Switch label="Проверять обновления" checked={u.auto} onChange={(auto) => updateSettings({ update: { ...u, auto } })} />
       </SRow>
       <div className="srow stack-row">

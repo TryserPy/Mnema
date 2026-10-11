@@ -33,7 +33,7 @@ function pack(text: string) {
 /** Все изменения предмета (первый предмет) — как их отдаёт «Выгрузить для нейросети». */
 const exportForTest = (d: AppData) => exportChanges(d, { subjectId: d.subjects[0].id }).changes;
 
-describe('1.8: Мнема-текст — граничные случаи разбора', () => {
+describe('1.8: Refrain-текст — граничные случаи разбора', () => {
   it('Windows-переводы строк (\\r\\n) и BOM дают тот же результат, что обычные', () => {
     const lf = '@предмет Химия\n@тема Атомы\nтекст\n\nещё\n@карточки\nЧто? :: Это\n';
     expect(pack('﻿' + lf.replace(/\n/g, '\r\n'))).toEqual(pack(lf));
@@ -43,7 +43,7 @@ describe('1.8: Мнема-текст — граничные случаи раз�
     for (const t of ['', '   \n  \n', '﻿']) {
       const r = parseChangeFile(t);
       expect(r.ok).toBe(false);
-      expect(r.ok ? '' : r.error).toMatch(/Мнемы|изменен/);
+      expect(r.ok ? '' : r.error).toMatch(/Refrain|изменен/);
     }
     expect(parseMnemaText('')).toEqual({ changes: [], warnings: [] });
   });
@@ -202,7 +202,7 @@ describe('1.8: предпросмотр — какие темы затронут
   });
 });
 
-describe('1.8: выгрузка в Мнема-текст и обратно', () => {
+describe('1.8: выгрузка в Refrain-текст и обратно', () => {
   it('глава (подтема), стих и правило переживают выгрузку без изменений', () => {
     const d = emptyData();
     d.subjects = [{ id: 's', name: 'Литература', color: '#2F9E5B', createdAt: T0 }];

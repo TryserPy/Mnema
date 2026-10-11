@@ -129,13 +129,13 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   check((await page.locator('.idea .illu').count()) === 3, `${tag}: у трёх идей есть рисунки`);
   await page.screenshot({ path: `${OUT}/v122-${tag}-help.png`, fullPage: false });
 
-  // О Мнеме: версии рядом, а не колонкой
+  // О Refrain: версии рядом, а не колонкой
   await page.evaluate(() => {});
   if (phone) { await page.locator('.tab', { hasText: 'Профиль' }).click(); } else { await page.locator('.sidebar .nav-item', { hasText: 'Профиль' }).click(); }
   await page.waitForTimeout(300);
   await page.locator('.prof-links .create-item', { hasText: 'Настройки' }).click();
   await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'О Мнеме' }).first().click().catch(() => {});
+  await page.getByRole('button', { name: 'О Refrain' }).first().click().catch(() => {});
   await page.waitForTimeout(500);
   check((await page.locator('.wn-list').count()) === 1 && (await page.getByRole('button', { name: 'Что было раньше' }).count()) === 1, `${tag}: «Что нового»: текущая версия списком и кнопка «Что было раньше»`);
   const ab = await page.locator('.about').boundingBox().catch(() => null);
@@ -144,7 +144,7 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.screenshot({ path: `${OUT}/v122-${tag}-about.png` });
   await page.getByRole('button', { name: 'Пройти знакомство' }).first().click();
   await page.waitForTimeout(400);
-  check((await page.locator('.tut-card').count()) === 1, `${tag}: знакомство из «О Мнеме» запускает тренажёр`);
+  check((await page.locator('.tut-card').count()) === 1, `${tag}: знакомство из «О Refrain» запускает тренажёр`);
   await page.getByRole('button', { name: 'Выйти' }).click();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);

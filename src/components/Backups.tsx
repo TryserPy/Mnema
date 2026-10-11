@@ -1,4 +1,4 @@
-// «Настройки → Данные → Автокопии»: копии, которые Мнема делает сама раз в день. Видно, что в каждой, и можно вернуть любую.
+// «Настройки → Данные → Автокопии»: копии, которые Refrain делает сама раз в день. Видно, что в каждой, и можно вернуть любую.
 import { useEffect, useState } from 'react';
 import { backupDay, dayLabel, sizeLabel } from '../backups';
 import { normalizeData } from '../store';
@@ -32,11 +32,11 @@ export function BackupsDialog({ onClose, onRestore }: { onClose: () => void; onR
   return (
     <Modal title="Автокопии" onClose={onClose} width={560}>
       <div className="stack gap12">
-        <p className="small muted">Каждый день Мнема сама сохраняет копию — какими данные были в начале дня, до первых изменений. Хранятся 8 последних дней, только на этом устройстве.</p>
+        <p className="small muted">Каждый день Refrain сам сохраняет копию — какими данные были в начале дня, до первых изменений. Хранятся 8 последних дней, только на этом устройстве.</p>
         {list === null ? (
           <span className="small muted">Загружаю…</span>
         ) : list.length === 0 ? (
-          <p>Копий пока нет — первая появится, когда ты завтра откроешь Мнему.</p>
+          <p>Копий пока нет — первая появится, когда ты завтра откроешь Refrain.</p>
         ) : (
           <div className="bk-list">
             {list.map((b) => {

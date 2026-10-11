@@ -7,8 +7,8 @@ describe('1.7: обновления из выпусков GitHub', () => {
     body: '  Новое: окно обновления  ',
     assets: [
       { name: 'latest.yml', browser_download_url: 'https://github.com/x/latest.yml', size: 300 },
-      { name: 'Mnema-Setup-1.7.0.exe', browser_download_url: 'https://github.com/x/setup.exe', size: 90e6 },
-      { name: 'Mnema-1.7.0-Android.apk', browser_download_url: 'https://github.com/x/m.apk', size: 13e6 }
+      { name: 'Refrain-Setup-1.7.0.exe', browser_download_url: 'https://github.com/x/setup.exe', size: 90e6 },
+      { name: 'Refrain-1.7.0-Android.apk', browser_download_url: 'https://github.com/x/m.apk', size: 13e6 }
     ]
   };
 

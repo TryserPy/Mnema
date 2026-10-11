@@ -1,4 +1,4 @@
-# Мнема — подробное описание проекта
+# Refrain — подробное описание проекта
 
 > Состояние на версию 1.6.4 (29 сентября 2026). Изменения после неё — в `CHANGELOG.md`.
 > С 1.7.0 выпуски собираются на GitHub Actions (`.github/workflows/release.yml`), а не вручную через wine и `pack.sh` —
@@ -6,7 +6,7 @@
 
 ## 0. Коротко
 
-**Мнема** — офлайн-приложение для школьников: параграф учебника → конспект → карточки → повторения по расписанию (алгоритм FSRS). Главная цель — запоминать больше, тратя меньше времени. Работает на **Windows** (Electron, установщик NSIS) и **Android** (своя обёртка WebView, APK) из одного кода на **TypeScript + React + Vite**.
+**Refrain** — офлайн-приложение для школьников: параграф учебника → конспект → карточки → повторения по расписанию (алгоритм FSRS). Главная цель — запоминать больше, тратя меньше времени. Работает на **Windows** (Electron, установщик NSIS), **Linux** (Electron: AppImage, .deb, .tar.gz; x64 и arm64) и **Android** (своя обёртка WebView, APK) из одного кода на **TypeScript + React + Vite**.
 
 
 Последняя версия — **1.6.4 «Стихи наизусть»**, собрана и доставлена (см. раздел 11).
@@ -16,7 +16,7 @@
 ## 2. Идея продукта и принципы
 
 ### Проблема
-Школьники чаще всего перечитывают и выделяют маркером — это почти не помогает запоминать. Работает другое: **вспоминать без подсказки** и **повторять с перерывами**. Мнема встраивает эти методы прямо в процесс учёбы, а не просто советует.
+Школьники чаще всего перечитывают и выделяют маркером — это почти не помогает запоминать. Работает другое: **вспоминать без подсказки** и **повторять с перерывами**. Refrain встраивает эти методы прямо в процесс учёбы, а не просто советует.
 
 ### Принципы
 - **Вспоминать, а не перечитывать.** Любой материал в итоге становится вопросом, на который надо ответить из головы.
@@ -28,7 +28,7 @@
 - **Простые слова.** В интерфейсе нет «cloze», «FSRS», «retention» — есть «пропуск», «расписание повторений», «как сильно запоминать».
 
 ### Научная база (на неё ссылаемся)
-| Приём | Доказательность | В Мнеме |
+| Приём | Доказательность | В Refrain |
 |---|---|---|
 | Самопроверка / активное вспоминание (Dunlosky 2013) | высокая | карточки, тесты, «Закрой и перескажи», стихи «по памяти» |
 | Распределённое повторение | высокая | FSRS, «Сегодня», повтор стихов 1/3/7… дней |
@@ -229,11 +229,11 @@
 - Напоминание накануне или в тот же день; фото (JPEG до 1400 px, data URL, вставка по Ctrl+V).
 - Отметки «сделано», фильтры.
 - Уведомления:
-  - Windows — `electron/notify.cjs`, пока Мнема открыта или свёрнута к часам;
+  - Windows — `electron/notify.cjs`, пока Refrain открыта или свёрнута к часам;
   - Android — `Reminders.java` через AlarmManager.
 
 ### 4.8 Настройки (`Settings.tsx`) и «Возможности» (`FeaturesPane.tsx`)
-- **Разделы:** Вид (`LookSettings`: стиль, темы, акцент, шрифты, углы, фон, свои цвета), Текст, Анимации, Возможности, Учёба (запоминание 80–95%, новых в день, лимит, начало дня, интервалы на кнопках, две кнопки), Напоминания, ИИ (`AiSettings`), Клавиши (`KeySettings`), Данные (копии, импорт/экспорт, синхронизация, облако, Anki, Obsidian), Стили, Моды, О Мнеме (версия, обновления с GitHub, «Новое в …»).
+- **Разделы:** Вид (`LookSettings`: стиль, темы, акцент, шрифты, углы, фон, свои цвета), Текст, Анимации, Возможности, Учёба (запоминание 80–95%, новых в день, лимит, начало дня, интервалы на кнопках, две кнопки), Напоминания, ИИ (`AiSettings`), Клавиши (`KeySettings`), Данные (копии, импорт/экспорт, синхронизация, облако, Anki, Obsidian), Стили, Моды, О Refrain (версия, обновления с GitHub, «Новое в …»).
 - **Раскладка:** широкий экран — список разделов слева и один раздел справа; `.main` уже 860 px — сначала список, потом раздел с кнопкой «Назад».
 - **«Возможности»** — плитки по группам (Учёба, Повторение, Мотивация, Помощники); подробности в окне.
   - Сейчас 13 переключателей: homework, schedule, lists, rules, poems, why, confidence, handwriting, voice, ai, map, tray (только Windows), obsidian. Трудные карточки, «Пробная контрольная» и итоги недели работают всегда (в 2.0 это ядро), фокус-режим запускается из поиска Ctrl+P.
@@ -346,13 +346,19 @@
 - **Повторения:** ts-fsrs.
 - **Граф:** d3-force.
 - **Импорт/экспорт:** sql.js + fflate + fzstd (Anki), tesseract.js (офлайн-распознавание), qrcode / jsqr (синхронизация).
-- **Windows:** Electron 44 (CJS main и preload), electron-builder (NSIS), electron-updater.
+- **Windows и Linux:** Electron 44 (CJS main и preload), electron-builder (NSIS; AppImage, deb, tar.gz), electron-updater. Особенности Linux — `electron/linux.cjs`, `electron/openFiles.cjs`, `docs/handoff/linux.md`; значки — `build/icons` (`npm run icons:linux`); сборка — `npm run dist:linux`.
 - **Шрифты:** @fontsource.
 - **Тесты:** Vitest (сейчас 95 тестов в 12 файлах), Playwright (e2e, отдельно).
 
 ### 6.2 Данные
 - **Всё состояние** — один объект `AppData` (раздел 7).
-- **Хранение:** Windows — JSON-файл `%APPDATA%\Mnema\mnema-data.json` с ежедневными копиями; Android — файл через мост; браузер (dev) — localStorage.
+- **Хранение:** Linux — то же в `~/.config/Refrain/` (XDG_CONFIG_HOME); Windows — JSON-файл `%APPDATA%\Refrain\Мои данные\refrain-data.json` с ежедневными копиями в `Резервные копии\` (служебные файлы Electron, ключи ИИ и пароль облака — отдельно, в `%APPDATA%\Refrain\Служебное\`; логика — `electron/dataLayout.cjs`; со старого `%APPDATA%\Mnema` данные копируются при первом запуске, старое не удаляется); Android — файл через мост; браузер (dev) — localStorage.
+- **Разметка и переносимость.** Внутри конспект — Markdown (TipTap + marked): CommonMark + GFM-таблицы, формулы `$…$`/`$$…$$`, выделение `==…==`, рисунки и картинки как data URI, ссылки между темами `mnema://topic|card/<id>`, видео `![video](url)`. При экспорте всё приводится к стандарту (внутренний формат не менялся):
+  - `src/mdExport.ts` — «Всё в Markdown (.zip)»: `Папка/Предмет/Тема.md`, подтемы в папке темы, `Правила/`, `Термины/`, картинки/рисунки/значки/фото страниц — файлами в `attachments/`, свойства YAML (`title, subject, tags, created, exam, refrain-id, refrain-lists…`), ссылки между темами — относительные (режим Obsidian — `[[вики]]`), «Запомните» — выноска `> [!important]`, карточки внизу темы (`Вопрос::Ответ`, `Термин:::Определение`, `{{c1::пропуск}}`), `README.md`, `Карточки.md`, `Карточки.csv`;
+  - `src/mdImport.ts` + `src/mdApply.ts` + `store.importTree` — обратный импорт папки/zip/хранилища Obsidian (zip-slip, лимиты, санитизация HTML, проверка значков `validIconImg`); окно `MarkdownImport.tsx`;
+  - `src/mdPortable.ts` (имена Windows, пути, YAML, санитайзер, CSV), `src/mdCards.ts` (карточки, словари, стихи ↔ Markdown);
+  - `src/noteClipboard.ts` — Ctrl+C из конспекта кладёт в буфер чистый Markdown и HTML с формулами текстом `$…$`.
+  Тесты: `src/mdPortable.test.ts` (round-trip), `src/noteClipboard.test.ts`; браузерная проверка — `e2e/portable.mjs`.
 - **`src/store.ts`** — единый стор: `getData`, `useData` (useSyncExternalStore), `commit`, отложенное сохранение (`persistNow`), все операции:
   - `addTopic`, `updateTopic`, `addCard`, `updateCard`, `deleteCardsUndoable` / `restoreRemoved`;
   - `addList`, `updateList`, `deleteList`, `addListRow(s)`;
@@ -367,7 +373,7 @@
 | `types.ts` | все типы (раздел 7) |
 | `store.ts` | данные и операции |
 | `srs.ts` | FSRS, очередь, `todayCounts`, `forecast`, `streak`, `topicMastery`, `examPlan`, `examBoost`, `warmupCards`, `tomorrowSubjects`, `isLeech`, `recallAfter`, `parseCloze`, `checkTyped`, `normalizeAnswer` |
-| `links.ts` | ссылки Мнемы: `topicHref`/`cardHref`/`parseHref`/`resolveLink`/`routeFor`/`linkOptions`/`linksToWiki` |
+| `links.ts` | ссылки Refrain: `topicHref`/`cardHref`/`parseHref`/`resolveLink`/`routeFor`/`linkOptions`/`linksToWiki` |
 | `rules.ts` | `ruleWordsOf`, `makeRuleMatcher` (основа слова → regex), `rulePreview` |
 | `poem.ts` | стихи: строки, части, подсказки, сверка, повторы |
 | `tabs.ts` | `orderTabs`, `reorderTab` |
@@ -411,8 +417,9 @@
 ### 6.6 Обновления
 - `src/update.ts`: `APP_VERSION`, проверка раз в день.
 - **Windows** — electron-updater: скачать → перезапустить. Нужен `latest.yml` и установщик в выпуске GitHub.
+- **Linux** — AppImage: electron-updater по `latest-linux.yml` (arm64 — `latest-linux-arm64.yml`), как Windows. `.deb` и архив сами не обновляются: `electron/updater.cjs` спрашивает GitHub API и даёт ссылку на файл своего типа и архитектуры (`linux.manualUpdateInfo`).
 - **Android** — GitHub API → ссылка на APK из выпуска.
-- **Репозиторий:** настройки `settings.update.owner/repo` (раздел «О Мнеме»). В `package.json` → `build.publish` стоит **заглушка** `mnema-app/mnema`: репозиторий задаётся в настройках. Инструкция «GitHub — как выложить обновление.txt» лежит в каждой папке выпуска.
+- **Репозиторий:** настройки `settings.update.owner/repo` (раздел «О Refrain»). В `package.json` → `build.publish` стоит **заглушка** `mnema-app/mnema`: репозиторий задаётся в настройках. Инструкция «GitHub — как выложить обновление.txt» лежит в каждой папке выпуска.
 
 ### 6.7 Моды-программы и стили
 - **Моды-программы** (скрипты, как плагины Obsidian: `src/plugins/*`, раздел «Настройки → Моды», кнопка «Моды» в левой панели, вкладка «Моды» в справке; включаются в «Возможностях»). В 1.9.0 их убрали, в 1.10.0 вернули (нужны «Помодоро» и «Шпаргалка формул»).
@@ -449,7 +456,7 @@
   - `[стр. N]` — метка страницы;
   - `![video](url)` — видео;
   - `![Рисунок](data:image/svg+xml…)` — рисунок, внутри SVG `DrawingData` с полями `bg`, `display`;
-  - `[текст](mnema://card/<id>)` и `[текст](mnema://topic/<id>)` — ссылки Мнемы.
+  - `[текст](mnema://card/<id>)` и `[текст](mnema://topic/<id>)` — ссылки Refrain.
 
 ---
 
@@ -517,7 +524,7 @@ bash pack.sh <версия>             # части, .bat, source zip, APK → 
 - **Смена темы** 2 fps → View Transitions.
 - **Рисунки:** в тёмной теме фильтр `invert` портил маркеры → встроенный SVG с `data-dark`. Холст «на весь экран» схлопывался → спрятать предпросмотр, `height:100%` у svg.
 - **Видео:** в конспекте грузилось как картинка (ошибка CSP) → `span.md-video` и плеер после вставки.
-- **Обновление:** electron-updater в режиме разработки возвращает `null` → сообщение «Обновления проверяются только в установленной Мнеме».
+- **Обновление:** electron-updater в режиме разработки возвращает `null` → сообщение «Обновления проверяются только в установленной Refrain».
 - **1.6.2 → 1.6.3:** правило ширины столбцов `.list-tr {grid-template-columns: var(--lt-cols)}` из `design.css` перебивало телефонную раскладку → обернуть в `@media (min-width: 721px)`.
 - **1.6.3:**
   - `BubbleMenu` в React создаёт свой `PluginKey`, поэтому `setMeta('bubbleMenu', …)` не работал → передавать свой `pluginKey`;

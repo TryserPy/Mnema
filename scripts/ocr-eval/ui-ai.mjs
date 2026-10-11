@@ -31,6 +31,8 @@ for (const [name, reply, expectNote] of cases) {
   await page.reload();
   await page.waitForSelector('#root > *');
   await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: 'Понятно' }).click({ timeout: 1500 }).catch(() => {});
+  await page.waitForTimeout(400);
   await page.evaluate((r) => {
     window.mnemaApi.aiAsk = async () => r;
     window.__long = [];

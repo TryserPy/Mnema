@@ -25,6 +25,8 @@ for (const [name, note] of Object.entries(variants)) {
   }, note);
   await page.reload();
   await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: 'Понятно' }).click({ timeout: 1500 }).catch(() => {});
+  await page.waitForTimeout(400);
   await page.getByText('Физика').first().click();
   await page.waitForTimeout(400);
   await page.getByText('нет карточек').first().click();

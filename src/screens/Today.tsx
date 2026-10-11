@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
+import { Logo } from '../components/Logo';
 import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark } from '../components/ui';
 import { openRepeatDialog } from '../components/RepeatDialog';
 import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
 import { startTutorial } from '../components/Tutorial';
+import { nextDueText, studyStatus } from '../studyStatus';
 import { duePoems } from '../poem';
 import { dayStart, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
 import { buildSession, SESSION_MINUTES, sessionPrefs, toggledSkip } from '../session';
@@ -23,6 +25,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   const f = data.settings.features;
   const counts = todayCounts(data, now);
   const total = counts.learning + counts.review + counts.newCount;
+  const allStudy = useMemo(() => studyStatus(data, now), [data, now]);
 
   // «Учиться»: один план на сегодня. Время (5/10/20 минут) и пропущенные шаги выбирает человек.
   const [planOpen, setPlanOpen] = useState(false);
@@ -52,8 +55,8 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
     return (
       <div className="page narrow">
         <div className="welcome">
-          <div className="logo big">М</div>
-          <h1 className="display">Привет! Это Мнема</h1>
+          <Logo size={64} />
+          <h1 className="display">Привет! Это Refrain</h1>
           <p className="lead">Она помогает запоминать то, что ты учишь, — и напоминает повторить как раз тогда, когда ты начинаешь забывать.</p>
           <div className="row gap8 wrap center-row">
             <button className="btn primary big-ish" onClick={onNewSubject}>
@@ -119,12 +122,35 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           </>
         ) : (
           <>
-            <div className="hero-num small-num">Всё повторено ✓</div>
-            <div className="hero-sub">Новые повторения появятся завтра. Можно дописать конспект или добавить карточки.</div>
-            {data.cards.length > 0 && (
-              <button className="hero-alt" onClick={() => openRepeatDialog()} title="Повторённое сегодня, всё начатое, слабые места — расписание не изменится">
-                <Icon name="repeat" size={18} /> Повторить ещё раз
-              </button>
+            {allStudy.kind === 'new' ? (
+              <>
+                <div className="hero-num small-num">Есть новые карточки</div>
+                <div className="hero-sub">По расписанию на сегодня всё. Но {allStudy.fresh} {plural(allStudy.fresh, 'новая карточка ещё не выучена', 'новые карточки ещё не выучены', 'новых карточек ещё не выучены')} — можно начать.</div>
+                <button className="hero-btn" onClick={() => go({ name: 'review', extraNew: allStudy.fresh, run: Date.now() })}>
+                  <Icon name="play" size={18} /> Учить новые · {allStudy.fresh}
+                </button>
+              </>
+            ) : allStudy.kind === 'done' ? (
+              <>
+                <div className="hero-num small-num">Всё повторено ✓</div>
+                <div className="hero-sub">Новые повторения появятся позже. Можно дописать конспект, добавить карточки или закрепить уже выученное.</div>
+                <button className="hero-alt" onClick={() => openRepeatDialog()} title="Повторённое сегодня, всё начатое, слабые места — расписание не изменится">
+                  <Icon name="repeat" size={18} /> Повторить ещё раз
+                </button>
+              </>
+            ) : allStudy.kind === 'idle' ? (
+              <>
+                <div className="hero-num small-num">На сегодня повторять нечего</div>
+                <div className="hero-sub">{allStudy.next !== null ? `Следующий повтор — ${nextDueText(allStudy.next)}. ` : ''}Можно дописать конспект или добавить карточки.</div>
+              </>
+            ) : (
+              <>
+                <div className="hero-num small-num">Пока нет карточек</div>
+                <div className="hero-sub">Сделай карточки из конспекта — и они появятся здесь, когда придёт время повторять.</div>
+                <button className="hero-alt" onClick={() => go({ name: 'knowledge' })}>
+                  Открыть знания
+                </button>
+              </>
             )}
           </>
         )}
@@ -224,7 +250,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
 
       {!f.schedule && (
         <button className="add-schedule" onClick={() => updateSettings({ features: { ...f, schedule: true } })}>
-          <Icon name="calendar" size={18} /> Добавить расписание уроков — накануне Мнема будет ставить карточки этих предметов первыми
+          <Icon name="calendar" size={18} /> Добавить расписание уроков — накануне Refrain будет ставить карточки этих предметов первыми
         </button>
       )}
     </div>
@@ -272,7 +298,7 @@ function WeekSchedule({ now, go }: { now: Date; go: (r: Route) => void }) {
             return (
               <button key={s.id + i} className="les" style={{ animationDelay: i * 35 + 'ms' }} onClick={() => go({ name: 'subject', id: s.id })}>
                 <span className="les-n">{i + 1}</span>
-                <SubjectMark color={s.color} icon={s.icon} />
+                <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} />
                 <span className="les-name">{s.name}</span>
                 {due > 0 && (
                   <span className="les-due" title="Карточки этого предмета стоят первыми — повтори перед уроком">
@@ -296,7 +322,7 @@ function WeekSchedule({ now, go }: { now: Date; go: (r: Route) => void }) {
         </button>
       </div>
       {empty ? (
-        <p className="small muted">Отметь, какие предметы в какие дни. Накануне урока Мнема поставит их карточки первыми — повторить перед уроком полезнее всего. А домашке сама подставит срок «к следующему уроку».</p>
+        <p className="small muted">Отметь, какие предметы в какие дни. Накануне урока Refrain поставит их карточки первыми — повторить перед уроком полезнее всего. А домашке сама подставит срок «к следующему уроку».</p>
       ) : (
         <div className="les-cols">
           {col('Сегодня', todayDow, false)}
@@ -396,7 +422,7 @@ function ScheduleEditor({ onClose, todayDow, tomorrowDow }: { onClose: () => voi
                         const n = ids.filter((x) => x === s.id).length;
                         return (
                           <button key={s.id} className="sched-pick-item" onClick={() => setScheduleDay(d, [...ids, s.id])}>
-                            <SubjectMark color={s.color} icon={s.icon} />
+                            <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} />
                             <span className="clamp1">{s.name}</span>
                             {n > 0 && <span className="sched-pick-n">×{n}</span>}
                           </button>

@@ -1,5 +1,5 @@
-// Установка новой версии: скачать → поставить. Одинаково в настройках («О Мнеме») и в окне,
-// которое открывается из уведомления «Вышла Мнема X».
+// Установка новой версии: скачать → поставить. Одинаково в настройках («О Refrain») и в окне,
+// которое открывается из уведомления «Вышла Refrain X».
 import { useEffect, useRef, useState } from 'react';
 import type { UpdateInfo } from '../update';
 import { Modal } from './ui';
@@ -75,12 +75,17 @@ export function UpdateFlow({ info }: { info: UpdateInfo }) {
     if (android) void install();
   };
 
-  const canInstall = Boolean(api?.updateDownload) && (!android || Boolean(info.apk));
+  const canInstall = Boolean(api?.updateDownload) && (!android || Boolean(info.apk)) && !info.manual;
   return (
     <div className="update-box on">
-      <strong>Доступна Мнема {info.latest}</strong>
+      <strong>Доступна Refrain {info.latest}</strong>
       {info.notes && <p className="small muted update-notes">{info.notes}</p>}
-      {!canInstall ? (
+      {info.manual && info.url ? (
+        // Linux: пакет .deb и архив сами не обновляются — даём ссылку на файл выпуска.
+        <a className="btn primary" href={info.url} target="_blank" rel="noreferrer">
+          {info.fileName ? `Скачать ${info.fileName}${mb(info.size)}` : 'Открыть страницу выпуска'}
+        </a>
+      ) : !canInstall ? (
         info.apk ? (
           <a className="btn primary" href={info.apk} target="_blank" rel="noreferrer">
             Скачать APK{mb(info.size)}
@@ -106,14 +111,14 @@ export function UpdateFlow({ info }: { info: UpdateInfo }) {
       ) : phase === 'permission' ? (
         <>
           <span className="small">
-            Android спросит, можно ли Мнеме ставить обновления. Включи переключатель «Разрешить» и вернись назад — установка начнётся сама.
+            Android спросит, можно ли Refrain ставить обновления. Включи переключатель «Разрешить» и вернись назад — установка начнётся сама.
           </span>
           <button className="btn primary" onClick={() => void install()}>
             Установить
           </button>
         </>
       ) : phase === 'installing' ? (
-        <span className="small">Подтверди в окне Android «Обновить». После установки Мнема закроется — открой её снова.</span>
+        <span className="small">Подтверди в окне Android «Обновить». После установки Refrain закроется — открой её снова.</span>
       ) : (
         <>
           {phase === 'error' && <span className="small update-error">{error}</span>}

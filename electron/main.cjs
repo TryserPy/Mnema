@@ -1,9 +1,9 @@
-// Мнема — главный процесс Electron: окно и хранение данных в JSON-файле.
+// Refrain — главный процесс Electron: окно и хранение данных в JSON-файле.
 const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-// Вызовы моста принимаем только от главной страницы Мнемы (file:///…/dist/index.html), не от встроенных
+// Вызовы моста принимаем только от главной страницы Refrain (file:///…/dist/index.html), не от встроенных
 // видео и не от чужой страницы. Обёртка ставится до подключения остальных модулей — они тоже под ней.
 function fromApp(e) {
   try {
@@ -20,7 +20,7 @@ for (const m of ['handle', 'on', 'once']) {
   ipcMain[m] = (channel, fn) =>
     orig(channel, (e, ...args) => {
       if (fromApp(e)) return fn(e, ...args);
-      console.warn('mnema: вызов', channel, 'не от окна Мнемы — отклонён');
+      console.warn('mnema: вызов', channel, 'не от окна Refrain — отклонён');
       if (m === 'handle') throw new Error('Недоступно');
       e.returnValue = null;
     });
@@ -31,43 +31,22 @@ const notify = require('./notify.cjs');
 const updater = require('./updater.cjs');
 const ocr = require('./ocr.cjs');
 const sync = require('./sync.cjs');
+const openFiles = require('./openFiles.cjs');
+const linux = require('./linux.cjs');
+linux.applyEarlyFlags(app); // Linux: Wayland/X11 по умолчанию и портал горячих клавиш — до запуска окна
 
 let mainWin = null;
 const startHidden = process.argv.includes('--hidden');
 
-const DATA_FILE = () => path.join(app.getPath('userData'), 'mnema-data.json');
-const BACKUP_DIR = () => path.join(app.getPath('userData'), 'backups');
-const MAX_BACKUPS = 8;
+// Где лежат данные — electron/dataLayout.cjs: «Мои данные» (файл данных, копии, ПРОЧТИ.txt) отдельно от служебных файлов Electron.
+const L = require('./dataLayout.cjs');
+// Раскладка папок считается сразу: userData должен быть задан до запуска (ниже), а ipc-обработчики берут пути отсюда.
+// Отдельная папка данных (проверки, две копии на одном компьютере) — REFRAIN_USER_DATA или прежняя MNEMA_USER_DATA.
+const layout = L.resolveLayout({ appData: app.getPath('appData'), env: process.env });
+app.setPath('userData', layout.systemDir);
 
-function readData() {
-  try {
-    return fs.readFileSync(DATA_FILE(), 'utf8');
-  } catch {
-    return null;
-  }
-}
-
-// Атомарная запись: сначала во временный файл, потом переименование.
-function writeData(json) {
-  const file = DATA_FILE();
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, json, 'utf8');
-  fs.renameSync(tmp, file);
-}
-
-// Резервная копия раз в сутки при запуске; хранятся последние MAX_BACKUPS.
-function dailyBackup() {
-  const current = readData();
-  if (!current) return;
-  const dir = BACKUP_DIR();
-  fs.mkdirSync(dir, { recursive: true });
-  const stamp = new Date().toISOString().slice(0, 10);
-  const target = path.join(dir, `mnema-${stamp}.json`);
-  if (!fs.existsSync(target)) fs.writeFileSync(target, current, 'utf8');
-  const files = fs.readdirSync(dir).filter((f) => f.startsWith('mnema-') && f.endsWith('.json')).sort();
-  while (files.length > MAX_BACKUPS) fs.unlinkSync(path.join(dir, files.shift()));
-}
+const readData = () => L.readData(layout);
+const writeData = (json) => L.writeData(layout, json); // атомарно: временный файл + переименование
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -76,7 +55,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'Мнема',
+    title: 'Refrain',
     backgroundColor: '#F6F3EC',
     autoHideMenuBar: false, // false + скрытая полоса: Alt не выдвигает меню «File Edit View Window» сверху
     icon: nativeImage.createFromPath(path.join(__dirname, 'icon.png')),
@@ -91,12 +70,12 @@ function createWindow() {
   mainWin = win;
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  // При автозапуске окно не показываем — Мнема ждёт в трее.
+  // При автозапуске окно не показываем — Refrain ждёт в трее.
   if (!startHidden) win.once('ready-to-show', () => win.show());
   win.on('close', (e) => {
     if (tray.shouldHideOnClose()) {
       e.preventDefault();
-      win.hide();
+      tray.hideWindow(win); // к значку у часов; на Linux без значка — свернуть
     }
   });
   win.on('closed', () => {
@@ -107,7 +86,7 @@ function createWindow() {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
-  // Окно никогда не уходит со страницы Мнемы: сайты открываем в браузере, остальное (чужой файл,
+  // Окно никогда не уходит со страницы Refrain: сайты открываем в браузере, остальное (чужой файл,
   // //сервер/папка) запрещаем — иначе чужая страница получила бы доступ к данным через мост.
   win.webContents.on('will-navigate', (e, url) => {
     e.preventDefault();
@@ -195,7 +174,7 @@ ipcMain.on('data:saveSync', (e, json) => {
   }
 });
 // Секреты (пароль облака и т. п.) — зашифрованы средствами Windows.
-const SECRETS = () => path.join(app.getPath('userData'), 'secrets.json');
+const SECRETS = () => path.join(layout.systemDir, 'secrets.json'); // в «Служебном», не в «Мои данные»
 function readSecrets() {
   try {
     return JSON.parse(fs.readFileSync(SECRETS(), 'utf8'));
@@ -224,7 +203,7 @@ ipcMain.handle('secret:set', (_e, name, value) => {
   const all = readSecrets();
   if (!value) delete all[String(name)];
   else all[String(name)] = safeStorage.isEncryptionAvailable() ? 'enc:' + safeStorage.encryptString(String(value)).toString('base64') : 'raw:' + Buffer.from(String(value)).toString('base64');
-  fs.writeFileSync(SECRETS(), JSON.stringify(all), 'utf8');
+  L.writeAtomic(SECRETS(), JSON.stringify(all));
   return true;
 });
 
@@ -244,7 +223,7 @@ ipcMain.handle('obsidian:export', async (e, files) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const r = await dialog.showOpenDialog(win, { title: 'Куда сохранить заметки (папка хранилища Obsidian)', properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
-  const root = path.resolve(r.filePaths[0], 'Мнема');
+  const root = path.resolve(r.filePaths[0], 'Refrain');
   let written = 0;
   for (const f of files || []) {
     const rel = String(f.path || '').replace(/[<>:"|?*\x00-\x1f]/g, '_');
@@ -257,45 +236,48 @@ ipcMain.handle('obsidian:export', async (e, files) => {
   return { ok: true, folder: root, written };
 });
 
-// Автокопии: список и чтение. Только файлы mnema-ГГГГ-ММ-ДД.json из папки backups — имя проверяется, путь из окна не принимается.
-const BACKUP_NAME = /^mnema-\d{4}-\d{2}-\d{2}\.json$/;
-ipcMain.handle('backup:list', () => {
-  const dir = BACKUP_DIR();
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => BACKUP_NAME.test(f))
-    .sort()
-    .reverse()
-    .map((f) => ({ name: f, size: fs.statSync(path.join(dir, f)).size }));
-});
-ipcMain.handle('backup:read', (_e, name) => {
-  if (typeof name !== 'string' || !BACKUP_NAME.test(name)) return null;
-  try {
-    return fs.readFileSync(path.join(BACKUP_DIR(), name), 'utf8');
-  } catch {
-    return null;
-  }
-});
+// Автокопии: список и чтение. Только файлы refrain-ГГГГ-ММ-ДД.json (и прежние mnema-…) из «Резервные копии» — имя проверяется, путь из окна не принимается.
+ipcMain.handle('backup:list', () => L.listBackups(layout));
+ipcMain.handle('backup:read', (_e, name) => L.readBackup(layout, name));
 
+// «Открыть папку с данными» — именно «Мои данные», а не служебные файлы Electron.
 ipcMain.handle('data:folder', () => {
-  shell.openPath(app.getPath('userData'));
-  return app.getPath('userData');
+  try {
+    L.ensureLayout(layout);
+  } catch (err) {
+    console.error('refrain: папка данных', err);
+  }
+  shell.openPath(layout.dataDir);
+  return layout.dataDir;
 });
+ipcMain.handle('data:folderPath', () => layout.dataDir);
 
-// Отдельная папка данных (для проверки синхронизации двух копий на одном компьютере).
-if (process.env.MNEMA_USER_DATA) app.setPath('userData', process.env.MNEMA_USER_DATA);
+// Папка данных теперь задаётся раскладкой (electron/dataLayout.cjs): «Мои данные» и «Служебное» в папке Refrain; данные из прежней папки Mnema
+// переносятся при первом запуске (копированием), поэтому после обновления Refrain пустым не откроется.
 const single = app.requestSingleInstanceLock();
 if (!single) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  // Переезд со старого места (%APPDATA%\Mnema) — копированием и с проверкой; старые файлы не трогаем. Выполняется до готовности приложения:
+  // «Local State» (ключ шифрования ключей ИИ) должен лежать в новой служебной папке раньше, чем Chromium её откроет.
+  try {
+    L.ensureLayout(layout);
+    const moved = L.migrateLegacy(layout);
+    if (moved) console.log('refrain: перенос данных', JSON.stringify(moved));
+    // Не получилось скопировать — работаем прямо со старым файлом, чтобы ничего не потерять и данные не разошлись.
+    if (moved && moved.data === 'missing') layout.dataFile = path.join(moved.from, L.NAMES.legacyDataFile);
+    else if (moved && moved.data === 'conflict') console.warn('refrain: на новом месте уже есть другие данные — старые не тронуты');
+  } catch (err) {
+    console.error('refrain: перенос данных не удался', err);
+  }
+  app.on('second-instance', (_e, argv, cwd) => {
     const w = mainWin;
     if (w) {
       if (w.isMinimized()) w.restore();
       w.show();
       w.focus();
     }
+    openFiles.handleArgv(argv, cwd); // двойной щелчок по файлу .mnema, пока Refrain уже открыта
   });
   ai.register();
   ocr.register();
@@ -303,6 +285,8 @@ if (!single) {
   tray.register(() => mainWin);
   notify.register(() => mainWin);
   updater.register(() => mainWin);
+  openFiles.register(() => mainWin);
+  openFiles.handleArgv(process.argv, process.cwd()); // Refrain запущена двойным щелчком по файлу
   // Запустили скрыто, но трей выключен — показать окно, иначе приложение будет невидимым.
   ipcMain.once('tray:state', (_e, s) => {
     setTimeout(() => {
@@ -322,7 +306,7 @@ if (!single) {
     // Картинки и ссылки вида //сервер/папка (file://сервер/…) на Windows идут в сетевую папку —
     // это утечка (адрес, данные входа Windows). Такие запросы отменяем.
     session.defaultSession.webRequest.onBeforeRequest((d, cb) => cb({ cancel: /^file:\/\/[^/]/i.test(d.url) }));
-    // Electron по умолчанию выдаёт любые разрешения (камера, микрофон, место…) любому фрейму. Даём их только самой Мнеме
+    // Electron по умолчанию выдаёт любые разрешения (камера, микрофон, место…) любому фрейму. Даём их только самой Refrain
     // (камера для фото учебника, микрофон для ответов голосом); встроенным плеерам — лишь полный экран.
     session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => {
       let own = false;
@@ -335,7 +319,7 @@ if (!single) {
       cb(own || permission === 'fullscreen');
     });
     try {
-      dailyBackup();
+      L.dailyBackup(layout);
     } catch (err) {
       console.error('backup failed', err);
     }

@@ -1,7 +1,7 @@
 // Моды с кодом — как плагины Obsidian. Мод — это JS-модуль:
 //   export default { onload(app) { … }, onunload() { … } }
 // Через `app` мод добавляет команды, кнопки в левую панель, свои экраны, действия с темой,
-// обработку конспектов, слушает события и работает с данными. Мод может всё, что может Мнема,
+// обработку конспектов, слушает события и работает с данными. Мод может всё, что может Refrain,
 // поэтому включать стоит только моды от тех, кому доверяешь (как в Obsidian).
 import { MODS_AVAILABLE } from '../featureList';
 import { useSyncExternalStore } from 'react';
@@ -220,7 +220,7 @@ function makeApi(p: PluginRec) {
       }
     },
     http: async (url: string, init: { method?: string; headers?: Record<string, string>; body?: string } = {}) => {
-      if (!window.mnemaApi?.http) throw new Error('Сеть для модов работает в приложении (Windows или Android)');
+      if (!window.mnemaApi?.http) throw new Error('Сеть для модов работает в приложении (Windows, Linux или Android)');
       return window.mnemaApi.http({ url, method: init.method ?? 'GET', headers: init.headers, body: init.body, timeout: 30000 });
     }
   };

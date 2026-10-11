@@ -20,8 +20,10 @@ import type { UpdateInfo } from './update';
 import { PluginScreen } from './screens/PluginScreen';
 import { MODS_AVAILABLE } from './featureList';
 import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
-import { applyLook, FONTS, lookKey } from './themes';
-import { allMods, modsCss } from './mods';
+import { applyLook, lookKey } from './themes';
+import { Logo } from './components/Logo';
+import { applyStyles } from './styleApply';
+import { cacheSplashTheme } from './splashTheme';
 import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
@@ -42,8 +44,9 @@ import { RepeatDialogHost } from './components/RepeatDialog';
 import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
 import { importTopicPackage, isTopicPackage } from './share';
+import { readOpenedFile } from './openFile';
 import { forecast, itemKey, itemOrds, streak, todayCounts, tomorrowSubjects } from './srs';
-import { dataReadOnly, getData, updateSettings, updateTopic, useData } from './store';
+import { dataReadOnly, getData, pruneDoneHomework, updateSettings, updateTopic, useData } from './store';
 import type { Route } from './types';
 
 export function useMobile() {
@@ -138,21 +141,27 @@ export function App() {
     firstTheme.current = false;
   }, [dark, s.accent, s.density, s.fontScale, s.motion, s.motionOff.join(), JSON.stringify(s.look), s.bgImage?.src, s.bgImage?.fade]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Моды: стили включённых модов и свой CSS.
-  const modsStyle = modsCss(s.modsOn, s.customMods, s.userCss);
+  // Заставка в цвет темы: после каждой смены оформления запоминаем итоговые цвета (с небольшой задержкой — смена темы идёт плавным переходом),
+  // а при уходе из приложения — сразу.
   useEffect(() => {
-    // шрифты, которые нужны включённым стилям (например, «Тетрадь»)
-    for (const m of allMods(s.customMods)) if (m.font && s.modsOn.includes(m.id)) void FONTS.find((f) => f.id === m.font)?.load?.();
-  }, [s.modsOn.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+    const t = setTimeout(cacheSplashTheme, 450);
+    return () => clearTimeout(t);
+  }, [dark, s.accent, JSON.stringify(s.look), s.bgImage?.src, s.modsOn, s.customMods, s.styleValues, s.cssSnippets]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    let el = document.getElementById('mnema-mods') as HTMLStyleElement | null;
-    if (!el) {
-      el = document.createElement('style');
-      el.id = 'mnema-mods';
-      document.head.appendChild(el);
-    }
-    el.textContent = modsStyle;
-  }, [modsStyle]);
+    const now = () => cacheSplashTheme();
+    const hidden = () => document.visibilityState === 'hidden' && cacheSplashTheme();
+    window.addEventListener('pagehide', now);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('pagehide', now);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, []);
+
+  // Стили: один <style> на все включённые стили (по порядку) и сниппеты «мой CSS» + атрибуты раскладки на <html> — React-дерево не перерисовывается.
+  useEffect(() => {
+    applyStyles(s);
+  }, [s.modsOn, s.customMods, s.styleValues, s.cssSnippets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Напоминания о домашке (и на телефоне — ежедневное «пора повторить»): отдаём список системе.
   const plan = JSON.stringify(notificationPlan(data, new Date(), window.mnemaApi?.platform === 'android'));
@@ -160,7 +169,7 @@ export function App() {
     const t = setTimeout(() => window.mnemaApi?.scheduleNotifications?.(JSON.parse(plan)), 500);
     return () => clearTimeout(t);
   }, [plan]);
-  // Ссылки Мнемы (из конспекта, ответа карточки, правила): перейти к теме или термину.
+  // Ссылки Refrain (из конспекта, ответа карточки, правила): перейти к теме или термину.
   useEffect(() => {
     const h = async (e: Event) => {
       const { linkRoute } = await import('./components/Links');
@@ -188,7 +197,7 @@ export function App() {
 
   // Файл данных есть, но не прочитался — честно сказать, что сейчас ничего не сохранится.
   useEffect(() => {
-    if (dataReadOnly()) showToast('Не получилось открыть твои данные — сейчас ничего не сохранится. Закрой и открой Мнему снова; если не поможет — восстанови автокопию в «Настройки → Данные».');
+    if (dataReadOnly()) showToast('Не получилось открыть твои данные — сейчас ничего не сохранится. Закрой и открой Refrain снова; если не поможет — восстанови автокопию в «Настройки → Данные».');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Любое меню, которое открылось у края окна (особенно на телефоне), сдвигаем внутрь.
@@ -200,12 +209,20 @@ export function App() {
       const { dueForAutoCheck, checkUpdate } = await import('./update');
       if (!dueForAutoCheck()) return;
       const r = await checkUpdate();
-      if (r.ok && r.available) showToast(`Вышла Мнема ${r.latest}`, { label: 'Обновить', run: () => setUpdateInfo(r) });
+      if (r.ok && r.available) showToast(`Вышла Refrain ${r.latest}`, { label: 'Обновить', run: () => setUpdateInfo(r) });
     }, 6000);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Виджет на телефоне: считаем на неделю вперёд, чтобы он был верен и без запуска Мнемы.
+  // Сделанное домашнее задание прошлых дней убираем само: при запуске и когда возвращаешься в приложение.
+  useEffect(() => {
+    pruneDoneHomework();
+    const onVisible = () => document.visibilityState === 'visible' && pruneDoneHomework();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  // Виджет на телефоне: считаем на неделю вперёд, чтобы он был верен и без запуска Refrain.
   useEffect(() => {
     if (!window.mnemaApi?.setWidget) return;
     const t = setTimeout(() => {
@@ -314,6 +331,23 @@ export function App() {
     document.querySelector('.main')?.scrollTo(0, 0);
   };
 
+  // Файл Refrain, открытый двойным щелчком из файлового менеджера (.mnema — тема, .refrainstyle/.mnemamod — стиль).
+  useEffect(
+    () =>
+      window.mnemaApi?.onOpenFile?.((f) => {
+        const r = readOpenedFile(f, 'm-' + Math.random().toString(36).slice(2, 9));
+        if (r.kind === 'topic') {
+          const added = importTopicPackage(r.pkg);
+          showToast(`Добавлена тема «${r.pkg.topic.name}»`);
+          if (added.firstTopicId) go({ name: 'topic', id: added.firstTopicId });
+        } else if (r.kind === 'style') {
+          updateSettings({ customMods: [...getData().settings.customMods, r.mod] });
+          showToast(`Стиль «${r.mod.name}» добавлен — включи его в «Настройки → Оформление»`);
+        } else showToast(r.message);
+      }),
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   // Горячие клавиши, которые работают везде (кроме повторения — там свои).
   const routeRef = useRef(route);
   routeRef.current = route;
@@ -420,7 +454,7 @@ export function App() {
     const f = e.dataTransfer.files?.[0];
     if (!f) return;
     if (/^image\//.test(f.type)) {
-      showToast('Фото страниц перетащи в открытую тему — Мнема сделает из них конспект');
+      showToast('Фото страниц перетащи в открытую тему — Refrain сделает из них конспект');
       return;
     }
     // Ответ нейросети, сохранённый как .txt или .md, — это файл изменений, а не колода Anki.
@@ -450,7 +484,7 @@ export function App() {
       setChanges(text);
       return;
     }
-    showToast('Сюда можно перетащить ответ нейросети (файл изменений), тему Мнемы (.mnema) или колоду Anki (.apkg)');
+    showToast('Сюда можно перетащить ответ нейросети (файл изменений), тему Refrain (.mnema) или колоду Anki (.apkg)');
   }
 
   const dropProps = {
@@ -487,11 +521,12 @@ export function App() {
   const dueAll = total.learning + total.review + total.newCount;
 
   return (
-    <div className={'app' + (mobile ? ' mobile' : '') + (drawer ? ' drawer-open' : '') + (mobile && !hidesTabBar(route) ? ' has-tabbar' : '')} {...dropProps}>
+    <div data-part="app" className={'app' + (mobile ? ' mobile' : '') + (drawer ? ' drawer-open' : '') + (mobile && !hidesTabBar(route) ? ' has-tabbar' : '')} {...dropProps}>
       {mobile && (
         <header className="mobile-bar">
           <button className="mobile-brand" onClick={() => go({ name: 'today' })}>
-            <span className="logo small-logo">М</span> Мнема
+            <Logo size={28} /> Refrain
+            {window.mnemaApi?.platform === 'web' && <span className="test-tag">тест</span>}
           </button>
           <span className="grow" />
           <button className="icon-btn mobile-create" aria-label="Создать" title="Создать: карточку, тему, предмет…" onClick={openCreate}>
@@ -510,7 +545,7 @@ export function App() {
       {mobile && drawer && <div className="drawer-back" onClick={() => setDrawer(false)} />}
       <Sidebar route={route} go={go} dueAll={dueAll} adding={adding} setAdding={setAdding} onNewSubject={(o) => { setDrawer(false); setAddingSubject(o ?? {}); }} onSearch={() => { setDrawer(false); setPalette(true); }} mobile={mobile} />
 
-      <main className="main">
+      <main className="main" data-part="main">
         <div className="page-anim" key={route.name + ('id' in route ? route.id : '')}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
         {route.name === 'knowledge' && <Knowledge go={go} onTree={mobile ? () => setDrawer(true) : undefined} />}
@@ -532,7 +567,7 @@ export function App() {
 
       {mobile && <TabBar route={route} go={go} dueAll={dueAll} />}
 
-      {dragging && <div className="drop-hint"><span>Отпусти файл: тема Мнемы (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
+      {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
           <span>{toast || lastToast.current}</span>

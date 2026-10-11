@@ -48,7 +48,7 @@ console.log('   ', JSON.stringify(r));
 ok(r.outline === '0px', 'глобальный <style> из рисунка не действует (у body нет рамки)');
 ok(!r.fakeFixed, 'поддельный блок внутри math-block не стал position:fixed');
 ok(r.fakeStyleAttr === null, 'style у поддельного блока вырезан');
-ok(r.drawing >= 1 && r.paths >= 2, 'настоящий рисунок Мнемы (svg, pattern, path, rect) по-прежнему рисуется');
+ok(r.drawing >= 1 && r.paths >= 2, 'настоящий рисунок Refrain (svg, pattern, path, rect) по-прежнему рисуется');
 ok(r.styleTags === 0 && r.rectStyle === null, 'в рисунке нет <style> и атрибута style');
 
 // ---- 2. «Восстановить из копии» с чужим облаком и включёнными модами

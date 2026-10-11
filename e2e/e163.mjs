@@ -116,7 +116,7 @@ await win.locator('.terms-group-head', { hasText: 'Фотосинтез' }).clic
 await win.waitForTimeout(300);
 step('filtered chip: ' + (await win.locator('.terms-chips .hw-fchip.on').innerText()).replace(/\n/g, ' ') + ' sections=' + (await win.locator('.terms-section').count()));
 await win.evaluate(() => { const d = window.__mnemaData?.(); });
-const d = JSON.parse(fs.readFileSync(dir + '/mnema-data.json', 'utf8'));
+const d = JSON.parse(fs.readFileSync(dir + '/Мои данные/refrain-data.json', 'utf8'));
 const g = d.topics.find((t) => t.kind === 'glossary');
 const card = d.cards.find((c) => c.topicId === g?.id);
 await win.evaluate((h) => window.dispatchEvent(new CustomEvent('mnema:open-link', { detail: h })), 'mnema://card/' + card.id);

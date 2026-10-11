@@ -18,7 +18,7 @@ export function makeCopy(kind: CopyKind, id: string, go: (r: Route) => void) {
 }
 
 // ---------- Ctrl+C / Ctrl+V ----------
-// Буфер — внутри Мнемы (в системный буфер уходит только текст при обычном копировании).
+// Буфер — внутри Refrain (в системный буфер уходит только текст при обычном копировании).
 let clip: ClipItem[] = [];
 
 const what = (items: ClipItem[]) => {
@@ -62,13 +62,19 @@ export function copyToClip(items: ClipItem[]) {
 export const hasClip = () => clip.length > 0;
 
 export function pasteClip(place: PastePlace, go: (r: Route) => void) {
-  if (!clip.length) return;
-  const done = pasteCopies(clip, place);
-  if (!done.length) {
-    toast('Нечего вставить: скопированное уже удалено');
+  if (!clip.length) {
+    toast('Нечего вставлять: сначала скопируй (Ctrl+C или «Копировать» в меню)');
     return;
   }
+  const topics = clip.filter((i) => i.kind === 'topic').length;
+  const done = pasteCopies(clip, place);
+  if (!done.length) {
+    toast(topics && !place.subjectId ? 'Тему вставляют в предмет: открой предмет или нажми на него правой кнопкой → «Вставить»' : 'Нечего вставить: скопированное уже удалено');
+    return;
+  }
+  const skipped = clip.length - done.length;
   const one = done.length === 1 ? done[0] : null;
   const open: Route | null = one ? (one.what === 'topic' ? { name: 'topic', id: one.id } : one.what === 'subject' ? { name: 'subject', id: one.id } : one.what === 'folder' ? { name: 'folder', id: one.id } : null) : null;
-  toast(one ? `Вставлено: «${one.name}»` : `Вставлено: ${done.length} ${plural(done.length, 'копия', 'копии', 'копий')}`, open ? { label: 'Открыть', run: () => go(open) } : undefined);
+  const text = one ? `Вставлено: «${one.name}»` : `Вставлено: ${done.length} ${plural(done.length, 'копия', 'копии', 'копий')}`;
+  toast(skipped > 0 && topics ? `${text}. Темы не вставлены — для них нужен предмет` : text, open ? { label: 'Открыть', run: () => go(open) } : undefined);
 }

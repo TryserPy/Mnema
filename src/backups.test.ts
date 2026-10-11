@@ -4,6 +4,8 @@ import { backupDay, dayLabel, sizeLabel } from './backups';
 describe('Автокопии: подписи', () => {
   it('день по имени файла; чужие имена — нет', () => {
     expect(backupDay('mnema-2026-10-03.json')).toBe('2026-10-03');
+    expect(backupDay('refrain-2026-10-03.json')).toBe('2026-10-03');
+    expect(backupDay('../refrain-2026-10-03.json')).toBeNull();
     expect(backupDay('../mnema-2026-10-03.json')).toBeNull();
     expect(backupDay('mnema-backup-2026-10-03.json')).toBeNull();
     expect(backupDay('mnema-2026-10-03.json.bak')).toBeNull();

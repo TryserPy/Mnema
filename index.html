@@ -4,9 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob: https:; frame-src https://www.youtube-nocookie.com https://rutube.ru https://vk.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'wasm-unsafe-eval' blob:; form-action 'none'; base-uri 'none'; object-src 'none'; worker-src 'self'; manifest-src 'none'; script-src-attr 'none'">
-  <title>Мнема</title>
+  <title>Refrain</title>
+  <link rel="stylesheet" href="/src/splash.css">
+  <script src="./splash-theme.js"></script>
 </head>
 <body>
+  <div id="splash" aria-hidden="true">
+    <div class="sp-stage">
+      <div class="sp-mark"><span class="sp-ring r2"></span><span class="sp-ring r1"></span><div class="sp-tile"><i>R</i></div></div>
+      <div class="sp-word"><span style="--i:0" data-l="R">R</span><span style="--i:1" data-l="e">e</span><span style="--i:2" data-l="f">f</span><span style="--i:3" data-l="r">r</span><span style="--i:4" data-l="a">a</span><span style="--i:5" data-l="i">i</span><span style="--i:6" data-l="n">n</span></div>
+      <div class="sp-tag">Повтори — и запомни</div>
+    </div>
+  </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
