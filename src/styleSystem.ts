@@ -1,13 +1,16 @@
 // Стили Refrain (как темы Obsidian + плагин Style Settings): формат файла, проверка чужого стиля, сборка итогового CSS.
 // Стиль — это только CSS и объявленные настройки; программ в нём нет. Всё, что приходит из файла, проверяется здесь.
 // Чистые функции, без интерфейса — их проверяют тесты.
+import { cleanBg, cleanBgParams, MAX_BG_SRC_FILE } from './bgImage';
 import { cleanModName, MAX_CSS, safeColor, safeCssValue, safeFontFamily, safeVarName, sanitizeCss } from './safeCss';
-import type { CssSnippet, Look, Mod, StyleSetting, StyleSettingType, StyleValue } from './types';
+import { DEFAULT_ACCENT, migrateLook } from './themes';
+import type { CssSnippet, Density, Look, Mod, Settings, StyleSetting, StyleSettingType, StyleValue } from './types';
 
 export const STYLE_EXT = '.refrainstyle';
 export const OLD_STYLE_EXT = '.mnemamod';
 export const STYLE_KIND = 'refrain-style';
-export const STYLE_FORMAT = 1;
+/** Версия формата файла. 2 (1.30): плотность, размер текста и фон в самом стиле, больше переменных. Файлы версии 1 открываются как раньше. */
+export const STYLE_FORMAT = 2;
 
 // ---------- Атрибуты оформления («раскладка») ----------
 
@@ -262,7 +265,7 @@ export function settingEffect(s: StyleSetting, stored: unknown): { var?: [string
 function cleanVarMap(raw: unknown): Record<string, string> | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 80)) {
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 160)) {
     const name = safeVarName(k);
     const val = typeof v === 'string' ? (safeColor(v) ?? safeCssValue(v)) : null;
     if (name && val) out[name] = val;
@@ -277,6 +280,7 @@ function cleanAttrs(raw: unknown): Record<string, string> | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
+const DENSITIES: Density[] = ['compact', 'normal', 'comfy'];
 const LOOK_STYLE = ['modern', 'classic'];
 const LOOK_RADIUS = ['sharp', 'normal', 'round'];
 const LOOK_BG = ['plain', 'dots', 'grid', 'lines'];
@@ -317,6 +321,10 @@ export function cleanMod(raw: unknown, id: string, where?: string): Mod | null {
   const look = cleanLook(r.look);
   if (look) m.look = look;
   if (accent) m.accent = accent;
+  if (DENSITIES.includes(r.density as Density)) m.density = r.density as Density;
+  if (typeof r.fontScale === 'number' && Number.isFinite(r.fontScale)) m.fontScale = Math.round(Math.min(1.5, Math.max(0.85, r.fontScale)) * 100) / 100;
+  const bg = cleanBgParams(r.bg);
+  if (bg) m.bg = bg;
   if (typeof r.font === 'string' && LOOK_FONTS.includes(r.font)) m.font = r.font;
   const light = cleanVarMap((r.vars as Record<string, unknown> | undefined)?.light);
   const dark = cleanVarMap((r.vars as Record<string, unknown> | undefined)?.dark);
@@ -333,7 +341,7 @@ export function cleanMod(raw: unknown, id: string, where?: string): Mod | null {
 /** Это файл стиля (новый .refrainstyle или старый .mnemamod)? */
 export function isStyleFile(x: unknown): boolean {
   const m = x as Record<string, unknown> | null;
-  return Boolean(m && typeof m === 'object' && (m.kind === STYLE_KIND || m.kind === 'mnema-mod') && typeof m.name === 'string' && (typeof m.css === 'string' || typeof m.look === 'object' || typeof m.settings === 'object' || typeof m.attrs === 'object' || typeof m.vars === 'object'));
+  return Boolean(m && typeof m === 'object' && (m.kind === STYLE_KIND || m.kind === 'mnema-mod') && typeof m.name === 'string' && (typeof m.css === 'string' || typeof m.look === 'object' || typeof m.settings === 'object' || typeof m.attrs === 'object' || typeof m.vars === 'object' || typeof m.bg === 'object' || typeof m.density === 'string' || typeof m.fontScale === 'number'));
 }
 
 /** Разобрать текст файла стиля. Бросает понятную ошибку по-русски. */
@@ -352,10 +360,16 @@ export function parseStyleFile(text: string, id: string): Mod {
   return m;
 }
 
-/** Содержимое файла `.refrainstyle` для стиля. */
-export function styleToFile(m: Mod): string {
-  const { id: _id, where: _where, ...rest } = m;
-  return JSON.stringify({ kind: STYLE_KIND, formatVersion: STYLE_FORMAT, ...rest }, null, 1);
+/** Содержимое файла `.refrainstyle` для стиля. Картинка фона кладётся в файл только по просьбе (`image`) и если она небольшая: файлом делятся. */
+export function styleToFile(m: Mod, opts: { image?: boolean } = {}): string {
+  const { id: _id, where: _where, bg, ...rest } = m;
+  const out: Record<string, unknown> = { kind: STYLE_KIND, formatVersion: STYLE_FORMAT, ...rest };
+  if (bg) {
+    const { src, ...params } = bg;
+    const withImage = opts.image && src && src.length < MAX_BG_SRC_FILE;
+    out.bg = withImage ? { ...params, src } : params;
+  }
+  return JSON.stringify(out, null, 1);
 }
 
 // ---------- Сборка итогового CSS ----------
@@ -433,14 +447,56 @@ export function cleanCustomMods(raw: unknown): Mod[] {
   if (!Array.isArray(raw)) return [];
   const out: Mod[] = [];
   const seen = new Set<string>();
+  let imgBudget = 6_000_000; // картинки фона внутри стилей: всего не больше ≈6 МБ, остальные стили остаются без картинки
   for (const x of raw.slice(0, 60)) {
     const id = typeof (x as Mod)?.id === 'string' ? (x as Mod).id.replace(/[^\w-]/g, '').slice(0, 30) : '';
     if (!id || seen.has(id)) continue;
     const m = cleanMod(x, id);
     if (m) {
       seen.add(id);
+      if (m.bg?.src) {
+        if (m.bg.src.length <= imgBudget) imgBudget -= m.bg.src.length;
+        else delete m.bg.src;
+      }
       out.push(m);
     }
   }
   return out;
+}
+
+export const MINE_ID = 'mine';
+
+/** Новый случайный id для своего стиля или сниппета. */
+export const newStyleId = () => 'm-' + Math.random().toString(36).slice(2, 9);
+
+/** «Мой вид»: правки из «Настроить текущий» (переменные, раскладка, CSS). Остальное оформление лежит в самих настройках. */
+export function cleanMyStyle(raw: unknown): Mod | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const m = cleanMod({ ...(raw as object), name: 'Мой вид' }, MINE_ID, 'мой вид');
+  if (!m) return undefined;
+  const mine: Mod = { id: m.id, name: m.name, description: '', ...(m.vars ? { vars: m.vars } : {}), ...(m.attrs ? { attrs: m.attrs } : {}), ...(m.css?.trim() ? { css: m.css } : {}) };
+  return mine.vars || mine.attrs || mine.css ? mine : undefined;
+}
+
+/** «Как было до стиля»: запомненное оформление тоже проверяем (оно может прийти из чужой копии данных). */
+export function cleanStyleBackup(raw: unknown): Settings['styleBackup'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: NonNullable<Settings['styleBackup']> = {};
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>).slice(0, 60)) {
+    const r = v as Record<string, unknown> | null;
+    if (!r || typeof r !== 'object' || !r.look || typeof r.look !== 'object') continue;
+    const e: NonNullable<Settings['styleBackup']>[string] = {
+      look: migrateLook(r.look as Partial<Look>, typeof r.accent === 'string' ? r.accent : undefined).look,
+      accent: safeColor(r.accent) ?? DEFAULT_ACCENT
+    };
+    if (DENSITIES.includes(r.density as Density)) e.density = r.density as Density;
+    if (typeof r.fontScale === 'number' && Number.isFinite(r.fontScale)) e.fontScale = Math.min(1.5, Math.max(0.85, r.fontScale));
+    if (r.bgImage === null) e.bgImage = null;
+    else if (r.bgImage !== undefined) {
+      const bg = cleanBg(r.bgImage);
+      if (bg) e.bgImage = bg;
+    }
+    out[id.slice(0, 40)] = e;
+  }
+  return Object.keys(out).length ? out : undefined;
 }

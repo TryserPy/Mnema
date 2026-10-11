@@ -2,6 +2,7 @@
 import type { Settings } from './types';
 import { accentText, onAccent } from './color';
 import { safeColor } from './safeCss';
+import { BG_DATA, BG_VARS, bgCss } from './bgImage';
 
 export interface Palette {
   bg: string;
@@ -66,8 +67,6 @@ export const BACKGROUNDS: { id: Settings['look']['background']; name: string }[]
 
 export const DEFAULT_LOOK: Settings['look'] = { style: 'modern', light: 'air', dark: 'night', font: 'onest', headFont: 'same', radius: 'normal', background: 'plain', custom: {} };
 export const DEFAULT_ACCENT = '#4C5BD4';
-/** Свой фон: цвет темы закрывает картинку не меньше чем на 72 % — серый текст на ярком фоне при 50 % читался на 1,3:1. */
-export const MIN_BG_FADE = 0.72;
 
 /** Два стиля интерфейса: новый «Современный» и прежний «Классический» (бумага и книжные заголовки). */
 export const STYLES: { id: 'modern' | 'classic'; name: string; text: string; look: Partial<Settings['look']>; accent: string }[] = [
@@ -94,14 +93,15 @@ export function presetFor(look: Settings['look'], dark: boolean): ThemePreset {
   return THEMES.find((t) => t.id === id && t.dark === dark) ?? THEMES.find((t) => t.dark === dark)!;
 }
 
-const VAR: Record<keyof Palette, string> = { bg: '--bg', side: '--side', surface: '--surface', surface2: '--surface-2', sunken: '--sunken', ink: '--ink', ink2: '--ink-2', muted: '--muted', line: '--line', line2: '--line-2' };
+/** Цвета темы → переменные CSS. */
+export const PALETTE_VARS: Record<keyof Palette, string> = { bg: '--bg', side: '--side', surface: '--surface', surface2: '--surface-2', sunken: '--sunken', ink: '--ink', ink2: '--ink-2', muted: '--muted', line: '--line', line2: '--line-2' };
 
 /** Применить оформление к окну. */
 export function applyLook(root: HTMLElement, s: Settings, dark: boolean) {
   const look = s.look;
   const t = presetFor(look, dark);
   const custom = (dark ? look.custom.dark : look.custom.light) ?? {};
-  for (const k of Object.keys(VAR) as (keyof Palette)[]) root.style.setProperty(VAR[k], safeColor(custom[k]) || t.p[k]); // свой цвет — только цвет: из файла стиля сюда могли положить url(…)
+  for (const k of Object.keys(PALETTE_VARS) as (keyof Palette)[]) root.style.setProperty(PALETTE_VARS[k], safeColor(custom[k]) || t.p[k]); // свой цвет — только цвет: из файла стиля сюда могли положить url(…)
   const font = FONTS.find((f) => f.id === look.font) ?? FONTS[0];
   void font.load?.();
   root.style.setProperty('--body', font.css);
@@ -115,14 +115,12 @@ export function applyLook(root: HTMLElement, s: Settings, dark: boolean) {
   root.dataset.radius = look.radius;
   root.dataset.bg = look.background;
   root.dataset.font = look.font;
-  // Свой фон картинкой: картинка под полупрозрачным цветом темы — текст остаётся читаемым.
-  // Принимаем только картинку внутри данных (data:image/…;base64) — без кавычек и скобок, чтобы не сломать CSS.
-  if (s.bgImage?.src && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(s.bgImage.src)) {
-    root.style.setProperty('--bg-img', `url("${s.bgImage.src}")`);
-    root.style.setProperty('--bg-fade', String(Number.isFinite(s.bgImage.fade) ? Math.min(0.95, Math.max(MIN_BG_FADE, s.bgImage.fade)) : 0.82));
-    root.dataset.bgimg = '1';
-  } else {
-    root.style.removeProperty('--bg-img');
-    delete root.dataset.bgimg;
+  // Свой фон картинкой (подробности — bgImage.ts и bgimage.css). Принимаем только картинку внутри данных, а старый вид { src, fade } переносится на лету.
+  const bg = bgCss(s.bgImage);
+  for (const k of BG_VARS) root.style.removeProperty(k);
+  for (const k of BG_DATA) delete root.dataset[k];
+  if (bg) {
+    for (const [k, v] of Object.entries(bg.vars)) root.style.setProperty(k, v);
+    for (const [k, v] of Object.entries(bg.data)) root.dataset[k] = v;
   }
 }

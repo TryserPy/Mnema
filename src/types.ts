@@ -233,6 +233,35 @@ export interface Mod {
   attrs?: Record<string, string>;
   /** Настройки стиля, которые меняет человек. */
   settings?: StyleSetting[];
+  /** Стиль целиком (1.30): плотность, размер текста и свой фон — как в «Оформлении». Включаешь стиль — они применяются, выключаешь — возвращаются прежние. */
+  density?: Density;
+  fontScale?: number;
+  bg?: Partial<BgImage>;
+}
+
+/** Свой фон картинкой (1.30). Картинка лежит в настройках как data:image; всё остальное — числа и переключатели. */
+export interface BgImage {
+  v: 2;
+  src: string;
+  /** Как в 1.29: насколько картинку закрывает цвет темы. Больше не используется, но обновляется — чтобы старая версия Refrain показала то же самое. */
+  fade: number;
+  /** Точка фокуса, % от ширины и высоты картинки (50/50 — по центру). */
+  x: number;
+  y: number;
+  /** Как вписать: заполнить окно, вписать целиком, масштаб в % ширины окна, плиткой. */
+  size: 'cover' | 'contain' | 'zoom' | 'tile';
+  /** Масштаб в % (для «zoom» — от ширины окна, для «tile» — размер одной плитки). */
+  zoom: number;
+  /** Видимость картинки, 0…1: честная шкала (1 — как есть, 0 — не видно). */
+  opacity: number;
+  blur: number; // размытие, px (0…40)
+  dim: number; // сила цвета поверх картинки, 0…0,85
+  tint: string; // цвет поверх (#RRGGBB)
+  fixed: boolean; // стоит на месте (true) или прокручивается вместе с экраном
+  underSide: boolean; // видна ли картинка под боковой панелью
+  sideAlpha: number; // насколько панель закрывает картинку (0,3…1; 1 — как раньше, без просвета)
+  underBar: boolean; // то же для шапки на телефоне
+  barAlpha: number;
 }
 
 /** Сниппет «мой CSS» (как в Obsidian): маленький кусочек своего CSS, который включается и выключается отдельно. */
@@ -269,12 +298,13 @@ export interface Look {
 
 export interface Settings {
   look: Look;
-  styleBackup?: Record<string, { look: Look; accent: string }>; // оформление до включения стиля из файла — чтобы вернуть
+  styleBackup?: Record<string, { look: Look; accent: string; density?: Density; fontScale?: number; bgImage?: BgImage | null }>; // оформление до включения стиля — чтобы вернуть (плотность, размер текста и фон — только если стиль их меняет)
   homeworkRemind: { on: boolean; time: string; when: 'dayBefore' | 'sameDay' }; // напоминания о ДЗ по умолчанию
   lessonsRemind: { on: boolean; time: string }; // вечером: «завтра такие-то уроки — повтори»
   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
   appIcon?: string; // значок на рабочем столе телефона: 'default', 'theme' (под тему) или id темы (свой выбор)
-  bgImage?: { src: string; fade: number }; // свой фон картинкой (JPEG data:); fade 0.5–0.95 — насколько её прикрывает цвет темы
+  bgImage?: BgImage; // свой фон картинкой (data:image); до 1.30 было { src, fade }, переносится при загрузке (см. bgImage.ts)
+  myStyle?: Mod; // «Мой вид» (1.30): правки из «Настроить текущий» — переменные, раскладка, CSS; применяются последними, после включённых стилей
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов
@@ -381,6 +411,7 @@ export interface AppData {
   deviceId?: string;
 }
 
+/** 'text', 'motion' и 'styles' — старые названия: в 1.30 всё это внутри «Оформления» ('look'). */
 export type SettingsSection = 'look' | 'text' | 'motion' | 'styles' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'mods' | 'about';
 
 /** «Повторить ещё раз»: какие карточки взять — повторённые сегодня, все начатые, слабые места или все подряд. */

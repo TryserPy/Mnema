@@ -16,6 +16,7 @@ import './styles.css';
 import './design.css';
 import './motion2.css';
 import './api.css';
+import './bgimage.css';
 
 // Заставка (index.html + splash.css) уходит сама; убираем её из разметки, когда она растаяла.
 const splash = document.getElementById('splash');

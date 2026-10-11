@@ -1,23 +1,43 @@
 // Редактор стилей: справа от настоящего интерфейса, чтобы изменения были видны сразу. Если закрыть без сохранения — всё откатывается.
-// Вкладки: «Конструктор» (без кода), «Код» (CSS и подсказки), «Настройки» (что сможет менять человек), «Справка» (все переменные и классы).
+// Два режима: «стиль» (сохранённый или новый — правки в черновике, потом «Сохранить») и «текущее оформление» (current: правки сразу
+// попадают в настройки, а «Отменить» возвращает всё, как было при открытии). Вкладки: Цвета, Текст, Форма, Раскладка, Фон,
+// Анимации, CSS, Настройки (что сможет менять человек), Справка. Кнопка «Изменить с ИИ» просит ИИ поправить стиль словами.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { currentAsMod, modToCurrent, resetCurrentPatch } from '../appearance';
+import { MAX_BG_SRC_FILE } from '../bgImage';
 import { MAX_CSS, sanitizeCss } from '../safeCss';
 import { downloadFile } from '../share';
-import { getData, updateSettings } from '../store';
+import { getData, updateSettings, useData } from '../store';
+import { saveCustomStyle, setBasePreview } from '../styleActions';
 import { API_CLASSES, API_PARTS, API_ROOT_ATTRS, API_VARS } from '../styleApi';
 import { setStylePreview } from '../styleApply';
-import { getDensity, getRadius, getVar, MONO_CSS, setAccent, setAttr, setDensity, setFont, setRadius, setVar, type Density, type Mode } from '../styleBuilder';
-import { cleanMod, cleanSetting, STYLE_ATTRS, STYLE_EXT, styleToFile } from '../styleSystem';
+import { cleanMod, cleanSetting, MINE_ID, newStyleId, OLD_STYLE_EXT, parseStyleFile, STYLE_ATTRS, STYLE_EXT, styleToFile } from '../styleSystem';
 import { FONTS } from '../themes';
 import type { Mod, StyleSetting, StyleSettingType, StyleValue } from '../types';
+import { BackgroundTab, ColorsTab, LayoutTab, MotionTab, ShapeTab, TextTab } from './StyleTabs';
+import type { EditCtx } from './StyleControls';
 import { StyleSettingsPanel } from './StyleSettingsPanel';
-import { Icon, Segmented, toast } from './ui';
+import { Snippets } from './Snippets';
+import { StyleAiPanel } from './StyleAiPanel';
+import { ConfirmButton, Icon, toast } from './ui';
 import '../styleEditor.css';
 
-type Tab = 'build' | 'code' | 'settings' | 'help';
+type Tab = 'colors' | 'text' | 'shape' | 'layout' | 'bg' | 'motion' | 'code' | 'settings' | 'help';
 
-export const newStyleId = () => 'm-' + Math.random().toString(36).slice(2, 9);
+const TABS: { id: Tab; label: string; styleOnly?: boolean }[] = [
+  { id: 'colors', label: 'Цвета' },
+  { id: 'text', label: 'Текст' },
+  { id: 'shape', label: 'Форма' },
+  { id: 'layout', label: 'Раскладка' },
+  { id: 'bg', label: 'Фон' },
+  { id: 'motion', label: 'Анимации' },
+  { id: 'code', label: 'CSS' },
+  { id: 'settings', label: 'Настройки', styleOnly: true },
+  { id: 'help', label: 'Справка' }
+];
+
+export { newStyleId };
 
 /** Пустой стиль для «Создать». */
 export const blankStyle = (): Mod => ({ id: newStyleId(), name: 'Мой стиль', description: '', icon: '🎨', where: 'свой', css: '' });
@@ -28,173 +48,6 @@ export function cloneStyle(m: Mod): Mod {
 }
 
 const ATTR_NAMES = Object.keys(STYLE_ATTRS);
-
-/** Одна строка конструктора: подпись и кнопки-варианты; «как было» убирает атрибут. */
-function AttrRow({ name, m, set }: { name: string; m: Mod; set: (m: Mod) => void }) {
-  const def = STYLE_ATTRS[name];
-  const cur = m.attrs?.[name];
-  return (
-    <div className="se-row">
-      <div className="se-row-text">
-        <span className="se-row-label">{def.label}</span>
-        <span className="small muted">{def.doc}</span>
-      </div>
-      <div className="se-chips" role="radiogroup" aria-label={def.label}>
-        <button type="button" role="radio" aria-checked={cur === undefined} className={'se-chip' + (cur === undefined ? ' on' : '')} onClick={() => set(setAttr(m, name, undefined))}>
-          Не менять
-        </button>
-        {def.options
-          .filter((o) => o.value !== def.default || name === 'anim')
-          .map((o) => (
-            <button key={o.value} type="button" role="radio" aria-checked={cur === o.value} className={'se-chip' + (cur === o.value ? ' on' : '')} onClick={() => set(setAttr(m, name, o.value))}>
-              {o.label}
-            </button>
-          ))}
-      </div>
-    </div>
-  );
-}
-
-function ColorRow({ label, name, m, set, accent = false }: { label: string; name: string; m: Mod; set: (m: Mod) => void; accent?: boolean }) {
-  const one = (mode: Mode) => {
-    const v = getVar(m, mode, name);
-    const apply = (c: string | undefined) => set(accent ? setAccent(m, mode, c) : setVar(m, mode, name, c));
-    return (
-      <span className="se-color-cell">
-        <span className="small muted">{mode === 'light' ? 'Светлая' : 'Тёмная'}</span>
-        <input type="color" className="se-color" aria-label={`${label}, ${mode === 'light' ? 'светлая' : 'тёмная'} тема`} value={/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : '#888888'} style={v ? undefined : { opacity: 0.35 }} onChange={(e) => apply(e.target.value)} />
-        {v && (
-          <button type="button" className="link-btn small" onClick={() => apply(undefined)} title="Не менять">
-            ×
-          </button>
-        )}
-      </span>
-    );
-  };
-  return (
-    <div className="se-row">
-      <div className="se-row-text">
-        <span className="se-row-label">{label}</span>
-      </div>
-      <div className="se-colors">
-        {one('light')}
-        {one('dark')}
-      </div>
-    </div>
-  );
-}
-
-const FONT_CHOICES = [...FONTS.map((f) => ({ id: f.id, label: f.name, css: f.css })), { id: '', label: 'Моноширинный', css: MONO_CSS }];
-
-function FontRow({ label, which, m, set }: { label: string; which: 'body' | 'display'; m: Mod; set: (m: Mod) => void }) {
-  const cur = getVar(m, 'light', which === 'body' ? '--body' : '--display');
-  return (
-    <div className="se-row">
-      <div className="se-row-text">
-        <span className="se-row-label">{label}</span>
-      </div>
-      <select
-        className="input se-select"
-        aria-label={label}
-        value={cur ?? ''}
-        onChange={(e) => {
-          const c = FONT_CHOICES.find((f) => f.css === e.target.value);
-          if (c?.id) void FONTS.find((f) => f.id === c.id)?.load?.();
-          set(setFont(m, which, c?.css, c?.id || undefined));
-        }}
-      >
-        <option value="">Не менять</option>
-        {FONT_CHOICES.map((f) => (
-          <option key={f.label} value={f.css}>
-            {f.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function SizeRow({ label, name, m, set, min, max, step, unit }: { label: string; name: string; m: Mod; set: (m: Mod) => void; min: number; max: number; step: number; unit: string }) {
-  const v = getVar(m, 'light', name);
-  const n = v ? parseFloat(v) : NaN;
-  return (
-    <div className="se-row">
-      <div className="se-row-text">
-        <span className="se-row-label">{label}</span>
-      </div>
-      <span className="row gap8 se-slider">
-        <input type="range" aria-label={label} min={min} max={max} step={step} value={Number.isFinite(n) ? n : min} style={Number.isFinite(n) ? undefined : { opacity: 0.4 }} onChange={(e) => set(setVar(m, 'light', name, e.target.value + unit))} />
-        <span className="small se-val">{Number.isFinite(n) ? n + unit : 'как есть'}</span>
-        {Number.isFinite(n) && (
-          <button type="button" className="link-btn small" onClick={() => set(setVar(m, 'light', name, undefined))}>
-            ×
-          </button>
-        )}
-      </span>
-    </div>
-  );
-}
-
-function Builder({ m, set }: { m: Mod; set: (m: Mod) => void }) {
-  const radius = getRadius(m);
-  return (
-    <div className="se-pane">
-      <h4 className="se-h">Раскладка</h4>
-      {['sidebar', 'content', 'topics', 'tabs'].map((n) => (
-        <AttrRow key={n} name={n} m={m} set={set} />
-      ))}
-      <h4 className="se-h">Карточки и кнопки</h4>
-      {['cards', 'grades'].map((n) => (
-        <AttrRow key={n} name={n} m={m} set={set} />
-      ))}
-      <div className="se-row">
-        <div className="se-row-text">
-          <span className="se-row-label">Плотность</span>
-          <span className="small muted">Размер отступов, кнопок и строк.</span>
-        </div>
-        <Segmented<Density>
-          ariaLabel="Плотность"
-          value={getDensity(m)}
-          options={[
-            { value: 'compact', label: 'Компакт' },
-            { value: 'default', label: 'Обычная' },
-            { value: 'comfy', label: 'Просторно' }
-          ]}
-          onChange={(d) => set(setDensity(m, d))}
-        />
-      </div>
-      <div className="se-row">
-        <div className="se-row-text">
-          <span className="se-row-label">Скругление углов</span>
-          <span className="small muted">От острых до круглых — сразу у всех кнопок, карточек и окон.</span>
-        </div>
-        <span className="row gap8 se-slider">
-          <input type="range" aria-label="Скругление углов" min={0} max={32} step={1} value={radius ?? 16} style={radius === null ? { opacity: 0.4 } : undefined} onChange={(e) => set(setRadius(m, Number(e.target.value)))} />
-          <span className="small se-val">{radius === null ? 'как есть' : radius + 'px'}</span>
-          {radius !== null && (
-            <button type="button" className="link-btn small" onClick={() => set(setRadius(m, null))}>
-              ×
-            </button>
-          )}
-        </span>
-      </div>
-      <h4 className="se-h">Шрифты и текст</h4>
-      <FontRow label="Шрифт текста" which="body" m={m} set={set} />
-      <FontRow label="Шрифт заголовков" which="display" m={m} set={set} />
-      <SizeRow label="Размер текста конспекта" name="--rf-note-size" m={m} set={set} min={0.85} max={1.6} step={0.01} unit="rem" />
-      <SizeRow label="Размер вопроса" name="--rf-question-size" m={m} set={set} min={1.1} max={3} step={0.05} unit="rem" />
-      <h4 className="se-h">Цвета</h4>
-      <ColorRow label="Главный цвет" name="--accent" m={m} set={set} accent />
-      <ColorRow label="Фон окна" name="--bg" m={m} set={set} />
-      <ColorRow label="Фон карточек" name="--surface" m={m} set={set} />
-      <ColorRow label="Фон боковой панели" name="--side" m={m} set={set} />
-      <ColorRow label="Цвет текста" name="--ink" m={m} set={set} />
-      <h4 className="se-h">Движение</h4>
-      <AttrRow name="anim" m={m} set={set} />
-      <p className="small muted">Хочется большего? Вкладка «Код» — любой CSS, а «Настройки» — свои ползунки и переключатели для тех, кто будет пользоваться стилем.</p>
-    </div>
-  );
-}
 
 /** Вставка текста в поле на месте курсора. */
 function insertAt(el: HTMLTextAreaElement | null, text: string, value: string, set: (v: string) => void) {
@@ -460,25 +313,73 @@ function HelpPane() {
   );
 }
 
-export function StyleEditor({ initial, isNew, onClose }: { initial: Mod; isNew: boolean; onClose: () => void }) {
-  const [m, setM] = useState<Mod>(initial);
-  const [values, setValues] = useState<Record<string, StyleValue>>(() => ({ ...(getData().settings.styleValues[initial.id] ?? {}) }));
-  const [tab, setTab] = useState<Tab>('build');
-  const [asking, setAsking] = useState(false);
-  const start = useRef(JSON.stringify([initial, values]));
-  const dirty = useMemo(() => JSON.stringify([m, values]) !== start.current, [m, values]);
+type Snap = Pick<ReturnType<typeof modToCurrent>, 'look' | 'accent' | 'density' | 'fontScale' | 'bgImage' | 'myStyle'>;
+const pickSnap = (s: ReturnType<typeof getData>['settings']): Snap => ({ look: s.look, accent: s.accent, density: s.density, fontScale: s.fontScale, bgImage: s.bgImage, myStyle: s.myStyle });
 
-  // Живой предпросмотр на настоящем интерфейсе; закрыли — откат.
+/** `current` — правим то, что стоит сейчас (тогда `initial` не нужен). Иначе `initial` — сохранённый или новый стиль. */
+export function StyleEditor({ initial, isNew = false, onClose, current = false }: { initial?: Mod; isNew?: boolean; onClose: () => void; current?: boolean }) {
+  const data = useData();
+  const settings = data.settings;
+  const [local, setLocal] = useState<Mod>(() => initial ?? currentAsMod(settings));
+  const [values, setValues] = useState<Record<string, StyleValue>>(() => ({ ...(initial ? (getData().settings.styleValues[initial.id] ?? {}) : {}) }));
+  const [tab, setTab] = useState<Tab>('colors');
+  const [asking, setAsking] = useState(false);
+  const [ai, setAi] = useState(false);
+  const [pk, setPk] = useState(0); // «обновить предпросмотр»: окно ИИ тоже показывает свой стиль и, закрываясь, стирает наш
+  const [withImage, setWithImage] = useState(false);
+  const [saveAs, setSaveAs] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const snap = useRef<Snap>(pickSnap(settings)); // что было при открытии (для «Отменить» в режиме текущего оформления)
+  const start = useRef(JSON.stringify([local, values]));
+  const hist = useRef<{ stack: Mod[]; t: number }>({ stack: [], t: 0 });
+
+  // В режиме текущего оформления стиль — это настройки, как они есть сейчас.
+  const live = useMemo(() => (current ? currentAsMod(settings) : null), [current, settings.look, settings.accent, settings.density, settings.fontScale, settings.bgImage, settings.myStyle]); // eslint-disable-line react-hooks/exhaustive-deps
+  const m = live ?? local;
+  const baseApp = useMemo(() => ({ look: settings.look, accent: settings.accent }), [settings.look, settings.accent]);
+  const dirty = useMemo(() => (current ? JSON.stringify(pickSnap(settings)) !== JSON.stringify(snap.current) : JSON.stringify([local, values]) !== start.current), [current, settings, local, values]);
+
+  function apply(next: Mod) {
+    if (current) updateSettings(modToCurrent(next, getData().settings));
+    else setLocal(next);
+  }
+  // Шаги «Назад»: быстрые подряд правки (ползунок) считаются одним шагом.
+  function set(next: Mod) {
+    const h = hist.current;
+    const now = Date.now();
+    if (now - h.t > 700) h.stack = [...h.stack.slice(-39), m];
+    h.t = now;
+    apply(next);
+  }
+  function undo() {
+    const prev = hist.current.stack.pop();
+    hist.current.t = 0;
+    if (prev) apply(prev);
+  }
+  const ctx: EditCtx = { m, set, current, baseApp };
+
+  // Живой предпросмотр на настоящем интерфейсе; закрыли — откат. (В текущем оформлении всё и так в настройках.)
   useEffect(() => {
-    const t = setTimeout(() => setStylePreview({ mod: cleanMod(m, m.id) ?? m, values }), 90);
+    if (current) return;
+    const t = setTimeout(() => {
+      const clean = cleanMod(local, local.id) ?? local;
+      setStylePreview({ mod: clean, values });
+      setBasePreview(clean.look || clean.accent || clean.density || clean.fontScale || clean.bg ? clean : null);
+    }, 90);
     return () => clearTimeout(t);
-  }, [m, values]);
-  useEffect(() => () => setStylePreview(null), []);
+  }, [local, values, current, pk]);
+  useEffect(
+    () => () => {
+      setStylePreview(null);
+      setBasePreview(null);
+    },
+    []
+  );
   useEffect(() => {
     if (m.font) void FONTS.find((f) => f.id === m.font)?.load?.();
   }, [m.font]);
 
-  const close = () => (dirty && !asking ? setAsking(true) : onClose());
+  const close = () => (dirty && !asking && !current ? setAsking(true) : onClose());
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && !document.querySelector('.modal-back') && close();
     window.addEventListener('keydown', esc);
@@ -486,67 +387,164 @@ export function StyleEditor({ initial, isNew, onClose }: { initial: Mod; isNew: 
   });
 
   function save(enable: boolean) {
-    const clean = cleanMod(m, m.id, initial.where ?? 'свой');
+    if (current) return;
+    const clean = cleanMod(local, local.id, initial?.where ?? 'свой');
     if (!clean) return toast('Дай стилю название');
-    const s = getData().settings;
-    const exists = s.customMods.some((x) => x.id === clean.id);
-    const customMods = exists ? s.customMods.map((x) => (x.id === clean.id ? clean : x)) : [...s.customMods, clean];
-    const modsOn = enable && !s.modsOn.includes(clean.id) ? [...s.modsOn, clean.id] : s.modsOn;
-    updateSettings({ customMods, modsOn, styleValues: { ...s.styleValues, [clean.id]: values } });
-    start.current = JSON.stringify([m, values]);
     setStylePreview(null);
+    saveCustomStyle(clean, { enable });
+    const s = getData().settings;
+    updateSettings({ styleValues: { ...s.styleValues, [clean.id]: values } });
+    start.current = JSON.stringify([local, values]);
     toast(`Стиль «${clean.name}» сохранён`);
     onClose();
+  }
+  /** Текущее оформление → «Мои стили» (копия всего, что сейчас стоит). */
+  function saveCurrentAsStyle(name: string) {
+    const clean = cleanMod({ ...m, name: name.trim() || 'Мой вид', description: 'Оформление из Refrain', icon: '🎨' }, newStyleId(), 'свой');
+    if (!clean) return;
+    // Основа (тема, плотность, фон…) уже стоит в настройках: сохраняем стиль, но не включаем — иначе он «запомнит» это как прежнее.
+    saveCustomStyle(clean);
+    setSaveAs(null);
+    toast(`Стиль «${clean.name}» сохранён в «Мои стили»`);
   }
   function exportFile() {
     const clean = cleanMod(m, m.id);
     if (!clean) return toast('Дай стилю название');
-    downloadFile(clean.name + STYLE_EXT, styleToFile(clean));
+    downloadFile((current ? 'Мой вид' : clean.name) + STYLE_EXT, styleToFile(clean, { image: withImage }));
   }
+  async function importFile(f?: File) {
+    if (!f) return;
+    try {
+      const got = parseStyleFile(await f.text(), m.id);
+      set(current ? { ...got, id: MINE_ID, name: 'Мой вид', where: 'мой вид' } : { ...got, id: m.id, where: m.where });
+      toast(`Из файла «${f.name}» взято оформление`);
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+  function revert() {
+    if (current) updateSettings({ ...snap.current });
+    else {
+      setLocal(initial ?? local);
+      setValues({ ...(initial ? (getData().settings.styleValues[initial.id] ?? {}) : {}) });
+    }
+    hist.current.stack = [];
+  }
+  const tabs = TABS.filter((t) => !(current && t.styleOnly));
+  const canUndo = hist.current.stack.length > 0;
+  const hasImage = Boolean(m.bg?.src && m.bg.src.length < MAX_BG_SRC_FILE);
+  const exportRow = (
+    <>
+      <button className="btn small ghost" onClick={exportFile} title={`Сохранить файл ${STYLE_EXT}`}>
+        <Icon name="share" size={15} /> Файл
+      </button>
+      {hasImage && (
+        <label className="small row gap4">
+          <input type="checkbox" checked={withImage} onChange={(e) => setWithImage(e.target.checked)} /> с картинкой фона
+        </label>
+      )}
+    </>
+  );
 
   return createPortal(
-    <aside className="style-editor" role="dialog" aria-label="Редактор стиля">
+    <aside className="style-editor" role="dialog" aria-label={current ? 'Настроить текущее оформление' : 'Редактор стиля'}>
       <header className="se-head">
         <span className="se-icon">{m.icon ?? '🎨'}</span>
-        <div className="grow stack gap4">
-          <input className="se-title" aria-label="Название стиля" value={m.name} maxLength={50} onChange={(e) => setM({ ...m, name: e.target.value })} />
-          <input className="se-sub" aria-label="Описание" placeholder="Коротко: что меняет" value={m.description} maxLength={240} onChange={(e) => setM({ ...m, description: e.target.value })} />
-        </div>
+        {current ? (
+          <div className="grow stack gap4">
+            <span className="se-title static">Настроить текущий</span>
+            <span className="small muted">Всё, что сейчас стоит: тема, цвета, шрифты, углы, фон. Меняется сразу.</span>
+          </div>
+        ) : (
+          <div className="grow stack gap4">
+            <input className="se-title" aria-label="Название стиля" value={m.name} maxLength={50} onChange={(e) => set({ ...m, name: e.target.value })} />
+            <input className="se-sub" aria-label="Описание" placeholder="Коротко: что меняет" value={m.description} maxLength={240} onChange={(e) => set({ ...m, description: e.target.value })} />
+          </div>
+        )}
         <button className="icon-btn" aria-label="Закрыть редактор" onClick={close}>
           <Icon name="x" />
         </button>
       </header>
-      <div className="row gap8 se-meta">
-        <label className="se-mini">
-          <span>Значок</span>
-          <input className="input se-ico-in" value={m.icon ?? ''} maxLength={4} onChange={(e) => setM({ ...m, icon: e.target.value })} />
-        </label>
-        <label className="se-mini grow">
-          <span>Автор</span>
-          <input className="input" value={m.author ?? ''} maxLength={40} onChange={(e) => setM({ ...m, author: e.target.value || undefined })} />
-        </label>
-        <label className="se-mini">
-          <span>Версия</span>
-          <input className="input se-ver" value={m.version ?? ''} maxLength={20} placeholder="1.0" onChange={(e) => setM({ ...m, version: e.target.value || undefined })} />
-        </label>
+      <div className="row gap8 wrap se-tools">
+        <button className="btn small" onClick={() => setAi(true)} title="Скажи словами, что поправить, — ИИ изменит стиль">
+          <Icon name="sparkle" size={15} /> Изменить с ИИ
+        </button>
+        <button className="btn small ghost" onClick={undo} disabled={!canUndo} title="Отменить последнюю правку">
+          ↶ Назад
+        </button>
+        <button className="btn small ghost" onClick={() => fileRef.current?.click()} title={`Взять оформление из файла ${STYLE_EXT}`}>
+          <Icon name="folder" size={15} /> Из файла
+        </button>
+        <input ref={fileRef} type="file" accept={`${STYLE_EXT},${OLD_STYLE_EXT},.json`} hidden onChange={(e) => (void importFile(e.target.files?.[0]), (e.target.value = ''))} />
       </div>
-      <Segmented<Tab>
-        ariaLabel="Раздел редактора"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: 'build', label: 'Конструктор' },
-          { value: 'code', label: 'Код' },
-          { value: 'settings', label: 'Настройки' },
-          { value: 'help', label: 'Справка' }
-        ]}
-      />
+      {!current && (
+        <div className="row gap8 se-meta">
+          <label className="se-mini">
+            <span>Значок</span>
+            <input className="input se-ico-in" value={m.icon ?? ''} maxLength={4} onChange={(e) => set({ ...m, icon: e.target.value })} />
+          </label>
+          <label className="se-mini grow">
+            <span>Автор</span>
+            <input className="input" value={m.author ?? ''} maxLength={40} onChange={(e) => set({ ...m, author: e.target.value || undefined })} />
+          </label>
+          <label className="se-mini">
+            <span>Версия</span>
+            <input className="input se-ver" value={m.version ?? ''} maxLength={20} placeholder="1.0" onChange={(e) => set({ ...m, version: e.target.value || undefined })} />
+          </label>
+        </div>
+      )}
+      <div className="se-tabs" role="tablist" aria-label="Раздел редактора">
+        {tabs.map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={'se-tab' + (tab === t.id ? ' on' : '')} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
       <div className="se-body">
-        {tab === 'build' && <Builder m={m} set={setM} />}
-        {tab === 'code' && <CodePane m={m} set={setM} />}
-        {tab === 'settings' && <SettingsPane m={m} set={setM} values={values} setValue={(id, v) => setValues((o) => { const n = { ...o }; if (v === undefined) delete n[id]; else n[id] = v; return n; })} />}
+        {tab === 'colors' && <ColorsTab ctx={ctx} />}
+        {tab === 'text' && <TextTab ctx={ctx} />}
+        {tab === 'shape' && <ShapeTab ctx={ctx} />}
+        {tab === 'layout' && <LayoutTab ctx={ctx} />}
+        {tab === 'bg' && <BackgroundTab ctx={ctx} />}
+        {tab === 'motion' && <MotionTab ctx={ctx} />}
+        {tab === 'code' && (
+          <>
+            <CodePane m={m} set={set} />
+            {current && (
+              <div className="se-pane">
+                <Snippets />
+              </div>
+            )}
+          </>
+        )}
+        {tab === 'settings' && (
+          <SettingsPane
+            m={m}
+            set={set}
+            values={values}
+            setValue={(id, v) =>
+              setValues((o) => {
+                const n = { ...o };
+                if (v === undefined) delete n[id];
+                else n[id] = v;
+                return n;
+              })
+            }
+          />
+        )}
         {tab === 'help' && <HelpPane />}
       </div>
+      {saveAs !== null && (
+        <div className="row gap8 se-saveas">
+          <input className="input grow" autoFocus aria-label="Название нового стиля" placeholder="Название стиля" value={saveAs} maxLength={50} onChange={(e) => setSaveAs(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCurrentAsStyle(saveAs)} />
+          <button className="btn small primary" onClick={() => saveCurrentAsStyle(saveAs)}>
+            Сохранить
+          </button>
+          <button className="btn small" onClick={() => setSaveAs(null)}>
+            Не надо
+          </button>
+        </div>
+      )}
       <footer className="se-foot">
         {asking ? (
           <>
@@ -558,14 +556,29 @@ export function StyleEditor({ initial, isNew, onClose }: { initial: Mod; isNew: 
               Закрыть
             </button>
           </>
+        ) : current ? (
+          <>
+            <button className="btn small ghost" onClick={revert} disabled={!dirty} title="Вернуть всё, как было, когда ты открыл редактор">
+              Отменить правки
+            </button>
+            <ConfirmButton className="btn small ghost danger" label="Точно сбросить?" onConfirm={() => (updateSettings(resetCurrentPatch()), (hist.current.stack = []))}>
+              Сбросить всё
+            </ConfirmButton>
+            {exportRow}
+            <span className="grow" />
+            <button className="btn small" onClick={() => setSaveAs('Мой вид')}>
+              Сохранить как стиль
+            </button>
+            <button className="btn small primary" onClick={onClose}>
+              Готово
+            </button>
+          </>
         ) : (
           <>
-            <button className="btn small ghost" onClick={() => (setM(initial), setValues({ ...(getData().settings.styleValues[initial.id] ?? {}) }))} disabled={!dirty} title="Вернуть стиль таким, каким он был при открытии">
+            <button className="btn small ghost" onClick={revert} disabled={!dirty} title="Вернуть стиль таким, каким он был при открытии">
               Сбросить
             </button>
-            <button className="btn small ghost" onClick={exportFile} title={`Сохранить файл ${STYLE_EXT}`}>
-              <Icon name="share" size={15} /> Файл
-            </button>
+            {exportRow}
             <span className="grow" />
             <button className="btn small" onClick={close}>
               Отмена
@@ -579,6 +592,18 @@ export function StyleEditor({ initial, isNew, onClose }: { initial: Mod; isNew: 
           </>
         )}
       </footer>
+      {ai && (
+        <StyleAiPanel
+          current={m}
+          replaceId={m.id}
+          onClose={() => (setAi(false), setPk((k) => k + 1))}
+          onUse={(mod) => {
+            set(current ? { ...mod, id: MINE_ID, name: 'Мой вид', where: 'мой вид' } : { ...mod, id: m.id, where: m.where, name: mod.name || m.name });
+            setAi(false);
+            setPk((k) => k + 1);
+          }}
+        />
+      )}
     </aside>,
     document.body
   );

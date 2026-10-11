@@ -13,7 +13,8 @@ import { noteEdit } from './noteText';
 import { cleanIconImg, cleanIconImgs } from './iconImage';
 import { applyImportPlan } from './mdApply';
 import type { ImportPlan } from './mdImport';
-import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
+import { cleanBg } from './bgImage';
+import { cleanCustomMods, cleanMyStyle, cleanSnippets, cleanStyleBackup, cleanStyleValues } from './styleSystem';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
@@ -254,11 +255,10 @@ export function normalizeData(raw: unknown): AppData {
       userCss: '',
       cssSnippets: cleanSnippets(r.settings?.cssSnippets, r.settings?.userCss),
       styleValues: cleanStyleValues(r.settings?.styleValues),
-      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
-      bgImage:
-        typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
-          ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
-          : undefined,
+      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно); старый вид { src, fade } переносится (bgImage.ts).
+      bgImage: cleanBg(r.settings?.bgImage) ?? undefined,
+      myStyle: cleanMyStyle(r.settings?.myStyle),
+      styleBackup: cleanStyleBackup(r.settings?.styleBackup),
       schedule: { ...(r.settings?.schedule ?? {}) },
       keys: { ...(r.settings?.keys ?? {}) },
       treeOpen: Array.isArray(r.settings?.treeOpen) ? r.settings!.treeOpen : [],
