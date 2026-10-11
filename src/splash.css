@@ -83,3 +83,6 @@
   #splash .sp-tile { font-size: 50px; border-radius: 24px; }
   #splash .sp-ring { border-radius: 24px; }
 }
+
+/* Перезагрузка ради обновления сразу после показа — заставку второй раз не рисуем (public/splash-theme.js). */
+html[data-no-splash] #splash { display: none; }

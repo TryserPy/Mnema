@@ -170,6 +170,7 @@ function registerWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
   const sw = navigator.serviceWorker;
   const bornAt = Date.now();
+  const hadController = Boolean(sw.controller); // первый заход: сервис-воркер только встаёт, перезагружать страницу незачем
   let reloading = false;
   void sw.register(new URL('sw.js', document.baseURI).href).then((reg) => {
     // Новая версия уже ждёт с прошлого раза, а страница только что открылась — включаем её сразу.
@@ -181,8 +182,14 @@ function registerWorker() {
   });
   sw.addEventListener('controllerchange', () => {
     // Смена версии позже первых секунд после открытия — человек уже работает: ничего не перезагружаем.
-    if (reloading || Date.now() - bornAt > 8000) return;
+    if (!hadController || reloading || Date.now() - bornAt > 8000) return;
     reloading = true;
+    // Заставка уже сыграла в этом заходе — после перезагрузки ради обновления второй раз её не показываем (public/splash-theme.js).
+    try {
+      sessionStorage.setItem('refrain-no-splash', String(Date.now()));
+    } catch {
+      /* без хранилища заставка сыграет ещё раз — не страшно */
+    }
     (window as unknown as { __mnemaFlush?: () => void }).__mnemaFlush?.();
     location.reload();
   });
