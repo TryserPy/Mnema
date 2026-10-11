@@ -174,3 +174,21 @@ describe('сборка для Linux (package.json)', () => {
     expect(pkg.build.fileAssociations).toBeUndefined();
   });
 });
+
+describe('папка данных на Linux (electron/dataLayout.cjs)', () => {
+  const L = req('../electron/dataLayout.cjs');
+  it('лежит в ~/.config/Refrain (XDG), служебное отдельно', () => {
+    const l = L.resolveLayout({ appData: '/home/me/.config', env: {} });
+    expect(l.root).toBe('/home/me/.config/Refrain');
+    expect(l.dataFile).toBe('/home/me/.config/Refrain/Мои данные/refrain-data.json');
+    expect(l.systemDir).toBe('/home/me/.config/Refrain/Служебное');
+  });
+  it('ПРОЧТИ.txt без слов про Windows и обратных косых черт', () => {
+    const l = L.resolveLayout({ appData: '/home/me/.config', env: {} });
+    const t: string = L.readmeText(l, 'linux');
+    expect(t).not.toMatch(/Windows/);
+    expect(t).toContain('Резервные копии/');
+    expect(L.readmeText(l, 'win32')).toContain('учётной записи Windows');
+    expect(L.readmeText(l, 'win32')).toContain('Резервные копии\\');
+  });
+});
