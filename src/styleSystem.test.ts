@@ -230,3 +230,45 @@ describe('атрибуты оформления', () => {
     }
   });
 });
+
+import { getDensity, getRadius, getVar, setAccent, setAttr, setDensity, setFont, setRadius, setVar } from './styleBuilder';
+
+describe('конструктор стиля', () => {
+  const base: Mod = { id: 'a', name: 'А', description: '' };
+  it('атрибуты ставятся и убираются', () => {
+    const m = setAttr(setAttr(base, 'sidebar', 'right'), 'tabs', 'pills');
+    expect(m.attrs).toEqual({ sidebar: 'right', tabs: 'pills' });
+    expect(setAttr(setAttr(m, 'sidebar', undefined), 'tabs', undefined).attrs).toBeUndefined();
+  });
+  it('переменные для светлой и тёмной темы', () => {
+    const m = setVar(setVar(base, 'light', '--bg', '#ffffff'), 'dark', '--bg', '#000000');
+    expect(m.vars).toEqual({ light: { '--bg': '#ffffff' }, dark: { '--bg': '#000000' } });
+    expect(setVar(m, 'dark', '--bg', undefined).vars).toEqual({ light: { '--bg': '#ffffff' } });
+  });
+  it('плотность: компакт и просторно, и обратно к обычной', () => {
+    const c = setDensity(base, 'compact');
+    expect(getDensity(c)).toBe('compact');
+    expect(getVar(c, 'light', '--pad')).toBe('12px');
+    expect(getDensity(setDensity(c, 'comfy'))).toBe('comfy');
+    expect(setDensity(c, 'default').vars).toBeUndefined();
+  });
+  it('скругление: одно число → все скругления, значения проходят проверку', () => {
+    const m = setRadius(base, 10);
+    expect(getRadius(m)).toBe(10);
+    expect(getVar(m, 'light', '--rf-radius-review')).toBe('16px');
+    expect(setRadius(m, null).vars).toBeUndefined();
+    expect(compileStyles([{ mod: m }]).css).toContain('--radius: 10px !important');
+  });
+  it('шрифт: переменная и id для подгрузки', () => {
+    const m = setFont(base, 'body', "'Comfortaa', sans-serif", 'comfortaa');
+    expect(m.font).toBe('comfortaa');
+    expect(getVar(m, 'light', '--body')).toBe("'Comfortaa', sans-serif");
+    expect(setFont(m, 'body', undefined).font).toBeUndefined();
+  });
+  it('главный цвет тянет за собой текст на нём', () => {
+    const m = setAccent(base, 'light', '#FFD400');
+    expect(getVar(m, 'light', '--on-accent')).toMatch(/^#/);
+    expect(getVar(m, 'light', '--accent')).toBe('#FFD400');
+    expect(setAccent(m, 'light', undefined).vars).toBeUndefined();
+  });
+});
