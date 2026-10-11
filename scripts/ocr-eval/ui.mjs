@@ -73,7 +73,9 @@ for (const [name, opts] of devices) {
   await page.getByRole('button', { name: 'Добавить в конспект' }).click();
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/${name}-5-note.png` });
-  console.log(name, 'errors', JSON.stringify(errors));
+  const broken = await page.getByText('что-то пошло не так').count();
+  console.log(name, 'экран конспекта цел:', !broken, '| errors', JSON.stringify(errors));
+  if (broken) bad++;
   await ctx.close();
 }
 await browser.close();

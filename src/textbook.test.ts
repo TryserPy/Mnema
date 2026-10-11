@@ -211,6 +211,11 @@ describe('assemble', () => {
     const md = assemble([page(1, 'Текст.\n\n⟦РИС:0⟧', { figures: [{ box: { x: 0, y: 0, w: 1, h: 1 }, caption: 'Рис. 1. Клетка', uri: 'data:image/png;base64,AAAA' }] })], {});
     expect(md).toContain('![Рис. 1. Клетка](data:image/png;base64,AAAA)');
     expect(md).toContain('*Рис. 1. Клетка*');
+    expect(md).toContain('AAAA)\n*Рис. 1. Клетка*');
+  });
+  it('рисунок без подписи тоже получает строку подписи (одиночная картинка ломает редактор)', () => {
+    const md = assemble([page(1, '⟦РИС:0⟧', { figures: [{ box: { x: 0, y: 0, w: 1, h: 1 }, caption: '', uri: 'data:image/png;base64,AAAA' }] })], {});
+    expect(md).toContain('AAAA)\n*Рисунок*');
   });
   it('абзац, разорванный между страницами, склеивается', () => {
     const md = assemble([page(1, 'Первая страница заканчивается на полусло-'), page(2, 'ве и продолжается дальше.\n\nНовый абзац.')], {});

@@ -215,7 +215,7 @@ export function setDebugHook(f: ((x: unknown) => void) | null) {
 
 export async function recognizeOffline(p: PageInput, onProgress?: Progress): Promise<PageResult> {
   const api = window.mnemaApi;
-  if (!api?.ocrRecognize) throw new Error('Распознавание без интернета работает в приложении для Windows, телефона и в браузере.');
+  if (!api?.ocrRecognize) throw new Error('Распознавание без интернета работает в приложении для Windows, Linux, на телефоне и в браузере.');
   const prep = await prepareOffline(p, onProgress);
   onProgress?.('Читаю текст…', 0.36);
   const gray = prep.gray;
@@ -275,7 +275,7 @@ export const AI_SYSTEM = `Ты переводишь фото страницы ш
 
 export async function recognizeWithAi(p: PageInput, onProgress?: Progress): Promise<PageResult> {
   const api = window.mnemaApi;
-  if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, телефона и в браузере.');
+  if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
   onProgress?.('Готовлю фото…', 0.05);
   const canvas = await renderPage(p, 1800);
   const photo = canvasToJpeg(canvas, 0.85);

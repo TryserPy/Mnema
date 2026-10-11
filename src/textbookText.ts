@@ -437,9 +437,11 @@ function renderToks(toks: Tok[], doubts: LayoutDoubt[], idOf: () => string): str
   for (const t of toks) {
     let text = t.text;
     if (t.conf < 62 && lettersOf(text).length >= 3 && !/⟦/.test(text)) {
+      // Знаки препинания вокруг слова остаются снаружи метки: проверять нужно слово, а не точку.
+      const m = /^([«("[]*)([\s\S]*?)([.,;:!?)»\]…]*)$/.exec(text)!;
       const id = idOf();
-      doubts.push({ id, text, bbox: t.bbox });
-      text = `⟦?:${id}⟧`;
+      doubts.push({ id, text: m[2] || text, bbox: t.bbox });
+      text = `${m[1]}⟦?:${id}⟧${m[3]}`;
     }
     if (t.bold) run.push(text);
     else {
@@ -1083,7 +1085,8 @@ export function assemble(pages: PageResult[], fixes: Record<string, string>): st
       const f = p.figures[Number(i)];
       if (!f) return '';
       const cap = f.caption.replace(/[[\]]/g, '').replace(/⟦\?:(\w+)⟧/g, (_x, id: string) => fixes[`${p.n}:${id}`] ?? p.doubts.find((d) => d.id === id)?.text ?? '');
-      return `![${cap || 'Рисунок'}](${f.uri})` + (cap ? `\n\n*${cap.replace(/\*+/g, '')}*` : '');
+      // Картинка и подпись — одним абзацем: картинка в отдельном абзаце в конце конспекта ломает редактор.
+      return `![${cap || 'Рисунок'}](${f.uri})\n*${(cap || 'Рисунок').replace(/\*+/g, '')}*`;
     });
     md = md.trim();
     if (!md) continue;
