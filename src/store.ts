@@ -10,6 +10,9 @@ import { emit } from './plugins/bus';
 import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
+import { cleanIconImg, cleanIconImgs } from './iconImage';
+import { applyImportPlan } from './mdApply';
+import type { ImportPlan } from './mdImport';
 import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
@@ -69,6 +72,7 @@ declare global {
       save: (json: string) => Promise<boolean>;
       saveSync: (json: string) => boolean;
       openDataFolder?: () => Promise<string>;
+      dataFolderPath?: () => Promise<string>; // Windows: полный путь к папке «Мои данные»
       backupList?: () => Promise<{ name: string; size: number }[]>; // автокопии (раз в день, последние 8)
       backupRead?: (name: string) => Promise<string | null>;
       obsidianPick?: () => Promise<Vault | null>;
@@ -220,10 +224,10 @@ export function normalizeData(raw: unknown): AppData {
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
   const out: AppData = {
     version: 1,
-    folders: Array.isArray(r.folders) ? r.folders : [],
+    folders: Array.isArray(r.folders) ? cleanIconImgs(r.folders) : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
     exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
-    subjects: r.subjects,
+    subjects: cleanIconImgs(r.subjects),
     ...(Array.isArray(r.trash) && r.trash.length ? { trash: cleanTrash(r.trash) } : {}),
     topics: cleanTopics(r.topics),
     cards: r.cards,
@@ -917,8 +921,8 @@ export function addListRows(topicId: string, list: StudyList, rows: { a: string;
 
 // ---------- Папки предметов ----------
 
-export function addFolder(name: string, color: string, icon?: string): Folder {
-  const f: Folder = { id: uid(), name: name.trim() || 'Папка', color, icon, order: data.folders.length + 1, createdAt: nowIso(), updatedAt: nowIso() };
+export function addFolder(name: string, color: string, icon?: string, iconImg?: string): Folder {
+  const f: Folder = { id: uid(), name: name.trim() || 'Папка', color, icon, ...(iconImg ? { iconImg } : {}), order: data.folders.length + 1, createdAt: nowIso(), updatedAt: nowIso() };
   commit({ ...data, folders: [...data.folders, f], settings: { ...data.settings, treeOpen: [...data.settings.treeOpen, f.id] } });
   return f;
 }
@@ -1131,6 +1135,8 @@ export function importTopics(
   items: {
     subjectName: string;
     subjectColor?: string;
+    subjectIcon?: string; // значок нового предмета (эмодзи) и/или своя картинка — только если предмет создаётся
+    subjectIconImg?: string;
     topic: Pick<Topic, 'name' | 'note'> & Partial<Pick<Topic, 'examDate' | 'source' | 'lists' | 'kind' | 'poems'>>;
     cards?: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId'>> & {
       states?: Record<number, ItemState>;
@@ -1149,7 +1155,7 @@ export function importTopics(
       const existing = d.subjects.find((s) => s.name.trim().toLowerCase() === it.subjectName.trim().toLowerCase());
       if (existing) subjectId = existing.id;
       else {
-        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', createdAt: nowIso() };
+        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', ...(it.subjectIcon ? { icon: it.subjectIcon } : {}), ...(cleanIconImg(it.subjectIconImg) ? { iconImg: it.subjectIconImg } : {}), createdAt: nowIso() };
         d = { ...d, subjects: [...d.subjects, s] };
         subjectId = s.id;
       }
@@ -1171,6 +1177,13 @@ export function importTopics(
   }
   commit(d);
   return { topics, cards, firstTopicId };
+}
+
+/** Импорт папки Markdown / архива / хранилища Obsidian (план из mdImport.planImport): папки, предметы, темы с подтемами, словари, карточки. Одно изменение данных. */
+export function importTree(plan: ImportPlan, targetSubjectId?: string): { folders: number; subjects: number; topics: number; cards: number; firstTopicId?: string } {
+  const r = applyImportPlan(data, plan, uid, nowIso(), targetSubjectId);
+  commit(r.data);
+  return { folders: r.folders, subjects: r.subjects, topics: r.topics, cards: r.cards, firstTopicId: r.firstTopicId };
 }
 
 export function replaceData(next: AppData) {

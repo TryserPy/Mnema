@@ -24,7 +24,7 @@ await win.waitForTimeout(1200); console.log('NOTE', (await win.evaluate(() => do
 await win.waitForTimeout(500);
 await win.screenshot({ path: process.env.OUT + '/e2-imported.png' });
 await app.close();
-const d = JSON.parse(fs.readFileSync(userData + '/mnema-data.json', 'utf8'));
+const d = JSON.parse(fs.readFileSync(userData + '/Мои данные/refrain-data.json', 'utf8'));
 const t = d.topics.find((x) => x.name === 'Митоз');
 console.log('subject ok:', d.subjects.find((s) => s.id === t.subjectId).name);
 console.log('note:', t.note.replace(/data:image\/png;base64,[A-Za-z0-9+/=]+/, 'DATA').replace(/\n/g, '⏎'));

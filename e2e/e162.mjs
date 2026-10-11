@@ -84,7 +84,7 @@ step('after restart link: ' + (await win.locator('.ProseMirror a[href^="mnema://
 await win.locator('.ProseMirror a[href^="mnema://"]').click({ modifiers: ['Control'] });
 await win.waitForTimeout(700);
 step('ctrl+click → ' + (await win.locator('.title-input').inputValue()) + ' / tab: ' + (await win.locator('.otab.on').innerText()).replace(/\n/g, ''));
-const d = JSON.parse(fs.readFileSync(dir + '/mnema-data.json', 'utf8'));
+const d = JSON.parse(fs.readFileSync(dir + '/Мои данные/refrain-data.json', 'utf8'));
 step('md: ' + (d.topics.find((t) => t.name.includes('Закон Ома')).note.match(/\[[^\]]+\]\(mnema:[^)]+\)/) || ['НЕТ'])[0]);
 console.log('errors', JSON.stringify(errors));
 await app.close();

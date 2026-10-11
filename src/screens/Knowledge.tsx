@@ -51,7 +51,7 @@ function Tile({ tile, go }: { tile: SubjectTile; go: (r: Route) => void }) {
   return (
     <button className="know-tile" style={{ ['--c' as string]: s.color }} onClick={() => go({ name: 'subject', id: s.id })}>
       <span className="row gap12 know-tile-head">
-        <SubjectMark color={s.color} icon={s.icon} size="big" />
+        <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} size="big" />
         <strong className="clamp2 grow">{s.name}</strong>
         {tile.due > 0 && <span className="badge soft" title="Ждёт повторения">{tile.due}</span>}
       </span>

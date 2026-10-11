@@ -8,7 +8,7 @@ function run(stored: string | null, throws = false) {
   const set: Record<string, string> = {};
   const localStorage = { getItem: () => { if (throws) throw new Error('закрыто'); return stored; } };
   const document = { documentElement: { style: { setProperty: (k: string, v: string) => (set[k] = v) } } };
-  new Function('localStorage', 'document', code)(localStorage, document);
+  new Function('localStorage', 'sessionStorage', 'document', code)(localStorage, { getItem: () => null, removeItem: () => undefined }, document);
   return set;
 }
 
@@ -24,5 +24,26 @@ describe('заставка в цвет темы', () => {
   });
   it('берёт только правильные цвета, остальное пропускает', () => {
     expect(run(JSON.stringify({ bg: '#000000', accent: 'expression(1)' }))).toEqual({ '--rs-bg': '#000000' });
+  });
+});
+
+describe('заставка не играет дважды за один заход', () => {
+  function runWith(flag: string | null) {
+    const attrs: Record<string, string> = {};
+    const removed: string[] = [];
+    const sessionStorage = { getItem: (k: string) => (k === 'refrain-no-splash' ? flag : null), removeItem: (k: string) => removed.push(k) };
+    const localStorage = { getItem: () => null };
+    const document = { documentElement: { style: { setProperty: () => undefined }, setAttribute: (k: string, v: string) => (attrs[k] = v) } };
+    new Function('localStorage', 'sessionStorage', 'document', code)(localStorage, sessionStorage, document);
+    return { attrs, removed };
+  }
+  it('после перезагрузки ради обновления заставка скрыта, флаг использован один раз', () => {
+    const r = runWith(String(Date.now() - 1500));
+    expect(r.attrs['data-no-splash']).toBe('1');
+    expect(r.removed).toEqual(['refrain-no-splash']);
+  });
+  it('старый флаг (давний заход) заставку не отключает, обычный заход — тоже', () => {
+    expect(runWith(String(Date.now() - 60000)).attrs['data-no-splash']).toBeUndefined();
+    expect(runWith(null).attrs['data-no-splash']).toBeUndefined();
   });
 });

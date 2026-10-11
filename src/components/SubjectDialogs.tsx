@@ -30,6 +30,7 @@ export function NewSubjectDialog({ onClose, onCreated, folderId: presetFolder, s
   const [name, setName] = useState('');
   const [color, setColor] = useState(SUBJECT_COLORS[(data.subjects.length + data.folders.length) % SUBJECT_COLORS.length]);
   const [icon, setIcon] = useState<string | undefined>();
+  const [iconImg, setIconImg] = useState<string | undefined>();
   const [folderId, setFolderId] = useState<string | undefined>(presetFolder);
   return (
     <Modal title={kind === 'subject' ? 'Новый предмет' : 'Новая папка'} onClose={onClose}>
@@ -38,10 +39,10 @@ export function NewSubjectDialog({ onClose, onCreated, folderId: presetFolder, s
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          if (kind === 'folder') onCreated(addFolder(name, color, icon).id, 'folder');
+          if (kind === 'folder') onCreated(addFolder(name, color, icon, iconImg).id, 'folder');
           else {
             const sub = addSubject(name, color);
-            if (icon || folderId) updateSubject(sub.id, { icon, folderId });
+            if (icon || iconImg || folderId) updateSubject(sub.id, { icon, iconImg, folderId });
             onCreated(sub.id, 'subject');
           }
         }}
@@ -66,7 +67,7 @@ export function NewSubjectDialog({ onClose, onCreated, folderId: presetFolder, s
         </div>
         <div className="field">
           <span>Значок</span>
-          <IconPicker value={icon} onChange={setIcon} color={color} />
+          <IconPicker value={icon} onChange={setIcon} color={color} image={iconImg} onImage={setIconImg} />
         </div>
         {kind === 'subject' && <FolderSelect value={folderId} onChange={setFolderId} />}
         <div className="row end">
@@ -85,6 +86,7 @@ export function EditSubject({ id, onClose, onDelete }: { id: string; onClose: ()
   const [name, setName] = useState(s?.name ?? '');
   const [color, setColor] = useState(s?.color ?? '#3B5BDB');
   const [icon, setIcon] = useState<string | undefined>(s?.icon);
+  const [iconImg, setIconImg] = useState<string | undefined>(s?.iconImg);
   const [folderId, setFolderId] = useState<string | undefined>(s?.folderId);
   if (!s) return null;
   return (
@@ -94,7 +96,7 @@ export function EditSubject({ id, onClose, onDelete }: { id: string; onClose: ()
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          updateSubject(id, { name: name.trim(), color, icon, folderId });
+          updateSubject(id, { name: name.trim(), color, icon, iconImg, folderId });
           onClose();
         }}
       >
@@ -108,7 +110,7 @@ export function EditSubject({ id, onClose, onDelete }: { id: string; onClose: ()
         </div>
         <div className="field">
           <span>Значок</span>
-          <IconPicker value={icon} onChange={setIcon} color={color} />
+          <IconPicker value={icon} onChange={setIcon} color={color} image={iconImg} onImage={setIconImg} />
         </div>
         <FolderSelect value={folderId} onChange={setFolderId} />
         <div className="row between">
@@ -134,6 +136,7 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
   const [name, setName] = useState(f?.name ?? '');
   const [color, setColor] = useState(f?.color ?? '#3A3F4E');
   const [icon, setIcon] = useState<string | undefined>(f?.icon);
+  const [iconImg, setIconImg] = useState<string | undefined>(f?.iconImg);
   const [armed, setArmed] = useState(false);
   if (!f) return null;
   const inside = data.subjects.filter((s) => s.folderId === id).length;
@@ -144,7 +147,7 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          updateFolder(id, { name: name.trim(), color, icon });
+          updateFolder(id, { name: name.trim(), color, icon, iconImg });
           onClose();
         }}
       >
@@ -158,7 +161,7 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
         </div>
         <div className="field">
           <span>Значок</span>
-          <IconPicker value={icon} onChange={setIcon} color={color} />
+          <IconPicker value={icon} onChange={setIcon} color={color} image={iconImg} onImage={setIconImg} />
         </div>
         <div className="row between wrap">
           <button

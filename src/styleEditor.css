@@ -37,7 +37,7 @@
 .se-help .se-doc { margin: 0; font-size: 0.86rem; line-height: 1.45; overflow-wrap: anywhere; }
 .se-help code, .se-pane code { font-size: 0.82em; }
 .se-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--line); }
-@media (max-width: 720px) { .style-editor { top: auto; height: 78dvh; width: 100%; border-left: 0; border-top: 1px solid var(--line-2); border-radius: 20px 20px 0 0; box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25); } }
+@media (max-width: 720px) { .style-editor { top: auto; height: 90dvh; width: 100%; border-left: 0; border-top: 1px solid var(--line-2); border-radius: 20px 20px 0 0; box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25); } }
 
 /* Настройки стиля в списке включённых */
 .se-settings { display: flex; flex-direction: column; gap: 2px; }
@@ -61,3 +61,6 @@
 .st-act:hover { color: var(--accent-text, var(--accent)); }
 .st-snips { display: flex; flex-direction: column; gap: 8px; }
 .st-snip { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
+.style-editor .seg { width: 100%; }
+.style-editor .seg button { font-size: 0.84rem; padding: 4px 5px; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .se-foot .btn { flex: 1 1 auto; } .se-foot .grow { display: none; } .se-meta { display: none; } }

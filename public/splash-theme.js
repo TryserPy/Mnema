@@ -2,6 +2,16 @@
 // а этот маленький скрипт ставит их до показа заставки. Берём только цвета вида #rrggbb — ничего другого сюда не попадёт.
 (function () {
   try {
+    // Страницу только что перезагрузили ради обновления — заставка в этом заходе уже была, второй раз не показываем.
+    var t = Number(sessionStorage.getItem('refrain-no-splash'));
+    if (t) {
+      sessionStorage.removeItem('refrain-no-splash');
+      if (Date.now() - t < 20000) document.documentElement.setAttribute('data-no-splash', '1');
+    }
+  } catch (e) {
+    /* нет хранилища */
+  }
+  try {
     var raw = localStorage.getItem('refrain-splash');
     if (!raw) return;
     var o = JSON.parse(raw);

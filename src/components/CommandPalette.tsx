@@ -121,7 +121,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
     }
     for (const s of data.subjects) {
       const sc = score(s.name);
-      if (sc) out.push({ id: 's:' + s.id, group: 'Предметы', title: s.name, icon: <SubjectMark color={s.color} icon={s.icon} />, score: sc + 10, run: done(() => go({ name: 'subject', id: s.id })) });
+      if (sc) out.push({ id: 's:' + s.id, group: 'Предметы', title: s.name, icon: <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} />, score: sc + 10, run: done(() => go({ name: 'subject', id: s.id })) });
     }
     // Темы и правила (по названию и по тексту конспекта)
     const subj = new Map(data.subjects.map((s) => [s.id, s]));
@@ -135,7 +135,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
         group: t.kind === 'rule' ? 'Правила' : t.kind === 'glossary' ? 'Термины' : 'Темы',
         title: t.name,
         sub: inNote ? snippet(t.note, nq) : s?.name,
-        icon: s ? <SubjectMark color={s.color} icon={s.icon} /> : <Icon name="book" size={16} />,
+        icon: s ? <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} /> : <Icon name="book" size={16} />,
         score: byName ? byName + 8 : 20,
         run: done(() => go({ name: 'topic', id: t.id, tab: 'note' }))
       });

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Logo } from '../components/Logo';
 import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark } from '../components/ui';
 import { openRepeatDialog } from '../components/RepeatDialog';
 import { WeekCard } from './Stats';
@@ -54,7 +55,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
     return (
       <div className="page narrow">
         <div className="welcome">
-          <div className="logo big">R</div>
+          <Logo size={64} />
           <h1 className="display">Привет! Это Refrain</h1>
           <p className="lead">Она помогает запоминать то, что ты учишь, — и напоминает повторить как раз тогда, когда ты начинаешь забывать.</p>
           <div className="row gap8 wrap center-row">
@@ -297,7 +298,7 @@ function WeekSchedule({ now, go }: { now: Date; go: (r: Route) => void }) {
             return (
               <button key={s.id + i} className="les" style={{ animationDelay: i * 35 + 'ms' }} onClick={() => go({ name: 'subject', id: s.id })}>
                 <span className="les-n">{i + 1}</span>
-                <SubjectMark color={s.color} icon={s.icon} />
+                <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} />
                 <span className="les-name">{s.name}</span>
                 {due > 0 && (
                   <span className="les-due" title="Карточки этого предмета стоят первыми — повтори перед уроком">
@@ -421,7 +422,7 @@ function ScheduleEditor({ onClose, todayDow, tomorrowDow }: { onClose: () => voi
                         const n = ids.filter((x) => x === s.id).length;
                         return (
                           <button key={s.id} className="sched-pick-item" onClick={() => setScheduleDay(d, [...ids, s.id])}>
-                            <SubjectMark color={s.color} icon={s.icon} />
+                            <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} />
                             <span className="clamp1">{s.name}</span>
                             {n > 0 && <span className="sched-pick-n">×{n}</span>}
                           </button>

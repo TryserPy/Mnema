@@ -272,3 +272,70 @@ describe('конструктор стиля', () => {
     expect(setAccent(m, 'light', undefined).vars).toBeUndefined();
   });
 });
+
+import { demoParts } from './styleDemo';
+import { moveStyle, setStyleValue, toggleStyle } from './styleActions';
+import { emptyData, getData, replaceData } from './store';
+
+describe('галерея: пример раскладки', () => {
+  it('стиль с раскладкой показывает мини-приложение, остальные — как раньше', () => {
+    expect(demoParts('', { sidebar: 'right' })).toEqual(['layout']);
+    expect(demoParts('.grade{}', { topics: 'tiles', grades: 'grid' })).toEqual(['layout']);
+    expect(demoParts('.grade{}', { anim: 'off' })).toEqual(['grades']);
+    expect(demoParts('.grade{}', {})).toEqual(['grades']);
+  });
+  it('встроенные стили с раскладкой дают layout', () => {
+    for (const id of ['compact', 'focus', 'tiles', 'top-bar', 'right-panel', 'tablet']) {
+      const m = CATALOG.find((x) => x.id === id)!;
+      expect(demoParts(m.css ?? '', compileStyles([{ mod: m }]).attrs), id).toEqual(['layout']);
+    }
+  });
+});
+
+describe('включение стилей и порядок', () => {
+  const m = (id: string): Mod => ({ id, name: id, description: '' });
+  it('включённые идут в порядке включения; повторное включение ставит в конец; выключение убирает', () => {
+    replaceData(emptyData());
+    toggleStyle(m('a'), true);
+    toggleStyle(m('b'), true);
+    toggleStyle(m('c'), true);
+    expect(getData().settings.modsOn).toEqual(['a', 'b', 'c']);
+    toggleStyle(m('a'), true);
+    expect(getData().settings.modsOn).toEqual(['b', 'c', 'a']);
+    toggleStyle(m('c'), false);
+    expect(getData().settings.modsOn).toEqual(['b', 'a']);
+  });
+  it('moveStyle меняет соседей местами и не выходит за края', () => {
+    replaceData(emptyData());
+    for (const id of ['a', 'b', 'c']) toggleStyle(m(id), true);
+    moveStyle('b', 1);
+    expect(getData().settings.modsOn).toEqual(['a', 'c', 'b']);
+    moveStyle('b', 1);
+    moveStyle('a', -1);
+    expect(getData().settings.modsOn).toEqual(['a', 'c', 'b']);
+    moveStyle('b', -1);
+    expect(getData().settings.modsOn).toEqual(['a', 'b', 'c']);
+    moveStyle('нет', 1);
+    expect(getData().settings.modsOn).toEqual(['a', 'b', 'c']);
+  });
+  it('значения настроек сохраняются и сбрасываются; пустой стиль не оставляет мусора', () => {
+    replaceData(emptyData());
+    setStyleValue('s', 'k', 5);
+    setStyleValue('s', 'j', true);
+    expect(getData().settings.styleValues).toEqual({ s: { k: 5, j: true } });
+    setStyleValue('s', 'k', undefined);
+    setStyleValue('s', 'j', undefined);
+    expect(getData().settings.styleValues).toEqual({});
+  });
+  it('стиль с look запоминает прежний вид и возвращает при выключении', () => {
+    replaceData(emptyData());
+    const before = getData().settings.look;
+    const accentBefore = getData().settings.accent;
+    toggleStyle({ ...m('lk'), look: { radius: 'round' }, accent: '#112233' }, true);
+    expect(getData().settings.look.radius).toBe('round');
+    expect(getData().settings.accent).toBe('#112233');
+    toggleStyle({ ...m('lk'), look: { radius: 'round' }, accent: '#112233' }, false);
+    expect(getData().settings.look).toEqual(before);
+    expect(getData().settings.accent).toBe(accentBefore);
+  });
+});

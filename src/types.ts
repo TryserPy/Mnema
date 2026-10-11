@@ -25,6 +25,7 @@ export interface Folder {
   name: string;
   color: string;
   icon?: string;
+  iconImg?: string; // своя картинка вместо эмодзи: data:image/webp|png;base64 до ~40 КБ, 128×128 (см. iconImage.ts)
   order?: number;
   createdAt: string;
   updatedAt?: string;
@@ -50,6 +51,7 @@ export interface Subject {
   name: string;
   color: string;
   icon?: string; // эмодзи-значок
+  iconImg?: string; // своя картинка вместо эмодзи (см. Folder.iconImg)
   folderId?: string;
   order?: number;
   topicSort?: 'name' | 'manual'; // темы: по названию с учётом чисел (по умолчанию) или как расставил сам
