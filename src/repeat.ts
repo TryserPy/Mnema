@@ -23,7 +23,7 @@ export const REPEAT_TEXT: Record<RepeatKind, { title: string; hint: string; shor
  * `topicIds` — выбранные темы «как есть», каждая только со своими карточками (подтемы берутся, только если выбраны тоже):
  * так можно взять карточки из разных тем и предметов. Если задан, остальные поля места не нужны (`cardIds` по-прежнему сужает).
  */
-export type RepeatScope = Pick<QueueScope, 'topicId' | 'subjectId' | 'subjectIds' | 'cardIds'> & { topicIds?: string[] };
+export type RepeatScope = Pick<QueueScope, 'topicId' | 'subjectId' | 'subjectIds' | 'cardIds' | 'source' | 'listId'> & { topicIds?: string[] };
 
 /** Элементы области: выбранные темы — только их собственные карточки, иначе — как в очереди. */
 function scoped(data: AppData, scope: RepeatScope): QueueItem[] {
@@ -32,7 +32,7 @@ function scoped(data: AppData, scope: RepeatScope): QueueItem[] {
   const only = scope.cardIds ? new Set(scope.cardIds) : null;
   const cardIds: string[] = [];
   for (const c of data.cards) if (topics.has(c.topicId) && (!only || only.has(c.id))) cardIds.push(c.id);
-  return allItems(data, { cardIds });
+  return allItems(data, { cardIds, source: scope.source, listId: scope.listId });
 }
 
 /** Все четыре набора за один проход по карточкам области. Слабые идут от самых слабых; остальные — как в очереди. */

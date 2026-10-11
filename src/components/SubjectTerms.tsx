@@ -1,5 +1,5 @@
 // Термины всего предмета: общие (нужны везде) и из каждой темы — в одном месте, с разбивкой по темам.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { normalizeAnswer, todayCounts } from '../srs';
 import { childTopics, ensureGlossary, subjectGlossaries, useData } from '../store';
 import type { AppData, Card, ListKind, Route, StudyList, Topic } from '../types';
@@ -45,10 +45,11 @@ export function termGroups(data: AppData, subjectId: string): TermGroup[] {
   return out;
 }
 
-export function SubjectTerms({ subjectId, filter: initial, go }: { subjectId: string; filter?: string; go: (r: Route) => void }) {
+export function SubjectTerms({ subjectId, filter: initial, onFilter, go }: { subjectId: string; filter?: string; onFilter?: (f: string) => void; go: (r: Route) => void }) {
   const data = useData();
   const groups = useMemo(() => termGroups(data, subjectId), [data, subjectId]);
   const [filter, setFilter] = useState<string>(initial ?? 'all');
+  useEffect(() => onFilter?.(filter), [filter]); // eslint-disable-line react-hooks/exhaustive-deps -- сообщаем экрану предмета, какие термины открыты: туда вернёмся после учёбы
   const [query, setQuery] = useState('');
   const [focusNew, setFocusNew] = useState(0);
   const general = groups.find((g) => g.key === 'general');

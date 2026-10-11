@@ -5,6 +5,8 @@ import { EditFolder } from '../components/SubjectDialogs';
 import { openRepeatDialog } from '../components/RepeatDialog';
 import { Icon, plural, SubjectMark } from '../components/ui';
 import { hasRepeatable } from '../repeat';
+import { StudyPickMenu, useStudyPick } from '../components/StudyPick';
+import { pickScope } from '../studyPick';
 import { todayCounts, topicMastery } from '../srs';
 import { childTopics, sortedSubjects, useData } from '../store';
 import type { Route } from '../types';
@@ -13,11 +15,11 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
   const data = useData();
   const f = data.folders.find((x) => x.id === id);
   const [editing, setEditing] = useState(false);
+  const sp = useStudyPick({ folderId: id, subjectIds: data.subjects.filter((s) => s.folderId === id).map((s) => s.id) }); // что учить в папке
   if (!f) return <div className="page">Папка не найдена.</div>;
   const subjects = sortedSubjects(data).filter((s) => s.folderId === id);
   const now = new Date();
-  const counts = subjects.length ? todayCounts(data, now, { subjectIds: subjects.map((s) => s.id) }) : { learning: 0, review: 0, newCount: 0 };
-  const due = counts.learning + counts.review + counts.newCount;
+  const due = subjects.length ? sp.due : 0;
   const canRepeat = subjects.length > 0 && hasRepeatable(data, { subjectIds: subjects.map((s) => s.id) });
   return (
     <div className="page narrow">
@@ -31,12 +33,14 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
         </div>
         <div className="row gap8">
           {due > 0 && (
-            <button className="btn primary" onClick={() => go({ name: 'review', subjectIds: subjects.map((s) => s.id), folderId: id })}>
+            <button className="btn primary" onClick={() => go(sp.route())}>
               <Icon name="play" size={16} /> Учить всю папку · {due}
             </button>
           )}
+          {sp.label && <span className="chip neutral">{sp.label}</span>}
+          <StudyPickMenu sp={sp} go={go} />
           {canRepeat && (
-            <button className={'btn' + (due > 0 ? '' : ' primary')} onClick={() => openRepeatDialog({ folderId: id })} title={due > 0 ? 'Повторить ещё раз: повторённое сегодня, всё начатое, слабые места' : 'На сегодня всё повторено — можно повторить ещё раз'}>
+            <button className={'btn' + (due > 0 ? '' : ' primary')} onClick={() => openRepeatDialog({ folderId: id, ...pickScope(sp.pick) })} title={due > 0 ? 'Повторить ещё раз: повторённое сегодня, всё начатое, слабые места' : 'На сегодня всё повторено — можно повторить ещё раз'}>
               <Icon name="repeat" size={16} /> Повторить ещё раз
             </button>
           )}

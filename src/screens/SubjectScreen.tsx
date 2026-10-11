@@ -10,7 +10,10 @@ import { DeleteSubject, EditSubject } from '../components/SubjectDialogs';
 import { Icon, MoreMenu, plural, Segmented, SubjectMark } from '../components/ui';
 import { openExamDialog } from '../components/ExamDialog';
 import { openRepeatDialog } from '../components/RepeatDialog';
-import { cardsByTopic, todayCounts, topicStatsByTopic } from '../srs';
+import { cardsByTopic, topicStatsByTopic } from '../srs';
+import { pickItems, useStudyPick } from '../components/StudyPick';
+import { pickScope } from '../studyPick';
+import { setPlace } from '../studyBack';
 import { addTopic, childTopics, subjectRules, updateSubject, useData } from '../store';
 import type { Route, Topic } from '../types';
 
@@ -29,6 +32,14 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
   useEffect(() => {
     if (initialView) setView(initialView);
   }, [initialView]);
+  // Где я сейчас (вкладка и выбранные термины): с этого места начнётся учёба и сюда она вернёт.
+  const [termsFilter, setTermsFilter] = useState(filter);
+  useEffect(() => setTermsFilter(filter), [filter]);
+  useEffect(() => {
+    setPlace({ name: 'subject', id, view, ...(view === 'terms' && termsFilter ? { filter: termsFilter } : {}) });
+    return () => setPlace(null);
+  }, [id, view, termsFilter]);
+  const sp = useStudyPick({ subjectId: id }); // что учить: всё / только карточки / только списки (помнится для предмета)
   const events = useMemo(() => (subject ? timelineEvents(data, id).length : 0), [data, id, subject]);
   const termCount = useMemo(() => termGroups(data, id).reduce((n, g) => n + g.cards.length, 0), [data, id]);
   // Счётчики и освоение всех тем предмета — за один проход по карточкам (раньше считались на каждую тему отдельно:
@@ -52,10 +63,8 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
     }
   };
   if (subject) walk(undefined, 0);
-  const now = new Date();
   const byTopic = cardsByTopic(data);
-  const counts = todayCounts(data, now, { subjectId: id });
-  const due = counts.learning + counts.review + counts.newCount;
+  const due = sp.due;
   const hasCards = data.topics.some((t) => t.subjectId === id && (byTopic.get(t.id)?.length ?? 0) > 0);
 
   return (
@@ -82,8 +91,9 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           <MoreMenu
             label="Действия с предметом"
             items={[
-              { label: `Учить весь предмет · ${due}`, icon: 'play', onClick: () => go({ name: 'review', subjectId: id }), hidden: due === 0 },
-              { label: 'Повторить ещё раз', icon: 'repeat', hint: 'Все темы и подтемы: повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ subjectId: id }), hidden: !hasCards },
+              { label: `Учить весь предмет · ${due}`, icon: 'play', hint: sp.label || undefined, onClick: () => go(sp.route()), hidden: due === 0 },
+              { label: 'Что учить', icon: 'sliders', hint: sp.label || 'Всё: карточки и списки вместе', items: pickItems(sp, go), hidden: sp.options.length === 0 },
+              { label: 'Повторить ещё раз', icon: 'repeat', hint: 'Все темы и подтемы: повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ subjectId: id, ...pickScope(sp.pick) }), hidden: !hasCards },
               { label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
               { label: 'Сделать копию', icon: 'copy', hint: 'Все темы, конспекты и карточки', onClick: () => makeCopy('subject', id, go) },
               { label: 'Новая контрольная', icon: 'test', hint: 'Выбрать темы и дату — Мнема составит план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },
@@ -136,7 +146,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
       )}
 
       {view === 'terms' && termsOn ? (
-        <SubjectTerms key={'terms' + (filter ?? '')} subjectId={id} filter={filter} go={go} />
+        <SubjectTerms key={'terms' + (filter ?? '')} subjectId={id} filter={filter} onFilter={setTermsFilter} go={go} />
       ) : view === 'rules' && rulesOn ? (
         <RulesList subjectId={id} go={go} />
       ) : view === 'timeline' && events >= 3 ? (

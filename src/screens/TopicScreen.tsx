@@ -15,7 +15,7 @@ import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, selHow, use
 import { boldTerms, mentioned, suggestFromSelection } from '../noteTools';
 import { exportTopic } from '../share';
 import { examsOf } from '../examList';
-import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer, todayCounts } from '../srs';
+import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer } from '../srs';
 import { addList, addPoem, addTopic, childTopics, deleteCard, LIST_PRESETS, resetCardProgress, subjectRules, topicWithDescendants, updateTopic, useData, getData } from '../store';
 import { StudyListView } from '../components/StudyListView';
 import { PoemView } from '../components/PoemView';
@@ -27,6 +27,8 @@ import { sameLook } from '../notePhantom';
 import { orderTabs, reorderTab } from '../tabs';
 import { ExamPlanLine } from './Today';
 import { openRepeatDialog } from '../components/RepeatDialog';
+import { StudyPickMenu, useStudyPick } from '../components/StudyPick';
+import { pickScope } from '../studyPick';
 import { hasRepeatable } from '../repeat';
 import { PrintDialog } from '../components/ExportDialogs';
 import { keyFor, matches, prettyCombo } from '../keys';
@@ -47,6 +49,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [reload, setReload] = useState(0); // растёт, когда конспект поменяли «снаружи» (возврат версии): редактор перечитывает текст
   const data = useData();
   const topic = data.topics.find((t) => t.id === id);
+  const sp = useStudyPick({ topicId: id }); // что учить: всё / только карточки / только списки (помнится для темы)
   const [recall, setRecall] = useState(false);
   const [pickDate, setPickDate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -63,8 +66,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const allCards = data.cards.filter((c) => c.topicId === id);
   const cards = allCards.filter((c) => !c.listId);
   const lists = topic.lists ?? [];
-  const counts = todayCounts(data, new Date(), { topicId: id });
-  const due = counts.learning + counts.review + counts.newCount;
+  const due = sp.due;
   const ancestors: { id: string; name: string }[] = [];
   for (let p = data.topics.find((t) => t.id === topic.parentId); p; p = data.topics.find((t) => t.id === p!.parentId)) ancestors.unshift({ id: p.id, name: p.name });
   const kids = childTopics(data, topic.subjectId, id);
@@ -186,19 +188,21 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
           {topic.examDate && topic.kind !== 'rule' && examInfo && examInfo.total > 0 && <ExamPlanLine plan={examInfo} />}
         </div>
         <div className="row gap8">
+          {sp.label && <span className="chip neutral" title="Выбрано в меню «Что учить» справа от кнопки">{sp.label}</span>}
           {due === 0 && canRepeat ? (
-            <button className="btn primary big-ish" title="На сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id })}>
+            <button className="btn primary big-ish" title="На сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) })}>
               <Icon name="repeat" size={18} /> Повторить ещё раз
             </button>
           ) : (
-            <button className="btn primary big-ish" disabled={due === 0} onClick={() => go({ name: 'review', topicId: id })}>
+            <button className="btn primary big-ish" disabled={due === 0} onClick={() => go(sp.route())}>
               <AnimText value={due === 0 ? 'Нет карточек' : `Учить · ${due}`} />
             </button>
           )}
+          <StudyPickMenu sp={sp} go={go} />
           <MoreMenu
             label="Действия с темой"
             items={[
-              { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id }), hidden: !canRepeat },
+              { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) }), hidden: !canRepeat },
               { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
               { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
               {

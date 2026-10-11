@@ -4,7 +4,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { defaultRepeatKind, REPEAT_KINDS, REPEAT_TEXT, repeatCounts, repeatTopicTree, type RepeatScope, type RepeatSubject } from '../repeat';
 import { topicWithDescendants, useData } from '../store';
-import type { AppData, RepeatKind, Route } from '../types';
+import type { AppData, RepeatKind, Route, StudySource } from '../types';
 import { Icon, Modal, plural, Segmented } from './ui';
 import '../session.css';
 
@@ -13,12 +13,22 @@ export interface RepeatAt {
   topicId?: string;
   subjectId?: string;
   folderId?: string;
+  /** Что учили: только карточки, только списки или один список (выбор «Что учить» рядом с кнопкой «Учить»). */
+  source?: StudySource;
+  listId?: string;
 }
 
 type ReviewRoute = Extract<Route, { name: 'review' }>;
 
 /** Область карточек, куда вернуться потом, как назвать это в окне и какие темы выбраны сначала. */
 export function resolveRepeat(data: AppData, at: RepeatAt): { scope: RepeatScope; route: Partial<ReviewRoute>; title: string; sub: string; topicIds: string[] } {
+  const r = resolveWhere(data, at);
+  const what = { ...(at.source ? { source: at.source } : {}), ...(at.listId ? { listId: at.listId } : {}) };
+  const sub = at.listId ? 'один список' : at.source === 'cards' ? 'только карточки' : at.source === 'lists' ? 'только строки списков' : '';
+  return { ...r, scope: { ...r.scope, ...what }, route: { ...r.route, ...what }, sub: [r.sub, sub].filter(Boolean).join(' · ') };
+}
+
+function resolveWhere(data: AppData, at: RepeatAt): { scope: RepeatScope; route: Partial<ReviewRoute>; title: string; sub: string; topicIds: string[] } {
   const topic = at.topicId ? data.topics.find((t) => t.id === at.topicId) : undefined;
   if (topic) {
     const ids = topicWithDescendants(data, topic.id);
@@ -68,7 +78,7 @@ export function RepeatDialog({ at, go, onClose }: { at: RepeatAt; go: (r: Route)
   const [listOpen, setListOpen] = useState(false);
   const [closed, setClosed] = useState<Set<string>>(() => new Set()); // свёрнутые предметы в списке
   const custom = !sameSet(picked, origin);
-  const counts = useMemo(() => repeatCounts(data, new Date(), custom ? { topicIds: [...picked] } : info.scope), [data, picked, custom, info]);
+  const counts = useMemo(() => repeatCounts(data, new Date(), custom ? { topicIds: [...picked], source: at.source, listId: at.listId } : info.scope), [data, picked, custom, info, at.source, at.listId]);
   const [kind, setKind] = useState<RepeatKind>(() => defaultRepeatKind(counts));
   const [size, setSize] = useState(0); // 0 — все
   // Если неначатых карточек нет, «Все карточки» — то же самое, что «Все начатые»: второй строки не нужно.
@@ -267,7 +277,11 @@ let opener: ((at: RepeatAt) => void) | null = null;
 export const openRepeatDialog = (at: RepeatAt = {}) => opener?.(at);
 
 /** Откуда запущено повторение — чтобы предложить «ещё раз» по тому же месту. */
-export const repeatAtOf = (r: ReviewRoute): RepeatAt => (r.topicId ? { topicId: r.topicId } : r.folderId ? { folderId: r.folderId } : r.subjectId ? { subjectId: r.subjectId } : {});
+export const repeatAtOf = (r: ReviewRoute): RepeatAt => ({
+  ...(r.topicId ? { topicId: r.topicId } : r.folderId ? { folderId: r.folderId } : r.subjectId ? { subjectId: r.subjectId } : {}),
+  ...(r.source ? { source: r.source } : {}),
+  ...(r.listId ? { listId: r.listId } : {})
+});
 
 export function RepeatDialogHost({ go }: { go: (r: Route) => void }) {
   const [at, setAt] = useState<RepeatAt | null>(null);

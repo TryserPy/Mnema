@@ -9,6 +9,8 @@ import { emit } from './plugins/bus';
 import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
+import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
+import { cleanStudyPick } from './studyPick';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
@@ -49,6 +51,7 @@ export interface AiConfig {
 
 export interface AiRequest {
   system?: string;
+  provider?: string; // какой из настроенных ИИ взять вместо основного (если ключа нет — берётся основной)
   text: string;
   image?: { mime: string; data: string };
   maxTokens?: number;
@@ -201,7 +204,9 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
     return { ...p, enabled: false, fromCatalog: false };
   });
   if (foreign.length) notes.push(`моды из копии выключены (${foreign.slice(0, 5).join(', ')}) — включай их сам, только если им доверяешь`);
-  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud } }, notes };
+  // Указания для ИИ и выбор ИИ для задач — тоже только свои: чужой файл не должен подсказывать ИИ, что отвечать.
+  const { aiNotes, aiTaskProvider } = local.settings;
+  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud, aiNotes, aiTaskProvider } }, notes };
 }
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
@@ -247,6 +252,9 @@ export function normalizeData(raw: unknown): AppData {
         typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
           ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
           : undefined,
+      aiNotes: cleanAiNotes(r.settings?.aiNotes),
+      aiTaskProvider: cleanTaskProviders(r.settings?.aiTaskProvider),
+      studyPick: cleanStudyPick(r.settings?.studyPick),
       schedule: { ...(r.settings?.schedule ?? {}) },
       keys: { ...(r.settings?.keys ?? {}) },
       treeOpen: Array.isArray(r.settings?.treeOpen) ? r.settings!.treeOpen : [],

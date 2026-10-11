@@ -3,6 +3,7 @@ import { Markdown } from '../components/Markdown';
 import { Icon, Segmented, AnimText, touchUI } from '../components/ui';
 import { allItems, checkTyped } from '../srs';
 import { examById } from '../examList';
+import { backLabel, testBack } from '../studyBack';
 import { addTestResult, getData, useData } from '../store';
 import { buildTest, schoolGrade, type TestQuestion } from '../testgen';
 import { MatchTask, OrderTask } from '../components/TestKinds';
@@ -18,7 +19,7 @@ function fmt(ms: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: string; go: (r: Route) => void; pretest?: boolean; examId?: string }) {
+export function TestScreen({ topicId, go, pretest = false, examId, back: from }: { topicId: string; go: (r: Route) => void; pretest?: boolean; examId?: string; back?: Route }) {
   const data = useData();
   const topic = data.topics.find((t) => t.id === topicId);
   // Пробная контрольная — по всем темам контрольной; обычный тест — по одной теме.
@@ -54,7 +55,9 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
   }, [finished, questions, topicId, correct]);
 
   if (!topic) return <div className="page">Тема не найдена.</div>;
-  const back = () => go(examId ? { name: 'exam', id: examId } : { name: 'topic', id: topicId });
+  // Куда вернуться: туда, откуда запустили контрольную (с вкладкой), а без места — к теме или к подготовке.
+  const target = testBack(data, { name: 'test', topicId, examId, back: from });
+  const back = () => go(target);
   // У пробной контрольной из нескольких тем — название контрольной, а не первой темы.
   const title = (examId ? examById(data, examId)?.name : undefined) ?? topic.name;
 
@@ -185,12 +188,12 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
         )}
         <div className="row gap8">
           {mistakeCards.length > 0 && (
-            <button className="btn primary" onClick={() => go({ name: 'review', cardIds: mistakeCards, cram: true, topicId })}>
+            <button className="btn primary" onClick={() => go({ name: 'review', cardIds: mistakeCards, cram: true, topicId, back: target })}>
               Повторить ошибки
             </button>
           )}
           <button className="btn" onClick={back}>
-            К теме
+            {backLabel(target)}
           </button>
         </div>
       </div>
