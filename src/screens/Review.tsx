@@ -62,6 +62,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const [errCount, setErrCount] = useState({ forgot: 0, mixed: 0, lost: 0 });
   const [handOpen, setHandOpen] = useState(false);
   const [handStrokes, setHandStrokes] = useState<Stroke[]>([]);
+  const handOpenRef = useRef(false);
+  handOpenRef.current = handOpen;
   const [explain, setExplain] = useState<{ state: 'idle' | 'loading' | 'done' | 'error'; text: string; added?: boolean }>({ state: 'idle', text: '' });
   const [editLeech, setEditLeech] = useState(false);
   // «Почему?»: после верного ответа иногда просим объяснить себе одной фразой (самообъяснение).
@@ -198,6 +200,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
       // Поверх повторения открыто окно (например, «Повторить ещё раз» на экране «Готово!»): клавиши — ему, а не повторению.
       if (blocked || document.querySelector('.modal-back')) return;
       const inInput = typingTarget(e);
+      // Открыт холст «Ответ от руки»: Esc сначала сворачивает его (рисунок остаётся), а не закрывает всё повторение.
+      if (e.key === 'Escape' && handOpenRef.current) {
+        e.preventDefault();
+        setHandOpen(false);
+        return;
+      }
       if (matches(e, settings, 'exitReview') || e.key === 'Escape') {
         exitRef.current();
         return;
@@ -435,7 +443,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         {!revealed && settings.features.handwriting && (prompt.typed === undefined || prompt.numeric) && (
           <div className="stack gap8">
             {handOpen ? (
-              <SketchPad strokes={handStrokes} onChange={setHandStrokes} height={200} label="Ответ от руки" />
+              <SketchPad strokes={handStrokes} onChange={setHandStrokes} height={200} label="Ответ от руки" onClose={() => setHandOpen(false)} />
             ) : (
               <button type="button" className="link-btn" onClick={() => setHandOpen(true)}>
                 ✎ Ответить от руки

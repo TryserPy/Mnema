@@ -442,7 +442,7 @@ export function svgPoint(svg: SVGSVGElement, clientX: number, clientY: number): 
   return [Math.round(((clientX - r.left) / r.width) * vb.width * 10) / 10, Math.round(((clientY - r.top) / r.height) * vb.height * 10) / 10];
 }
 
-export function SketchPad({ strokes, onChange, height = 240, label = 'Холст для письма' }: { strokes: Stroke[]; onChange: (s: Stroke[]) => void; height?: number; label?: string }) {
+export function SketchPad({ strokes, onChange, height = 240, label = 'Холст для письма', onClose }: { strokes: Stroke[]; onChange: (s: Stroke[]) => void; height?: number; label?: string; onClose?: () => void }) {
   const [erase, setErase] = useState(false);
   const [current, setCurrent] = useState<Stroke | null>(null);
   const ref = useRef<SVGSVGElement>(null);
@@ -510,6 +510,11 @@ export function SketchPad({ strokes, onChange, height = 240, label = 'Холст
         <button type="button" className="btn small ghost" disabled={!strokes.length} onClick={() => onChange([])}>
           Очистить
         </button>
+        {onClose && (
+          <button type="button" className="btn small ghost sketch-close" onClick={onClose} title="Свернуть холст (Esc) — рисунок сохранится" aria-label="Свернуть холст">
+            <Icon name="x" size={14} /> Свернуть
+          </button>
+        )}
       </div>
     </div>
   );
