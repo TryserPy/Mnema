@@ -28,6 +28,23 @@ export function defaultRemind(data: AppData, due?: string): string | undefined {
   return d.getTime() > Date.now() ? d.toISOString() : undefined;
 }
 
+/**
+ * Сделанные задания живут в списке «Сделано» до конца того дня, когда их отметили, — чтобы можно было вернуть по ошибке.
+ * На следующий (учебный) день они исчезают совсем. Возвращает, что оставить и что убрать.
+ */
+export function splitDoneHomework(list: Homework[], now: Date, dayStartHour: number): { keep: Homework[]; old: Homework[] } {
+  const start = new Date(now);
+  if (start.getHours() < dayStartHour) start.setDate(start.getDate() - 1);
+  start.setHours(dayStartHour, 0, 0, 0);
+  const keep: Homework[] = [];
+  const old: Homework[] = [];
+  for (const h of list) {
+    if (h.done && !(h.doneAt && Date.parse(h.doneAt) >= start.getTime())) old.push(h);
+    else keep.push(h);
+  }
+  return { keep, old };
+}
+
 export type HwGroup = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'nodate' | 'done';
 export const GROUP_LABEL: Record<HwGroup, string> = {
   overdue: 'Просрочено',
@@ -101,7 +118,7 @@ export function notificationPlan(data: AppData, now = new Date(), withDaily = fa
       d.setDate(d.getDate() + i);
       d.setHours(hh, mm, 0, 0);
       if (d.getTime() <= now.getTime()) continue;
-      out.push({ id: 'daily:' + ymd(d), at: d.getTime(), title: 'Мнема: пора повторить', body: 'Карточки ждут — хватит 10–15 минут. Повторять понемногу каждый день надёжнее всего.', open: 'review' });
+      out.push({ id: 'daily:' + ymd(d), at: d.getTime(), title: 'Refrain: пора повторить', body: 'Карточки ждут — хватит 10–15 минут. Повторять понемногу каждый день надёжнее всего.', open: 'review' });
     }
   }
   return out.sort((a, b) => a.at - b.at);
@@ -109,7 +126,7 @@ export function notificationPlan(data: AppData, now = new Date(), withDaily = fa
 
 /** Данные для виджета телефона: карточки по дням на неделю вперёд и ближайшая домашка. */
 /**
- * Данные для виджетов на рабочем столе телефона (считаются заранее — виджет работает и без запуска Мнемы).
+ * Данные для виджетов на рабочем столе телефона (считаются заранее — виджет работает и без запуска Refrain).
  * dueBySubject — сколько карточек на сегодня по каждому предмету (для виджета «Уроки»).
  */
 export function widgetState(data: AppData, now: Date, todayTotal: number, fc: number[], newRemaining: number, streakDays: number, dueBySubject: Record<string, number> = {}) {

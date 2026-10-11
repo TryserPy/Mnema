@@ -206,7 +206,7 @@ const ocr = await page.evaluate(async () => {
 step(`ocr (${Math.round((Date.now() - t0) / 1000)}s): ` + JSON.stringify(ocr));
 step('ocr files served: ' + [...new Set(served.filter((p) => p.startsWith('/ocr/')))].join(', '));
 
-// Синхронизация с настоящей Мнемой для Windows (Electron-сервер)
+// Синхронизация с настоящей Refrain для Windows (Electron-сервер)
 const pcDir = '/tmp/mnemaPC';
 fs.rmSync(pcDir, { recursive: true, force: true });
 const pc = await electron.launch({ executablePath: process.cwd() + '/node_modules/electron/dist/electron', args: [process.cwd() + '', '--no-sandbox'], env: { ...process.env, MNEMA_USER_DATA: pcDir } });

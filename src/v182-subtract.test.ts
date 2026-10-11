@@ -5,7 +5,7 @@ import { dropRemoved, emptyData, normalizeData } from './store';
 
 const REMOVED = ['awards', 'garden', 'leeches', 'test', 'focus', 'tips', 'weekly'];
 
-/** Данные, какими их сохраняла Мнема 1.8: с плагинами, достижениями и возможностями «Сад», «Достижения», «Моды». */
+/** Данные, какими их сохраняла Refrain 1.8: с плагинами, достижениями и возможностями «Сад», «Достижения», «Моды». */
 function oldFile() {
   const d = emptyData();
   const s = d.settings as unknown as Record<string, unknown>;

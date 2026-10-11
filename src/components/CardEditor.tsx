@@ -253,7 +253,7 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
         </div>
       )}
       {longAnswer && type !== 'problem' && <div className="hint warn">{EDITOR_TIPS.longAnswer}</div>}
-      <div className="row gap8 end">
+      <div className="row gap8 end wrap">
         {saved && <span className="muted small">Добавлено ✓</span>}
         {onDone && (
           <button type="button" className="btn ghost" onClick={onDone}>

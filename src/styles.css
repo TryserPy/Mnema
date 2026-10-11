@@ -1286,7 +1286,7 @@ html[data-no-windows] .note-layout.full { animation: none; }
 .ico-opt:hover { transform: scale(1.08); background: var(--sunken); }
 .ico-opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .ico-opt.none { color: var(--muted); font-size: 0.95rem; }
-.subj-ico { display: inline-grid; place-items: center; flex-shrink: 0; border-radius: 7px; border: 1.5px solid; line-height: 1; }
+.subj-ico { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; padding: 0; border-radius: 7px; border: 1.5px solid; line-height: 1; text-align: center; overflow: hidden; }
 .subj-ico.small { width: 22px; height: 22px; font-size: 0.8rem; }
 .subj-ico.big { width: 42px; height: 42px; font-size: 1.4rem; border-radius: 12px; }
 .folder-badge { display: grid; place-items: center; width: 42px; height: 42px; }

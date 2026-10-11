@@ -1,14 +1,14 @@
 // Левая панель: предметы → темы → подтемы. Её можно тянуть по ширине и сворачивать,
 // темы — перетаскивать (порядок, в другой предмет, внутрь другой темы), отмечать звёздочкой.
 import { openCreate } from './CreateMenu';
-import { copyToClip, makeCopy, pasteClip } from './copyUi';
+import { copyToClip, hasClip, makeCopy, pasteClip } from './copyUi';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
 import { keyFor, prettyCombo, typingTarget } from '../keys';
 import { groupOf } from '../homework';
 import { usePlugins } from '../plugins/host';
-import { addTopic, childTopics, deleteMany, getData, setSubjectFolder, sortedFolders, subjectRules, moveSubject, moveTopic, sortedSubjects, toggleTreeOpen, updateSettings, updateTopic, useData } from '../store';
+import { addTopic, childTopics, deleteMany, getData, type PastePlace, setSubjectFolder, sortedFolders, subjectRules, moveSubject, moveTopic, sortedSubjects, toggleTreeOpen, updateSettings, updateTopic, useData } from '../store';
 import type { AppData, Folder, Route, Subject, Topic } from '../types';
-import { DeleteSubject, deleteTopicWithUndo, EditFolder, EditSubject } from './SubjectDialogs';
+import { DeleteFolder, DeleteSubject, deleteTopicWithUndo, EditFolder, EditSubject } from './SubjectDialogs';
 import { Collapse, Icon, Modal, SubjectMark, toast, usePresence } from './ui';
 
 type Drop = { id: string; where: 'before' | 'after' | 'inside' } | null;
@@ -65,6 +65,7 @@ export function Sidebar({
   const [editSubj, setEditSubj] = useState<string | null>(null);
   const [editFolder, setEditFolder] = useState<string | null>(null);
   const [delSubj, setDelSubj] = useState<string | null>(null);
+  const [delFolder, setDelFolder] = useState<string | null>(null);
   // Выбор нескольких: 'f:<id>' папка, 's:<id>' предмет, 't:<id>' тема.
   const [sel, setSel] = useState<Set<string>>(() => new Set());
   const [askDelete, setAskDelete] = useState(false);
@@ -128,7 +129,7 @@ export function Sidebar({
         if (picked.length) setSel(new Set());
       } else {
         const t = r.name === 'topic' ? d.topics.find((x) => x.id === r.id) : undefined;
-        const place = r.name === 'folder' ? { folderId: r.id } : r.name === 'subject' ? { subjectId: r.id } : t ? { subjectId: t.subjectId, topicId: t.id } : {};
+        const place: PastePlace = r.name === 'folder' ? { folderId: r.id } : r.name === 'subject' ? { subjectId: r.id } : t ? { subjectId: t.subjectId, topicId: t.id } : { root: true };
         e.preventDefault();
         pasteClip(place, go);
       }
@@ -140,6 +141,39 @@ export function Sidebar({
     const r = el.getBoundingClientRect();
     setMenu({ x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 4, ...m });
   };
+  /** «Копировать» из меню: если пункт входит в выбранное — копируем всё выбранное, иначе только его. */
+  const ctxCopy = (kind: 'folder' | 'subject' | 'topic', id: string) => {
+    const key = kind[0] + ':' + id;
+    if (sel.size > 0 && sel.has(key)) {
+      copyToClip([...sel].map((k) => ({ kind: k[0] === 'f' ? 'folder' : k[0] === 's' ? 'subject' : 'topic', id: k.slice(2) }) as const));
+      setSel(new Set());
+    } else copyToClip([{ kind, id }]);
+    setMenu(null);
+  };
+  const ctxPaste = (place: PastePlace) => {
+    pasteClip(place, go);
+    setMenu(null);
+  };
+  /** Копировать / Вставить / Дублировать — одинаково для папки, предмета и темы. */
+  const clipItems = (kind: 'folder' | 'subject' | 'topic', id: string, place: PastePlace) => (
+    <>
+      <button role="menuitem" onClick={() => ctxCopy(kind, id)}>
+        <Icon name="copy" size={18} /> Копировать
+      </button>
+      <button role="menuitem" disabled={!hasClip()} title={hasClip() ? undefined : 'Сначала что-нибудь скопируй'} onClick={() => ctxPaste(place)}>
+        <Icon name="paste" size={18} /> Вставить
+      </button>
+      <button
+        role="menuitem"
+        onClick={() => {
+          makeCopy(kind, id, go);
+          setMenu(null);
+        }}
+      >
+        <Icon name="copy" size={18} /> Дублировать
+      </button>
+    </>
+  );
   /** Правая кнопка по свободному месту у «Предметы» — создать предмет или папку. */
   const blankMenu = (e: React.MouseEvent) => setMenu({ x: Math.min(e.clientX, window.innerWidth - 250), y: Math.min(e.clientY, window.innerHeight - 120), blank: true });
   const [resizing, setResizing] = useState(false);
@@ -427,7 +461,7 @@ export function Sidebar({
           <button className="row-add" aria-label="Новый предмет в папке" title="Новый предмет в папке" onClick={() => onNewSubject({ folderId: f.id })}>
             <Icon name="plus" size={15} />
           </button>
-          <button className="row-more" aria-label={`Ещё о папке «${f.name}»`} title="Изменить или удалить папку" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { folder: f })}>
+          <button className="row-more" aria-label={`Ещё о папке «${f.name}»`} title="Изменить папку" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => openMenuAt(e.currentTarget, { folder: f })}>
             <Icon name="dots" size={15} />
           </button>
         </div>
@@ -445,8 +479,8 @@ export function Sidebar({
   if (s.sidebarCollapsed && !mobile) {
     return (
       <aside className="sidebar rail">
-        <button className="logo" title="Показать панель" aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
-          М
+        <button className="logo" title={window.mnemaApi?.platform === 'web' ? 'Показать панель (тестовая версия)' : 'Показать панель'} aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
+          R
         </button>
         <button className={'foot-btn' + nav('today')} title="Сегодня" aria-label="Сегодня" onClick={() => go({ name: 'today' })}>
           <Icon name="home" />
@@ -513,8 +547,11 @@ export function Sidebar({
   return (
     <aside className={'sidebar' + (resizing ? ' resizing' : '')}>
       <div className="brand">
-        <span className="logo">М</span>
-        <span className="grow">Мнема</span>
+        <span className="logo">R</span>
+        <span className="grow brand-name">
+          Refrain
+          {window.mnemaApi?.platform === 'web' && <span className="test-tag" title="Онлайн-версия только для тестов: данные хранятся в этом браузере">тестовая версия</span>}
+        </span>
         {/* На телефоне панель — это шторка, её закрывают касанием мимо; кнопки «Скрыть» там нет. */}
         {!mobile && (
           <button
@@ -632,6 +669,9 @@ export function Sidebar({
           >
             <Icon name="folder" size={18} /> Новая папка
           </button>
+          <button role="menuitem" disabled={!hasClip()} title={hasClip() ? undefined : 'Сначала что-нибудь скопируй'} onClick={() => ctxPaste({ root: true })}>
+            <Icon name="paste" size={18} /> Вставить
+          </button>
         </div>
       )}
       {shownMenu && shownMenu.folder && (
@@ -652,17 +692,9 @@ export function Sidebar({
               setMenu(null);
             }}
           >
-            <Icon name="edit" size={18} /> Изменить или удалить папку
+            <Icon name="edit" size={18} /> Изменить папку
           </button>
-          <button
-            role="menuitem"
-            onClick={() => {
-              makeCopy('folder', shownMenu.folder!.id, go);
-              setMenu(null);
-            }}
-          >
-            <Icon name="copy" size={18} /> Сделать копию
-          </button>
+          {clipItems('folder', shownMenu.folder!.id, { folderId: shownMenu.folder!.id })}
           <button
             role="menuitem"
             onClick={() => {
@@ -671,6 +703,16 @@ export function Sidebar({
             }}
           >
             <Icon name="check" size={18} /> Выбрать несколько
+          </button>
+          <button
+            role="menuitem"
+            className="danger"
+            onClick={() => {
+              setDelFolder(shownMenu.folder!.id);
+              setMenu(null);
+            }}
+          >
+            <Icon name="trash" size={18} /> Удалить папку
           </button>
         </div>
       )}
@@ -717,15 +759,7 @@ export function Sidebar({
           >
             <Icon name="edit" size={18} /> Изменить название и цвет
           </button>
-          <button
-            role="menuitem"
-            onClick={() => {
-              makeCopy('subject', shownMenu.subject!.id, go);
-              setMenu(null);
-            }}
-          >
-            <Icon name="copy" size={18} /> Сделать копию
-          </button>
+          {clipItems('subject', shownMenu.subject!.id, { subjectId: shownMenu.subject!.id })}
           <button
             role="menuitem"
             onClick={() => {
@@ -767,15 +801,7 @@ export function Sidebar({
           >
             <Icon name="subtopic" size={18} /> Добавить подтему
           </button>
-          <button
-            role="menuitem"
-            onClick={() => {
-              makeCopy('topic', shownMenu.topic!.id, go);
-              setMenu(null);
-            }}
-          >
-            <Icon name="copy" size={18} /> Сделать копию
-          </button>
+          {clipItems('topic', shownMenu.topic!.id, { subjectId: shownMenu.topic!.subjectId, topicId: shownMenu.topic!.id })}
           <button
             role="menuitem"
             onClick={() => {
@@ -822,6 +848,17 @@ export function Sidebar({
         />
       )}
       {editFolder && <EditFolder id={editFolder} onClose={() => setEditFolder(null)} />}
+      {delFolder && (
+        <DeleteFolder
+          id={delFolder}
+          onClose={() => setDelFolder(null)}
+          onDeleted={() => {
+            const gone = delFolder;
+            setDelFolder(null);
+            if (route.name === 'folder' && route.id === gone) go({ name: 'today' });
+          }}
+        />
+      )}
       {editSubj && (
         <EditSubject
           id={editSubj}
@@ -922,7 +959,7 @@ function DeleteManyDialog({ keys, onClose, onDeleted }: { keys: Set<string>; onC
           {folders.length > 0 && 'Предметы из папок останутся. '}
           Сразу после удаления можно нажать «Вернуть».
         </span>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>

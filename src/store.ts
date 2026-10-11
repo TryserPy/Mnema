@@ -1,4 +1,5 @@
 // Хранилище данных: состояние в памяти + сохранение в файл (Electron) или localStorage (браузер).
+import { splitDoneHomework } from './homework';
 import { copyCard, copyFolder, copySubject, copyTopic, type CopyResult } from './copy';
 import { useSyncExternalStore } from 'react';
 import { bridgeKey } from './platform/bridgeKey';
@@ -97,7 +98,7 @@ declare global {
       /** Поставить скачанное. На телефоне может попросить разрешение «ставить приложения» (permission). */
       updateInstall?: (ask?: boolean) => Promise<boolean | { ok: boolean; permission?: boolean; error?: string }>;
       onUpdateEvent?: (cb: (e: { type: 'progress'; percent: number } | { type: 'ready'; version: string } | { type: 'error'; message: string }) => void) => () => void;
-      /** Пункты «Мнемы» в меню выделения текста Android (пустой список — убрать). */
+      /** Пункты «Refrain» в меню выделения текста Android (пустой список — убрать). */
       setSelMenu?: (items: { id: string; title: string }[]) => void;
       /** Значок приложения на рабочем столе телефона (под тему). */
       setAppIcon?: (name: string) => void;
@@ -182,7 +183,7 @@ export function dropRemoved(d: AppData): AppData {
 
 /** Данные пришли «со стороны» (копия из файла): то, что может запустить чужой код или увести пароль, берём у ЭТОГО устройства, а не из файла.
  *  — моды из копии остаются в списке, но не запускаются, пока их не разрешат здесь (`pluginsSafe`);
- *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Мнема сама отправила бы сохранённый пароль на чужой сервер. */
+ *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Refrain сам отправила бы сохранённый пароль на чужой сервер. */
 export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; notes: string[] } {
   const notes: string[] = [];
   const ownCloud = local.settings.cloud ?? null;
@@ -206,10 +207,10 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
 export function normalizeData(raw: unknown): AppData {
-  if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Мнемы');
+  if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Refrain');
   const r = raw as Partial<AppData>;
   if (r.version !== 1 || !Array.isArray(r.subjects) || !Array.isArray(r.topics) || !Array.isArray(r.cards)) {
-    throw new Error('Файл не похож на данные Мнемы');
+    throw new Error('Файл не похож на данные Refrain');
   }
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
   const out: AppData = {
@@ -960,6 +961,33 @@ export function deleteHomework(id: string) {
   commit(tomb({ ...data, homework: data.homework.filter((h) => h.id !== id) }, ['hw:' + id]));
 }
 
+/** Вернуть удалённые задания (кнопка «Вернуть» после удаления): те же задания с теми же id, метка удаления снимается. */
+export function restoreHomework(list: Homework[]) {
+  if (!list.length) return;
+  const have = new Set(data.homework.map((h) => h.id));
+  const back = list.filter((h) => !have.has(h.id));
+  const deleted = { ...(data.deleted ?? {}) };
+  for (const h of list) delete deleted['hw:' + h.id];
+  commit({ ...data, homework: [...data.homework, ...back.map((h) => ({ ...h, updatedAt: nowIso() }))], deleted });
+}
+
+/** Удалить задания (все выбранные одним действием). Возвращает «Вернуть». */
+export function deleteHomeworkMany(ids: string[]): () => void {
+  const set = new Set(ids);
+  const gone = data.homework.filter((h) => set.has(h.id));
+  if (!gone.length) return () => undefined;
+  commit(tomb({ ...data, homework: data.homework.filter((h) => !set.has(h.id)) }, gone.map((h) => 'hw:' + h.id)));
+  return () => restoreHomework(gone);
+}
+
+/** Убрать сделанные задания прошлых дней (сегодняшние остаются в «Сделано» — их можно вернуть). Возвращает, сколько убрано. */
+export function pruneDoneHomework(now = new Date()): number {
+  const { old } = splitDoneHomework(data.homework, now, data.settings.dayStartHour);
+  if (!old.length) return 0;
+  deleteHomeworkMany(old.map((h) => h.id));
+  return old.length;
+}
+
 export function sortedSubjects(d: AppData): Subject[] {
   return [...d.subjects].sort(byOrder);
 }
@@ -1174,9 +1202,17 @@ export interface PastePlace {
   folderId?: string;
   subjectId?: string;
   topicId?: string;
+  /** Вставить на верхний уровень списка предметов (правая кнопка по свободному месту): предметы — вне папок. */
+  root?: boolean;
 }
 
-/** Вставить скопированное (Ctrl+C → Ctrl+V): темы — рядом с открытой темой или в открытый предмет, предметы — в открытую папку. Одно изменение данных на всё. */
+/**
+ * Вставить скопированное (Ctrl+C → Ctrl+V или «Вставить» в меню). Куда:
+ * - папка вставляется на верхний уровень; предмет — в папку, на которую нажал (или в папку открытого предмета; по свободному месту — вне папок);
+ * - тема — в предмет, на который нажал (в корень предмета), а если нажал на тему — рядом с ней; без предмета тему вставить некуда.
+ * Имя остаётся прежним, «(2)» — только если в этом месте уже есть такое. Копируется всё содержимое (подтемы, конспекты, карточки, словари, стихи),
+ * прогресс повторений не копируется: у копии расписание начинается с нуля. Одно изменение данных на всё.
+ */
 export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] {
   const stamp = nowIso();
   let d = data;
@@ -1184,13 +1220,14 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
   const here = place.topicId ? d.topics.find((t) => t.id === place.topicId) : undefined;
   for (const it of items) {
     let r: CopyResult | null = null;
-    if (it.kind === 'folder') r = copyFolder(d, it.id, uid, stamp);
+    if (it.kind === 'folder') r = copyFolder(d, it.id, uid, stamp, 'paste');
     else if (it.kind === 'subject') {
       const placeFolder = place.folderId ?? (place.subjectId ? d.subjects.find((x) => x.id === place.subjectId)?.folderId : undefined);
-      r = copySubject(d, it.id, uid, stamp, place.folderId || place.subjectId ? { folderId: placeFolder } : undefined);
+      r = copySubject(d, it.id, uid, stamp, place.root || place.folderId || place.subjectId ? { folderId: placeFolder } : undefined, 'paste');
     } else {
       const subjectId = place.subjectId && d.subjects.some((x) => x.id === place.subjectId) ? place.subjectId : undefined;
-      // Рядом с открытой темой (тот же родитель); если родитель — сама копируемая тема или её подтема, — рядом с оригиналом.
+      if (!subjectId) continue; // тему некуда вставить: нужен предмет
+      // Рядом с темой, на которую нажал (тот же родитель); если родитель — сама копируемая тема или её подтема, — в корень предмета.
       let parentId = here?.subjectId === subjectId ? here?.parentId : undefined;
       for (let p = parentId, guard = 0; p && guard < 500; guard++) {
         if (p === it.id) {
@@ -1199,7 +1236,7 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
         }
         p = d.topics.find((t) => t.id === p)?.parentId;
       }
-      r = copyTopic(d, it.id, uid, stamp, subjectId ? { subjectId, parentId } : undefined);
+      r = copyTopic(d, it.id, uid, stamp, { subjectId, parentId }, 'paste');
     }
     if (r) {
       d = r.data;
@@ -1207,8 +1244,9 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
     }
   }
   if (out.length) {
-    const folders = out.filter((r) => r.what === 'folder').map((r) => r.id);
-    commit({ ...d, settings: { ...d.settings, treeOpen: [...d.settings.treeOpen, ...folders] } });
+    // Раскрываем в левой панели то, во что вставили (иначе вставленного не видно).
+    const open = [...out.filter((r) => r.what === 'folder').map((r) => r.id), ...[place.folderId, place.subjectId].filter((x): x is string => Boolean(x))];
+    commit({ ...d, settings: { ...d.settings, treeOpen: [...new Set([...d.settings.treeOpen, ...open])] } });
   }
   return out;
 }

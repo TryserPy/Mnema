@@ -9,7 +9,7 @@ import type { Route } from '../types';
 
 export const profileLinks = (trashCount: number): { icon: string; title: string; hint: string; to?: Route; run?: () => void }[] => [
   { icon: 'sliders', title: 'Настройки', hint: 'Вид, напоминания, данные', to: { name: 'settings' } },
-  { icon: 'grid', title: 'Возможности', hint: 'Что включено в Мнеме', to: { name: 'features' } },
+  { icon: 'grid', title: 'Возможности', hint: 'Что включено в Refrain', to: { name: 'features' } },
   { icon: 'repeat', title: 'Автокопии', hint: 'Копии твоих данных — можно вернуть вчерашнее', run: openBackups },
   { icon: 'trash', title: 'Корзина', hint: trashCount ? `Удалённое можно вернуть (${trashCount})` : 'Пока пусто — удалённое можно вернуть', to: { name: 'trash' } },
   { icon: 'help', title: 'Справка', hint: 'Как учиться и как пользоваться', to: { name: 'help' } }

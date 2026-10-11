@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Обновление из выпусков на GitHub: Мнема скачивает APK и просит систему его поставить. -->
+    <!-- Обновление из выпусков на GitHub: Refrain скачивает APK и просит систему его поставить. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -99,21 +99,21 @@
         <activity-alias android:name=".Icon_coffee" android:targetActivity=".AppActivity" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_theme_coffee" android:label="@string/app_name">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity-alias>
-        <receiver android:name=".MnemaWidget" android:exported="true" android:label="Мнема">
+        <receiver android:name=".MnemaWidget" android:exported="true" android:label="Refrain">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
         </receiver>
-        <receiver android:name=".Widgets$Small" android:exported="true" android:label="Мнема · Повторить">
+        <receiver android:name=".Widgets$Small" android:exported="true" android:label="Refrain · Повторить">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info" />
         </receiver>
-        <receiver android:name=".Widgets$Homework" android:exported="true" android:label="Мнема · Домашка">
+        <receiver android:name=".Widgets$Homework" android:exported="true" android:label="Refrain · Домашка">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_hw_info" />
         </receiver>
-        <receiver android:name=".Widgets$Lessons" android:exported="true" android:label="Мнема · Уроки">
+        <receiver android:name=".Widgets$Lessons" android:exported="true" android:label="Refrain · Уроки">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_lessons_info" />
         </receiver>

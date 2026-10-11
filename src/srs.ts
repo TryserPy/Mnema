@@ -49,7 +49,7 @@ export function parseCloze(text: string): ClozePart[] {
   return parts;
 }
 
-/** Номер Anki (c1, c2…) → номер элемента в Мнеме. */
+/** Номер Anki (c1, c2…) → номер элемента в Refrain. */
 export function clozeOrdForAnki(text: string, ankiNumber: number): number {
   const seen: number[] = [];
   const re = /\{\{c(\d+)::/gi;
@@ -178,13 +178,27 @@ export function gradeItem(state: ItemState | undefined, now: Date, rating: Grade
   return fromFsrs(f.next(toFsrs(state, now), now, rating).card);
 }
 
+/** Число с запятой по-русски: 1,5 (целое — без «,0»). */
+function ruNum(x: number): string {
+  return String(x).replace('.', ',');
+}
+
+/**
+ * Короткая подпись интервала для кнопок оценки: «<1 мин», «10 мин», «3 ч», «1 д», «5 д», «2 нед», «1,5 мес», «1,2 г».
+ * Считается от интервала, который выдал планировщик, — то есть показывает ровно то, что применится при нажатии.
+ */
 export function formatInterval(ms: number): string {
-  if (ms < HOUR) return `${Math.max(1, Math.round(ms / MINUTE))} мин`;
+  if (ms < MINUTE) return '<1 мин';
+  if (ms < HOUR) return `${Math.round(ms / MINUTE)} мин`;
   if (ms < DAY) return `${Math.round(ms / HOUR)} ч`;
   const d = ms / DAY;
-  if (d < 30) return `${Math.round(d)} д`;
-  if (d < 365) return `${Math.round(d / 30)} мес`;
-  return `${(d / 365).toFixed(1).replace('.0', '')} г`;
+  if (d < 14) return `${Math.max(1, Math.round(d))} д`;
+  if (d < 30) return `${Math.round(d / 7)} нед`;
+  if (d < 365) {
+    const m = d / 30.4;
+    return `${ruNum(m < 10 ? Math.max(1, Math.round(m * 2) / 2) : Math.round(m))} мес`;
+  }
+  return `${ruNum(Math.round((d / 365) * 10) / 10)} г`;
 }
 
 // ---------- Дни ----------
@@ -229,6 +243,8 @@ export interface QueueScope {
   cram?: boolean; // «Повторить всю тему»: все карточки, расписание не меняется
   /** «Заранее»: уже начатые карточки из cardIds в том порядке, как их передали (слабые — первыми), без учёта срока; ответы пишутся в расписание как обычно. */
   ahead?: boolean;
+  /** «Учить новые»: на сколько новых карточек можно превысить дневной лимит (когда по расписанию всё сделано, а новые остались). */
+  extraNew?: number;
 }
 
 /** Тема вместе с подтемами (учить параграф = учить и его подтемы). */
@@ -379,7 +395,7 @@ export function buildQueue(data: AppData, now: Date, scope: QueueScope = {}, rnd
     else review.push(it);
   }
   // Сиблинги (две стороны одной карточки, разные пропуски) не показываем в один день как новые.
-  const newLeft = Math.max(0, data.settings.newPerDay - newIntroducedToday(data, now));
+  const newLeft = Math.max(0, data.settings.newPerDay - newIntroducedToday(data, now)) + (scope.extraNew ?? 0);
   // План до контрольной: новые карточки темы с контрольной — сверх дневного лимита, по плану;
   // в последние дни — повторение «заранее» того, что иначе забылось бы к контрольной.
   const boost = scope.cram ? new Map<string, 'new' | 'ahead'>() : examBoost(data, now);

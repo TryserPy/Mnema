@@ -8,7 +8,7 @@ import { Icon, Modal, selHow } from './ui';
 import '../guide.css';
 
 let opener: (() => void) | null = null;
-/** Открыть знакомство из любого места (Настройки → О Мнеме). */
+/** Открыть знакомство из любого места (Настройки → О Refrain). */
 export const openGuide = () => opener?.();
 
 const STEPS: { title: string; text: ReactNode; pic: ReactNode }[] = [
@@ -16,7 +16,7 @@ const STEPS: { title: string; text: ReactNode; pic: ReactNode }[] = [
   { title: 'Конспект своими словами', text: <>Запиши главное коротко и своими словами: так ты сразу начинаешь понимать, а не просто переписывать.</>, pic: <IlluNote /> },
   { title: 'Из важного — карточки', text: <>Выдели нужное: в тексте {selHow('В карточку')}. Одна карточка — один факт.</>, pic: <IlluMake /> },
   { title: 'Каждый день — «Учиться»', text: <>Одна кнопка на главном экране. Сначала вспомни ответ сам, потом открывай — и честно оцени. Хватит 10 минут.</>, pic: <IlluStart /> },
-  { title: 'Мнема напомнит вовремя', text: <>Она сама решает, когда повторить каждую карточку: чуть раньше, чем ты забудешь. Чем лучше помнишь, тем реже она появляется.</>, pic: <IlluSpaced /> }
+  { title: 'Refrain напомнит вовремя', text: <>Он сам решает, когда повторить каждую карточку: чуть раньше, чем ты забудешь. Чем лучше помнишь, тем реже она появляется.</>, pic: <IlluSpaced /> }
 ];
 
 export function GuideHost() {
@@ -45,7 +45,7 @@ function Guide({ onClose, onTutorial, onExample }: { onClose: () => void; onTuto
   const last = i === STEPS.length - 1;
   const st = STEPS[i];
   return (
-    <Modal title="Знакомство с Мнемой" onClose={onClose} width={520}>
+    <Modal title="Знакомство с Refrain" onClose={onClose} width={520}>
       <div className="guide">
         <div className="guide-pic">{st.pic}</div>
         <div className="guide-body guide-step" key={i}>

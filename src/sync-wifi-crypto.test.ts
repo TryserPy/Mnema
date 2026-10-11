@@ -64,7 +64,7 @@ describe('сервер синхронизации на компьютере (ele
       return req === 'electron' ? fakeElectron : origLoad.call(this, req, ...rest);
     };
     const sync = createRequire(import.meta.url)('../electron/sync.cjs');
-    // Окно Мнемы: «слило» данные и отвечает.
+    // Окно Refrain: «слило» данные и отвечает.
     const win = {
       webContents: {
         send: (ch: string, msg: { id: string; data: unknown }) => {
@@ -145,7 +145,7 @@ describe('сервер синхронизации на компьютере (ele
     }
   });
 
-  it('старая Мнема (код в заголовке) получает «обнови»', async () => {
+  it('старая Refrain (код в заголовке) получает «обнови»', async () => {
     expect(OLD_VERSION).toContain('Обнови');
     const r = await fetch(`http://127.0.0.1:${session.port}/mnema/hello`, { headers: { 'x-mnema-token': '12345678' } });
     expect(r.status).toBe(426);

@@ -846,7 +846,7 @@ function KnowledgeGraph({ data, onOpenTopic }: { data: AppData; onOpenTopic: (id
                 }}
               />
             </div>
-            <div className="row gap8">
+            <div className="row gap8 wrap">
               <button className="btn small" onClick={shake}>
                 Встряхнуть
               </button>

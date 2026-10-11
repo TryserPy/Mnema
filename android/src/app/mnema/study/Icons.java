@@ -6,9 +6,9 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
 /**
- * Значок Мнемы на рабочем столе под тему. Картинку значка у приложения нельзя поменять на ходу,
+ * Значок Refrain на рабочем столе под тему. Картинку значка у приложения нельзя поменять на ходу,
  * поэтому в манифесте есть несколько «псевдонимов» окна с разными значками, и включён ровно один.
- * Меняем, когда Мнема ушла с экрана (AppActivity.onStop).
+ * Меняем, когда Refrain ушла с экрана (AppActivity.onStop).
  */
 public class Icons {
     static final String PREFS = "mnema-icon";
@@ -33,7 +33,7 @@ public class Icons {
         PackageManager pm = ctx.getPackageManager();
         String pkg = ctx.getPackageName();
         try {
-            // Сначала включить новый ярлык, потом выключить остальные — чтобы Мнема ни на миг не осталась без значка.
+            // Сначала включить новый ярлык, потом выключить остальные — чтобы Refrain ни на миг не осталась без значка.
             pm.setComponentEnabledSetting(new ComponentName(pkg, pkg + "." + want), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
             String[] all = new String[THEMES.length + 1];
             all[0] = DEFAULT;

@@ -70,7 +70,7 @@ export function AnkiImport({ file, onClose, onOpenTopic }: { file?: File; onClos
       {step.name === 'pick' && (
         <div className="stack gap12">
           <p>Выбери файл, который сохранил в Anki: колоду (.apkg), всю коллекцию (.colpkg) или «Заметки в текстовом виде» (.txt).</p>
-          <p className="small muted">Колоды станут темами, картинки и формулы перенесутся. Звук пока не переносится. Файл можно и просто перетащить в окно Мнемы.</p>
+          <p className="small muted">Колоды станут темами, картинки и формулы перенесутся. Звук пока не переносится. Файл можно и просто перетащить в окно Refrain.</p>
           {error && <div className="hint warn">{error}</div>}
           <div className="row end">
             <button className="btn primary" onClick={() => inputRef.current?.click()}>
@@ -106,7 +106,7 @@ export function AnkiImport({ file, onClose, onOpenTopic }: { file?: File; onClos
             Готово: {step.topics} {plural(step.topics, 'тема', 'темы', 'тем')}, {step.cards} {plural(step.cards, 'карточка', 'карточки', 'карточек')}.
           </div>
           <p className="small muted">Если что-то перенеслось криво — карточку можно поправить в теме, во вкладке «Карточки».</p>
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={onClose}>
               Закрыть
             </button>
@@ -185,7 +185,7 @@ export function AnkiImport({ file, onClose, onOpenTopic }: { file?: File; onClos
           </div>
         )}
         {notes.length > 0 && <p className="small muted">{notes.join(' · ')}</p>}
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={() => setStep({ name: 'pick' })}>
             Другой файл
           </button>

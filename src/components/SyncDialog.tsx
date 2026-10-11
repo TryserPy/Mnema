@@ -12,7 +12,7 @@ interface Target {
   code: string;
 }
 
-export const OLD_VERSION = 'На другом устройстве старая версия Мнемы. Обнови Мнему на обоих устройствах — синхронизация теперь зашифрована.';
+export const OLD_VERSION = 'На другом устройстве старая версия Refrain. Обнови Refrain на обоих устройствах — синхронизация теперь зашифрована.';
 
 /** Содержимое QR-кода: «mnema-sync2:192.168.1.5,10.0.0.3:47123:K7QM2XPA9RTD». */
 export function encodeTarget(t: Target): string {
@@ -30,7 +30,7 @@ export function decodeTarget(s: string): Target | 'old' | null {
 /** Отправить свои данные на другое устройство и получить слитые. */
 export async function syncWith(t: Target, onStep?: (s: string) => void): Promise<MergeReport> {
   const http = window.mnemaApi?.http;
-  if (!http) throw new Error('Синхронизация работает в приложении Мнема (Windows или Android).');
+  if (!http) throw new Error('Синхронизация работает в приложении Refrain (Windows или Android).');
   const key = await syncKey(t.code);
   let base = '';
   for (const h of t.hosts) {
@@ -140,7 +140,7 @@ function ServePanel() {
   if (!s.hosts.length) return <div className="hint warn">Компьютер не подключён к сети. Подключи Wi-Fi или кабель и открой окно снова.</div>;
   return (
     <div className="stack gap12 center">
-      <p className="muted">На телефоне открой Мнему → «Настройки» → «Синхронизация» и наведи камеру на код.</p>
+      <p className="muted">На телефоне открой Refrain → «Настройки» → «Синхронизация» и наведи камеру на код.</p>
       {qr ? <img className="sync-qr" src={qr} alt="QR-код для синхронизации" /> : <div className="spinner" />}
       <div className="sync-code">
         <span className="small muted">или введи вручную</span>
@@ -270,7 +270,7 @@ export function QrScanner({ onCode, onCancel }: { onCode: (text: string) => void
         };
         tick();
       } catch (e) {
-        setErr('Нет доступа к камере. Разреши Мнеме камеру в настройках телефона или введи код вручную. ' + ((e as Error).message ?? ''));
+        setErr('Нет доступа к камере. Разреши Refrain камеру в настройках телефона или введи код вручную. ' + ((e as Error).message ?? ''));
       }
     })();
     return () => {

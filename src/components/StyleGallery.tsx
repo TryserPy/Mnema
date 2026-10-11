@@ -1,4 +1,4 @@
-// «Настройки → Стили»: плитки с живым примером каждого стиля. Пример — кусочек Мнемы в своём Shadow DOM,
+// «Настройки → Стили»: плитки с живым примером каждого стиля. Пример — кусочек Refrain в своём Shadow DOM,
 // на него действует только CSS этого стиля (включённые стили и остальное приложение его не меняют).
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';

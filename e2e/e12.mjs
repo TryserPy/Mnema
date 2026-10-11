@@ -17,4 +17,4 @@ await rowBtn(win, 'В Obsidian', 'Экспорт').click();
 await win.locator('.hint', { hasText: 'Готово' }).waitFor();
 console.log(await win.locator('.hint', { hasText: 'Готово' }).innerText());
 await app.close();
-console.log(execSync('cd /tmp/vaultOut && find . -type f | sort && echo ---- && cat "Мнема/Физика/§8 Закон Ома.md" | head -40').toString());
+console.log(execSync('cd /tmp/vaultOut && find . -type f | sort && echo ---- && cat "Refrain/Физика/§8 Закон Ома.md" | head -40').toString());

@@ -1,10 +1,11 @@
 // Термины всего предмета: общие (нужны везде) и из каждой темы — в одном месте, с разбивкой по темам.
 import { useMemo, useState } from 'react';
-import { normalizeAnswer, todayCounts } from '../srs';
+import { normalizeAnswer } from '../srs';
 import { childTopics, ensureGlossary, subjectGlossaries, useData } from '../store';
 import type { AppData, Card, ListKind, Route, StudyList, Topic } from '../types';
-import { ListRow, NewRow, rowStatus, StudyListView } from './StudyListView';
-import { AnimText, Icon, plural } from './ui';
+import { ListRow, NewRow, rowStatus, StudyButton, StudyListView } from './StudyListView';
+import { studyStatus } from '../studyStatus';
+import { Icon, plural } from './ui';
 
 /** Какие списки считаем «терминами»: термины, словари и свои списки (даты и формулы живут отдельно). */
 export const TERM_KINDS: ListKind[] = ['terms', 'vocab', 'custom'];
@@ -58,8 +59,7 @@ export function SubjectTerms({ subjectId, filter: initial, go }: { subjectId: st
   const listOf = (c: Card) => (c.listId ? listById.get(c.listId) : undefined);
   const current = filter === 'all' ? groups : groups.filter((g) => g.key === filter);
   const ids = current.flatMap((g) => g.cards.map((c) => c.id));
-  const counts = useMemo(() => (ids.length ? todayCounts(data, new Date(), { cardIds: ids }) : { learning: 0, review: 0, newCount: 0 }), [data, ids.join()]); // eslint-disable-line react-hooks/exhaustive-deps
-  const due = counts.learning + counts.review + counts.newCount;
+  const study = useMemo(() => studyStatus(data, new Date(), { cardIds: ids }), [data, ids.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const startGeneral = () => {
     ensureGlossary(subjectId);
     setFilter('general');
@@ -98,9 +98,7 @@ export function SubjectTerms({ subjectId, filter: initial, go }: { subjectId: st
       {showTable ? (
         <>
           <div className="row gap8 wrap">
-            <button className="btn primary" disabled={!due} onClick={() => go({ name: 'review', cardIds: ids })}>
-              <Icon name="play" size={16} /> <AnimText value={due ? `Учить · ${due}` : 'Всё повторено'} />
-            </button>
+            <StudyButton status={study} onLearn={(extraNew) => go({ name: 'review', cardIds: ids, extraNew })} />
             <button className="btn" disabled={!ids.length} onClick={() => go({ name: 'review', cardIds: ids, cram: true })} title="Пройти все термины предмета, не меняя расписания">
               <Icon name="repeat" size={16} /> Повторить все
             </button>

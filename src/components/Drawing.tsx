@@ -113,7 +113,7 @@ export function svgToDataUri(svg: string): string {
   return 'data:image/svg+xml;base64,' + btoa(bin);
 }
 
-/** Прочитать рисунок Мнемы из data: URI. Возвращает null, если это обычная картинка. */
+/** Прочитать рисунок Refrain из data: URI. Возвращает null, если это обычная картинка. */
 export function parseDrawing(src: string): DrawingData | null {
   if (!src.startsWith('data:image/svg+xml;base64,')) return null;
   try {
@@ -145,7 +145,7 @@ export function inlineDrawing(src: string): HTMLElement | null {
   try {
     const bin = atob(src.slice('data:image/svg+xml;base64,'.length));
     const svgText = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-    // Рисунок Мнемы состоит только из этих элементов. <style> и атрибут style из чужого рисунка пропускать нельзя: глобальный CSS прячет кнопки и подделывает окна.
+    // Рисунок Refrain состоит только из этих элементов. <style> и атрибут style из чужого рисунка пропускать нельзя: глобальный CSS прячет кнопки и подделывает окна.
     const clean = DOMPurify.sanitize(svgText, {
       ALLOWED_TAGS: ['svg', 'g', 'path', 'rect', 'circle', 'defs', 'pattern'],
       FORBID_ATTR: ['style', 'class', 'id', 'href', 'xlink:href'],
@@ -389,7 +389,7 @@ export function DrawingEditor({ initial, onSave, onCancel, context }: { initial?
         <button type="button" className="btn ghost small" disabled={!data.strokes.length} onClick={() => setData({ ...data, strokes: [] })}>
           Очистить
         </button>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           <button type="button" className="btn ghost" onClick={onCancel}>
             Отмена
           </button>
@@ -442,7 +442,7 @@ export function svgPoint(svg: SVGSVGElement, clientX: number, clientY: number): 
   return [Math.round(((clientX - r.left) / r.width) * vb.width * 10) / 10, Math.round(((clientY - r.top) / r.height) * vb.height * 10) / 10];
 }
 
-export function SketchPad({ strokes, onChange, height = 240, label = 'Холст для письма' }: { strokes: Stroke[]; onChange: (s: Stroke[]) => void; height?: number; label?: string }) {
+export function SketchPad({ strokes, onChange, height = 240, label = 'Холст для письма', onClose }: { strokes: Stroke[]; onChange: (s: Stroke[]) => void; height?: number; label?: string; onClose?: () => void }) {
   const [erase, setErase] = useState(false);
   const [current, setCurrent] = useState<Stroke | null>(null);
   const ref = useRef<SVGSVGElement>(null);
@@ -510,6 +510,11 @@ export function SketchPad({ strokes, onChange, height = 240, label = 'Холст
         <button type="button" className="btn small ghost" disabled={!strokes.length} onClick={() => onChange([])}>
           Очистить
         </button>
+        {onClose && (
+          <button type="button" className="btn small ghost sketch-close" onClick={onClose} title="Свернуть холст (Esc) — рисунок сохранится" aria-label="Свернуть холст">
+            <Icon name="x" size={14} /> Свернуть
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-// «Моды»: маленькие программы, которые добавляют Мнеме новые возможности.
+// «Моды»: маленькие программы, которые добавляют Refrain новые возможности.
 // Безопасный режим — ни один мод не работает и ничего нельзя поставить, пока не разрешишь.
 import { useEffect, useRef, useState } from 'react';
 import { CATALOG_PLUGINS, TEMPLATE } from '../plugins/catalog';
@@ -88,7 +88,7 @@ export function CodeEditor({ initial, onClose }: { initial?: PluginRec; onClose:
             }
           }}
         />
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>
@@ -120,9 +120,9 @@ export function PluginsSettings() {
   const allowModal = ask && (
     <Modal title="Разрешить моды?" onClose={() => setAsk(false)}>
       <div className="stack gap12">
-        <p>Мод — это программа внутри Мнемы. Он видит всё, что видит она: конспекты, карточки, пароль облака и ключи ИИ — и может отправить это в интернет.</p>
+        <p>Мод — это программа внутри Refrain. Он видит всё, что видит она: конспекты, карточки, пароль облака и ключи ИИ — и может отправить это в интернет.</p>
         <p>Готовые моды из каталога проверены. Моды из файлов и из чужих копий ставь только от тех, кому доверяешь.</p>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={() => setAsk(false)}>
             Не надо
           </button>
@@ -143,7 +143,7 @@ export function PluginsSettings() {
   if (s.pluginsSafe) {
     return (
       <div className="stack gap16">
-        <PaneHead title="Моды" text="Моды добавляют Мнеме новые возможности: свои экраны, команды и кнопки." />
+        <PaneHead title="Моды" text="Моды добавляют Refrain новые возможности: свои экраны, команды и кнопки." />
         <div className="safe-card">
           <span className="safe-ico">
             <Icon name="shield" size={30} />
@@ -162,7 +162,7 @@ export function PluginsSettings() {
 
   return (
     <div className="stack gap16">
-      <PaneHead title="Моды" text="Моды добавляют Мнеме новые возможности: свои экраны, команды и кнопки.">
+      <PaneHead title="Моды" text="Моды добавляют Refrain новые возможности: свои экраны, команды и кнопки.">
         <button className="btn small ghost" onClick={() => updateSettings({ pluginsSafe: true })} title="Все моды перестанут работать">
           <Icon name="shield" size={16} /> Выключить моды
         </button>

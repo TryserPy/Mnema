@@ -171,7 +171,7 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
   const selMenu: MenuItem[] = [
     { label: 'Начать с этой строки', icon: 'play', hint: 'и до конца стиха', onClick: learnFrom },
     { label: 'Рассказать выбранное', icon: 'mic', hidden: !selActive.length, onClick: () => setJob({ kind: 'whole', idx: selActive, pick: 'Выбранное' }) },
-    { label: 'Продолжить с этой строки', icon: 'repeat', hidden: !selActive.length, hint: 'Мнема покажет строку, ты продолжишь', onClick: continueFrom },
+    { label: 'Продолжить с этой строки', icon: 'repeat', hidden: !selActive.length, hint: 'Refrain покажет строку, ты продолжишь', onClick: continueFrom },
     { label: 'Подсказка для строк', icon: 'bulb', items: CUE_OPTIONS.map(cueItem) },
     { label: allIn(focus) ? 'Не повторять чаще' : 'Повторять чаще', icon: 'star', onClick: () => patch(setFocus(poem, selArr, !allIn(focus))) },
     { label: allIn(skip) ? 'Вернуть в учёбу' : 'Не учу эти строки', icon: 'x', hint: allIn(skip) ? undefined : 'останутся в тексте', onClick: () => patch(setSkip(poem, selArr, !allIn(skip))) }
@@ -222,7 +222,7 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
       {pinMode ? (
         <div className="poem-bar">
           <span className="small">Нажимай на слова, которые должны быть всегда видны, когда рассказываешь по памяти.</span>
-          <span className="row gap8">
+          <span className="row gap8 wrap">
             {(poem.pinWords?.length ?? 0) > 0 && (
               <button className="btn small ghost" onClick={() => patch({ pinWords: undefined })}>
                 Сбросить
@@ -432,7 +432,7 @@ function PoemEditor({ topicId, poem, onDone, onDeleted }: { topicId: string; poe
               </button>
             )}
           </div>
-          <span className="small muted">Мнема подскажет, сколько строк в день.</span>
+          <span className="small muted">Refrain подскажет, сколько строк в день.</span>
         </div>
         </div>
       )}
@@ -810,7 +810,7 @@ function LearnFlow({ topicId, poem, target, onExit }: { topicId: string; poem: P
           <strong>{learnedAll ? 'Стих выучен!' : 'Выбранное выучено!'}</strong>
           <span className="muted">
             {learnedAll
-              ? 'Завтра Мнема напомнит рассказать его целиком — потом через 3 дня, неделю и дальше. Так он останется надолго, а не до конца урока. Лучше всего повторить вечером и утром.'
+              ? 'Завтра Refrain напомнит рассказать его целиком — потом через 3 дня, неделю и дальше. Так он останется надолго, а не до конца урока. Лучше всего повторить вечером и утром.'
               : `Остальное — когда захочешь${left ? ` (осталось ${nLines(left)})` : ''}. Выученные строки сохранены.`}
           </span>
           <button className="btn primary start-self" onClick={onExit}>
@@ -957,7 +957,7 @@ function WholeCheck({ topicId, poem, idx, pick, onExit }: { topicId: string; poe
             {done.due ? ` Следующий раз — ${fmtDay(done.due)}.` : ''}
             {done.acc < 0.9 ? ' Трудные строки подсвечены в тексте — «С любого места» потренирует их чаще.' : ''}
           </span>
-          <div className="row gap8">
+          <div className="row gap8 wrap">
             <button className="btn primary" onClick={onExit}>
               Готово
             </button>
@@ -981,7 +981,7 @@ function WholeCheck({ topicId, poem, idx, pick, onExit }: { topicId: string; poe
 
 /* ---------- С любого места ---------- */
 
-/** Мнема показывает строку — ты продолжаешь. Места выбираются случайно (трудные и отмеченные чаще) или задаёшь сам (starts). */
+/** Refrain показывает строку — ты продолжаешь. Места выбираются случайно (трудные и отмеченные чаще) или задаёшь сам (starts). */
 function RandomFlow({ topicId, poem, pool, starts: manual, span, onExit }: { topicId: string; poem: Poem; pool: number[]; starts?: number[]; span: number; onExit: () => void }) {
   const all = poemLines(poem.text).map((l) => l.text);
   const starts = useMemo(() => manual ?? pickStarts(poem, 5, Math.random, pool), []); // eslint-disable-line react-hooks/exhaustive-deps
