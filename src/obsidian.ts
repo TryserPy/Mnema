@@ -1,6 +1,6 @@
 // Перевод заметки Obsidian в конспект Мнемы.
 
-const CALLOUT_TITLES: Record<string, string> = {
+export const CALLOUT_TITLES: Record<string, string> = {
   note: 'Заметка',
   info: 'Информация',
   tip: 'Совет',
