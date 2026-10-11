@@ -4,7 +4,7 @@
 Цель — **запоминать больше, тратя меньше времени**: Refrain встраивает в учёбу то, что по исследованиям
 действительно работает, — вспоминание без подсказки и повторение с перерывами.
 
-Работает на **Windows** и **Android**, а также **онлайн в браузере** — на компьютере, планшете, Android, iPhone и iPad
+Работает на **Windows**, **Linux** и **Android**, а также **онлайн в браузере** — на компьютере, планшете, Android, iPhone и iPad
 (можно поставить как приложение). Всё хранится на устройстве, аккаунт не нужен, рекламы нет.
 
 ## Скачать
@@ -12,6 +12,13 @@
 Последняя версия — на странице [выпусков](https://github.com/TryserPy/Mnema/releases/latest):
 
 - **Windows** — `Mnema-Setup-<версия>.exe`: запусти и следуй установщику.
+- **Linux** — выбери один файл (x64 и arm64):
+  - `Refrain-<версия>-x86_64.AppImage` — работает на любом дистрибутиве: `chmod +x Refrain-*.AppImage` и запусти. Сам обновляется.
+    Если не запускается и пишет про FUSE — поставь `libfuse2` (Ubuntu 24.04: `libfuse2t64`) или запусти с `--appimage-extract-and-run`;
+  - `Refrain_<версия>_amd64.deb` — Debian, Ubuntu, Mint: `sudo apt install ./Refrain_*.deb`. О новой версии Refrain скажет и даст ссылку;
+  - `Refrain-<версия>-x64.tar.gz` — распаковать и запустить `refrain` (Arch, Fedora и др.).
+
+  Данные лежат в `~/.config/Refrain/Мои данные/`. Значок у часов в GNOME работает с расширением «AppIndicator»; без него закрытие окна сворачивает Refrain.
 - **Android** — `Mnema-<версия>-Android.apk`: открой на телефоне и разреши установку из этого источника.
 
 - **В браузере** — [Refrain онлайн](https://tryserpy.github.io/Mnema-site/app/) (веб-версия лежит на [сайте](https://github.com/TryserPy/Mnema-site) в папке `app/`).
@@ -62,7 +69,7 @@ npm run build:web      # веб-версия (PWA) в dist-web/; посмотр�
 1. Поднять версию в `package.json` и `src/update.ts`, дописать «Новое в …» в `src/screens/Settings.tsx`
    и раздел в [`CHANGELOG.md`](CHANGELOG.md) (этот текст увидят пользователи).
 2. Запушить тег `vX.Y.Z` — GitHub Actions (`.github/workflows/release.yml`) проверит код, соберёт APK
-   и установщик Windows и опубликует выпуск. Приложения сами найдут его.
+   установщик Windows и пакеты Linux (AppImage, .deb, .tar.gz) и опубликует выпуск. Приложения сами найдут его.
 
 Для подписи APK нужен секрет репозитория **`ANDROID_KEYSTORE_B64`** — ключ `mnema-release.jks` в base64
 («Settings → Secrets and variables → Actions»). Ключ один на все версии: с другим ключом обновление не встанет
