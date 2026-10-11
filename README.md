@@ -14,11 +14,12 @@
 - **Windows** — `Mnema-Setup-<версия>.exe`: запусти и следуй установщику.
 - **Linux** — выбери один файл (x64 и arm64):
   - `Refrain-<версия>-x86_64.AppImage` — работает на любом дистрибутиве: `chmod +x Refrain-*.AppImage` и запусти. Сам обновляется.
-    Если не запускается и пишет про FUSE — поставь `libfuse2` (Ubuntu 24.04: `libfuse2t64`) или запусти с `--appimage-extract-and-run`;
+    Если не запускается и пишет про FUSE — поставь `libfuse2` (Ubuntu 24.04: `libfuse2t64`; Arch: `sudo pacman -S fuse2`) или запусти с `--appimage-extract-and-run`;
   - `Refrain_<версия>_amd64.deb` — Debian, Ubuntu, Mint: `sudo apt install ./Refrain_*.deb`. О новой версии Refrain скажет и даст ссылку;
-  - `Refrain-<версия>-x64.tar.gz` — распаковать и запустить `refrain` (Arch, Fedora и др.).
+  - `Refrain-<версия>-x64.pacman` — Arch, Manjaro, EndeavourOS и др.: `sudo pacman -U Refrain-*.pacman` (зависимости подтянутся сами; для arm64 — `Refrain-<версия>-aarch64.pacman`). О новой версии Refrain скажет и даст ссылку на файл `.pacman`;
+  - `Refrain-<версия>-x64.tar.gz` — распаковать и запустить `refrain` (Fedora и др.).
 
-  Данные лежат в `~/.config/Refrain/Мои данные/`. Значок у часов в GNOME работает с расширением «AppIndicator»; без него закрытие окна сворачивает Refrain.
+  Данные лежат в `~/.config/Refrain/Мои данные/`. Значок у часов в GNOME работает с расширением «AppIndicator» (Arch: пакет `gnome-shell-extension-appindicator`); без него закрытие окна сворачивает Refrain.
 - **Android** — `Mnema-<версия>-Android.apk`: открой на телефоне и разреши установку из этого источника.
 
 - **В браузере** — [Refrain онлайн](https://tryserpy.github.io/Mnema-site/app/) (веб-версия лежит на [сайте](https://github.com/TryserPy/Mnema-site) в папке `app/`).

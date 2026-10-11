@@ -81,7 +81,7 @@ export function UpdateFlow({ info }: { info: UpdateInfo }) {
       <strong>Доступна Refrain {info.latest}</strong>
       {info.notes && <p className="small muted update-notes">{info.notes}</p>}
       {info.manual && info.url ? (
-        // Linux: пакет .deb и архив сами не обновляются — даём ссылку на файл выпуска.
+        // Linux: пакеты .deb/.pacman и архив сами не обновляются — даём ссылку на файл выпуска.
         <a className="btn primary" href={info.url} target="_blank" rel="noreferrer">
           {info.fileName ? `Скачать ${info.fileName}${mb(info.size)}` : 'Открыть страницу выпуска'}
         </a>

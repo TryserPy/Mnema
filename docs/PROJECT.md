@@ -6,7 +6,7 @@
 
 ## 0. Коротко
 
-**Refrain** — офлайн-приложение для школьников: параграф учебника → конспект → карточки → повторения по расписанию (алгоритм FSRS). Главная цель — запоминать больше, тратя меньше времени. Работает на **Windows** (Electron, установщик NSIS), **Linux** (Electron: AppImage, .deb, .tar.gz; x64 и arm64) и **Android** (своя обёртка WebView, APK) из одного кода на **TypeScript + React + Vite**.
+**Refrain** — офлайн-приложение для школьников: параграф учебника → конспект → карточки → повторения по расписанию (алгоритм FSRS). Главная цель — запоминать больше, тратя меньше времени. Работает на **Windows** (Electron, установщик NSIS), **Linux** (Electron: AppImage, .deb, .pacman для Arch, .tar.gz; x64 и arm64) и **Android** (своя обёртка WebView, APK) из одного кода на **TypeScript + React + Vite**.
 
 
 Последняя версия — **1.6.4 «Стихи наизусть»**, собрана и доставлена (см. раздел 11).
@@ -346,7 +346,7 @@
 - **Повторения:** ts-fsrs.
 - **Граф:** d3-force.
 - **Импорт/экспорт:** sql.js + fflate + fzstd (Anki), tesseract.js (офлайн-распознавание), qrcode / jsqr (синхронизация).
-- **Windows и Linux:** Electron 44 (CJS main и preload), electron-builder (NSIS; AppImage, deb, tar.gz), electron-updater. Особенности Linux — `electron/linux.cjs`, `electron/openFiles.cjs`; значки — `build/icons` (`npm run icons:linux`); сборка — `npm run dist:linux`.
+- **Windows и Linux:** Electron 44 (CJS main и preload), electron-builder (NSIS; AppImage, deb, pacman, tar.gz; pacman собирает fpm, ему нужен `bsdtar` — пакет `libarchive-tools`), electron-updater. Особенности Linux — `electron/linux.cjs`, `electron/openFiles.cjs`; значки — `build/icons` (`npm run icons:linux`); сборка — `npm run dist:linux`.
 - **Шрифты:** @fontsource.
 - **Тесты:** Vitest (сейчас 95 тестов в 12 файлах), Playwright (e2e, отдельно).
 
@@ -417,7 +417,7 @@
 ### 6.6 Обновления
 - `src/update.ts`: `APP_VERSION`, проверка раз в день.
 - **Windows** — electron-updater: скачать → перезапустить. Нужен `latest.yml` и установщик в выпуске GitHub.
-- **Linux** — AppImage: electron-updater по `latest-linux.yml` (arm64 — `latest-linux-arm64.yml`), как Windows. `.deb` и архив сами не обновляются: `electron/updater.cjs` спрашивает GitHub API и даёт ссылку на файл своего типа и архитектуры (`linux.manualUpdateInfo`).
+- **Linux** — AppImage: electron-updater по `latest-linux.yml` (arm64 — `latest-linux-arm64.yml`), как Windows. `.deb`, `.pacman` и архив сами не обновляются: `electron/updater.cjs` спрашивает GitHub API и даёт ссылку на файл своего типа (по файлу `package-type`, который кладёт electron-builder) и архитектуры (`linux.manualUpdateInfo`).
 - **Android** — GitHub API → ссылка на APK из выпуска.
 - **Репозиторий:** настройки `settings.update.owner/repo` (раздел «О Refrain»). В `package.json` → `build.publish` стоит **заглушка** `mnema-app/mnema`: репозиторий задаётся в настройках. Инструкция «GitHub — как выложить обновление.txt» лежит в каждой папке выпуска.
 

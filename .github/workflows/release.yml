@@ -1,6 +1,6 @@
-# Выпуск новой версии: по тегу vX.Y.Z собираются APK, установщик Windows и пакеты Linux (AppImage, .deb, .tar.gz; x64 и arm64)
+# Выпуск новой версии: по тегу vX.Y.Z собираются APK, установщик Windows и пакеты Linux (AppImage, .deb, .pacman, .tar.gz; x64 и arm64)
 # и выкладываются в GitHub Releases. Оттуда Refrain сам берёт обновления (Windows — electron-updater по latest.yml,
-# Linux AppImage — по latest-linux.yml / latest-linux-arm64.yml, .deb и архив — уведомление со ссылкой, Android — APK из выпуска).
+# Linux AppImage — по latest-linux.yml / latest-linux-arm64.yml, .deb, .pacman и архив — уведомление со ссылкой, Android — APK из выпуска).
 #
 # Нужен один секрет репозитория: ANDROID_KEYSTORE_B64 — ключ подписи APK в base64
 # (тот же ключ, которым подписаны прошлые версии, иначе обновление не встанет поверх).
@@ -122,19 +122,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
+      # bsdtar нужен fpm для пакета pacman (Arch Linux)
+      - name: Инструменты для пакета pacman
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
       - name: Пакеты Linux
         # Имена: Refrain-<версия>-x86_64.AppImage, Refrain-<версия>-arm64.AppImage, Refrain_<версия>_amd64.deb,
-        # Refrain_<версия>_arm64.deb, Refrain-<версия>-x64.tar.gz, Refrain-<версия>-arm64.tar.gz; latest-linux*.yml — для самообновления AppImage.
-        run: npx electron-builder --linux AppImage deb tar.gz --x64 --arm64 --publish never
+        # Refrain_<версия>_arm64.deb, Refrain-<версия>-x64.pacman, Refrain-<версия>-aarch64.pacman, Refrain-<версия>-x64.tar.gz, Refrain-<версия>-arm64.tar.gz; latest-linux*.yml — для самообновления AppImage.
+        run: npx electron-builder --linux AppImage deb pacman tar.gz --x64 --arm64 --publish never
       - name: Проверка набора файлов
         run: |
           V=${{ needs.web.outputs.version }}
           ls -la release
-          for f in "Refrain-$V-x86_64.AppImage" "Refrain-$V-arm64.AppImage" "Refrain_${V}_amd64.deb" "Refrain_${V}_arm64.deb" "Refrain-$V-x64.tar.gz" "Refrain-$V-arm64.tar.gz" latest-linux.yml latest-linux-arm64.yml; do
+          for f in "Refrain-$V-x86_64.AppImage" "Refrain-$V-arm64.AppImage" "Refrain_${V}_amd64.deb" "Refrain_${V}_arm64.deb" "Refrain-$V-x64.pacman" "Refrain-$V-aarch64.pacman" "Refrain-$V-x64.tar.gz" "Refrain-$V-arm64.tar.gz" latest-linux.yml latest-linux-arm64.yml; do
             [ -s "release/$f" ] || { echo "::error::Нет файла release/$f"; exit 1; }
           done
       - uses: actions/upload-artifact@v4
@@ -143,6 +146,7 @@ jobs:
           path: |
             release/*.AppImage
             release/*.deb
+            release/*.pacman
             release/*.tar.gz
             release/latest-linux*.yml
 

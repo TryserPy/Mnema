@@ -14,8 +14,8 @@
     "preview": "vite preview",
     "preview:web": "vite preview --mode web --outDir dist-web",
     "dist": "npm run build && electron-builder --win --x64",
-    "dist:linux": "npm run build && electron-builder --linux AppImage deb tar.gz --x64 --publish never",
-    "dist:linux:arm64": "npm run build && electron-builder --linux AppImage deb tar.gz --arm64 --publish never",
+    "dist:linux": "npm run build && electron-builder --linux AppImage deb pacman tar.gz --x64 --publish never",
+    "dist:linux:arm64": "npm run build && electron-builder --linux AppImage deb pacman tar.gz --arm64 --publish never",
     "icons:linux": "node scripts/linux-icons.mjs"
   },
   "devDependencies": {
@@ -115,6 +115,13 @@
           ]
         },
         {
+          "target": "pacman",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
           "target": "tar.gz",
           "arch": [
             "x64",
@@ -172,6 +179,20 @@
       "packageName": "refrain",
       "artifactName": "Refrain_${version}_${arch}.deb",
       "priority": "optional"
+    },
+    "pacman": {
+      "packageName": "refrain",
+      "artifactName": "Refrain-${version}-${arch}.pacman",
+      "depends": [
+        "gtk3",
+        "nss",
+        "libnotify",
+        "libxss",
+        "libxtst",
+        "xdg-utils",
+        "at-spi2-core",
+        "util-linux-libs"
+      ]
     },
     "nsis": {
       "oneClick": false,

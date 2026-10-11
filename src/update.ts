@@ -18,7 +18,7 @@ export interface UpdateInfo {
   notes?: string;
   apk?: string; // ссылка на APK (телефон)
   size?: number; // размер APK или файла для Linux, байт
-  /** Linux (пакет .deb, архив): сама Refrain не обновляется — показываем ссылку на файл выпуска. */
+  /** Linux (пакет .deb/.pacman, архив): сама Refrain не обновляется — показываем ссылку на файл выпуска. */
   manual?: boolean;
   url?: string; // ссылка на файл (или страницу выпуска) для ручной установки
   fileName?: string;
