@@ -5,9 +5,9 @@
 import { humanError } from './ai';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
 import { analyzeRegions, strokeStat } from './textbookRegions';
-import { buildPage, median, parseAiMarkdown, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
+import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
 
-export { assemble, fixOcrText, parseAiMarkdown, sanitizeAiText } from './textbookText';
+export { assemble, fixOcrText, judgeAiAnswer, parseAiMarkdown, sanitizeAiText } from './textbookText';
 export type { Box, Doubt, Figure, PageResult } from './textbookText';
 
 /** Ход распознавания одной страницы: что делаю сейчас и (если знаю) какая доля работы сделана, 0..1. */
@@ -273,8 +273,6 @@ export const AI_SYSTEM = `Ты переводишь фото страницы ш
 - HTML, ссылки, картинки и ваши пояснения не нужны. Не оборачивай ответ в \`\`\`.
 - Если текста не видно или это не страница учебника, верни [[ПУСТО]].`;
 
-const REFUSAL = /(^|\s)(не могу|к сожалению|извините|я не вижу|sorry|i can(?:no|')t|unable to|as an ai)/i;
-
 export async function recognizeWithAi(p: PageInput, onProgress?: Progress): Promise<PageResult> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, телефона и в браузере.');
@@ -296,11 +294,12 @@ export async function recognizeWithAi(p: PageInput, onProgress?: Progress): Prom
   } catch (e) {
     return fallback(humanError((e as Error).message || String(e)));
   }
-  const parsed = parseAiMarkdown(text);
-  const plain = parsed.markdown.replace(/⟦РИС:\d+⟧/g, '').trim();
-  if (parsed.empty && /\[\[ПУСТО\]\]/.test(text)) throw new Error('ИИ не нашёл на фото текста учебника. Проверь, что страница видна целиком и резко.');
-  if (!plain && !parsed.figures.length) return fallback('ИИ вернул пустой ответ.');
-  if (plain.length < 160 && REFUSAL.test(plain) && !/[.!?]\s*[А-ЯЁ]/.test(plain.slice(60))) return fallback('ИИ ответил не по делу.');
+  const verdict = judgeAiAnswer(text);
+  if (!verdict.ok) {
+    if (verdict.empty) throw new Error('ИИ не нашёл на фото текста учебника. Проверь, что страница видна целиком и резко.');
+    return fallback(verdict.why);
+  }
+  const parsed = verdict.parsed;
   const figures: Figure[] = parsed.figures.map((f) => ({ box: f.box, caption: f.caption, uri: cropUri(canvas, f.box) }));
   return { n: p.n, photo: canvasToJpeg(await renderPage(p, 1600)), markdown: parsed.markdown, figures, doubts: [], detectedPage: parsed.detectedPage };
 }

@@ -97,17 +97,15 @@ function outsideMasks(s: string, f: (part: string) => string): string {
 }
 
 function fixWordLetters(w: string, lineCyr: boolean): string {
-  // Слово из букв и цифр: «ПOЛ0Ж3НИЕ» — внутри русского слова цифры-двойники → буквы.
-  if (/\d/.test(w) && /[А-Яа-яЁё]{2,}/.test(w) && !/^\d+[-–]?[а-яё]{1,3}$/i.test(w) && !/^\d/.test(w.replace(/[А-Яа-яЁё]/g, ''))) {
+  // Слово из букв и цифр: «Пол0жение», «ПOЛ0Ж3НИЕ» — внутри русского слова цифры-двойники → буквы.
+  if (/^[А-Яа-яЁё]{2,}\d+[А-Яа-яЁё]{2,}$/.test(w) || /^[А-Яа-яЁё]{3,}\d$/.test(w) || /^[036][А-Яа-яЁё]{3,}$/.test(w)) {
     const letters = w.replace(/\d/g, '');
-    if (/^[А-Яа-яЁё]+$/.test(letters) && /^[А-Яа-яЁё]+\d+[А-Яа-яЁё]+$|^[А-Яа-яЁё]{3,}\d$|^\d[А-Яа-яЁё]{3,}$/.test(w)) {
-      const upper = letters === letters.toUpperCase() && letters.length > 2;
-      return w.replace(/\d/g, (d) => {
-        const c = DIGIT2CYR[d];
-        if (!c) return d;
-        return upper ? c.toUpperCase() : c;
-      });
-    }
+    const upper = letters === letters.toUpperCase() && letters.length > 2;
+    return w.replace(/\d/g, (d) => {
+      const c = DIGIT2CYR[d];
+      if (!c) return d;
+      return upper ? c.toUpperCase() : c;
+    });
   }
   const hasCyr = CYR.test(w);
   const hasLat = LAT.test(w);
@@ -122,8 +120,9 @@ function fixWordLetters(w: string, lineCyr: boolean): string {
   if (/\d/.test(w) && /[OoОоlI|SBZзЗбБВЧ]/.test(w)) {
     const digits = (w.match(/\d/g) ?? []).length;
     const rest = w.replace(/[\d.,\-–]/g, '');
-    if (digits >= 2 && rest.length <= 2 && digits >= w.replace(/[.,\-–]/g, '').length - 1 && /^[\dOoОоlI|SBZзЗбБВЧ.,\-–]+$/.test(w) && !/^[ОоЗзБб]$/.test(rest)) return w.replace(/[OoОоlI|SBZзЗбБВЧ]/g, (c) => CYR2DIGIT[c] ?? c);
+    if (digits >= 2 && rest.length <= 2 && digits >= w.replace(/[.,\-–]/g, '').length - 1 && /^[\dOoОоlI|SBZзЗбБВЧ.,\-–]+$/.test(w)) return w.replace(/[OoОоlI|SBZзЗбБВЧ]/g, (c) => CYR2DIGIT[c] ?? c);
   }
+  if (/^\d[OoОоЗз]$/.test(w)) return w[0] + CYR2DIGIT[w[1]];
   return w;
 }
 
@@ -144,7 +143,7 @@ export function fixOcrText(s: string): string {
       .join('\n');
     // Одинокая латинская «B», «a» между русскими словами — это «в», «а»; «ИЛИ» заглавными посреди строчных — «или».
     p = p.replace(/(?<=[а-яё,;] )([A-Za-z])(?= [а-яё])/g, (m, ch: string) => (LAT2CYR[ch] ? LAT2CYR[ch].toLowerCase() : m));
-    p = p.replace(/(?<=[а-яё,;] )([А-ЯЁ]{2,4})(?= [а-яё])/g, (m) => (SHORT_RU.has(m.toLowerCase()) ? m.toLowerCase() : m));
+    p = p.replace(/(?<=[а-яё,;] )([А-ЯЁ]{2,4}|[А-ЯЁ][а-яё]{1,3})(?= [а-яё])/g, (m) => (SHORT_RU.has(m.toLowerCase()) ? m.toLowerCase() : m));
     // Римские цифры после имени: «Александр П» → «Александр II», «Пётр Т» → «Пётр I».
     p = p.replace(/([А-ЯЁ][а-яё]{2,}\**\s)(П|Ш|Т|Г)(?=[\s.,;:)*]|$)/gm, (_m, a: string, r: string) => a + ({ П: 'II', Ш: 'III', Т: 'I', Г: 'I' } as Record<string, string>)[r]);
     p = p.replace(/\*\*([^*\n]+)\*\* (I{1,3}|IV|VI{0,3}|IX|X{1,3})(?=[\s.,;:)]|$)/gm, '**$1 $2**');
@@ -384,7 +383,7 @@ function isNoiseWord(w: OcrWord): boolean {
   const alnum = t.replace(/[^\p{L}\p{N}]/gu, '');
   if (!t.trim()) return true;
   if (w.conf < 18) return true;
-  if (!alnum.length) return !/^[—–\-.,:;!?()«»"'§%№=+×·•®©°*]$/.test(t) || w.conf < (/^[—–\-]$/.test(t) ? 15 : 40);
+  if (!alnum.length) return !/^[—–\-.,:;!?()«»"'§%№=+×·•®©°*$&]$/.test(t) || w.conf < (/^[—–\-]$/.test(t) ? 15 : 40);
   if (alnum.length === 1 && w.conf < 40 && !/\d/.test(alnum)) return true;
   return false;
 }
@@ -608,7 +607,14 @@ export function buildPage(input: LayoutInput): LayoutResult {
   }
   for (const [key, ls] of byBlock) {
     ls.sort((a, b) => a.yb - b.yb || a.x0 - b.x0);
-    units.push({ rect: unionRect(ls.map((l) => l.line.bbox)), lines: ls, col: '', box: key.startsWith('b') ? Number(key.slice(1)) : -1 });
+    // Блок не должен «накрывать» рисунок или соседний текст: строки через большой просвет — отдельные блоки.
+    const parts: LineInfo[][] = [[]];
+    for (const l of ls) {
+      const last = parts[parts.length - 1];
+      if (last.length && l.line.bbox.y0 - last[last.length - 1].line.bbox.y1 > mh * 2.5) parts.push([l]);
+      else last.push(l);
+    }
+    for (const part of parts) units.push({ rect: unionRect(part.map((l) => l.line.bbox)), lines: part, col: '', box: key.startsWith('b') ? Number(key.slice(1)) : -1 });
   }
   input.figures.forEach((f, idx) => units.push({ rect: f, lines: [], fig: idx, col: '', box: -1 }));
   const ordered = gutters.length ? orderByGutters(units, gutters, mh) : xyCut(units, mh * 0.5, mh * 0.2);
@@ -1125,7 +1131,7 @@ export function sanitizeAiText(s: string): string {
   t = t.replace(/<\/?[a-zA-Z][^>\n]{0,200}>/g, '');
   // Картинки и ссылки модели не нужны: оставляем подпись/текст.
   t = t.replace(/!\[([^\]\n]*)\]\([^)\n]*\)/g, '');
-  t = t.replace(/\[([^\]\n]+)\]\((?!\s*mnema:)[^)\n]*\)/g, '$1');
+  t = t.replace(/\[([^\]\n]+)\]\((?!\s*mnema:)(?:[^()\n]|\([^()\n]*\))*\)/g, '$1');
   t = t.replace(/\[([^\]\n]+)\]:\s*\S+/g, (m, a: string) => (/^\[(РИСУНОК|СТРАНИЦА|ПУСТО)/.test(m) ? m : a));
   t = t.replace(/\b(?:javascript|vbscript|data|file):[^\s)]*/gi, '');
   return t;
@@ -1168,6 +1174,43 @@ export function parseAiMarkdown(raw: string): AiParsed {
   md = fixAiText(md);
   md = md.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   return { markdown: md, figures, detectedPage, empty: !md.replace(/⟦РИС:\d+⟧/g, '').trim() };
+}
+
+export type AiVerdict = { ok: true; parsed: AiParsed } | { ok: false; why: string; empty?: boolean };
+
+const AI_REFUSAL = /(^|\s)(не могу|к сожалению|извините|я не вижу|не удалось|sorry|i can(?:no|')t|unable to|as an ai|i'm unable)/i;
+
+/**
+ * Годится ли ответ ИИ как страница: пустой, отказ, чужой язык, JSON/HTML вместо Markdown, зацикленные повторы,
+ * рассыпавшаяся разметка — всё это «кривой ответ», по нему лучше прочитать страницу без интернета.
+ */
+export function judgeAiAnswer(raw: string): AiVerdict {
+  const text = String(raw ?? '');
+  const parsed = parseAiMarkdown(text);
+  if (parsed.empty && /\[\[ПУСТО\]\]/.test(text)) return { ok: false, why: 'ИИ не нашёл на фото текста учебника.', empty: true };
+  const plain = parsed.markdown.replace(/⟦РИС:\d+⟧/g, '').trim();
+  if (!plain && !parsed.figures.length) return { ok: false, why: 'ИИ вернул пустой ответ.' };
+  if (!plain) return { ok: true, parsed };
+  if (plain.length < 200 && AI_REFUSAL.test(plain) && !/[.!?]\s*[А-ЯЁ]/.test(plain.slice(60))) return { ok: false, why: 'ИИ ответил не по делу.' };
+  const t = text.trim();
+  if (/^[{[]/.test(t) && /"\s*:\s*/.test(t.slice(0, 200))) return { ok: false, why: 'ИИ вернул данные вместо текста страницы.' };
+  if ((t.match(/<\/?[a-z][^>]*>/gi) ?? []).length > 6 && /^<(!doctype|html|body|div|p)\b/i.test(t)) return { ok: false, why: 'ИИ вернул веб-страницу вместо текста.' };
+  const letters = plain.replace(/\$\$?[^$]*\$\$?/g, '').replace(/[^\p{L}]/gu, '');
+  if (letters.length > 150) {
+    const cyr = (letters.match(/[А-Яа-яЁё]/g) ?? []).length;
+    if (cyr / letters.length < 0.35) return { ok: false, why: 'ИИ ответил не по-русски или выдал мусор.' };
+  }
+  const lines = plain.split('\n').map((l) => l.trim()).filter((l) => l.length > 3);
+  if (lines.length >= 6) {
+    const counts = new Map<string, number>();
+    for (const l of lines) counts.set(l, (counts.get(l) ?? 0) + 1);
+    const top = Math.max(...counts.values());
+    if (top >= 5 || lines.length - counts.size > lines.length * 0.5) return { ok: false, why: 'ИИ зациклился и повторяет одно и то же.' };
+  }
+  const oddBold = lines.filter((l) => ((l.match(/\*\*/g) ?? []).length & 1) === 1).length;
+  if (oddBold >= 4 && oddBold > lines.length * 0.35) return { ok: false, why: 'У ИИ рассыпалась разметка.' };
+  if (plain.length > 4000 && !/\n\n/.test(plain) && !/^#{2,3} /m.test(plain)) return { ok: false, why: 'ИИ выдал страницу одной сплошной строкой.' };
+  return { ok: true, parsed };
 }
 
 /** Единый вид блоков: заголовки «## », рамки «> **Запомните:** …», списки «- », без двойных пробелов. */
