@@ -422,7 +422,7 @@ export function Modal({ title, onClose, children, width = 520, sticky = false }:
   // Окно всегда в <body>: иначе карточка с анимацией (transform) обрезает его и перекрывает соседями.
   return createPortal(
     <div className={'modal-back' + (closing ? ' closing' : '')} onMouseDown={(e) => !sticky && e.target === e.currentTarget && close()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
+      <div className="modal" data-part="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button className="icon-btn" onClick={close} aria-label="Закрыть">

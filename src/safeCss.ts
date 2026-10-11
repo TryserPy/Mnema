@@ -69,3 +69,72 @@ export function decodeCssEscapes(s: string): string {
 export function cleanModName(name: string): string {
   return String(name).replace(/[^\p{L}\p{N} _.,()\-]/gu, '').slice(0, 60);
 }
+
+// ---------- CSS стиля из файла ----------
+
+/** Сколько знаков CSS принимаем от одного стиля или сниппета (с запасом на небольшую картинку-текстуру внутри файла). */
+export const MAX_CSS = 150000;
+
+// Растровая картинка прямо внутри файла: png, jpeg, webp, gif. SVG и всё остальное через url() не пускаем.
+const DATA_IMG = /^url\(\s*(["']?)\s*data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=\s]{1,120000}\s*\1\s*\)$/i;
+
+/**
+ * Проверка CSS из файла: убираем всё, что может загрузить что-то из интернета, подставить чужую картинку, выполнить код или сломать окно.
+ * Сначала раскрываем экранирование (\75rl( → url(), иначе проверки обходятся; проверяем уже раскрытый текст и его же отдаём.
+ * Разрешено: обычные правила, переменные, анимации, градиенты и картинка-текстура внутри самого файла (data:image png/jpeg/webp/gif).
+ */
+export function sanitizeCss(css: string): string {
+  let s = decodeCssEscapes(String(css ?? '').slice(0, MAX_CSS));
+  // Управляющие знаки, нулевой байт и «<» (</style>, <!-- …) в CSS не нужны.
+  s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f<]/g, '');
+  // Комментарии (ими разрывают слова: u/**/rl), потом ещё раз — после удаления из «u/**/r/**/l» выходит цельное слово.
+  for (let i = 0; i < 3; i++) s = s.replace(/\/\*[\s\S]*?(?:\*\/|$)/g, '');
+  const once = (t: string) =>
+    t
+      .replace(/@\s*(?:-[a-z]+-)?(?:import|namespace|charset|document)\b[^;{]*(?:;|(?=\{)|$)/gi, '')
+      .replace(/url\s*\(\s*[^)]*\)/gi, (m) => (DATA_IMG.test(m.replace(/^url\s*\(/i, 'url(')) ? m : 'none'))
+      .replace(/(?<![\w-])(?:-[a-z]+-)?(?:image-set|cross-fade|element|image|src|paint)\s*\(/gi, 'blocked-fn(') // функции, которые тоже умеют грузить картинки
+      .replace(/expression\s*\(|(?:java|vb|live)script\s*:|-moz-binding|(?:-ms-)?behavior\s*:|binding\s*:/gi, '');
+  // Вырезание может склеить новое запретное слово (expreexpression(ssion() — повторяем до устойчивого вида.
+  for (let i = 0; i < 6; i++) {
+    const next = once(s);
+    if (next === s) break;
+    s = next;
+  }
+  return s;
+}
+
+/**
+ * Значение, которое можно подставить в CSS-переменную из настроек стиля: числа, слова, цвета, calc()/var()/color-mix(), списки шрифтов.
+ * Без ссылок, кавычек-ловушек, комментариев, «;», фигурных скобок и «!important» — значение не должно закончить объявление.
+ */
+export function safeCssValue(v: unknown): string | null {
+  if (typeof v !== 'string' && typeof v !== 'number') return null;
+  const s = String(v).trim();
+  if (!s || s.length > 140) return null;
+  if (!/^[\p{L}\p{N} .,%#()'"\-_+*/:]+$/u.test(s)) return null;
+  if (/\/\*|\*\/|\/\/|url\s*\(|expression|script\s*:|binding|behavior|image|src\s*\(|element\s*\(|\\/i.test(s)) return null;
+  // скобки и кавычки должны быть парными
+  let depth = 0;
+  for (const ch of s) {
+    if (ch === '(') depth++;
+    else if (ch === ')' && --depth < 0) return null;
+  }
+  if (depth !== 0) return null;
+  if ((s.match(/"/g) ?? []).length % 2 || (s.match(/'/g) ?? []).length % 2) return null;
+  return s;
+}
+
+/** Список шрифтов для font-family: названия, запятые, кавычки. */
+export function safeFontFamily(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  if (!s || s.length > 120 || !/^[\p{L}\p{N} ,'"\-_]+$/u.test(s)) return null;
+  if ((s.match(/"/g) ?? []).length % 2 || (s.match(/'/g) ?? []).length % 2) return null;
+  return s;
+}
+
+/** Имя CSS-переменной стиля: --латиница-цифры-дефис. */
+export function safeVarName(v: unknown): string | null {
+  return typeof v === 'string' && /^--[a-z][a-z0-9-]{0,40}$/.test(v) ? v : null;
+}

@@ -1,6 +1,7 @@
 // Левая панель: предметы → темы → подтемы. Её можно тянуть по ширине и сворачивать,
 // темы — перетаскивать (порядок, в другой предмет, внутрь другой темы), отмечать звёздочкой.
 import { openCreate } from './CreateMenu';
+import { useStyleAttr } from '../styleApply';
 import { copyToClip, hasClip, makeCopy, pasteClip } from './copyUi';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
 import { keyFor, prettyCombo, typingTarget } from '../keys';
@@ -66,6 +67,7 @@ export function Sidebar({
   const [editFolder, setEditFolder] = useState<string | null>(null);
   const [delSubj, setDelSubj] = useState<string | null>(null);
   const [delFolder, setDelFolder] = useState<string | null>(null);
+  const railForced = useStyleAttr('sidebar') === 'rail'; // стиль с узкой панелью (значки без подписей)
   // Выбор нескольких: 'f:<id>' папка, 's:<id>' предмет, 't:<id>' тема.
   const [sel, setSel] = useState<Set<string>>(() => new Set());
   const [askDelete, setAskDelete] = useState(false);
@@ -476,7 +478,7 @@ export function Sidebar({
   }
 
   // ---------- Свёрнутая панель ----------
-  if (s.sidebarCollapsed && !mobile) {
+  if ((s.sidebarCollapsed || railForced) && !mobile) {
     return (
       <aside className="sidebar rail">
         <button className="logo" title={window.mnemaApi?.platform === 'web' ? 'Показать панель (тестовая версия)' : 'Показать панель'} aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
@@ -545,7 +547,7 @@ export function Sidebar({
   const hideKey = keyFor(s, 'toggleSidebar');
 
   return (
-    <aside className={'sidebar' + (resizing ? ' resizing' : '')}>
+    <aside className={'sidebar' + (resizing ? ' resizing' : '')} data-part="sidebar">
       <div className="brand">
         <span className="logo">R</span>
         <span className="grow brand-name">
@@ -564,7 +566,7 @@ export function Sidebar({
           </button>
         )}
       </div>
-      <nav className="nav">
+      <nav className="nav" data-part="nav">
         {!mobile && (
           <button className="nav-item create-btn" onClick={openCreate} title="Создать: карточку, тему, предмет, контрольную…">
             <Icon name="plus" /> <span className="grow">Создать</span>

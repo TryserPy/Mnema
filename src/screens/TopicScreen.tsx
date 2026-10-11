@@ -289,7 +289,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
         </div>
       )}
 
-      <div className="topic-tabs">
+      <div className="topic-tabs" data-part="tabs">
         <OverflowTabs
           ariaLabel="Раздел темы"
           value={current}

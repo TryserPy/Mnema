@@ -10,6 +10,7 @@ import { emit } from './plugins/bus';
 import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
+import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
@@ -137,6 +138,8 @@ export const DEFAULT_SETTINGS: Settings = {
   modsOn: [],
   customMods: [],
   userCss: '',
+  cssSnippets: [],
+  styleValues: {},
   motion: 'all',
   motionOff: [],
   retention: 0.9,
@@ -241,8 +244,10 @@ export function normalizeData(raw: unknown): AppData {
       motionOff: Array.isArray(r.settings?.motionOff) ? r.settings!.motionOff : [],
       cardTemplates: Array.isArray(r.settings?.cardTemplates) ? r.settings!.cardTemplates : [],
       modsOn: Array.isArray(r.settings?.modsOn) ? r.settings!.modsOn.map((m) => (m === 'neon' ? 'glow' : m)) : [],
-      customMods: Array.isArray(r.settings?.customMods) ? r.settings!.customMods : [],
-      userCss: typeof r.settings?.userCss === 'string' ? r.settings.userCss : '',
+      customMods: cleanCustomMods(r.settings?.customMods),
+      userCss: '',
+      cssSnippets: cleanSnippets(r.settings?.cssSnippets, r.settings?.userCss),
+      styleValues: cleanStyleValues(r.settings?.styleValues),
       // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
       bgImage:
         typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)

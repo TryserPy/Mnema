@@ -147,7 +147,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           <Timeline data={data} subjectId={id} color={subject.color} go={go} />
         </div>
       ) : (
-      <div className="topic-list tab-pane" key="topics">
+      <div className="topic-list tab-pane" data-part="topic-list" key="topics">
         {topics.length === 0 && !adding && (
           <div className="empty">
             <strong>Тем пока нет</strong>

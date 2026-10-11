@@ -20,8 +20,8 @@ import type { UpdateInfo } from './update';
 import { PluginScreen } from './screens/PluginScreen';
 import { MODS_AVAILABLE } from './featureList';
 import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
-import { applyLook, FONTS, lookKey } from './themes';
-import { allMods, modsCss } from './mods';
+import { applyLook, lookKey } from './themes';
+import { applyStyles } from './styleApply';
 import { cacheSplashTheme } from './splashTheme';
 import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
@@ -144,7 +144,7 @@ export function App() {
   useEffect(() => {
     const t = setTimeout(cacheSplashTheme, 450);
     return () => clearTimeout(t);
-  }, [dark, s.accent, JSON.stringify(s.look), s.bgImage?.src, s.modsOn.join(), s.customMods, s.userCss]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dark, s.accent, JSON.stringify(s.look), s.bgImage?.src, s.modsOn, s.customMods, s.styleValues, s.cssSnippets]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const now = () => cacheSplashTheme();
     const hidden = () => document.visibilityState === 'hidden' && cacheSplashTheme();
@@ -156,21 +156,10 @@ export function App() {
     };
   }, []);
 
-  // Моды: стили включённых модов и свой CSS.
-  const modsStyle = modsCss(s.modsOn, s.customMods, s.userCss);
+  // Стили: один <style> на все включённые стили (по порядку) и сниппеты «мой CSS» + атрибуты раскладки на <html> — React-дерево не перерисовывается.
   useEffect(() => {
-    // шрифты, которые нужны включённым стилям (например, «Тетрадь»)
-    for (const m of allMods(s.customMods)) if (m.font && s.modsOn.includes(m.id)) void FONTS.find((f) => f.id === m.font)?.load?.();
-  }, [s.modsOn.join()]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    let el = document.getElementById('mnema-mods') as HTMLStyleElement | null;
-    if (!el) {
-      el = document.createElement('style');
-      el.id = 'mnema-mods';
-      document.head.appendChild(el);
-    }
-    el.textContent = modsStyle;
-  }, [modsStyle]);
+    applyStyles(s);
+  }, [s.modsOn, s.customMods, s.styleValues, s.cssSnippets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Напоминания о домашке (и на телефоне — ежедневное «пора повторить»): отдаём список системе.
   const plan = JSON.stringify(notificationPlan(data, new Date(), window.mnemaApi?.platform === 'android'));
@@ -513,7 +502,7 @@ export function App() {
   const dueAll = total.learning + total.review + total.newCount;
 
   return (
-    <div className={'app' + (mobile ? ' mobile' : '') + (drawer ? ' drawer-open' : '') + (mobile && !hidesTabBar(route) ? ' has-tabbar' : '')} {...dropProps}>
+    <div data-part="app" className={'app' + (mobile ? ' mobile' : '') + (drawer ? ' drawer-open' : '') + (mobile && !hidesTabBar(route) ? ' has-tabbar' : '')} {...dropProps}>
       {mobile && (
         <header className="mobile-bar">
           <button className="mobile-brand" onClick={() => go({ name: 'today' })}>
@@ -537,7 +526,7 @@ export function App() {
       {mobile && drawer && <div className="drawer-back" onClick={() => setDrawer(false)} />}
       <Sidebar route={route} go={go} dueAll={dueAll} adding={adding} setAdding={setAdding} onNewSubject={(o) => { setDrawer(false); setAddingSubject(o ?? {}); }} onSearch={() => { setDrawer(false); setPalette(true); }} mobile={mobile} />
 
-      <main className="main">
+      <main className="main" data-part="main">
         <div className="page-anim" key={route.name + ('id' in route ? route.id : '')}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
         {route.name === 'knowledge' && <Knowledge go={go} onTree={mobile ? () => setDrawer(true) : undefined} />}

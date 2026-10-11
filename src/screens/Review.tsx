@@ -413,7 +413,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         )}
       </div>
 
-      <div className="review-card" key={current?.key}>
+      <div className="review-card" data-part="review-card" key={current?.key}>
         <div className="review-meta small muted">
           <span className="review-where">
             <span className="dot" style={{ background: subject?.color }} />
@@ -567,7 +567,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
             Показать ответ
           </button>
         ) : settings.simpleButtons ? (
-          <div className="grades two">
+          <div className="grades two" data-part="grades">
             <button className="grade again" onClick={() => grade(Rating.Again)}>
               <span className="strong">Не помню</span>
               {showIv && <span className="small grade-iv">{formatInterval(intervals[0])}</span>}
@@ -580,7 +580,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
             </button>
           </div>
         ) : (
-          <div className="grades">
+          <div className="grades" data-part="grades">
             {GRADES.map((g, i) => (
               <button key={g} className={'grade ' + GRADE_UI[i].cls} onClick={() => grade(g)}>
                 <span className="strong">{GRADE_UI[i].label}</span>

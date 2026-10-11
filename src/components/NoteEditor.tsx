@@ -660,7 +660,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   }
 
   return (
-    <div className="note-page">
+    <div className="note-page" data-part="note">
       <div className="note-insert" ref={barRef}>
         {bar('inline')}
       </div>

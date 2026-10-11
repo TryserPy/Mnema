@@ -1,8 +1,9 @@
 // Моды: наборы стилей, которые меняют вид Refrain. Только оформление (CSS и настройки вида),
 // никаких программ — поэтому моды из файлов от друзей безопасны.
-import { cleanModName, decodeCssEscapes } from './safeCss';
+import { cleanModName, sanitizeCss } from './safeCss';
 import type { Mod } from './types';
 
+/** Прежнее расширение файлов стилей (читается по-прежнему); новые стили сохраняются как .refrainstyle (см. styleSystem.ts). */
 export const MOD_EXT = '.mnemamod';
 
 export const CATALOG: Mod[] = [
@@ -11,9 +12,14 @@ export const CATALOG: Mod[] = [
     icon: '📓',
     name: 'Тетрадь',
     where: 'везде',
-    description: 'Фон в клетку, округлый шрифт и красные поля у конспекта.',
+    description: 'Фон в клетку, округлый шрифт и красные поля у конспекта. Размер клетки и цвета меняются в настройках стиля.',
     font: 'comfortaa',
-    css: `.main { background-image: linear-gradient(color-mix(in srgb, var(--accent) 11%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--accent) 11%, transparent) 1px, transparent 1px); background-size: 22px 22px; background-attachment: local; } :root { --body: 'Comfortaa', 'Onest', system-ui, sans-serif !important; } .note-page, .style-preview .note-page { box-shadow: inset 4px 0 0 0 color-mix(in srgb, #E0525A 60%, transparent); }`
+    settings: [
+      { id: 'cell', type: 'slider', label: 'Размер клетки', var: '--nb-cell', min: 14, max: 44, step: 2, unit: 'px', default: 22 },
+      { id: 'grid', type: 'color', label: 'Цвет клетки', var: '--nb-grid', default: '#3F51D81C', defaultDark: '#8E9BFF22' },
+      { id: 'margin', type: 'color', label: 'Цвет полей', var: '--nb-margin', default: '#E0525A99' }
+    ],
+    css: `.main { background-image: linear-gradient(var(--nb-grid, color-mix(in srgb, var(--accent) 11%, transparent)) 1px, transparent 1px), linear-gradient(90deg, var(--nb-grid, color-mix(in srgb, var(--accent) 11%, transparent)) 1px, transparent 1px); background-size: var(--nb-cell, 22px) var(--nb-cell, 22px); background-attachment: local; } :root { --body: 'Comfortaa', 'Onest', system-ui, sans-serif !important; } .note-page, .style-preview .note-page { box-shadow: inset 4px 0 0 0 var(--nb-margin, color-mix(in srgb, #E0525A 60%, transparent)); }`
   },
   {
     id: 'big-buttons',
@@ -78,26 +84,91 @@ export const CATALOG: Mod[] = [
     where: 'везде',
     description: 'Моноширинный шрифт для всего — как в старом компьютере.',
     css: `:root { --body: ui-monospace, 'Cascadia Mono', 'Consolas', monospace !important; --display: ui-monospace, 'Cascadia Mono', 'Consolas', monospace !important; } .display { letter-spacing: -0.02em; }`
+  },
+  {
+    id: 'compact',
+    icon: '📏',
+    name: 'Компакт',
+    where: 'раскладка',
+    description: 'Плотный интерфейс: меньше отступов, ниже кнопки и строки — больше помещается на экране.',
+    vars: { light: { '--pad': '12px', '--gap': '10px', '--rf-btn-h': '34px', '--rf-btn-h-small': '28px', '--rf-input-h': '34px', '--rf-nav-h': '34px', '--rf-tab-h': '36px', '--rf-grade-h': '54px', '--rf-row-pad': '10px 14px', '--rf-list-gap': '4px', '--rf-page-pad': '22px 28px 40px', '--rf-review-pad': '22px 26px', '--rf-question-size': '1.5rem', '--rf-note-size': '1rem', '--rf-note-lh': '1.55', '--rf-note-pad': '24px 32px 40px', '--rf-hero-pad': '18px 22px' } },
+    settings: [{ id: 'wide', type: 'toggle', label: 'Широкая колонка', description: 'Содержимое занимает больше места по ширине.', attr: 'content', on: 'wide', off: 'normal', default: true }]
+  },
+  {
+    id: 'focus',
+    icon: '🎯',
+    name: 'Фокус',
+    where: 'раскладка',
+    description: 'Ничего лишнего: узкая колонка по центру, панель — только значки, плоские карточки, без счётчиков.',
+    attrs: { sidebar: 'rail', content: 'narrow', cards: 'flat' },
+    settings: [
+      { id: 'width', type: 'select', label: 'Ширина колонки', attr: 'content', default: 'narrow', options: [{ value: 'narrow', label: 'Узкая' }, { value: 'normal', label: 'Обычная' }, { value: 'wide', label: 'Широкая' }] },
+      { id: 'rail', type: 'toggle', label: 'Узкая панель со значками', attr: 'sidebar', on: 'rail', off: 'left', default: true }
+    ],
+    css: `.hero-sub2, .hero-time, .plan-why, .badge.soft, .rail-badge { display: none !important; } .note-doc { font-size: 1.12rem; line-height: 1.8; } .display { letter-spacing: -0.02em; }`
+  },
+  {
+    id: 'tiles',
+    icon: '🧱',
+    name: 'Плитки',
+    where: 'раскладка',
+    description: 'Темы предмета — плитками в сетке, кнопки оценки — «2 на 2», карточки с рамкой.',
+    attrs: { topics: 'tiles', grades: 'grid', cards: 'outline' },
+    settings: [{ id: 'tile', type: 'slider', label: 'Ширина плитки', var: '--rf-tile-w', min: 160, max: 380, step: 10, unit: 'px', default: 230 }]
+  },
+  {
+    id: 'top-bar',
+    icon: '⬆️',
+    name: 'Панель сверху',
+    where: 'раскладка',
+    description: 'Меню — полосой сверху, а не слева. Предметы — на экране «Знания». Экран шире.',
+    attrs: { sidebar: 'top', content: 'wide' }
+  },
+  {
+    id: 'right-panel',
+    icon: '➡️',
+    name: 'Панель справа',
+    where: 'раскладка',
+    description: 'Боковая панель переезжает на правую сторону.',
+    attrs: { sidebar: 'right' }
+  },
+  {
+    id: 'tablet',
+    icon: '👆',
+    name: 'Крупно для планшета',
+    where: 'раскладка',
+    description: 'Всё крупнее: кнопки, поля, вкладки, оценки и текст — удобно пальцем. Размер текста — в настройках стиля.',
+    attrs: { grades: 'tall' },
+    vars: { light: { '--rf-btn-h': '52px', '--rf-btn-h-small': '44px', '--rf-input-h': '52px', '--rf-nav-h': '52px', '--rf-tab-h': '54px', '--rf-row-pad': '20px 22px', '--rf-question-size': '2.3rem', '--rf-note-size': '1.2rem', '--rf-list-gap': '12px' } },
+    settings: [{ id: 'scale', type: 'slider', label: 'Размер текста', description: 'Во сколько раз крупнее обычного.', var: '--rf-ui-scale', min: 0.9, max: 1.5, step: 0.05, unit: '', default: 1.12 }],
+    css: `:root { font-size: calc(16px * var(--rf-ui-scale, 1.12)) !important; } .icon-btn { width: 46px; height: 46px; }`
+  },
+  {
+    id: 'glass',
+    icon: '🪟',
+    name: 'Стекло',
+    where: 'везде',
+    description: 'Полупрозрачные панели, карточки и окна с размытием поверх мягкого цветного фона.',
+    settings: [
+      { id: 'blur', type: 'slider', label: 'Размытие', var: '--glass-blur', min: 0, max: 40, step: 2, unit: 'px', default: 14 },
+      { id: 'alpha', type: 'slider', label: 'Плотность стекла', var: '--glass-alpha', min: 30, max: 95, step: 5, unit: '%', default: 62 },
+      { id: 'glow', type: 'color', label: 'Цвет подсветки фона', var: '--glass-glow', default: '#6F80F055', defaultDark: '#6F80F044' }
+    ],
+    css: `.main { background-image: radial-gradient(60% 50% at 15% 10%, var(--glass-glow, color-mix(in srgb, var(--accent) 30%, transparent)), transparent 70%), radial-gradient(50% 45% at 90% 85%, var(--glass-glow, color-mix(in srgb, var(--accent) 22%, transparent)), transparent 70%); background-attachment: fixed; } .sidebar, .card, .review-card, .note-page, .topic-row, .card-row, .menu, .modal, .imp-panel { background: color-mix(in srgb, var(--surface) var(--glass-alpha, 62%), transparent) !important; -webkit-backdrop-filter: blur(var(--glass-blur, 14px)) saturate(1.35); backdrop-filter: blur(var(--glass-blur, 14px)) saturate(1.35); } .sidebar { background: color-mix(in srgb, var(--side) var(--glass-alpha, 62%), transparent) !important; }`
   }
 ];
+
+for (const m of CATALOG) {
+  m.author ??= 'Refrain';
+  m.version ??= '1.0';
+}
 
 export function isMod(x: unknown): x is Mod & { kind: 'mnema-mod' } {
   const m = x as Record<string, unknown>;
   return Boolean(m && m.kind === 'mnema-mod' && typeof m.name === 'string' && (typeof m.css === 'string' || typeof m.look === 'object'));
 }
 
-/** Проверка CSS из файла: убираем всё, что может загрузить что-то из интернета, подставить чужую картинку или сломать окно.
- *  Сначала раскрываем экранирование (\75rl( → url(), иначе проверки обходятся; проверяем уже раскрытый текст и его же отдаём. */
-export function sanitizeCss(css: string): string {
-  return decodeCssEscapes(css.slice(0, 40000))
-    .replace(/\/\*[\s\S]*?\*\//g, '') // комментарии: ими разрывают слова (u/**/rl)
-    .replace(/@\s*import\b[^;]*;?/gi, '')
-    .replace(/@\s*(?:namespace|charset)\b[^;]*;?/gi, '')
-    .replace(/url\(\s*(?!['"]?data:image\/)[^)]*\)/gi, 'none')
-    .replace(/(?<![\w-])(?:-[a-z]+-)?(?:image-set|cross-fade|element|image|src|paint)\s*\(/gi, 'blocked-fn(') // функции, которые тоже умеют грузить картинки
-    .replace(/expression\s*\(|javascript:|-moz-binding|behavior\s*:/gi, '')
-    .replace(/<\/?style[^>]*>/gi, '');
-}
+export { sanitizeCss };
 
 export function allMods(custom: Mod[]): Mod[] {
   return [...CATALOG, ...custom];
