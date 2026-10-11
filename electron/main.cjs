@@ -31,6 +31,9 @@ const notify = require('./notify.cjs');
 const updater = require('./updater.cjs');
 const ocr = require('./ocr.cjs');
 const sync = require('./sync.cjs');
+const openFiles = require('./openFiles.cjs');
+const linux = require('./linux.cjs');
+linux.applyEarlyFlags(app); // Linux: Wayland/X11 по умолчанию и портал горячих клавиш — до запуска окна
 
 let mainWin = null;
 const startHidden = process.argv.includes('--hidden');
@@ -96,7 +99,7 @@ function createWindow() {
   win.on('close', (e) => {
     if (tray.shouldHideOnClose()) {
       e.preventDefault();
-      win.hide();
+      tray.hideWindow(win); // к значку у часов; на Linux без значка — свернуть
     }
   });
   win.on('closed', () => {
@@ -292,13 +295,14 @@ const single = app.requestSingleInstanceLock();
 if (!single) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_e, argv, cwd) => {
     const w = mainWin;
     if (w) {
       if (w.isMinimized()) w.restore();
       w.show();
       w.focus();
     }
+    openFiles.handleArgv(argv, cwd); // двойной щелчок по файлу .mnema, пока Refrain уже открыта
   });
   ai.register();
   ocr.register();
@@ -306,6 +310,8 @@ if (!single) {
   tray.register(() => mainWin);
   notify.register(() => mainWin);
   updater.register(() => mainWin);
+  openFiles.register(() => mainWin);
+  openFiles.handleArgv(process.argv, process.cwd()); // Refrain запущена двойным щелчком по файлу
   // Запустили скрыто, но трей выключен — показать окно, иначе приложение будет невидимым.
   ipcMain.once('tray:state', (_e, s) => {
     setTimeout(() => {

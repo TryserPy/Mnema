@@ -55,7 +55,7 @@ async function http(url: string, init: HttpInit = {}): Promise<HttpRes> {
     return { status: res.status, text: await res.text() };
   } catch (e) {
     const aborted = (e as Error).name === 'AbortError';
-    return { status: 0, text: '', error: aborted ? 'Сервер слишком долго не отвечает' : 'Нет связи с сервером. Если интернет есть — сервер не разрешает запросы из браузера (CORS); в приложении для Windows и Android такого ограничения нет.' };
+    return { status: 0, text: '', error: aborted ? 'Сервер слишком долго не отвечает' : 'Нет связи с сервером. Если интернет есть — сервер не разрешает запросы из браузера (CORS); в приложении для Windows, Linux и Android такого ограничения нет.' };
   } finally {
     clearTimeout(timer);
   }
@@ -212,7 +212,7 @@ function testNotice() {
   h.textContent = 'Онлайн-версия Refrain — только для тестов';
   h.style.cssText = 'margin:0;font-size:1.25rem;line-height:1.25;overflow-wrap:anywhere';
   const p = document.createElement('p');
-  p.textContent = 'Данные хранятся только в этом браузере и могут пропасть. Для постоянной учёбы — приложение для Windows или Android.';
+  p.textContent = 'Данные хранятся только в этом браузере и могут пропасть. Для постоянной учёбы — приложение для Windows, Linux или Android.';
   p.style.cssText = 'margin:0;color:var(--ink-2,#444);overflow-wrap:anywhere';
   const b = document.createElement('button');
   b.textContent = 'Понятно';
@@ -232,7 +232,7 @@ function testNotice() {
   b.focus();
 }
 
-/** true — можно запускать приложение. На Windows и Android мост уже есть, и ничего не меняется. */
+/** true — можно запускать приложение. На Windows, Linux и Android мост уже есть, и ничего не меняется. */
 export async function initWeb(): Promise<boolean> {
   if (window.mnemaApi) return true;
   listenInstall();

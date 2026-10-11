@@ -7,7 +7,7 @@ export function aiAvailable(data: AppData): boolean {
 
 async function ask(req: { system?: string; text: string; image?: { mime: string; data: string }; maxTokens?: number }): Promise<string> {
   const api = window.mnemaApi;
-  if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows.');
+  if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows и Linux.');
   const r = await api.aiAsk(req);
   if (!r.ok) throw new Error(humanError(r.error));
   if (!r.text) throw new Error('Модель вернула пустой ответ.');

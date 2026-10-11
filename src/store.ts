@@ -93,7 +93,7 @@ declare global {
       ocrRecognize?: (bytes: Uint8Array) => Promise<{ ok: true; lines: unknown[] } | { ok: false; error: string }>;
       scheduleNotifications?: (list: { id: string; at: number; title: string; body: string; open: string }[]) => void;
       setWidget?: (json: string) => void;
-      updateCheck?: (src: { owner: string; repo: string }) => Promise<{ ok: boolean; error?: string; current?: string; latest?: string | null; available?: boolean; notes?: string }>;
+      updateCheck?: (src: { owner: string; repo: string }) => Promise<{ ok: boolean; error?: string; current?: string; latest?: string | null; available?: boolean; notes?: string; manual?: boolean; url?: string; fileName?: string; size?: number }>;
       /** Скачать обновление. На телефоне — APK по ссылке из выпуска (url), на компьютере url не нужен. */
       updateDownload?: (url?: string) => Promise<{ ok: boolean; error?: string }>;
       /** Поставить скачанное. На телефоне может попросить разрешение «ставить приложения» (permission). */
@@ -103,6 +103,8 @@ declare global {
       setSelMenu?: (items: { id: string; title: string }[]) => void;
       /** Значок приложения на рабочем столе телефона (под тему). */
       setAppIcon?: (name: string) => void;
+      /** Файл Refrain (.mnema, .refrainstyle, .mnemamod), открытый двойным щелчком или из командной строки (компьютер). */
+      onOpenFile?: (cb: (f: { name: string; text: string }) => void) => () => void;
       onNotifyOpen?: (cb: (what: string) => void) => () => void;
       notifyPermission?: () => Promise<boolean>;
       trayState?: (s: { enabled: boolean; due: number; reminder: string | null; hotkey: boolean; accelerator?: string; closeToTray: boolean; autostart: boolean }) => void;

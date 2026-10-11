@@ -1,6 +1,7 @@
 // Значок в трее, мини-повторение по горячей клавише и напоминание в заданное время.
 const { app, ipcMain, Tray, Menu, nativeImage, globalShortcut, Notification, screen } = require('electron');
 const path = require('path');
+const linux = require('./linux.cjs');
 
 const HOTKEY = 'CommandOrControl+Alt+M';
 let tray = null;
@@ -9,6 +10,9 @@ let registered = null;
 let lastNotified = '';
 let miniRestore = null; // { bounds, wasVisible }
 let getWin = () => null;
+// Linux: есть ли в системе место для значка (GNOME без расширения AppIndicator его не показывает). До проверки считаем, что есть.
+let trayHost = true;
+let shownForNoTray = false;
 
 function icon(size) {
   return nativeImage.createFromPath(path.join(__dirname, 'icon.png')).resize({ width: size, height: size });
@@ -84,8 +88,9 @@ function rebuildMenu() {
 
 function apply() {
   if (state.enabled && !tray) {
-    tray = new Tray(icon(16));
+    tray = new Tray(icon(process.platform === 'linux' ? 24 : 16));
     tray.on('click', showMain);
+    if (process.platform === 'linux') checkTrayHost();
   }
   if (!state.enabled && tray) {
     tray.destroy();
@@ -104,7 +109,27 @@ function apply() {
   rebuildMenu();
   if (process.platform === 'win32' || process.platform === 'darwin') {
     app.setLoginItemSettings({ openAtLogin: Boolean(state.enabled && state.autostart), args: ['--hidden'] });
+  } else if (process.platform === 'linux') {
+    linux.setAutostart(app, Boolean(state.enabled && state.autostart));
   }
+}
+
+// Linux: спросить систему, покажется ли значок. Если нет — окно при закрытии не прячем (его было бы не вернуть),
+// а запущенное скрыто (--hidden при автозапуске) показываем сразу.
+function checkTrayHost() {
+  void linux.probeTrayHost().then((ok) => {
+    trayHost = ok;
+    if (!ok && !shownForNoTray && process.argv.includes('--hidden')) {
+      shownForNoTray = true;
+      const w = getWin();
+      if (w && !w.isDestroyed() && !w.isVisible()) w.show();
+    }
+  });
+}
+
+/** Что сделать при закрытии окна: 'close' | 'hide' | 'minimize' (см. linux.closeAction). */
+function closeAction() {
+  return linux.closeAction({ platform: process.platform, trayEnabled: state.enabled, closeToTray: state.closeToTray, quitting: Boolean(app.isQuitting), trayHost });
 }
 
 function checkReminder() {
@@ -148,11 +173,15 @@ function register(winGetter) {
   });
   ipcMain.on('mini:end', endMini);
   setInterval(checkReminder, 30_000);
+  // Linux: расширение со значками (AppIndicator) могло включиться уже после запуска — проверяем раз в минуту.
+  if (process.platform === 'linux') setInterval(() => tray && checkTrayHost(), 60_000);
   app.on('will-quit', () => globalShortcut.unregisterAll());
 }
 
 module.exports = {
   register,
-  shouldHideOnClose: () => state.enabled && state.closeToTray && !app.isQuitting,
+  shouldHideOnClose: () => closeAction() !== 'close',
+  /** Спрятать окно при закрытии: к значку у часов, а если значка нет (Linux) — свернуть. */
+  hideWindow: (w) => (closeAction() === 'minimize' ? w.minimize() : w.hide()),
   isEnabled: () => state.enabled
 };

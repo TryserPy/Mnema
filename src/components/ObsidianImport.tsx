@@ -28,7 +28,7 @@ export function ObsidianImport({ subjectId, onClose, onDone }: { subjectId?: str
   if (!api?.obsidianPick) {
     return (
       <Modal title="Импорт из Obsidian" onClose={onClose}>
-        <p>Импорт из Obsidian работает в приложении для Windows.</p>
+        <p>Импорт из Obsidian работает в приложении для Windows и Linux.</p>
       </Modal>
     );
   }
