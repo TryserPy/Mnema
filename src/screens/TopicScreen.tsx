@@ -15,7 +15,7 @@ import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, selHow, use
 import { boldTerms, mentioned, suggestFromSelection } from '../noteTools';
 import { exportTopic } from '../share';
 import { examsOf } from '../examList';
-import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer, todayCounts } from '../srs';
+import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer } from '../srs';
 import { addList, addPoem, addTopic, childTopics, deleteCard, LIST_PRESETS, resetCardProgress, subjectRules, topicWithDescendants, updateTopic, useData, getData } from '../store';
 import { StudyListView } from '../components/StudyListView';
 import { PoemView } from '../components/PoemView';
@@ -27,6 +27,7 @@ import { sameLook } from '../notePhantom';
 import { orderTabs, reorderTab } from '../tabs';
 import { ExamPlanLine } from './Today';
 import { openRepeatDialog } from '../components/RepeatDialog';
+import { nextDueText, studyStatus } from '../studyStatus';
 import { hasRepeatable } from '../repeat';
 import { PrintDialog } from '../components/ExportDialogs';
 import { keyFor, matches, prettyCombo } from '../keys';
@@ -63,8 +64,6 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const allCards = data.cards.filter((c) => c.topicId === id);
   const cards = allCards.filter((c) => !c.listId);
   const lists = topic.lists ?? [];
-  const counts = todayCounts(data, new Date(), { topicId: id });
-  const due = counts.learning + counts.review + counts.newCount;
   const ancestors: { id: string; name: string }[] = [];
   for (let p = data.topics.find((t) => t.id === topic.parentId); p; p = data.topics.find((t) => t.id === p!.parentId)) ancestors.unshift({ id: p.id, name: p.name });
   const kids = childTopics(data, topic.subjectId, id);
@@ -76,6 +75,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   }, [data.cards]);
   const subCount = topicWithDescendants(data, id).size - 1;
   // Повторять можно всё в теме вместе с подтемами, а не только её собственные карточки.
+  const study = useMemo(() => studyStatus(data, new Date(), { topicId: id }), [data, id]); // eslint-disable-line react-hooks/exhaustive-deps
   const canRepeat = useMemo(() => hasRepeatable(data, { topicId: id }), [data.cards, data.topics, id]); // eslint-disable-line react-hooks/exhaustive-deps
   const listTab = tab?.startsWith('list:') ? lists.find((l) => 'list:' + l.id === tab) : undefined;
   const poems = topic.poems ?? [];
@@ -185,14 +185,19 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
           )}
           {topic.examDate && topic.kind !== 'rule' && examInfo && examInfo.total > 0 && <ExamPlanLine plan={examInfo} />}
         </div>
+        <div className="head-actions">
         <div className="row gap8">
-          {due === 0 && canRepeat ? (
-            <button className="btn primary big-ish" title="На сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id })}>
+          {study.kind === 'done' ? (
+            <button className="btn primary big-ish" title="Сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id })}>
               <Icon name="repeat" size={18} /> Повторить ещё раз
             </button>
+          ) : study.kind === 'new' ? (
+            <button className="btn primary big-ish" title="По расписанию на сегодня всё, но есть новые карточки" onClick={() => go({ name: 'review', topicId: id, extraNew: study.fresh })}>
+              <Icon name="play" size={16} /> Учить новые · {study.fresh}
+            </button>
           ) : (
-            <button className="btn primary big-ish" disabled={due === 0} onClick={() => go({ name: 'review', topicId: id })}>
-              <AnimText value={due === 0 ? 'Нет карточек' : `Учить · ${due}`} />
+            <button className="btn primary big-ish" disabled={study.kind !== 'learn'} onClick={() => go({ name: 'review', topicId: id })}>
+              <AnimText value={study.kind === 'learn' ? `Учить · ${study.due}` : study.kind === 'idle' ? 'Нечего повторять' : 'Нет карточек'} />
             </button>
           )}
           <MoreMenu
@@ -227,6 +232,10 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Удалить тему', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
             ]}
           />
+        </div>
+        {study.kind === 'done' && <span className="study-note small muted">Всё повторено ✓</span>}
+        {study.kind === 'idle' && <span className="study-note small muted">Сегодня повторять нечего{study.next !== null ? ` · следующий повтор ${nextDueText(study.next)}` : ''}</span>}
+
         </div>
       </div>
 

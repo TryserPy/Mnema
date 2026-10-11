@@ -1,7 +1,8 @@
 // Словарь / список в теме: таблица «что спрашиваем — ответ — пример». Каждая строка сама становится карточкой.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { canSpeak, speak, SPEAK_LANGS, stopSpeaking, useSpeaking } from '../speak';
-import { itemKey, itemOrds, normalizeAnswer, todayCounts } from '../srs';
+import { itemKey, itemOrds, normalizeAnswer } from '../srs';
+import { nextDueText, studyStatus, type StudyStatus } from '../studyStatus';
 import { addListRow, addListRows, deleteCardsUndoable, deleteList, getData, LIST_PRESETS, restoreRemoved, updateCard, updateList, useData } from '../store';
 import { orderTabs, reorderTab } from '../tabs';
 import type { AppData, Card, ListMode, Route, StudyList } from '../types';
@@ -40,6 +41,29 @@ export function parseListText(text: string): { a: string; b: string; c?: string 
   return out;
 }
 
+/** Главная кнопка «Учить» списка: по состоянию (см. studyStatus). «Всё повторено» — только если сегодня правда повторял. */
+export function StudyButton({ status, onLearn }: { status: StudyStatus; onLearn: (extraNew?: number) => void }) {
+  if (status.kind === 'learn')
+    return (
+      <button className="btn primary" onClick={() => onLearn()}>
+        <Icon name="play" size={16} /> <AnimText value={`Учить · ${status.due}`} />
+      </button>
+    );
+  if (status.kind === 'new')
+    return (
+      <button className="btn primary" onClick={() => onLearn(status.fresh)}>
+        <Icon name="play" size={16} /> Учить новые · {status.fresh}
+      </button>
+    );
+  const text = status.kind === 'done' ? 'Всё повторено ✓' : status.kind === 'idle' ? 'Нечего повторять' : 'Нет строк';
+  const hint = status.kind === 'idle' && status.next !== null ? `Следующий повтор ${nextDueText(status.next)}` : undefined;
+  return (
+    <button className="btn primary" disabled title={hint}>
+      <Icon name="play" size={16} /> {text}
+    </button>
+  );
+}
+
 export function StudyListView({ topicId, list, go, subjectId }: { topicId: string; list: StudyList; go: (r: Route) => void; subjectId?: string }) {
   const data = useData();
   const rows = useMemo(() => data.cards.filter((c) => c.topicId === topicId && c.listId === list.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt)), [data.cards, topicId, list.id]);
@@ -50,8 +74,7 @@ export function StudyListView({ topicId, list, go, subjectId }: { topicId: strin
   const q = normalizeAnswer(query);
   const shown = q ? rows.filter((c) => normalizeAnswer(`${c.front} ${c.back} ${c.why ?? ''}`).includes(q)) : rows;
   const ids = rows.map((r) => r.id);
-  const counts = useMemo(() => (ids.length ? todayCounts(data, new Date(), { cardIds: ids }) : { learning: 0, review: 0, newCount: 0 }), [data, ids.join()]); // eslint-disable-line react-hooks/exhaustive-deps
-  const due = counts.learning + counts.review + counts.newCount;
+  const study = useMemo(() => studyStatus(data, new Date(), { cardIds: ids }), [data, ids.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const known = rows.filter((c) => rowStatus(data, c) === 'known').length;
   const speakable = Boolean(list.lang) && canSpeak();
   const isFormula = list.kind === 'formulas';
@@ -63,9 +86,7 @@ export function StudyListView({ topicId, list, go, subjectId }: { topicId: strin
   return (
     <div className="stack gap12 tab-pane list-view">
       <div className="row gap8 wrap list-head">
-        <button className="btn primary" disabled={!due} onClick={() => go({ name: 'review', cardIds: ids })}>
-          <Icon name="play" size={16} /> <AnimText value={due ? `Учить · ${due}` : rows.length ? 'Всё повторено' : 'Учить'} />
-        </button>
+        <StudyButton status={study} onLearn={(extraNew) => go({ name: 'review', cardIds: ids, extraNew })} />
         {rows.length > 0 && (
           <button className="btn" onClick={() => go({ name: 'review', cardIds: ids, cram: true })} title="Пройти все строки без изменения расписания">
             <Icon name="repeat" size={16} /> Повторить все

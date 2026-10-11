@@ -5,6 +5,7 @@ import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
 import { addExample } from '../seed';
 import { startTutorial } from '../components/Tutorial';
+import { nextDueText, studyStatus } from '../studyStatus';
 import { duePoems } from '../poem';
 import { dayStart, todayCounts, tomorrowSubjects, topicMastery, warmupCards, type ExamPlan } from '../srs';
 import { buildSession, SESSION_MINUTES, sessionPrefs, toggledSkip } from '../session';
@@ -23,6 +24,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   const f = data.settings.features;
   const counts = todayCounts(data, now);
   const total = counts.learning + counts.review + counts.newCount;
+  const allStudy = useMemo(() => studyStatus(data, now), [data, now]);
 
   // «Учиться»: один план на сегодня. Время (5/10/20 минут) и пропущенные шаги выбирает человек.
   const [planOpen, setPlanOpen] = useState(false);
@@ -119,12 +121,35 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
           </>
         ) : (
           <>
-            <div className="hero-num small-num">Всё повторено ✓</div>
-            <div className="hero-sub">Новые повторения появятся завтра. Можно дописать конспект или добавить карточки.</div>
-            {data.cards.length > 0 && (
-              <button className="hero-alt" onClick={() => openRepeatDialog()} title="Повторённое сегодня, всё начатое, слабые места — расписание не изменится">
-                <Icon name="repeat" size={18} /> Повторить ещё раз
-              </button>
+            {allStudy.kind === 'new' ? (
+              <>
+                <div className="hero-num small-num">Есть новые карточки</div>
+                <div className="hero-sub">По расписанию на сегодня всё. Но {allStudy.fresh} {plural(allStudy.fresh, 'новая карточка ещё не выучена', 'новые карточки ещё не выучены', 'новых карточек ещё не выучены')} — можно начать.</div>
+                <button className="hero-btn" onClick={() => go({ name: 'review', extraNew: allStudy.fresh, run: Date.now() })}>
+                  <Icon name="play" size={18} /> Учить новые · {allStudy.fresh}
+                </button>
+              </>
+            ) : allStudy.kind === 'done' ? (
+              <>
+                <div className="hero-num small-num">Всё повторено ✓</div>
+                <div className="hero-sub">Новые повторения появятся позже. Можно дописать конспект, добавить карточки или закрепить уже выученное.</div>
+                <button className="hero-alt" onClick={() => openRepeatDialog()} title="Повторённое сегодня, всё начатое, слабые места — расписание не изменится">
+                  <Icon name="repeat" size={18} /> Повторить ещё раз
+                </button>
+              </>
+            ) : allStudy.kind === 'idle' ? (
+              <>
+                <div className="hero-num small-num">На сегодня повторять нечего</div>
+                <div className="hero-sub">{allStudy.next !== null ? `Следующий повтор — ${nextDueText(allStudy.next)}. ` : ''}Можно дописать конспект или добавить карточки.</div>
+              </>
+            ) : (
+              <>
+                <div className="hero-num small-num">Пока нет карточек</div>
+                <div className="hero-sub">Сделай карточки из конспекта — и они появятся здесь, когда придёт время повторять.</div>
+                <button className="hero-alt" onClick={() => go({ name: 'knowledge' })}>
+                  Открыть знания
+                </button>
+              </>
             )}
           </>
         )}

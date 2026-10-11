@@ -6,6 +6,7 @@ import { openRepeatDialog } from '../components/RepeatDialog';
 import { Icon, plural, SubjectMark } from '../components/ui';
 import { hasRepeatable } from '../repeat';
 import { todayCounts, topicMastery } from '../srs';
+import { nextDueText, studyStatus } from '../studyStatus';
 import { childTopics, sortedSubjects, useData } from '../store';
 import type { Route } from '../types';
 
@@ -16,8 +17,7 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
   if (!f) return <div className="page">Папка не найдена.</div>;
   const subjects = sortedSubjects(data).filter((s) => s.folderId === id);
   const now = new Date();
-  const counts = subjects.length ? todayCounts(data, now, { subjectIds: subjects.map((s) => s.id) }) : { learning: 0, review: 0, newCount: 0 };
-  const due = counts.learning + counts.review + counts.newCount;
+  const study = subjects.length ? studyStatus(data, now, { subjectIds: subjects.map((s) => s.id) }) : ({ kind: 'empty' } as const);
   const canRepeat = subjects.length > 0 && hasRepeatable(data, { subjectIds: subjects.map((s) => s.id) });
   return (
     <div className="page narrow">
@@ -30,13 +30,20 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
           </button>
         </div>
         <div className="row gap8 wrap">
-          {due > 0 && (
+          {study.kind === 'done' && <span className="study-note small muted">Всё повторено ✓</span>}
+          {study.kind === 'idle' && <span className="study-note small muted">Сегодня повторять нечего{study.next !== null ? ` · ${nextDueText(study.next)}` : ''}</span>}
+          {study.kind === 'learn' && (
             <button className="btn primary" onClick={() => go({ name: 'review', subjectIds: subjects.map((s) => s.id), folderId: id })}>
-              <Icon name="play" size={16} /> Учить всю папку · {due}
+              <Icon name="play" size={16} /> Учить всю папку · {study.due}
+            </button>
+          )}
+          {study.kind === 'new' && (
+            <button className="btn primary" onClick={() => go({ name: 'review', subjectIds: subjects.map((s) => s.id), folderId: id, extraNew: study.fresh })}>
+              <Icon name="play" size={16} /> Учить новые · {study.fresh}
             </button>
           )}
           {canRepeat && (
-            <button className={'btn' + (due > 0 ? '' : ' primary')} onClick={() => openRepeatDialog({ folderId: id })} title={due > 0 ? 'Повторить ещё раз: повторённое сегодня, всё начатое, слабые места' : 'На сегодня всё повторено — можно повторить ещё раз'}>
+            <button className={'btn' + (study.kind === 'done' ? ' primary' : '')} onClick={() => openRepeatDialog({ folderId: id })} title={study.kind === 'done' ? 'На сегодня всё повторено — можно повторить ещё раз' : 'Повторить ещё раз: повторённое сегодня, всё начатое, слабые места'}>
               <Icon name="repeat" size={16} /> Повторить ещё раз
             </button>
           )}

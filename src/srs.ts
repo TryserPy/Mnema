@@ -243,6 +243,8 @@ export interface QueueScope {
   cram?: boolean; // «Повторить всю тему»: все карточки, расписание не меняется
   /** «Заранее»: уже начатые карточки из cardIds в том порядке, как их передали (слабые — первыми), без учёта срока; ответы пишутся в расписание как обычно. */
   ahead?: boolean;
+  /** «Учить новые»: на сколько новых карточек можно превысить дневной лимит (когда по расписанию всё сделано, а новые остались). */
+  extraNew?: number;
 }
 
 /** Тема вместе с подтемами (учить параграф = учить и его подтемы). */
@@ -393,7 +395,7 @@ export function buildQueue(data: AppData, now: Date, scope: QueueScope = {}, rnd
     else review.push(it);
   }
   // Сиблинги (две стороны одной карточки, разные пропуски) не показываем в один день как новые.
-  const newLeft = Math.max(0, data.settings.newPerDay - newIntroducedToday(data, now));
+  const newLeft = Math.max(0, data.settings.newPerDay - newIntroducedToday(data, now)) + (scope.extraNew ?? 0);
   // План до контрольной: новые карточки темы с контрольной — сверх дневного лимита, по плану;
   // в последние дни — повторение «заранее» того, что иначе забылось бы к контрольной.
   const boost = scope.cram ? new Map<string, 'new' | 'ahead'>() : examBoost(data, now);

@@ -46,8 +46,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         ? buildSession(getData(), new Date(), route.session).items // «Учиться»: план на сегодня с учётом времени и пропущенных шагов
         : route.only
           ? buildRepeatQueue(getData(), new Date(), route.topicIds ? { topicIds: route.topicIds, cardIds: route.cardIds } : { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds }, route.only).slice(0, route.limit ?? Infinity) // «Повторить ещё раз»
-          : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead) }).slice(0, route.limit ?? Infinity),
-    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session, route.only, route.topicIds]
+          : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead), extraNew: route.extraNew }).slice(0, route.limit ?? Infinity),
+    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session, route.only, route.topicIds, route.extraNew]
   );
   const [queue, setQueue] = useState<QueueItem[]>(initial.slice(1));
   const [waiting, setWaiting] = useState<Waiting[]>([]);
