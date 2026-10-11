@@ -23,7 +23,7 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
     <div className="page narrow">
       <div className="row between end-align gap12 wrap">
         <div className="row gap12">
-          {f.icon ? <SubjectMark color={f.color} icon={f.icon} size="big" /> : <span className="folder-badge" style={{ color: f.color }}><Icon name="folder" size={30} /></span>}
+          {f.icon || f.iconImg ? <SubjectMark color={f.color} icon={f.icon} img={f.iconImg} size="big" /> : <span className="folder-badge" style={{ color: f.color }}><Icon name="folder" size={30} /></span>}
           <h1 className="display">{f.name}</h1>
           <button className="icon-btn small subtle" aria-label="Изменить папку" title="Изменить или удалить папку" onClick={() => setEditing(true)}>
             <Icon name="edit" size={18} />
@@ -76,7 +76,7 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
           const pct = total ? Math.round((learned / total) * 100) : 0;
           return (
             <button key={s.id} className="folder-subject" style={{ ['--c' as string]: s.color, animationDelay: i * 40 + 'ms' }} onClick={() => go({ name: 'subject', id: s.id })}>
-              <SubjectMark color={s.color} icon={s.icon} size="big" />
+              <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} size="big" />
               <span className="grow stack gap4">
                 <strong>{s.name}</strong>
                 <span className="small muted">

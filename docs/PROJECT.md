@@ -352,7 +352,13 @@
 
 ### 6.2 Данные
 - **Всё состояние** — один объект `AppData` (раздел 7).
-- **Хранение:** Windows — JSON-файл `%APPDATA%\Mnema\mnema-data.json` с ежедневными копиями; Android — файл через мост; браузер (dev) — localStorage.
+- **Хранение:** Windows — JSON-файл `%APPDATA%\Refrain\Мои данные\refrain-data.json` с ежедневными копиями в `Резервные копии\` (служебные файлы Electron, ключи ИИ и пароль облака — отдельно, в `%APPDATA%\Refrain\Служебное\`; логика — `electron/dataLayout.cjs`; со старого `%APPDATA%\Mnema` данные копируются при первом запуске, старое не удаляется); Android — файл через мост; браузер (dev) — localStorage.
+- **Разметка и переносимость.** Внутри конспект — Markdown (TipTap + marked): CommonMark + GFM-таблицы, формулы `$…$`/`$$…$$`, выделение `==…==`, рисунки и картинки как data URI, ссылки между темами `mnema://topic|card/<id>`, видео `![video](url)`. При экспорте всё приводится к стандарту (внутренний формат не менялся):
+  - `src/mdExport.ts` — «Всё в Markdown (.zip)»: `Папка/Предмет/Тема.md`, подтемы в папке темы, `Правила/`, `Термины/`, картинки/рисунки/значки/фото страниц — файлами в `attachments/`, свойства YAML (`title, subject, tags, created, exam, refrain-id, refrain-lists…`), ссылки между темами — относительные (режим Obsidian — `[[вики]]`), «Запомните» — выноска `> [!important]`, карточки внизу темы (`Вопрос::Ответ`, `Термин:::Определение`, `{{c1::пропуск}}`), `README.md`, `Карточки.md`, `Карточки.csv`;
+  - `src/mdImport.ts` + `src/mdApply.ts` + `store.importTree` — обратный импорт папки/zip/хранилища Obsidian (zip-slip, лимиты, санитизация HTML, проверка значков `validIconImg`); окно `MarkdownImport.tsx`;
+  - `src/mdPortable.ts` (имена Windows, пути, YAML, санитайзер, CSV), `src/mdCards.ts` (карточки, словари, стихи ↔ Markdown);
+  - `src/noteClipboard.ts` — Ctrl+C из конспекта кладёт в буфер чистый Markdown и HTML с формулами текстом `$…$`.
+  Тесты: `src/mdPortable.test.ts` (round-trip), `src/noteClipboard.test.ts`; браузерная проверка — `e2e/portable.mjs`.
 - **`src/store.ts`** — единый стор: `getData`, `useData` (useSyncExternalStore), `commit`, отложенное сохранение (`persistNow`), все операции:
   - `addTopic`, `updateTopic`, `addCard`, `updateCard`, `deleteCardsUndoable` / `restoreRemoved`;
   - `addList`, `updateList`, `deleteList`, `addListRow(s)`;

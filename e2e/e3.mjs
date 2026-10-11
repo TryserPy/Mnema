@@ -138,7 +138,7 @@ await win.waitForTimeout(500);
 
 await app.close();
 srv.close();
-const d = JSON.parse(fs.readFileSync(userData + '/mnema-data.json', 'utf8'));
+const d = JSON.parse(fs.readFileSync(userData + '/Мои данные/refrain-data.json', 'utf8'));
 const ohm = d.topics.find((t) => t.name.includes('Ома'));
 console.log('note formula:', /\$\$?I = \\frac\{U\}\{R\}/.test(ohm.note), JSON.stringify(ohm.note.slice(-80)));
 console.log('why added:', d.cards.some((c) => (c.why ?? '').includes('трубу')));

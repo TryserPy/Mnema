@@ -386,7 +386,7 @@ export function Sidebar({
                 </button>
                 <button className="tree-label" onClick={pickOr('s:' + sub.id, () => go({ name: 'subject', id: sub.id }))}>
                   {pickBox('s:' + sub.id)}
-                  <SubjectMark color={sub.color} icon={sub.icon} />
+                  <SubjectMark color={sub.color} icon={sub.icon} img={sub.iconImg} />
                   <span className="grow clamp1">{sub.name}</span>
                   <span className="muted small count">{roots.length || ''}</span>
                 </button>
@@ -457,7 +457,7 @@ export function Sidebar({
           </button>
           <button className="tree-label" onClick={pickOr('f:' + f.id, () => (toggleTreeOpen(f.id, true), go({ name: 'folder', id: f.id })))}>
             {pickBox('f:' + f.id)}
-            {f.icon ? <SubjectMark color={f.color} icon={f.icon} /> : <Icon name="folder" size={16} />}
+            {f.icon || f.iconImg ? <SubjectMark color={f.color} icon={f.icon} img={f.iconImg} /> : <Icon name="folder" size={16} />}
             <span className="grow clamp1 folder-name">{f.name}</span>
             <span className="muted small count">{inside.length || ''}</span>
           </button>
