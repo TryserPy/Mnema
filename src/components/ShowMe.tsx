@@ -1,8 +1,9 @@
 // «Показать, где это»: из справки ведёт на нужный экран и подсвечивает кнопку или строку — по шагам, с подписью.
 // Тот же вид, что у знакомства (кольцо + подсказка), но человек ничего не обязан делать: «Дальше» / «Понятно».
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Route } from '../types';
 import { byText, cardPlace, q } from './Tutorial';
+import { useDomTick, useRect } from './guideTarget';
 import { Icon } from './ui';
 import '../guide.css';
 
@@ -39,31 +40,39 @@ export function ShowMeHost({ go }: { go: (r: Route) => void }) {
     () => tour
   );
   const [i, setI] = useState(0);
-  const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [el, setEl] = useState<HTMLElement | null>(null);
   const [missing, setMissing] = useState(false);
+  const elRef = useRef<HTMLElement | null>(null);
   useEffect(() => setI(0), [steps]);
   const step = steps?.[i];
-  // Переходим на нужный экран и ищем, что подсветить (экран может открываться не сразу).
+  const tick = useDomTick(Boolean(step));
+  const rect = useRect(el, tick);
+  // Новый шаг: переходим на нужный экран (один раз).
   useEffect(() => {
     if (!step) return;
     if (step.go) go(step.go);
-    setRect(null);
+    elRef.current = null;
+    setEl(null);
     setMissing(false);
-    let tries = 0;
-    let scrolled = false;
-    const id = setInterval(() => {
-      const el = find(step.target);
-      if (el) {
-        if (!scrolled) {
-          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          scrolled = true;
-        }
-        const r = el.getBoundingClientRect();
-        setRect({ x: r.left, y: r.top, w: r.width, h: r.height });
-      } else if (++tries > 12 && step.target) setMissing(true);
-    }, 200);
-    return () => clearInterval(id);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Экран может открываться не сразу: ищем элемент при каждом изменении экрана (без опроса по таймеру); прокручиваем к нему один раз.
+  useEffect(() => {
+    if (!step?.target) return;
+    const found = find(step.target);
+    if (found === elRef.current) return;
+    elRef.current = found;
+    if (found) {
+      found.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      setMissing(false);
+    }
+    setEl(found);
+  }, [step, tick]);
+  // Нет такого на экране — через пару секунд честно говорим об этом.
+  useEffect(() => {
+    if (!step?.target || el) return;
+    const t = setTimeout(() => setMissing(true), 2400);
+    return () => clearTimeout(t);
+  }, [step, el]);
   if (!steps || !step) return null;
   const last = i === steps.length - 1;
   const phone = window.innerWidth < 720;
