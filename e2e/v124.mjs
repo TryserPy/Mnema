@@ -140,9 +140,9 @@ for (const [w, h, phone] of [[1280, 800, false], [390, 844, true]]) {
   await page.keyboard.press('End');
   await page.waitForTimeout(300);
   check((await dataOf(page)).topics.length === before, '1280: Ctrl+C в конспекте копирует текст, а не тему');
-  // кнопки «Сделать копию» на месте
+  // кнопки «Дублировать» в меню на месте
   await page.locator('.tree-row.subject', { hasText: 'История' }).first().click({ button: 'right' });
-  check((await page.getByRole('menuitem', { name: 'Сделать копию' }).count()) === 1, '1280: кнопка «Сделать копию» осталась');
+  check((await page.getByRole('menuitem', { name: 'Дублировать' }).count()) === 1, '1280: пункт «Дублировать» в меню остался');
   await ctx.close();
 }
 await browser.close();

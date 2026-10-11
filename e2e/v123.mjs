@@ -167,7 +167,7 @@ const dataOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mn
   await page.waitForTimeout(800);
   // предмет — копия через меню
   await page.locator('.tree-row.folder').click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Сделать копию' }).click();
+  await page.getByRole('menuitem', { name: 'Дублировать' }).click();
   await page.waitForTimeout(500);
   let d = await dataOf(page);
   check(d.folders.length === 2 && d.folders.some((f) => f.name === 'Науки (копия)'), '1280: копия папки создана');
