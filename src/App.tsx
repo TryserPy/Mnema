@@ -22,6 +22,7 @@ import { MODS_AVAILABLE } from './featureList';
 import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
 import { applyLook, FONTS, lookKey } from './themes';
 import { allMods, modsCss } from './mods';
+import { cacheSplashTheme } from './splashTheme';
 import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
@@ -137,6 +138,23 @@ export function App() {
     root.dataset.look = lookKey(s.look);
     firstTheme.current = false;
   }, [dark, s.accent, s.density, s.fontScale, s.motion, s.motionOff.join(), JSON.stringify(s.look), s.bgImage?.src, s.bgImage?.fade]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Заставка в цвет темы: после каждой смены оформления запоминаем итоговые цвета (с небольшой задержкой — смена темы идёт плавным переходом),
+  // а при уходе из приложения — сразу.
+  useEffect(() => {
+    const t = setTimeout(cacheSplashTheme, 450);
+    return () => clearTimeout(t);
+  }, [dark, s.accent, JSON.stringify(s.look), s.bgImage?.src, s.modsOn.join(), s.customMods, s.userCss]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const now = () => cacheSplashTheme();
+    const hidden = () => document.visibilityState === 'hidden' && cacheSplashTheme();
+    window.addEventListener('pagehide', now);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('pagehide', now);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, []);
 
   // Моды: стили включённых модов и свой CSS.
   const modsStyle = modsCss(s.modsOn, s.customMods, s.userCss);
