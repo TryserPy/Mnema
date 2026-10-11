@@ -2,7 +2,7 @@
 // (electron-updater), на телефоне — скачать APK из выпуска и отдать Android на установку (Updater.java).
 import { getData, updateSettings } from './store';
 
-export const APP_VERSION = '1.29.0';
+export const APP_VERSION = '1.29.1';
 
 /**
  * Откуда брать обновления. Зашито в код, а не в настройки: иначе чужой файл резервной копии
@@ -18,7 +18,7 @@ export interface UpdateInfo {
   notes?: string;
   apk?: string; // ссылка на APK (телефон)
   size?: number; // размер APK или файла для Linux, байт
-  /** Linux (пакет .deb, архив): сама Refrain не обновляется — показываем ссылку на файл выпуска. */
+  /** Linux (пакет .deb/.pacman, архив): сама Refrain не обновляется — показываем ссылку на файл выпуска. */
   manual?: boolean;
   url?: string; // ссылка на файл (или страницу выпуска) для ручной установки
   fileName?: string;

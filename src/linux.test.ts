@@ -102,6 +102,8 @@ describe('какой файл выпуска предложить скачать
     `Refrain-${V}-arm64.AppImage`,
     `Refrain_${V}_amd64.deb`,
     `Refrain_${V}_arm64.deb`,
+    `Refrain-${V}-x64.pacman`,
+    `Refrain-${V}-aarch64.pacman`,
     `Refrain-${V}-x64.tar.gz`,
     `Refrain-${V}-arm64.tar.gz`,
     'latest-linux.yml'
@@ -109,6 +111,11 @@ describe('какой файл выпуска предложить скачать
   it('для .deb — свой пакет под архитектуру', () => {
     expect(linux.pickLinuxAsset(assets, { arch: 'x64', packageType: 'deb' }).name).toBe(`Refrain_${V}_amd64.deb`);
     expect(linux.pickLinuxAsset(assets, { arch: 'arm64', packageType: 'deb' }).name).toBe(`Refrain_${V}_arm64.deb`);
+  });
+  it('для pacman (Arch) — свой пакет под архитектуру', () => {
+    expect(linux.pickLinuxAsset(assets, { arch: 'x64', packageType: 'pacman' }).name).toBe(`Refrain-${V}-x64.pacman`);
+    expect(linux.pickLinuxAsset(assets, { arch: 'arm64', packageType: 'pacman' }).name).toBe(`Refrain-${V}-aarch64.pacman`);
+    expect(linux.pickLinuxAsset(assets.filter((a) => !/pacman/.test(a.name)), { arch: 'x64', packageType: 'pacman' }).name).toBe(`Refrain-${V}-x86_64.AppImage`);
   });
   it('без пакета (AppImage или архив) — AppImage, потом архив', () => {
     expect(linux.pickLinuxAsset(assets, { arch: 'x64', packageType: '' }).name).toBe(`Refrain-${V}-x86_64.AppImage`);
@@ -155,14 +162,20 @@ describe('файлы Refrain из командной строки', () => {
 describe('сборка для Linux (package.json)', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   const l = pkg.build.linux;
-  it('есть AppImage, deb и архив, категория «Education», значки', () => {
-    expect(l.target.map((t: { target: string }) => t.target).sort()).toEqual(['AppImage', 'deb', 'tar.gz']);
+  it('есть AppImage, deb, pacman и архив, категория «Education», значки', () => {
+    expect(l.target.map((t: { target: string }) => t.target).sort()).toEqual(['AppImage', 'deb', 'pacman', 'tar.gz']);
     expect(l.category).toBe('Education');
     expect(l.icon).toBe('build/icons');
   });
   it('имена файлов выпуска: Refrain-<версия>-x86_64.AppImage и Refrain_<версия>_amd64.deb', () => {
     expect(pkg.build.appImage.artifactName).toBe('Refrain-${version}-${arch}.AppImage');
     expect(pkg.build.deb.artifactName).toBe('Refrain_${version}_${arch}.deb');
+  });
+  it('pacman (Arch): пакет refrain, без лишних зависимостей прежних версий Electron', () => {
+    expect(pkg.build.pacman.packageName).toBe('refrain');
+    expect(pkg.build.pacman.artifactName).toBe('Refrain-${version}-${arch}.pacman');
+    expect(pkg.build.pacman.depends).toEqual(expect.arrayContaining(['gtk3', 'nss', 'libnotify', 'libxss', 'xdg-utils']));
+    expect(pkg.build.pacman.depends).not.toContain('ffmpeg');
   });
   it('окно связывается с .desktop-файлом: desktopName и StartupWMClass совпадают', () => {
     expect(pkg.desktopName).toBe('refrain.desktop');

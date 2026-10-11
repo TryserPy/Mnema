@@ -701,6 +701,10 @@ function DataPane({ go }: { go: (r: Route) => void }) {
 /** Что нового — по версиям. Показывается в «О Refrain» одной панелью с переключателем версий. */
 const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
   {
+    v: '1.29.1',
+    items: [{ t: 'Refrain для Arch Linux: пакет .pacman (x86_64 и aarch64) — sudo pacman -U; новая версия предлагается тем же пакетом', desk: true }]
+  },
+  {
     v: '1.29.0',
     items: [
       { t: 'Refrain для Linux: AppImage, .deb и архив; файлы Refrain открываются двойным щелчком, есть автозапуск и уведомления' },
