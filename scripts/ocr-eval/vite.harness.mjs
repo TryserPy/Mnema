@@ -1,7 +1,7 @@
 // Dev-сервер для замеров: исходники приложения + файлы Tesseract по адресу /ocr/.
 import fs from 'fs';
 import path from 'path';
-const ROOT = '/home/user/Mnema/.claude/worktrees/agent-a370845ee40a2fce2';
+const ROOT = process.env.MNEMA_ROOT || process.cwd();
 export default {
   root: ROOT,
   base: '/',

@@ -4,8 +4,10 @@
 // Точный режим — ИИ с зрением; если он не справился, страница читается без интернета.
 import { humanError } from './ai';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
+import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, lightStats, moireScore, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, unsharp, type Advice, type PhotoFacts } from './textbookPhoto';
 import { analyzeRegions, strokeStat } from './textbookRegions';
 import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
+import type { Quad } from './textbookImage';
 
 export { assemble, fixOcrText, judgeAiAnswer, parseAiMarkdown, sanitizeAiText } from './textbookText';
 export type { Box, Doubt, Figure, PageResult } from './textbookText';
@@ -119,13 +121,43 @@ export interface Prepared {
   rgba: Uint8ClampedArray;
   /** Серая для распознавания. */
   gray: Gray;
-  info: { quad: boolean; skew: number; scale: number; glyph: number; noise: number; w: number; h: number };
+  info: { quad: boolean; skew: number; scale: number; glyph: number; noise: number; w: number; h: number; dir?: 'h' | 'v'; dirScores?: number[]; spread?: boolean; warp?: number; facts?: Partial<PhotoFacts> };
 }
 
 const tickUi = () => new Promise<void>((r) => setTimeout(r, 0));
 
+/** Во сколько раз одна сторона четырёхугольника длиннее противоположной (1 — снято прямо). */
+function foreshorten(q: Quad): number {
+  const d = (a: Quad[0], b: Quad[0]) => Math.hypot(a.x - b.x, a.y - b.y);
+  const top = d(q[0], q[1]);
+  const bottom = d(q[3], q[2]);
+  const left = d(q[0], q[3]);
+  const right = d(q[1], q[2]);
+  return Math.max(Math.max(top, bottom) / Math.max(1, Math.min(top, bottom)), Math.max(left, right) / Math.max(1, Math.min(left, right)));
+}
+
+/** Резкость по самому «текстовому» окну картинки (не по рисунку и не по пустому полю). */
+function sharpnessOfText(g: Gray): number {
+  const S = 640;
+  let best = { x: 0, y: 0, ink: -1 };
+  for (let gy = 0; gy < 3; gy++)
+    for (let gx = 0; gx < 3; gx++) {
+      const x0 = Math.max(0, Math.min(g.w - S, Math.round(((gx + 0.5) / 3) * g.w - S / 2)));
+      const y0 = Math.max(0, Math.min(g.h - S, Math.round(((gy + 0.5) / 3) * g.h - S / 2)));
+      let ink = 0;
+      for (let y = y0; y < Math.min(g.h, y0 + S); y += 3) for (let x = x0; x < Math.min(g.w, x0 + S); x += 3) if (g.d[y * g.w + x] < 150) ink++;
+      if (ink > best.ink) best = { x: x0, y: y0, ink };
+    }
+  const w = Math.min(S, g.w);
+  const h = Math.min(S, g.h);
+  const d = new Uint8ClampedArray(w * h);
+  for (let y = 0; y < h; y++) d.set(g.d.subarray((best.y + y) * g.w + best.x, (best.y + y) * g.w + best.x + w), y * w);
+  return sharpness({ w, h, d });
+}
+
 /**
- * Подготовка: страница на столе → ровный прямоугольник, ровный свет, строки горизонтально, буквы нужного размера.
+ * Подготовка: страница на столе → ровный прямоугольник, ровный свет, строки горизонтально (снимок на боку поворачиваем),
+ * буквы нужного размера.
  */
 export async function prepareOffline(p: PageInput, onProgress?: Progress): Promise<Prepared> {
   const tick = makeYielder();
@@ -136,24 +168,41 @@ export async function prepareOffline(p: PageInput, onProgress?: Progress): Promi
   let H = src.height;
   let rgba = src.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data as Uint8ClampedArray;
   let quadUsed = false;
+  let fore = 1;
   if (!p.crop) {
     const quad = findPageQuad(rgbaToGray(rgba, W, H));
     await tickUi();
     if (quad) {
       const sz = quadSize(quad, WORK_SIDE);
       onProgress?.('Выпрямляю страницу…', 0.14);
+      fore = foreshorten(quad);
       rgba = await warpQuad(rgba, W, H, quad, sz.w, sz.h, tick);
       W = sz.w;
       H = sz.h;
       quadUsed = true;
     }
   }
+  // Свет до выравнивания: по нему видно «темно / пересвет / блик».
+  const raw = rgbaToGray(rgba, W, H);
+  const light = lightStats(raw);
   onProgress?.('Выравниваю свет и тени…', 0.24);
   const flat = await flattenLight(rgba, W, H, tick);
   await tickUi();
-  const skew = skewOf(flat.gray, 14);
-  const glyph = medianGlyphHeight(flat.gray);
-  const noise = noiseLevel(flat.gray);
+  // Снимок лёг на бок: строки вертикальные — поворачиваем (какой из двух поворотов верный, решит чтение).
+  const dirInfo = textDirection(flat.gray);
+  const dir = dirInfo.dir;
+  let flatColor = flat.color;
+  let flatGray = flat.gray;
+  if (dir === 'v') {
+    const r = rotateRgbaQ(flatColor, W, H, 1);
+    flatColor = r.data;
+    W = r.w;
+    H = r.h;
+    flatGray = rotateGrayQ(flatGray, 1);
+  }
+  const skew = skewOf(flatGray, 14);
+  const glyph = medianGlyphHeight(flatGray);
+  const noise = noiseLevel(flatGray);
   let scale = glyph > 0 ? Math.min(2.5, Math.max(0.5, GLYPH_TARGET / glyph)) : 1;
   // Слишком большие страницы не раздуваем (память и время распознавания).
   scale = Math.min(scale, 3600 / Math.max(W, H));
@@ -168,11 +217,42 @@ export async function prepareOffline(p: PageInput, onProgress?: Progress): Promi
   octx.translate(out.width / 2, out.height / 2);
   if (skew) octx.rotate((-skew * Math.PI) / 180);
   octx.scale(scale, scale);
-  octx.drawImage(canvasOf(flat.color, W, H), -W / 2, -H / 2);
+  octx.drawImage(canvasOf(flatColor, W, H), -W / 2, -H / 2);
   const res = octx.getImageData(0, 0, out.width, out.height);
   await tickUi();
   const gray = rgbaToGray(res.data, out.width, out.height);
-  return { color: out, rgba: res.data as Uint8ClampedArray, gray, info: { quad: quadUsed, skew, scale, glyph, noise, w: out.width, h: out.height } };
+  const facts: Partial<PhotoFacts> = { paper: light.paper, clipped: light.clipped, inkDepth: light.inkDepth, glyph, foreshorten: fore };
+  return { color: out, rgba: res.data as Uint8ClampedArray, gray, info: { quad: quadUsed, skew, scale, glyph, noise, w: out.width, h: out.height, dir, dirScores: [dirInfo.hScore, dirInfo.vScore], facts } };
+}
+
+/** Пересобирает Prepared из новых пикселей (canvas, серая). */
+function rebuild(prep: Prepared, rgba: Uint8ClampedArray, w: number, h: number, extra: Partial<Prepared['info']> = {}): Prepared {
+  const color = canvasOf(rgba, w, h);
+  return { color, rgba, gray: rgbaToGray(rgba, w, h), info: { ...prep.info, w, h, ...extra } };
+}
+
+/** Страница вверх ногами (поворот на 180°). */
+export function rotatePrepared180(prep: Prepared): Prepared {
+  const r = rotateRgbaQ(prep.rgba, prep.info.w, prep.info.h, 2);
+  return rebuild(prep, r.data, r.w, r.h);
+}
+
+/** Разворот: режем по корешку на левую и правую страницы (с небольшим запасом у корешка). null — это одна страница. */
+export function splitSpread(prep: Prepared): [Prepared, Prepared] | null {
+  const sp = findSpine(prep.gray);
+  if (!sp) return null;
+  const { w, h } = prep.info;
+  const L = cropRgba(prep.rgba, w, h, 0, 0, Math.round(sp.a), h);
+  const R = cropRgba(prep.rgba, w, h, Math.round(sp.b), 0, w, h);
+  return [rebuild(prep, L.data, L.w, L.h, { spread: true }), rebuild(prep, R.data, R.w, R.h, { spread: true })];
+}
+
+/** Убирает «волну» строк, если она есть. */
+export function dewarpPrepared(prep: Prepared): Prepared {
+  const warp = estimateRowWarp(prep.gray);
+  if (!warp) return prep;
+  const rgba = applyRowWarp(prep.rgba, prep.info.w, prep.info.h, warp.dy);
+  return rebuild(prep, rgba, prep.info.w, prep.info.h, { warp: Math.round(warp.amp * 10) / 10 });
 }
 
 // ---------- Жирный шрифт ----------
@@ -213,18 +293,32 @@ export function setDebugHook(f: ((x: unknown) => void) | null) {
   debugHook = f;
 }
 
-export async function recognizeOffline(p: PageInput, onProgress?: Progress): Promise<PageResult> {
+/** Сколько слов прочитано уверенно (не короче трёх букв): по нему видно, что страница не вверх ногами. */
+export function goodWordCount(lines: OcrLine[]): number {
+  let n = 0;
+  for (const l of lines) for (const w of l.words) if (w.conf >= 55 && (w.text.match(/[А-Яа-яЁёA-Za-z]/g) ?? []).length >= 3) n++;
+  return n;
+}
+
+interface Read {
+  page: PageResult;
+  good: number;
+  empty: boolean;
+}
+
+/** Чтение уже подготовленной страницы: Tesseract → раскладка → рисунки и сомнительные слова. */
+async function readPrepared(p: PageInput, prep: Prepared, onProgress?: Progress, span: [number, number] = [0.36, 0.9]): Promise<Read> {
   const api = window.mnemaApi;
   if (!api?.ocrRecognize) throw new Error('Распознавание без интернета работает в приложении для Windows, Linux, на телефоне и в браузере.');
-  const prep = await prepareOffline(p, onProgress);
-  onProgress?.('Читаю текст…', 0.36);
+  onProgress?.('Читаю текст…', span[0]);
   const gray = prep.gray;
   const ocrImg = prep.info.noise > 9 ? stretchContrast(boxBlur(gray, 1), 60, 240) : stretchContrast(gray, 60, 240);
   const res = await api.ocrRecognize(await grayPng(ocrImg));
   if (!res.ok) throw new Error(res.error);
-  onProgress?.('Собираю абзацы, заголовки и рисунки…', 0.9);
+  onProgress?.('Собираю абзацы, заголовки и рисунки…', span[1]);
   await tickUi();
   const lines = (res.lines as OcrLine[]).filter((l) => l.words?.some((w) => w.text.trim()));
+  const good = goodWordCount(lines);
   markBold(lines, gray);
   // Размер строки — для порогов; рисунки и рамки ищем там, где нет уверенного текста.
   const goodWords = lines.flatMap((l) => l.words.filter((w) => w.conf >= 30 && w.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2).map((w) => w.bbox));
@@ -251,9 +345,77 @@ export async function recognizeOffline(p: PageInput, onProgress?: Progress): Pro
     box.h = Math.min(1 - box.y, (f.y1 - f.y0 + pad * 2) / canvas.height);
     return { box, caption: layout.captions[i] ?? '', uri: cropUri(canvas, box) };
   });
-  debugHook?.({ info: prep.info, lines, layout, regions });
-  if (!markdown.trim() && !figures.length) throw new Error('на фото не нашлось текста. Проверь, что страница видна целиком, резкая и не повёрнута боком (кнопка «Повернуть»).');
-  return { n: p.n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts, detectedPage: layout.detectedPage, quality: layout.quality };
+  const q = layout.quality;
+  // Советы ученику, если страница прочиталась слабо: что не так со снимком.
+  const facts: PhotoFacts = {
+    paper: 255,
+    clipped: 0,
+    inkDepth: 0,
+    glyph: prep.info.glyph,
+    foreshorten: 1,
+    glareShare: 0,
+    ...prep.info.facts,
+    sharp: sharpnessOfText(gray),
+    moire: 0,
+    conf: q.conf,
+    unsureShare: q.words ? q.unsure / q.words : 0,
+    words: q.words
+  };
+  const advice: Advice[] = adviceFor(facts);
+  debugHook?.({ info: prep.info, lines, layout, regions, facts, advice });
+  const page: PageResult = { n: p.n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts, detectedPage: layout.detectedPage, quality: q, advice: advice.length ? advice : undefined };
+  return { page, good, empty: !markdown.trim() && !figures.length };
+}
+
+const NO_TEXT = 'на фото не нашлось текста. Проверь, что страница видна целиком, резкая и не повёрнута боком (кнопка «Повернуть»).';
+
+/** Страница читается; если текста почти нет — пробуем вверх ногами (снимок мог перевернуться). */
+async function readUpright(p: PageInput, prep: Prepared, onProgress?: Progress, span?: [number, number]): Promise<Read & { flipped: boolean }> {
+  let r = await readPrepared(p, prep, onProgress, span);
+  if (r.good < 25 || r.page.quality!.conf < 50) {
+    const alt = await readPrepared(p, rotatePrepared180(prep), onProgress, span);
+    if (alt.good > r.good * 1.5 + 5) return { ...alt, flipped: true };
+  }
+  return { ...r, flipped: false };
+}
+
+/**
+ * Фото → страницы. Одно фото — обычно одна страница, но разворот (две страницы на снимке) режется по корешку
+ * и читается как две: сначала левая, потом правая. Страница вверх ногами или на боку поворачивается сама,
+ * «волна» строк у корешка выпрямляется. Если снимок плох, в странице есть advice — честный совет, что переснять.
+ */
+export async function recognizeOfflinePages(p: PageInput, onProgress?: Progress, opts: { spread?: boolean } = {}): Promise<PageResult[]> {
+  const api = window.mnemaApi;
+  if (!api?.ocrRecognize) throw new Error('Распознавание без интернета работает в приложении для Windows, Linux, на телефоне и в браузере.');
+  const prep = await prepareOffline(p, onProgress);
+  const halves = opts.spread === false ? null : splitSpread(prep);
+  const parts = halves ?? [prep];
+  const out: PageResult[] = [];
+  let flips = 0;
+  for (let j = 0; j < parts.length; j++) {
+    const span: [number, number] = [0.36 + (0.5 * j) / parts.length, 0.36 + (0.5 * (j + 1)) / parts.length];
+    const r = await readUpright(p, dewarpPrepared(parts[j]), onProgress, span);
+    if (r.flipped) flips++;
+    out.push(r.page);
+  }
+  // Разворот лежит вверх ногами: левая половина на снимке — это правая страница.
+  if (halves && flips === 2) out.reverse();
+  out.forEach((pg, j) => {
+    pg.n = p.n + j;
+    if (halves) pg.spread = j === 0 ? 'left' : 'right';
+  });
+  if (halves) {
+    const note = 'На снимке разворот — прочитал две страницы по очереди.';
+    out[0].note = out[0].note ? out[0].note + ' ' + note : note;
+  }
+  if (out.every((pg) => !pg.markdown.trim() && !pg.figures.length)) throw new Error(NO_TEXT);
+  return out;
+}
+
+/** Одна страница с фото (без разворота) — для проверок и запасного пути ИИ. */
+export async function recognizeOffline(p: PageInput, onProgress?: Progress): Promise<PageResult> {
+  const [page] = await recognizeOfflinePages(p, onProgress, { spread: false });
+  return page;
 }
 
 // ---------- Точный режим: ИИ ----------
