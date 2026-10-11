@@ -188,6 +188,50 @@ function registerWorker() {
   });
 }
 
+/** Онлайн-версия — только для проверки: при каждом новом заходе (новая вкладка, перезапуск) напоминаем об этом. */
+function testNotice() {
+  const KEY = 'mnema-web-test-ok';
+  try {
+    if (sessionStorage.getItem(KEY)) return;
+  } catch {
+    /* закрытое хранилище — просто покажем окно */
+  }
+  if (document.getElementById('mnema-test-notice')) return;
+  const box = document.createElement('div');
+  box.id = 'mnema-test-notice';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-labelledby', 'mnema-test-title');
+  box.style.cssText =
+    'position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:rgba(16,18,24,.55);font:16px/1.5 Onest,system-ui,sans-serif';
+  const card = document.createElement('div');
+  card.style.cssText =
+    'max-width:420px;width:100%;box-sizing:border-box;display:grid;gap:12px;padding:22px 22px 20px;border-radius:20px;background:var(--surface,#fff);color:var(--ink,#1b1d24);box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:left';
+  const h = document.createElement('h2');
+  h.id = 'mnema-test-title';
+  h.textContent = 'Онлайн-версия Refrain — только для тестов';
+  h.style.cssText = 'margin:0;font-size:1.25rem;line-height:1.25;overflow-wrap:anywhere';
+  const p = document.createElement('p');
+  p.textContent = 'Данные хранятся только в этом браузере и могут пропасть. Для постоянной учёбы — приложение для Windows или Android.';
+  p.style.cssText = 'margin:0;color:var(--ink-2,#444);overflow-wrap:anywhere';
+  const b = document.createElement('button');
+  b.textContent = 'Понятно';
+  b.className = 'btn primary';
+  b.style.justifySelf = 'end';
+  b.onclick = () => {
+    try {
+      sessionStorage.setItem(KEY, '1');
+    } catch {
+      /* ничего страшного: окно вернётся при следующем заходе */
+    }
+    box.remove();
+  };
+  card.append(h, p, b);
+  box.append(card);
+  document.body.append(box);
+  b.focus();
+}
+
 /** true — можно запускать приложение. На Windows и Android мост уже есть, и ничего не меняется. */
 export async function initWeb(): Promise<boolean> {
   if (window.mnemaApi) return true;
@@ -203,5 +247,6 @@ export async function initWeb(): Promise<boolean> {
   window.mnemaApi = createApi();
   void requestPersistence();
   registerWorker();
+  testNotice();
   return true;
 }

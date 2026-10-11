@@ -492,6 +492,7 @@ export function App() {
         <header className="mobile-bar">
           <button className="mobile-brand" onClick={() => go({ name: 'today' })}>
             <span className="logo small-logo">R</span> Refrain
+            {window.mnemaApi?.platform === 'web' && <span className="test-tag">тест</span>}
           </button>
           <span className="grow" />
           <button className="icon-btn mobile-create" aria-label="Создать" title="Создать: карточку, тему, предмет…" onClick={openCreate}>

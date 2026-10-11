@@ -445,7 +445,7 @@ export function Sidebar({
   if (s.sidebarCollapsed && !mobile) {
     return (
       <aside className="sidebar rail">
-        <button className="logo" title="Показать панель" aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
+        <button className="logo" title={window.mnemaApi?.platform === 'web' ? 'Показать панель (тестовая версия)' : 'Показать панель'} aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
           R
         </button>
         <button className={'foot-btn' + nav('today')} title="Сегодня" aria-label="Сегодня" onClick={() => go({ name: 'today' })}>
@@ -514,7 +514,10 @@ export function Sidebar({
     <aside className={'sidebar' + (resizing ? ' resizing' : '')}>
       <div className="brand">
         <span className="logo">R</span>
-        <span className="grow">Refrain</span>
+        <span className="grow brand-name">
+          Refrain
+          {window.mnemaApi?.platform === 'web' && <span className="test-tag" title="Онлайн-версия только для тестов: данные хранятся в этом браузере">тестовая версия</span>}
+        </span>
         {/* На телефоне панель — это шторка, её закрывают касанием мимо; кнопки «Скрыть» там нет. */}
         {!mobile && (
           <button
@@ -922,7 +925,7 @@ function DeleteManyDialog({ keys, onClose, onDeleted }: { keys: Set<string>; onC
           {folders.length > 0 && 'Предметы из папок останутся. '}
           Сразу после удаления можно нажать «Вернуть».
         </span>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>
