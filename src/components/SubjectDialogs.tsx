@@ -160,7 +160,7 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
           <span>Значок</span>
           <IconPicker value={icon} onChange={setIcon} color={color} />
         </div>
-        <div className="row between">
+        <div className="row between wrap">
           <button
             type="button"
             className="btn ghost danger-text"
@@ -195,7 +195,7 @@ export function DeleteSubject({ id, onClose, onDeleted }: { id: string; onClose:
         <p>
           «{s.name}» будет удалён вместе с {topics.length} {plural(topics.length, 'темой', 'темами', 'темами')} и {cards} {plural(cards, 'карточкой', 'карточками', 'карточками')}. Сразу после удаления его можно вернуть кнопкой внизу экрана.
         </p>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>

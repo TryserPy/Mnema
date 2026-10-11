@@ -44,7 +44,7 @@ export function NoteHistoryDialog({ topicId, onClose, onRestored }: { topicId: s
                   {preview(cur.note, 1500)}
                 </div>
                 <div className="small muted">Сейчас в конспекте: {topic.note.length} знаков.</div>
-                <div className="row end gap8">
+                <div className="row end gap8 wrap">
                   <button className="btn ghost" onClick={onClose}>
                     Закрыть
                   </button>

@@ -106,7 +106,7 @@ export function AnkiImport({ file, onClose, onOpenTopic }: { file?: File; onClos
             Готово: {step.topics} {plural(step.topics, 'тема', 'темы', 'тем')}, {step.cards} {plural(step.cards, 'карточка', 'карточки', 'карточек')}.
           </div>
           <p className="small muted">Если что-то перенеслось криво — карточку можно поправить в теме, во вкладке «Карточки».</p>
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={onClose}>
               Закрыть
             </button>
@@ -185,7 +185,7 @@ export function AnkiImport({ file, onClose, onOpenTopic }: { file?: File; onClos
           </div>
         )}
         {notes.length > 0 && <p className="small muted">{notes.join(' · ')}</p>}
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={() => setStep({ name: 'pick' })}>
             Другой файл
           </button>

@@ -132,7 +132,7 @@ export function ObsidianImport({ subjectId, onClose, onDone }: { subjectId?: str
             </select>
           </label>
           {error && <div className="hint warn">{error}</div>}
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={onClose} disabled={busy}>
               Отмена
             </button>

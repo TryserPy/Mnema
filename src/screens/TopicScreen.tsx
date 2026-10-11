@@ -369,7 +369,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               Тема «{topic.name}», её конспект и {cards.length} {plural(cards.length, 'карточка', 'карточки', 'карточек')}
               {subCount > 0 && ` и ${subCount} ${plural(subCount, 'подтема', 'подтемы', 'подтем')} со всем содержимым`} будут удалены. Сразу после удаления тему можно вернуть кнопкой внизу экрана.
             </p>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button className="btn ghost" onClick={() => setConfirmDelete(false)}>
                 Отмена
               </button>
@@ -574,7 +574,7 @@ function RecallModal({ note, onClose }: { note: string; onClose: () => void }) {
         <div className="stack gap12">
           <p className="muted">Конспект спрятан. Напиши всё, что помнишь по теме, своими словами. Вспоминать полезнее, чем перечитывать.</p>
           <textarea className="recall-input" autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="Что я помню…" />
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={onClose}>
               Отмена
             </button>
@@ -602,7 +602,7 @@ function RecallModal({ note, onClose }: { note: string; onClose: () => void }) {
               </div>
             </div>
           </div>
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={() => setCompare(false)}>
               Дописать
             </button>
@@ -705,7 +705,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
       {editingCard && (
         <Modal title="Карточка" onClose={() => setEditing(null)} width={620}>
           <CardEditor topicId={topicId} card={editingCard} onDone={() => setEditing(null)} />
-          <div className="row gap8 mt12 top-line">
+          <div className="row gap8 mt12 top-line wrap">
             <button className="btn ghost small" onClick={() => resetCardProgress(editingCard.id)}>
               <Icon name="undo" size={16} /> Начать заново
             </button>

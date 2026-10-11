@@ -120,7 +120,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
       )}
 
       {(events >= 3 || rulesOn || termsOn) && (
-        <div className="tabs-narrow">
+        <div className="tabs-narrow wide-tabs">
           <Segmented
             ariaLabel="Вид"
             value={view}

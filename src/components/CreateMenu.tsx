@@ -133,7 +133,7 @@ function QuickCardDialog({ at, onClose }: { at: { topicId?: string; subjectId?: 
           <button type="button" className="btn" disabled={!ok} onClick={() => save(true)}>
             Сохранить и ещё одну
           </button>
-          <span className="row gap8">
+          <span className="row gap8 wrap">
             <button type="button" className="btn ghost" onClick={onClose}>
               {added ? 'Готово' : 'Отмена'}
             </button>
@@ -179,7 +179,7 @@ function QuickTopicDialog({ at, go, onClose }: { at: { subjectId?: string }; go:
           <span className="small muted">Название</span>
           <input className="input" autoFocus placeholder="Например, §12 Фотосинтез" value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button type="button" className="btn ghost" onClick={onClose}>
             Отмена
           </button>

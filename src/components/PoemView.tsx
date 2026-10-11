@@ -222,7 +222,7 @@ export function PoemView({ topicId, poem, start, go }: { topicId: string; poem: 
       {pinMode ? (
         <div className="poem-bar">
           <span className="small">Нажимай на слова, которые должны быть всегда видны, когда рассказываешь по памяти.</span>
-          <span className="row gap8">
+          <span className="row gap8 wrap">
             {(poem.pinWords?.length ?? 0) > 0 && (
               <button className="btn small ghost" onClick={() => patch({ pinWords: undefined })}>
                 Сбросить
@@ -957,7 +957,7 @@ function WholeCheck({ topicId, poem, idx, pick, onExit }: { topicId: string; poe
             {done.due ? ` Следующий раз — ${fmtDay(done.due)}.` : ''}
             {done.acc < 0.9 ? ' Трудные строки подсвечены в тексте — «С любого места» потренирует их чаще.' : ''}
           </span>
-          <div className="row gap8">
+          <div className="row gap8 wrap">
             <button className="btn primary" onClick={onExit}>
               Готово
             </button>

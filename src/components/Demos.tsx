@@ -444,7 +444,7 @@ export function DemoModal({ id, onClose }: { id: DemoId; onClose: () => void }) 
             ))}
           </span>
           {last ? (
-            <span className="row gap8">
+            <span className="row gap8 wrap">
               <button className="btn small" onClick={() => setI(0)}>
                 Ещё раз
               </button>

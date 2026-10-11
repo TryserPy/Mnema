@@ -252,7 +252,7 @@ function BulkCards({ topicId, items, onClose, title = 'Карточки из «�
             );
           })}
         </div>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>

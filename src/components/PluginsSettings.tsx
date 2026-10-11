@@ -88,7 +88,7 @@ export function CodeEditor({ initial, onClose }: { initial?: PluginRec; onClose:
             }
           }}
         />
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>
@@ -122,7 +122,7 @@ export function PluginsSettings() {
       <div className="stack gap12">
         <p>Мод — это программа внутри Refrain. Он видит всё, что видит она: конспекты, карточки, пароль облака и ключи ИИ — и может отправить это в интернет.</p>
         <p>Готовые моды из каталога проверены. Моды из файлов и из чужих копий ставь только от тех, кому доверяешь.</p>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={() => setAsk(false)}>
             Не надо
           </button>

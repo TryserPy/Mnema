@@ -342,7 +342,7 @@ function ListSettings({ topicId, list, rows, onClose, onDeleted }: { topicId: st
         </div>
         <div className="field">
           <span>Место вкладки</span>
-          <div className="row gap8">
+          <div className="row gap8 wrap">
             <button type="button" className="btn small" onClick={() => shiftTab(-1)}>
               ← Левее
             </button>
@@ -364,7 +364,7 @@ function ListSettings({ topicId, list, rows, onClose, onDeleted }: { topicId: st
             </select>
           </label>
         )}
-        <div className="row between">
+        <div className="row between wrap">
           <button
             type="button"
             className="btn ghost danger-text"
@@ -408,7 +408,7 @@ function PasteRows({ topicId, list, onClose }: { topicId: string; list: StudyLis
             {parsed.length > 6 && <div className="small muted">и ещё {parsed.length - 6}…</div>}
           </div>
         )}
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>

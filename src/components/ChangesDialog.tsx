@@ -85,7 +85,7 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
             <textarea className="input changes-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={'@предмет Русский язык\n@тема §1. …\nконспект…\n@карточки\nВопрос :: Ответ'} rows={6} />
           </label>
           {error && <span className="small hint warn">{error}</span>}
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={onClose}>
               Отмена
             </button>
@@ -164,7 +164,7 @@ function PlanView({ plan, onBack, onApply }: { plan: Plan; onBack: () => void; o
         </div>
       )}
       {counts.del > 0 && <span className="small muted">Удалённое можно вернуть кнопкой «Вернуть» сразу после применения.</span>}
-      <div className="row end gap8">
+      <div className="row end gap8 wrap">
         <button className="btn ghost" onClick={onBack}>
           Назад
         </button>
@@ -337,7 +337,7 @@ function GuideDialog({ onBack, onClose }: { onBack: () => void; onClose: () => v
         </label>
         <textarea className="input changes-text" readOnly value={text} rows={8} />
         <span className="small muted">Хочешь, чтобы нейросеть поправила уже готовое? В меню «⋯» предмета или темы — «Выгрузить для нейросети»: отдай этот файл вместе с инструкцией.</span>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onBack}>
             Назад
           </button>

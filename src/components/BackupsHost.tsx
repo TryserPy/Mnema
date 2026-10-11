@@ -33,7 +33,7 @@ export function BackupsHost() {
             <p>
               В копии: {pending.subjects.length} предм., {pending.topics.length} тем, {pending.cards.length} карточек. Текущие данные будут заменены.
             </p>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button className="btn ghost" onClick={() => setPending(null)}>
                 Отмена
               </button>

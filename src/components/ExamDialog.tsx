@@ -84,7 +84,7 @@ export function ExamDialog({ examId, subjectId, topicId, onClose, onSaved }: { e
         <div className="stack gap6">
           <div className="row between gap8">
             <span className="small muted">Какие темы будут ({picked.size})</span>
-            <span className="row gap6">
+            <span className="row gap6 wrap">
               <button type="button" className="btn small ghost" onClick={() => setPicked(new Set(list.map(({ t }) => t.id)))}>
                 Все
               </button>
@@ -122,7 +122,7 @@ export function ExamDialog({ examId, subjectId, topicId, onClose, onSaved }: { e
           ) : (
             <span />
           )}
-          <span className="row gap8">
+          <span className="row gap8 wrap">
             <button className="btn ghost" onClick={onClose}>
               Отмена
             </button>

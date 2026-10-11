@@ -413,7 +413,7 @@ function CustomAiEditor({ initial, onClose, onSaved, onDeleted }: { initial: Cus
           </div>
         </Collapse>
         {status && <div className={'hint ' + (status.kind === 'ok' ? 'ok' : status.kind === 'warn' ? 'warn' : '')}>{status.text}</div>}
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           {initial &&
             (confirmDel ? (
               <button

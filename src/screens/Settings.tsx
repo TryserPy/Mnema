@@ -580,7 +580,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         <Modal title="Удалить все данные?" onClose={() => setConfirmWipe(false)}>
           <div className="stack gap12">
             <p>Будут удалены все предметы, темы, карточки и прогресс. Настройки останутся. Перед этим лучше сохранить копию.</p>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button className="btn ghost" onClick={() => setConfirmWipe(false)}>
                 Отмена
               </button>
@@ -603,7 +603,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             <p>
               В копии: {pendingBackup.subjects.length} предм., {pendingBackup.topics.length} тем, {pendingBackup.cards.length} карточек. Текущие данные будут заменены.
             </p>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button className="btn ghost" onClick={() => setPendingBackup(null)}>
                 Отмена
               </button>

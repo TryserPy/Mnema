@@ -178,13 +178,27 @@ export function gradeItem(state: ItemState | undefined, now: Date, rating: Grade
   return fromFsrs(f.next(toFsrs(state, now), now, rating).card);
 }
 
+/** Число с запятой по-русски: 1,5 (целое — без «,0»). */
+function ruNum(x: number): string {
+  return String(x).replace('.', ',');
+}
+
+/**
+ * Короткая подпись интервала для кнопок оценки: «<1 мин», «10 мин», «3 ч», «1 д», «5 д», «2 нед», «1,5 мес», «1,2 г».
+ * Считается от интервала, который выдал планировщик, — то есть показывает ровно то, что применится при нажатии.
+ */
 export function formatInterval(ms: number): string {
-  if (ms < HOUR) return `${Math.max(1, Math.round(ms / MINUTE))} мин`;
+  if (ms < MINUTE) return '<1 мин';
+  if (ms < HOUR) return `${Math.round(ms / MINUTE)} мин`;
   if (ms < DAY) return `${Math.round(ms / HOUR)} ч`;
   const d = ms / DAY;
-  if (d < 30) return `${Math.round(d)} д`;
-  if (d < 365) return `${Math.round(d / 30)} мес`;
-  return `${(d / 365).toFixed(1).replace('.0', '')} г`;
+  if (d < 14) return `${Math.max(1, Math.round(d))} д`;
+  if (d < 30) return `${Math.round(d / 7)} нед`;
+  if (d < 365) {
+    const m = d / 30.4;
+    return `${ruNum(m < 10 ? Math.max(1, Math.round(m * 2) / 2) : Math.round(m))} мес`;
+  }
+  return `${ruNum(Math.round((d / 365) * 10) / 10)} г`;
 }
 
 // ---------- Дни ----------

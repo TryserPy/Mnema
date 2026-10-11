@@ -103,7 +103,7 @@ export function CloudDialog({ onClose }: { onClose: () => void }) {
         </div>
         {saved?.lastAt && <span className="small muted">Последний раз: {new Date(saved.lastAt).toLocaleString('ru-RU')}</span>}
         {msg && <div className={'hint ' + (msg.ok ? (busy ? '' : 'ok') : 'warn')}>{msg.text}</div>}
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           {saved && (
             <button
               className="btn ghost danger small"

@@ -241,7 +241,7 @@ export function RepeatDialog({ at, go, onClose }: { at: RepeatAt; go: (r: Route)
           </>
         )}
 
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>

@@ -92,7 +92,7 @@ export function RuleDialog({ subjectId, rule, initial, onClose, onSaved }: { sub
           <RuleWordsEditor words={words} onChange={setWords} placeholder="причастие, суффикс…" />
           <span className="small muted">Где в конспектах {subject ? `по предмету «${subject.name}»` : 'предмета'} встретятся эти слова (в любой форме), они будут подчёркнуты, и при наведении появится правило.</span>
         </div>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button type="button" className="btn ghost" onClick={onClose}>
             Отмена
           </button>

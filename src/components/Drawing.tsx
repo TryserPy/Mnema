@@ -389,7 +389,7 @@ export function DrawingEditor({ initial, onSave, onCancel, context }: { initial?
         <button type="button" className="btn ghost small" disabled={!data.strokes.length} onClick={() => setData({ ...data, strokes: [] })}>
           Очистить
         </button>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           <button type="button" className="btn ghost" onClick={onCancel}>
             Отмена
           </button>

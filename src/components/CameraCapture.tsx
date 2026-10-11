@@ -53,7 +53,7 @@ export function CameraCapture({ onShot, onClose }: { onShot: (f: File) => void; 
           </div>
         )}
         <p className="small muted">Держи телефон ровно над страницей, чтобы она занимала почти весь кадр. Снимай страницы по порядку.</p>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           <span className="grow small">{count ? `Снято страниц: ${count}` : ''}</span>
           <button className="btn" onClick={onClose}>
             Готово

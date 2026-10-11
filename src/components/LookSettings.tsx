@@ -192,7 +192,7 @@ function BgImageRow() {
     <div className="srow stack-row" data-set="bgimage">
       <div className="row between gap8 wrap">
         <span className="srow-label">Своя картинка</span>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           <button type="button" className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
             <Icon name="upload" size={16} /> {img ? 'Другая' : 'Выбрать файл'}
           </button>

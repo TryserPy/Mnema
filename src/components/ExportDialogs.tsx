@@ -56,7 +56,7 @@ export function AnkiExportDialog({ onClose, subjectId }: { onClose: () => void; 
           <Switch label="Перенести прогресс" checked={progress} onChange={setProgress} />
         </div>
         {msg && <div className={'hint ' + (msg.ok ? 'ok' : 'warn')}>{msg.text}</div>}
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Закрыть
           </button>
@@ -134,7 +134,7 @@ export function PrintDialog({ onClose, topicId, subjectId }: { onClose: () => vo
             ? 'По 8 карточек на листе: сначала страница с вопросами, потом с ответами (зеркально). Печатай с двух сторон с переворотом по длинной стороне — ответ окажется на обороте своего вопроса.'
             : 'Таблица «вопрос — ответ»: закрой правую колонку листком и проверяй себя.'}
         </p>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Закрыть
           </button>

@@ -144,6 +144,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const reasonRef = useRef(reason);
   reasonRef.current = reason;
   useEffect(() => setReason(null), [current?.key]);
+  const showIv = settings.showIntervals && !cram; // подпись «через сколько вернётся» под кнопкой оценки
   const grade = useCallback(
     (rating: Grade) => {
       if (!current || !revealed || !card) return;
@@ -312,7 +313,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
             {settings.focusMinutes} минут позади — ответов: {stats.done}. Встань, подвигайся, попей воды.
           </p>
           <div className="big-clock">{left > 0 ? fmtClock(left) : 'Можно продолжать'}</div>
-          <div className="row gap8 center-row">
+          <div className="row gap8 center-row wrap">
             <button className="btn" onClick={exit}>
               Закончить
             </button>
@@ -347,7 +348,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           ) : (
             <p className="muted">Все карточки повторены или ещё не добавлены.</p>
           )}
-          <div className="row gap8">
+          <div className="row gap8 wrap">
             <button className="btn primary" onClick={exit}>
               {route.mini ? 'Закрыть' : route.topicId ? 'На главную' : route.folderId ? 'К папке' : route.subjectId ? 'К предмету' : 'На главную'}
             </button>
@@ -405,9 +406,11 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
       </div>
 
       <div className="review-card" key={current?.key}>
-        <div className="row gap8 small muted">
-          <span className="dot" style={{ background: subject?.color }} />
-          <span>{topic?.name}</span>
+        <div className="review-meta small muted">
+          <span className="review-where">
+            <span className="dot" style={{ background: subject?.color }} />
+            <span className="review-topic">{topic?.name}</span>
+          </span>
           {cram && <span className="chip neutral">без изменения расписания</span>}
           {route.only && !route.cardIds && <span className="chip neutral">{REPEAT_TEXT[route.only].short}</span>}
           {route.ahead && <span className="chip neutral">заранее — слабые места</span>}
@@ -559,10 +562,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           <div className="grades two">
             <button className="grade again" onClick={() => grade(Rating.Again)}>
               <span className="strong">Не помню</span>
+              {showIv && <span className="small grade-iv">{formatInterval(intervals[0])}</span>}
               {keyFor(settings, 'again') && <span className="kbd">{prettyCombo(keyFor(settings, 'again')).join('+')}</span>}
             </button>
             <button className="grade good" onClick={() => grade(Rating.Good)}>
               <span className="strong">Помню</span>
+              {showIv && <span className="small grade-iv">{formatInterval(intervals[2])}</span>}
               {keyFor(settings, 'good') && <span className="kbd">{prettyCombo(keyFor(settings, 'good')).join('+')}</span>}
             </button>
           </div>
@@ -571,11 +576,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
             {GRADES.map((g, i) => (
               <button key={g} className={'grade ' + GRADE_UI[i].cls} onClick={() => grade(g)}>
                 <span className="strong">{GRADE_UI[i].label}</span>
-                {settings.showIntervals && !cram && <span className="small">{formatInterval(intervals[i])}</span>}
+                {showIv && <span className="small grade-iv" title="Через сколько карточка вернётся, если выбрать так">{formatInterval(intervals[i])}</span>}
               </button>
             ))}
           </div>
         )}
+        {revealed && cram && <p className="small muted center grade-note">Расписание не меняется — это повторение «сверх плана»</p>}
         {revealed && !cram && (
           <div className="err-chips" role="group" aria-label="Если ошибся — что случилось?">
             <span className="small muted">{reason ? 'Запомню причину. Теперь нажми «Снова» — или выбери другую оценку.' : 'Ошибся? Отметь, что случилось, и нажми «Снова»:'}</span>
@@ -632,7 +638,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               }}
               placeholder="Потому что…"
             />
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button type="button" className="btn ghost" onClick={() => { const g = whyAsk.go; setWhyAsk(null); g(); }}>
                 Пропустить
               </button>
@@ -661,7 +667,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               <li>Сформулируй вопрос своими словами.</li>
               <li>Добавь объяснение «почему» или пример.</li>
             </ul>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button
                 className="btn ghost"
                 onClick={() => {

@@ -29,7 +29,7 @@ export function FolderScreen({ id, go, onNewSubject }: { id: string; go: (r: Rou
             <Icon name="edit" size={18} />
           </button>
         </div>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           {due > 0 && (
             <button className="btn primary" onClick={() => go({ name: 'review', subjectIds: subjects.map((s) => s.id), folderId: id })}>
               <Icon name="play" size={16} /> Учить всю папку · {due}
