@@ -346,7 +346,7 @@
 - **Повторения:** ts-fsrs.
 - **Граф:** d3-force.
 - **Импорт/экспорт:** sql.js + fflate + fzstd (Anki), tesseract.js (офлайн-распознавание), qrcode / jsqr (синхронизация).
-- **Windows и Linux:** Electron 44 (CJS main и preload), electron-builder (NSIS; AppImage, deb, tar.gz), electron-updater. Особенности Linux — `electron/linux.cjs`, `electron/openFiles.cjs`, `docs/handoff/linux.md`; значки — `build/icons` (`npm run icons:linux`); сборка — `npm run dist:linux`.
+- **Windows и Linux:** Electron 44 (CJS main и preload), electron-builder (NSIS; AppImage, deb, tar.gz), electron-updater. Особенности Linux — `electron/linux.cjs`, `electron/openFiles.cjs`; значки — `build/icons` (`npm run icons:linux`); сборка — `npm run dist:linux`.
 - **Шрифты:** @fontsource.
 - **Тесты:** Vitest (сейчас 95 тестов в 12 файлах), Playwright (e2e, отдельно).
 
