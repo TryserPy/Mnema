@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Logo } from '../components/Logo';
 import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark } from '../components/ui';
 import { openRepeatDialog } from '../components/RepeatDialog';
 import { WeekCard } from './Stats';
@@ -54,7 +55,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
     return (
       <div className="page narrow">
         <div className="welcome">
-          <div className="logo big">R</div>
+          <Logo size={64} />
           <h1 className="display">Привет! Это Refrain</h1>
           <p className="lead">Она помогает запоминать то, что ты учишь, — и напоминает повторить как раз тогда, когда ты начинаешь забывать.</p>
           <div className="row gap8 wrap center-row">

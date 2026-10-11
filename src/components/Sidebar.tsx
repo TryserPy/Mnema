@@ -2,6 +2,7 @@
 // темы — перетаскивать (порядок, в другой предмет, внутрь другой темы), отмечать звёздочкой.
 import { openCreate } from './CreateMenu';
 import { useStyleAttr } from '../styleApply';
+import { Logo } from './Logo';
 import { copyToClip, hasClip, makeCopy, pasteClip } from './copyUi';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
 import { keyFor, prettyCombo, typingTarget } from '../keys';
@@ -481,8 +482,8 @@ export function Sidebar({
   if ((s.sidebarCollapsed || railForced) && !mobile) {
     return (
       <aside className="sidebar rail">
-        <button className="logo" title={window.mnemaApi?.platform === 'web' ? 'Показать панель (тестовая версия)' : 'Показать панель'} aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
-          R
+        <button className="logo-btn" title={window.mnemaApi?.platform === 'web' ? 'Показать панель (тестовая версия)' : 'Показать панель'} aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
+          <Logo size={34} appear={false} />
         </button>
         <button className={'foot-btn' + nav('today')} title="Сегодня" aria-label="Сегодня" onClick={() => go({ name: 'today' })}>
           <Icon name="home" />
@@ -549,7 +550,7 @@ export function Sidebar({
   return (
     <aside className={'sidebar' + (resizing ? ' resizing' : '')} data-part="sidebar">
       <div className="brand">
-        <span className="logo">R</span>
+        <Logo size={34} />
         <span className="grow brand-name">
           Refrain
           {window.mnemaApi?.platform === 'web' && <span className="test-tag" title="Онлайн-версия только для тестов: данные хранятся в этом браузере">тестовая версия</span>}

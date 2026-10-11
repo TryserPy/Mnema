@@ -21,6 +21,7 @@ import { PluginScreen } from './screens/PluginScreen';
 import { MODS_AVAILABLE } from './featureList';
 import { emit, registry, setNavigator, syncPlugins } from './plugins/host';
 import { applyLook, lookKey } from './themes';
+import { Logo } from './components/Logo';
 import { applyStyles } from './styleApply';
 import { cacheSplashTheme } from './splashTheme';
 import { AnkiImport } from './components/AnkiImport';
@@ -506,7 +507,7 @@ export function App() {
       {mobile && (
         <header className="mobile-bar">
           <button className="mobile-brand" onClick={() => go({ name: 'today' })}>
-            <span className="logo small-logo">R</span> Refrain
+            <Logo size={28} /> Refrain
             {window.mnemaApi?.platform === 'web' && <span className="test-tag">тест</span>}
           </button>
           <span className="grow" />
