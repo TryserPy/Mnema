@@ -299,6 +299,8 @@ export function planImport(pack: Pack, opts: { fallbackName?: string } = {}): Im
 
     // Obsidian: комментарии, выноски, блочные ссылки
     body = body.replace(/%%[\s\S]*?%%/g, '');
+    // Рамки учебника, которые Refrain сам записал выноской: «> [!important] Запомните» + строка → «> **Запомните:** строка»
+    body = body.replace(/^>\s*\[!\w+\][+-]?\s*(Запомните|Это важно|Важно|Вывод|Правило|Определение|Пример|Внимание)[ \t]*\n>[ \t]?(.*)$/gm, (_m, title: string, rest: string) => `> **${title}:** ${rest}`);
     body = body.replace(/^>\s*\[!(\w+)\][+-]?\s*(.*)$/gm, (_m, type: string, title: string) => `> **${title.trim() || CALLOUT_TITLES[type.toLowerCase()] || type}**`);
     body = body.replace(/[ \t]\^[a-zA-Z0-9-]+$/gm, '');
 

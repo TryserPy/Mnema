@@ -164,6 +164,7 @@ function yamlScalar(raw: string): unknown {
   if (s.startsWith('[') && s.endsWith(']')) return s.slice(1, -1).split(',').map((x) => String(yamlScalar(x))).filter(Boolean);
   if (s.startsWith("'") && s.endsWith("'") && s.length > 1) return s.slice(1, -1).replace(/''/g, "'");
   if (s.startsWith('"') && s.endsWith('"') && s.length > 1) return s.slice(1, -1);
+  if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
   if (/^(true|yes)$/i.test(s)) return true;
   if (/^(false|no)$/i.test(s)) return false;
   return s;
@@ -222,16 +223,17 @@ export function sanitizeImportedMarkdown(md: string): string {
 
 function cleanProse(s: string): string {
   let t = s.replace(/<!--[\s\S]*?-->/g, '');
+  // Безобидные теги прячем под служебные знаки, остальное экранируем, потом возвращаем безобидные.
   t = t.replace(/<\/?([a-zA-Z][a-zA-Z0-9:-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g, (all, name: string) => {
     const tag = name.toLowerCase();
     if (!KEEP_TAGS.has(tag)) return all.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    if (all.startsWith('</')) return `</${tag}>`;
-    return tag === 'br' ? '<br>' : `<${tag}>`;
+    if (all.startsWith('</')) return `\u0001/${tag}\u0002`;
+    return `\u0001${tag}\u0002`;
   });
   // Незакрытый «<тег» без «>» не тег, но экранируем «<», за которым идёт буква, чтобы он не склеился с чужим текстом.
-  t = t.replace(/<(?=[a-zA-Z!?/])/g, '&lt;');
-  // Адреса в [текст](адрес) и ![alt](адрес)
-  t = t.replace(/(!?\[[^\]\n]*\])\(\s*<?([^)\s>]*)>?((?:\s+"[^"]*")?)\s*\)/g, (all, label: string, href: string) => {
+  t = t.replace(/<(?=[a-zA-Z!?/])/g, '&lt;').replace(/\u0001(\/?[a-z]+)\u0002/g, '<$1>');
+  // Адреса в [текст](адрес) и ![alt](адрес); в адресе допускаются скобки на один уровень.
+  t = t.replace(/(!?\[[^\]\n]*\])\(\s*<?((?:[^()\s>]|\([^()]*\))*)>?((?:\s+"[^"]*")?)\s*\)/g, (all, label: string, href: string) => {
     const h = href.trim();
     const ok = h === '' || /^(#|https?:|mailto:|mnema:\/\/|data:image\/(?:png|jpeg|webp|gif|svg\+xml)[;,])/i.test(h) || (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(h) && !h.startsWith('//') && !h.startsWith('\\\\'));
     return ok ? all : label.startsWith('!') ? `*(картинка не перенесена)*` : label.slice(1, -1) || '';

@@ -7,7 +7,8 @@
 //   Папка/Предмет/Тема.md       — тема; подтемы — в папке «Тема/»; правила — «Правила/», общие термины — «Термины/»
 //
 // Разметка: CommonMark + GFM (таблицы), формулы $…$ и $$…$$, выделение ==…==, свойства YAML сверху, картинки — файлами.
-// flavor 'obsidian' — ссылки между темами [[вики]], видео ![](ссылка), выноски > [!note].
+// Рамки учебника «> **Запомните:** …» пишутся выносками Obsidian «> [!important] Запомните» (в других программах это обычная цитата).
+// flavor 'obsidian' — ещё и ссылки между темами [[вики]] и видео ![](ссылка).
 import { cardsToCsv, cardsToMarkdown, emitCards, emitList, emitPoems, type FlatCard, type PlainCard } from './mdCards';
 import { b64ToBytes, bytesToB64, EXT_BY_MIME, emitFrontmatter, linkPath, parseImageUri, relPath, safeFileName, uniquePath } from './mdPortable';
 import { hashText } from './noteText';
@@ -132,7 +133,7 @@ export function buildMarkdownExport(data: AppData, opts: { flavor?: Flavor } = {
       if (flavor === 'obsidian') return text === baseOf(target.path) ? `[[${wikiTarget(target)}]]` : `[[${wikiTarget(target)}|${text}]]`;
       return `[${text}](${linkPath(relPath(here, target.path))})`;
     });
-    if (flavor === 'obsidian') {
+    {
       s = s.replace(/^> \*\*([^*\n]+?)\*\*[:.]?[ \t]*(.*)$/gm, (m, title: string, rest: string) => {
         const kind = CALLOUT[title.replace(/[:.\s]+$/, '').toLowerCase()];
         return kind ? `> [!${kind}] ${title.replace(/[:.\s]+$/, '')}${rest ? '\n> ' + rest : ''}` : m;
