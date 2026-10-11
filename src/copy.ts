@@ -16,6 +16,20 @@ export function copyName(name: string, taken: Iterable<string>): string {
   }
 }
 
+/** Как называть: «Дублировать» — «Имя (копия)»; «Вставить» — то же имя, а «Имя (2)» только если в этом месте уже есть такое. */
+export type Naming = 'copy' | 'paste';
+
+/** Имя для вставки: то же, если место свободно; иначе «Имя (2)», «Имя (3)» — первое свободное среди соседей. */
+export function pasteName(name: string, taken: Iterable<string>): string {
+  const set = new Set([...taken].map((x) => x.trim().toLowerCase()));
+  if (!set.has(name.trim().toLowerCase())) return name;
+  const base = name.replace(/\s*\(\d+\)$/, '').trim() || name;
+  for (let n = 2; ; n++) {
+    const candidate = `${base} (${n})`;
+    if (!set.has(candidate.toLowerCase())) return candidate;
+  }
+}
+
 /** Темы-корни и все их подтемы (того же предмета). */
 function branch(d: AppData, rootIds: string[]): Topic[] {
   const out: Topic[] = [];
@@ -87,16 +101,16 @@ export interface CopyResult {
 
 const withPlan = (d: AppData, plan: CopyPlan): AppData => ({ ...d, topics: [...d.topics, ...plan.topics], cards: [...d.cards, ...plan.cards] });
 
-export function copyTopic(d: AppData, topicId: string, uid: Uid, stamp: string, to?: { subjectId: string; parentId?: string }): CopyResult | null {
+export function copyTopic(d: AppData, topicId: string, uid: Uid, stamp: string, to?: { subjectId: string; parentId?: string }, naming: Naming = 'copy'): CopyResult | null {
   const t = d.topics.find((x) => x.id === topicId);
   if (!t) return null;
   const target = to ?? { subjectId: t.subjectId, parentId: t.parentId };
   if (!d.subjects.some((s) => s.id === target.subjectId)) return null;
   if (target.parentId && !d.topics.some((x) => x.id === target.parentId && x.subjectId === target.subjectId)) return null;
   const siblings = d.topics.filter((x) => x.subjectId === target.subjectId && (x.parentId ?? null) === (target.parentId ?? null) && x.kind === t.kind).map((x) => x.name);
-  // В то же место — «(копия)»; в другое место — то же имя, если там такого ещё нет.
+  // «Дублировать» в то же место — «(копия)»; в другое место — то же имя, если там такого ещё нет. «Вставить» — то же имя, «(2)» только при конфликте.
   const samePlace = target.subjectId === t.subjectId && (target.parentId ?? null) === (t.parentId ?? null);
-  const name = !samePlace && !siblings.some((n) => n.trim().toLowerCase() === t.name.trim().toLowerCase()) ? t.name : copyName(t.name, siblings);
+  const name = naming === 'paste' ? pasteName(t.name, siblings) : !samePlace && !siblings.some((n) => n.trim().toLowerCase() === t.name.trim().toLowerCase()) ? t.name : copyName(t.name, siblings);
   const plan = cloneTopics(d, [topicId], { subjectId: target.subjectId, parentId: target.parentId, rootName: () => name }, uid, stamp);
   return { data: withPlan(d, plan), id: plan.firstRootId!, name, what: 'topic' };
 }
@@ -110,21 +124,22 @@ function copySubjectInto(d: AppData, s: Subject, uid: Uid, stamp: string, name: 
   return { data: { ...withPlan(d, plan), subjects: [...d.subjects, subject] }, subject };
 }
 
-export function copySubject(d: AppData, subjectId: string, uid: Uid, stamp: string, to?: { folderId?: string }): CopyResult | null {
+export function copySubject(d: AppData, subjectId: string, uid: Uid, stamp: string, to?: { folderId?: string }, naming: Naming = 'copy'): CopyResult | null {
   const s = d.subjects.find((x) => x.id === subjectId);
   if (!s) return null;
   const folderId = to ? (to.folderId && d.folders.some((f) => f.id === to.folderId) ? to.folderId : undefined) : s.folderId;
   const siblings = d.subjects.filter((x) => (x.folderId ?? null) === (folderId ?? null)).map((x) => x.name);
   const samePlace = (folderId ?? null) === (s.folderId ?? null);
-  const name = !samePlace && !siblings.some((n) => n.trim().toLowerCase() === s.name.trim().toLowerCase()) ? s.name : copyName(s.name, siblings);
+  const name = naming === 'paste' ? pasteName(s.name, siblings) : !samePlace && !siblings.some((n) => n.trim().toLowerCase() === s.name.trim().toLowerCase()) ? s.name : copyName(s.name, siblings);
   const r = copySubjectInto(d, s, uid, stamp, name, folderId);
   return { data: r.data, id: r.subject.id, name, what: 'subject' };
 }
 
-export function copyFolder(d: AppData, folderId: string, uid: Uid, stamp: string): CopyResult | null {
+export function copyFolder(d: AppData, folderId: string, uid: Uid, stamp: string, naming: Naming = 'copy'): CopyResult | null {
   const f = d.folders.find((x) => x.id === folderId);
   if (!f) return null;
-  const name = copyName(f.name, d.folders.map((x) => x.name));
+  const names = d.folders.map((x) => x.name);
+  const name = naming === 'paste' ? pasteName(f.name, names) : copyName(f.name, names);
   const { updatedAt: _u, ...keep } = f;
   const folder: Folder = { ...keep, id: uid(), name, order: Math.max(0, ...d.folders.map((x) => x.order ?? 0)) + 1, createdAt: stamp, updatedAt: stamp };
   let out: AppData = { ...d, folders: [...d.folders, folder] };

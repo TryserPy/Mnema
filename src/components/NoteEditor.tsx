@@ -668,7 +668,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   }
 
   return (
-    <div className="note-page">
+    <div className="note-page" data-part="note">
       <div className="note-insert" ref={barRef}>
         {bar('inline')}
       </div>
@@ -898,7 +898,7 @@ function VideoLinkDialog({ onClose, onInsert }: { onClose: () => void; onInsert:
         <span className={'small ' + (url.trim() && !info ? 'hint warn' : 'muted')}>
           {url.trim() && !info ? 'Это не похоже на ссылку на видео. Подходят YouTube, Rutube, VK Видео и файлы .mp4.' : info ? `${info.label} — видео откроется прямо в конспекте.` : 'Подходят YouTube, Rutube, VK Видео и файлы .mp4. Время начала из ссылки (?t=90) сохранится. Ссылку можно просто вставить в конспект — плеер появится сам.'}
         </span>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button type="button" className="btn ghost" onClick={onClose}>
             Отмена
           </button>

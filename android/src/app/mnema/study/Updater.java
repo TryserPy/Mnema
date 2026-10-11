@@ -25,7 +25,7 @@ import java.net.URL;
 import java.util.Arrays;
 
 /**
- * Обновление Мнемы на телефоне: скачать APK из выпуска на GitHub, проверить, что это наша Мнема
+ * Обновление Refrain на телефоне: скачать APK из выпуска на GitHub, проверить, что это наша Refrain
  * (то же имя пакета, тот же ключ подписи, версия новее), и отдать системе на установку.
  * Android сам спросит «Обновить приложение?» — без этого вопроса ставить приложения нельзя.
  */
@@ -130,7 +130,7 @@ public class Updater extends BroadcastReceiver {
         }
     }
 
-    /** Можно ли Мнеме ставить приложения (Android 8+ спрашивает у человека). */
+    /** Можно ли Refrain ставить приложения (Android 8+ спрашивает у человека). */
     static boolean canInstall(Context ctx) {
         return Build.VERSION.SDK_INT < 26 || ctx.getPackageManager().canRequestPackageInstalls();
     }
@@ -140,7 +140,7 @@ public class Updater extends BroadcastReceiver {
         return p == null ? null : p.signatures;
     }
 
-    /** Это точно Мнема, новее и подписана тем же ключом? Иначе Android всё равно откажет — лучше сказать понятно. */
+    /** Это точно Refrain, новее и подписана тем же ключом? Иначе Android всё равно откажет — лучше сказать понятно. */
     @SuppressWarnings("deprecation")
     static String check(Context ctx, File apk) {
         try {
@@ -153,7 +153,7 @@ public class Updater extends BroadcastReceiver {
             PackageInfo mine = pm.getPackageInfo(ctx.getPackageName(), PackageManager.GET_SIGNATURES);
             if (!ctx.getPackageName().equals(file.packageName)) {
                 apk.delete();
-                return err("Это не Мнема");
+                return err("Это не Refrain");
             }
             if (file.versionCode <= mine.versionCode) {
                 apk.delete();
@@ -172,7 +172,7 @@ public class Updater extends BroadcastReceiver {
     }
 
     /**
-     * Отдать скачанный APK системе. Если Мнеме ещё не разрешено ставить приложения — открыть это разрешение
+     * Отдать скачанный APK системе. Если Refrain ещё не разрешено ставить приложения — открыть это разрешение
      * (только когда ask = true: после возврата из настроек без разрешения второй раз не открываем — иначе петля).
      * Копирует файл (~13 МБ), поэтому вызывать не в главном потоке.
      */
@@ -240,7 +240,7 @@ public class Updater extends BroadcastReceiver {
             }
             return;
         }
-        if (status == PackageInstaller.STATUS_SUCCESS) return; // Мнема сейчас перезапустится уже новой
+        if (status == PackageInstaller.STATUS_SUCCESS) return; // Refrain сейчас перезапустится уже новой
         String message = status == PackageInstaller.STATUS_FAILURE_ABORTED ? "Установка отменена"
                 : status == PackageInstaller.STATUS_FAILURE_CONFLICT ? "Обновление подписано другим ключом — такое не встанет поверх"
                 : status == PackageInstaller.STATUS_FAILURE_INCOMPATIBLE ? "Эта версия не подходит к твоему телефону"

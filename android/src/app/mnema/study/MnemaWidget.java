@@ -19,7 +19,7 @@ import java.util.Locale;
 /**
  * Виджет на рабочем столе: сколько карточек на сегодня, домашка на завтра и кнопка «Повторить 5».
  * Числа приложение заранее считает на неделю вперёд (Bridge.setWidget) — виджет только выбирает сегодняшние,
- * поэтому он верен, даже если Мнему несколько дней не открывали.
+ * поэтому он верен, даже если Refrain несколько дней не открывали.
  */
 public class MnemaWidget extends AppWidgetProvider {
     static final String PREFS = "mnema_widget";
@@ -60,7 +60,7 @@ public class MnemaWidget extends AppWidgetProvider {
         SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String raw = p.getString("state", null);
         int count = -1;
-        String hw = "Открой Мнему — здесь появятся карточки и домашка";
+        String hw = "Открой Refrain — здесь появятся карточки и домашка";
         String streak = "";
         try {
             if (raw != null) {
@@ -110,7 +110,7 @@ public class MnemaWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.w_count_label, count == 0 ? "всё повторено ✓" : count < 0 ? "карточек на сегодня" : cardsWord(count) + " на сегодня");
             v.setTextViewText(R.id.w_hw, hw);
             v.setTextViewText(R.id.w_streak, streak);
-            v.setTextViewText(R.id.w_btn, count == 0 ? "Открыть Мнему" : "▶  Повторить 5 карточек");
+            v.setTextViewText(R.id.w_btn, count == 0 ? "Открыть Refrain" : "▶  Повторить 5 карточек");
             v.setOnClickPendingIntent(R.id.w_root, open(ctx, "today", 41));
             v.setOnClickPendingIntent(R.id.w_hw, open(ctx, "homework", 42));
             v.setOnClickPendingIntent(R.id.w_btn, open(ctx, count == 0 ? "today" : "mini", 43));

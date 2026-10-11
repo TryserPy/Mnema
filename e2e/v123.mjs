@@ -167,7 +167,7 @@ const dataOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mn
   await page.waitForTimeout(800);
   // предмет — копия через меню
   await page.locator('.tree-row.folder').click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Сделать копию' }).click();
+  await page.getByRole('menuitem', { name: 'Дублировать' }).click();
   await page.waitForTimeout(500);
   let d = await dataOf(page);
   check(d.folders.length === 2 && d.folders.some((f) => f.name === 'Науки (копия)'), '1280: копия папки создана');
@@ -217,7 +217,7 @@ const dataOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mn
   await page.waitForTimeout(500);
   check((await page.locator('.feat-tile', { hasText: 'Моды' }).count()) === 0, '1280: в «Возможностях» нет «Модов»');
   // «Что нового»
-  await page.locator('.settings-page').getByRole('button', { name: 'О Мнеме' }).first().click();
+  await page.locator('.settings-page').getByRole('button', { name: 'О Refrain' }).first().click();
   await page.waitForTimeout(400);
   check((await page.locator('.sgroup-title, .group-title, h3, .sgroup > span').filter({ hasText: 'Что нового в 1.' }).count()) >= 1, '1280: «Что нового в <текущей версии>»');
   await page.getByRole('button', { name: 'Что было раньше' }).click();

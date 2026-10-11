@@ -43,7 +43,7 @@ export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: 
     { icon: 'folderPlus', title: 'Новый предмет', hint: 'Например, «Биология»', run: () => (close(), onNewSubject()) },
     { icon: 'folder', title: 'Новая папка', hint: 'Собрать предметы вместе, например «Естественные науки»', run: () => (close(), onNewSubject({ as: 'folder' })) },
     { icon: 'homework', title: 'Домашка', hint: 'Что задали и к какому сроку', run: () => (close(), go({ name: 'homework' })), hidden: !data.settings.features.homework },
-    { icon: 'calendar', title: 'Контрольная', hint: 'Дата и темы — Мнема составит план', run: () => (close(), openExamDialog(at)), hidden: data.topics.length === 0 },
+    { icon: 'calendar', title: 'Контрольная', hint: 'Дата и темы — Refrain составит план', run: () => (close(), openExamDialog(at)), hidden: data.topics.length === 0 },
     { icon: 'upload', title: 'Файл изменений', hint: 'Загрузить конспекты и карточки от нейросети', run: () => (close(), openChanges()) }
   ];
   return (
@@ -133,7 +133,7 @@ function QuickCardDialog({ at, onClose }: { at: { topicId?: string; subjectId?: 
           <button type="button" className="btn" disabled={!ok} onClick={() => save(true)}>
             Сохранить и ещё одну
           </button>
-          <span className="row gap8">
+          <span className="row gap8 wrap">
             <button type="button" className="btn ghost" onClick={onClose}>
               {added ? 'Готово' : 'Отмена'}
             </button>
@@ -179,7 +179,7 @@ function QuickTopicDialog({ at, go, onClose }: { at: { subjectId?: string }; go:
           <span className="small muted">Название</span>
           <input className="input" autoFocus placeholder="Например, §12 Фотосинтез" value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button type="button" className="btn ghost" onClick={onClose}>
             Отмена
           </button>

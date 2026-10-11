@@ -119,7 +119,7 @@ export function parseImageUri(uri: string): { mime: string; bytes: Uint8Array } 
 
 export const bytesToImageUri = (mime: string, bytes: Uint8Array): string => `data:${mime};base64,${bytesToB64(bytes)}`;
 
-/** Рисунок Мнемы: SVG, который приложение само создало (по нему можно дорисовать). */
+/** Рисунок Refrain: SVG, который приложение само создало (по нему можно дорисовать). */
 export const isDrawingSvg = (text: string): boolean => /data-mnema="drawing"/.test(text.slice(0, 2000));
 
 /** SVG без скриптов, обработчиков событий, внешних ссылок и вложенного HTML: годится как картинка. */

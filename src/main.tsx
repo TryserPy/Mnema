@@ -15,6 +15,14 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './design.css';
 import './motion2.css';
+import './api.css';
+
+// Заставка (index.html + splash.css) уходит сама; убираем её из разметки, когда она растаяла.
+const splash = document.getElementById('splash');
+if (splash) {
+  splash.addEventListener('animationend', (e) => { if (e.animationName === 'spOut') splash.remove(); });
+  setTimeout(() => splash.remove(), 5000);
+}
 
 async function start() {
   // В браузере мост window.mnemaApi собирает platform/web.ts — до того, как store.ts прочитает данные.

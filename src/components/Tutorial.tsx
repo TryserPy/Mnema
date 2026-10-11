@@ -2,10 +2,11 @@
 // Шаг определяется по тому, что есть на самом деле (есть ли новый предмет, тема, конспект, карточка; открыто ли окно), а не по счётчику:
 // закрыл окно, удалил созданное, ушёл на другой экран — подсказка сама возвращается на нужный шаг.
 // «Пропустить шаг» делает шаг за человека (создаёт предмет, тему, пишет пример конспекта, карточку); «Выйти» — закончить.
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { addCard, addSubject, addTopic, getData, updateSettings, updateTopic, useData } from '../store';
 import { noteWriter } from '../noteRegistry';
 import type { AppData, Route, Topic } from '../types';
+import { useDomTick, useRect } from './guideTarget';
 import { Icon, selHow, toast } from './ui';
 import '../guide.css';
 
@@ -23,7 +24,7 @@ const setSt = (patch: Partial<State>) => {
   subs.forEach((f) => f());
 };
 
-/** Начать интерактивное знакомство (из «Знакомства», «Справки», «О Мнеме»). */
+/** Начать интерактивное знакомство (из «Знакомства», «Справки», «О Refrain»). */
 export function startTutorial() {
   const d = getData();
   setSt({ active: true, skipped: [], learned: false, base: { subjects: new Set(d.subjects.map((x) => x.id)), topics: new Set(d.topics.map((x) => x.id)), cards: new Set(d.cards.map((x) => x.id)) } });
@@ -37,8 +38,10 @@ const menuOpen = () => Boolean(q('.modal .create-item'));
 const dialogTitle = () => q('.modal h2')?.textContent ?? '';
 const anyModal = () => Boolean(q('.modal'));
 
-/** Крупные шаги — для полоски «Шаг N из 6». */
-const MAJORS = ['Предмет', 'Тема', 'Конспект', 'Карточка', 'Повторение', 'Готово'];
+/** Шаги, которые делает человек, — для полоски «Шаг N из 5». Последний экран («Готово») — не шаг и в счёт не входит. */
+const MAJORS = ['Предмет', 'Тема', 'Конспект', 'Карточка', 'Повторение'];
+/** Номер финального экрана «Готово». */
+const LAST = MAJORS.length;
 /** Через сколько на одном шаге напомнить про «Пропустить шаг». */
 const STUCK_MS = 25000;
 const DONE_FLASH = ['Предмет создан', 'Тема создана', 'Конспект написан', 'Карточка готова', 'Повторение открыто'];
@@ -73,7 +76,7 @@ function currentMajor(c: Ctx): number {
   if (!sk.includes(2) && !c.noteTopic) return 2;
   if (!sk.includes(3) && c.cardsNew === 0) return 3;
   if (!sk.includes(4) && !st.learned) return 4;
-  return 5;
+  return LAST;
 }
 
 /** Наша тема, с которой работаем (созданная в знакомстве; если её нет — та, что сейчас открыта). */
@@ -135,7 +138,7 @@ function stageOf(c: Ctx): Stage {
       if (c.route.name === 'today' && (q('.hero-btn') as HTMLButtonElement | null)?.disabled) return { major, text: 'Сегодня повторять пока нечего — так бывает. Нажми «Пропустить шаг», чтобы закончить знакомство.', target: null };
       return { major, text: 'Теперь повторение. Вернись на «Сегодня» и нажми «Учиться».', target: c.route.name === 'today' ? q('.hero-btn') : (byText('.tab', 'Учусь') ?? byText('.sidebar .nav-item', 'Сегодня')) };
     default:
-      return { major: 5, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Мнема сама решит, когда показать карточку снова.', target: null };
+      return { major: LAST, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Refrain сам решит, когда показать карточку снова.', target: null };
   }
 }
 
@@ -214,54 +217,67 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
     },
     () => st
   );
-  const [tick, setTick] = useState(0);
-  const [rect, setRect] = useState<Rect | null>(null);
+  // Не опрашиваем экран по таймеру: подсказка пересчитывается ровно тогда, когда на экране что-то поменялось (раз за кадр).
+  const tick = useDomTick(s.active);
   const [flash, setFlash] = useState('');
+  const [late, setLate] = useState<'stuck' | 'missing' | null>(null);
   const prevMajor = useRef(0);
-  const since = useRef({ major: -1, at: 0 }); // когда пришли на текущий шаг: если долго стоим — подсказываем про «Пропустить шаг»
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  // Раз в четверть секунды смотрим на экран: окно закрыли? тему удалили? куда подсвечивать?
-  useEffect(() => {
-    if (!s.active) return;
-    const id = setInterval(() => setTick((t) => t + 1), 250);
-    return () => clearInterval(id);
-  }, [s.active]);
   useEffect(() => () => clearTimeout(flashTimer.current), []);
 
-  const ctx = context(data, route);
-  const stage = s.active ? stageOf(ctx) : null;
+  const ctx = useMemo(() => context(data, route), [data, route, s.base, s.active]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stage = s.active ? stageOf(ctx) : null; // читает экран; пересчитывается при каждой его смене (tick)
+  void tick;
+  const rect = useRect(stage?.target ?? null, tick);
+  const major = stage?.major ?? -1;
+  const hasTarget = Boolean(stage?.target);
 
+  // Повторение открыли — запоминаем (потом можно выйти из него, шаг не откатится).
   useEffect(() => {
-    if (!s.active || !stage) return;
-    // Повторение открыли — запоминаем (потом можно выйти из него, шаг не откатится).
-    if (route.name === 'review' && stage.major === 4 && !st.learned) setSt({ learned: true });
-    // Шаг вперёд — коротко отмечаем, что получилось.
-    if (stage.major > prevMajor.current && !st.skipped.includes(prevMajor.current)) {
+    if (s.active && route.name === 'review' && major === 4 && !st.learned) setSt({ learned: true });
+  }, [s.active, route.name, major]);
+
+  // Шаг вперёд — коротко отмечаем, что получилось (только настоящий переход вперёд на соседний шаг, не скачок после отката).
+  useEffect(() => {
+    if (!s.active) {
+      prevMajor.current = 0;
+      return;
+    }
+    if (major === prevMajor.current + 1 && !st.skipped.includes(prevMajor.current)) {
       setFlash('✓ ' + DONE_FLASH[prevMajor.current]);
       clearTimeout(flashTimer.current);
       flashTimer.current = setTimeout(() => setFlash(''), 1400);
-    }
-    prevMajor.current = stage.major;
-    const el = stage.target;
-    if (el) {
-      const r = el.getBoundingClientRect();
-      const next = { x: r.left, y: r.top, w: r.width, h: r.height };
-      setRect((o) => (o && Math.abs(o.x - next.x) < 1 && Math.abs(o.y - next.y) < 1 && Math.abs(o.w - next.w) < 1 && Math.abs(o.h - next.h) < 1 ? o : next));
-    } else setRect(null);
-  }, [tick, data, route, s]); // eslint-disable-line react-hooks/exhaustive-deps
+    } else if (major !== prevMajor.current) setFlash('');
+    prevMajor.current = major;
+  }, [s.active, major]);
+
+  // Застряли на шаге (25 с) — напомнить про «Пропустить шаг»; нужного элемента нет на экране (1,5 с) — вернуть на нужный экран, а если не помогло — тоже про «Пропустить».
+  useEffect(() => {
+    setLate(null);
+    if (!s.active || major < 0 || major >= LAST) return;
+    const t = setTimeout(() => setLate('stuck'), STUCK_MS);
+    return () => clearTimeout(t);
+  }, [s.active, major]);
+  const topicId = stage ? workTopic(ctx)?.id : undefined;
+  useEffect(() => {
+    if (!s.active || major < 0 || major >= LAST || hasTarget) return;
+    // Шаги, которым нужна сама подсветка (ниже «Закрой окно» и пр. — без неё можно): ждём чуть-чуть и пробуем вернуть человека на нужный экран.
+    const t = setTimeout(() => {
+      if ((major === 2 || major === 3) && topicId && !(route.name === 'topic' && route.id === topicId)) go({ name: 'topic', id: topicId, tab: 'note' });
+      else if (major === 4 && route.name !== 'today' && route.name !== 'review' && !q('.modal')) go({ name: 'today' });
+      else setLate((l) => l ?? 'missing');
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [s.active, major, hasTarget, topicId, route.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!s.active || !stage) return null;
-  if (since.current.major !== stage.major) since.current = { major: stage.major, at: Date.now() };
-  const stuck = stage.major < MAJORS.length - 1 && Date.now() - since.current.at > STUCK_MS;
   const finish = (completed: boolean) => {
     setSt({ active: false });
-    setRect(null);
     setFlash('');
     if (!getData().settings.onboarded) updateSettings({ onboarded: true });
     if (completed) toast('Знакомство пройдено. Справка и знакомство — в «Профиле»');
   };
-  const last = stage.major === 5;
+  const last = stage.major === LAST;
   const phone = window.innerWidth < 720;
   const place = cardPlace(rect, phone);
   return (
@@ -269,15 +285,16 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
       {rect && <div className="tut-ring" style={{ left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12 }} />}
       <div className={'tut-card' + (phone ? ' phone' : '')} style={place} role="dialog" aria-label="Знакомство">
         <div className="tut-step">
-          Шаг {stage.major + 1} из {MAJORS.length} · {MAJORS[stage.major]}
+          {last ? 'Всё готово' : `Шаг ${stage.major + 1} из ${MAJORS.length} · ${MAJORS[stage.major]}`}
           <span className="tut-bar">
-            <i style={{ width: ((stage.major + 1) / MAJORS.length) * 100 + '%' }} />
+            <i style={{ width: Math.max(8, (stage.major / LAST) * 100) + '%' }} />
           </span>
         </div>
         {flash && <p className="tut-flash">{flash}</p>}
         <p className="tut-text">{stage.text}</p>
         {stage.hint && <p className="small muted tut-hint">{stage.hint}</p>}
-        {stuck && <p className="small muted tut-hint">Не получается или шаг не засчитывается? Нажми «Пропустить шаг» — Мнема сделает его за тебя.</p>}
+        {late === 'stuck' && <p className="small muted tut-hint">Не получается или шаг не засчитывается? Нажми «Пропустить шаг» — Refrain сделает его за тебя.</p>}
+        {late === 'missing' && !stage.target && <p className="small muted tut-hint">Не вижу нужной кнопки на экране. Нажми «Пропустить шаг» — Refrain сделает этот шаг за тебя.</p>}
         <div className="tut-btns">
           <span className="row gap6">
             <button className="btn ghost small" onClick={() => finish(false)}>
@@ -289,7 +306,7 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
               <Icon name="check" size={16} /> Закончить
             </button>
           ) : (
-            <button className="btn small" onClick={() => doStep(stage.major, ctx, go)} title="Мнема сделает этот шаг за тебя">
+            <button className="btn small" onClick={() => doStep(stage.major, ctx, go)} title="Refrain сделает этот шаг за тебя">
               Пропустить шаг
             </button>
           )}

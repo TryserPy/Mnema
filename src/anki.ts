@@ -1,5 +1,5 @@
 // Импорт из Anki: .apkg (старый и новый формат), .colpkg, .anki2/.anki21 и текстовый экспорт (.txt/.tsv/.csv).
-// Колоды превращаются в предметы и темы, карточки — в карточки Мнемы, картинки встраиваются,
+// Колоды превращаются в предметы и темы, карточки — в карточки Refrain, картинки встраиваются,
 // звук пропускается. Прогресс можно перенести: история ответов прогоняется через FSRS.
 import { unzipSync } from 'fflate';
 import { decompress as zstd } from 'fzstd';
@@ -132,7 +132,7 @@ function readMediaEntries(buf: Uint8Array): { name: string; zipName: string }[] 
   return out;
 }
 
-// ---------- HTML Anki → Markdown Мнемы ----------
+// ---------- HTML Anki → Markdown Refrain ----------
 
 const ENT: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", laquo: '«', raquo: '»', mdash: '—', ndash: '–', hellip: '…', shy: '' };
 

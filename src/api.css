@@ -1,0 +1,60 @@
+/* ===================== Refrain: API оформления =====================
+   Здесь — раскладка, которую меняют стили (см. src/styleApi.ts и справку в редакторе стилей).
+   Переменные --rf-* подставляются прямо в основные правила (styles.css, design.css) с прежними значениями «по умолчанию»,
+   поэтому без стиля интерфейс не меняется. Атрибуты data-ui-* ставит приложение на <html> по включённым стилям.
+   Раскладка меняется только на компьютере и планшете (.app.mobile — телефон — остаётся как есть). */
+
+/* ---------- Боковая панель ---------- */
+:root[data-ui-sidebar='right'] .app:not(.mobile) { flex-direction: row-reverse; }
+:root[data-ui-sidebar='right'] .app:not(.mobile) .sidebar { border-right: 0; border-left: 1px solid var(--line); }
+:root[data-ui-sidebar='right'] .app:not(.mobile) .side-resize { display: none; }
+
+:root[data-ui-sidebar='top'] .app:not(.mobile) { flex-direction: column; }
+:root[data-ui-sidebar='top'] .app:not(.mobile) .main { min-height: 0; }
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar { width: auto; flex-direction: row; align-items: center; padding: 8px 16px; gap: 10px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; animation: none; }
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar > * { flex: none; }
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .nav { flex-direction: row; gap: 4px; }
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .nav-item { width: auto; padding: 0 12px; }
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .nav-kbd,
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .collapse-btn,
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .side-head,
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .tree,
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .pick-bar,
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .side-resize { display: none; }
+:root[data-ui-sidebar='top'] .app:not(.mobile) .sidebar .side-foot { margin-left: auto; border-top: 0; padding-top: 0; gap: 2px; }
+
+/* ---------- Ширина содержимого ---------- */
+:root[data-ui-content='narrow'] { --rf-content-w: 760px; --rf-content-w-wide: 840px; --rf-content-w-narrow: 680px; --rf-review-w: 680px; }
+:root[data-ui-content='wide'] { --rf-content-w: 1320px; --rf-content-w-wide: 1400px; --rf-content-w-narrow: 980px; --rf-review-w: 980px; }
+:root[data-ui-content='full'] { --rf-content-w: none; --rf-content-w-wide: none; --rf-content-w-narrow: none; --rf-review-w: none; }
+
+/* ---------- Вид карточек ---------- */
+:root[data-ui-cards='flat'] { --rf-border-w: 0px; --shadow: none; }
+:root[data-ui-cards='flat'] .topic-row:hover, :root[data-ui-cards='flat'] .card-row:hover { box-shadow: none; }
+:root[data-ui-cards='outline'] { --rf-border-w: 2px; --shadow: none; }
+:root[data-ui-cards='sharp'] { --radius: 3px; --rf-radius-review: 4px; --rf-radius-note: 3px; --rf-radius-row: 3px; --rf-radius-hero: 4px; --rf-radius-modal: 4px; --rf-radius-menu: 4px; --rf-radius-btn: 3px; --rf-radius-input: 3px; --rf-radius-grade: 3px; --rf-radius-nav: 3px; }
+
+/* ---------- Кнопки оценки ---------- */
+:root[data-ui-grades='grid'] .grades:not(.two) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:root[data-ui-grades='tall'] { --rf-grade-h: 100px; --rf-grades-gap: 14px; }
+:root[data-ui-grades='tall'] .grade { font-size: 1.18rem; }
+
+/* ---------- Список тем ---------- */
+:root[data-ui-topics='tiles'] .topic-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--rf-tile-w, 230px), 1fr)); }
+:root[data-ui-topics='tiles'] .topic-list > .empty, :root[data-ui-topics='tiles'] .topic-list > .hint { grid-column: 1 / -1; }
+:root[data-ui-topics='tiles'] .topic-row { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 12px; min-height: 120px; margin-left: 0 !important; }
+:root[data-ui-topics='tiles'] .topic-row > .progress { width: 100%; }
+:root[data-ui-topics='tiles'] .topic-row .badge { align-self: flex-start; }
+
+/* ---------- Вкладки ---------- */
+:root[data-ui-tabs='pills'] .topic-tabs { border-bottom: 0; }
+:root[data-ui-tabs='pills'] .otab { min-height: 36px; border-radius: 999px; }
+:root[data-ui-tabs='pills'] .otab.on { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-text, var(--accent)); }
+:root[data-ui-tabs='pills'] .otab-bar { display: none; }
+:root[data-ui-tabs='boxed'] .topic-tabs { border: 1px solid var(--line); border-radius: 14px; padding: 4px; background: var(--sunken); align-self: flex-start; max-width: 100%; }
+:root[data-ui-tabs='boxed'] .otab { min-height: 36px; border-radius: 10px; }
+:root[data-ui-tabs='boxed'] .otab.on { background: var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+:root[data-ui-tabs='boxed'] .otab-bar { display: none; }
+
+/* ---------- Анимации ---------- */
+:root[data-ui-anim='off'] *, :root[data-ui-anim='off'] *::before, :root[data-ui-anim='off'] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

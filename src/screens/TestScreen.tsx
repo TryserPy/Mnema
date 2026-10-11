@@ -90,7 +90,7 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
               onChange={(v) => setTimed(v === 'on')}
             />
           </div>
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={back}>
               Отмена
             </button>
@@ -183,7 +183,7 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
             ))}
           </div>
         )}
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           {mistakeCards.length > 0 && (
             <button className="btn primary" onClick={() => go({ name: 'review', cardIds: mistakeCards, cram: true, topicId })}>
               Повторить ошибки
@@ -230,7 +230,7 @@ export function TestScreen({ topicId, go, pretest = false, examId }: { topicId: 
           </span>
         )}
       </div>
-      <div className="review-card">
+      <div className="review-card" data-part="review-card">
         <Markdown text={q.question} className="question" />
         {q.kind === 'choice' && (
           <div className="choices">

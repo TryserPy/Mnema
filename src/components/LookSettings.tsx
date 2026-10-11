@@ -63,7 +63,7 @@ export function LookPane({ dark }: { dark: boolean }) {
   const [which, setWhich] = useState<'light' | 'dark'>(dark ? 'dark' : 'light');
   return (
     <div className="stack gap16">
-      <PaneHead title="Оформление" text="Как выглядит Мнема. Всё меняется сразу — можно пробовать." />
+      <PaneHead title="Оформление" text="Как выглядит Refrain. Всё меняется сразу — можно пробовать." />
       <Group title="Стиль" id="style">
         <div className="style-grid">
           {STYLES.map((st) => (
@@ -124,7 +124,7 @@ export function LookPane({ dark }: { dark: boolean }) {
   );
 }
 
-/** Значок Мнемы на рабочем столе телефона: обычный, под тему или любой на выбор. */
+/** Значок Refrain на рабочем столе телефона: обычный, под тему или любой на выбор. */
 function AppIconGroup({ dark }: { dark: boolean }) {
   const s = useData().settings;
   const mode = s.appIcon ?? 'default';
@@ -140,7 +140,7 @@ function AppIconGroup({ dark }: { dark: boolean }) {
           <Icon name="palette" size={24} />
         </span>
       ) : (
-        <span className="app-icon-prev">М</span>
+        <span className="app-icon-prev">R</span>
       )}
       <span className="icon-tile-name">{label}</span>
     </button>
@@ -148,7 +148,7 @@ function AppIconGroup({ dark }: { dark: boolean }) {
   return (
     <Group title="Значок на рабочем столе" id="appicon">
       <div className="srow stack-row">
-        <span className="small muted">Меняется, когда выходишь из Мнемы. На некоторых телефонах после смены значок пропадает с рабочего стола — тогда перетащи его заново из списка приложений.</span>
+        <span className="small muted">Меняется, когда выходишь из Refrain. На некоторых телефонах после смены значок пропадает с рабочего стола — тогда перетащи его заново из списка приложений.</span>
         <div className="icon-grid">
           {tile(null, 'theme', `Как тема (${current.name})`)}
           {tile(null, 'default', 'Обычный')}
@@ -192,7 +192,7 @@ function BgImageRow() {
     <div className="srow stack-row" data-set="bgimage">
       <div className="row between gap8 wrap">
         <span className="srow-label">Своя картинка</span>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           <button type="button" className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
             <Icon name="upload" size={16} /> {img ? 'Другая' : 'Выбрать файл'}
           </button>

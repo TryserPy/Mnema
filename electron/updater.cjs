@@ -1,4 +1,4 @@
-// Обновление Мнемы из выпусков на GitHub (electron-updater): проверить, скачать, установить при перезапуске.
+// Обновление Refrain из выпусков на GitHub (electron-updater): проверить, скачать, установить при перезапуске.
 const { app, ipcMain } = require('electron');
 
 const REPO = { owner: 'TryserPy', repo: 'Mnema' };
@@ -28,7 +28,7 @@ function register(getWin) {
       u.on('download-progress', (p) => send({ type: 'progress', percent: Math.round(p.percent || 0) }));
       u.on('update-downloaded', (i) => send({ type: 'ready', version: i.version }));
       const r = await u.checkForUpdates();
-      if (!r) return { ok: false, error: 'Обновления проверяются только в установленной Мнеме' };
+      if (!r) return { ok: false, error: 'Обновления проверяются только в установленной Refrain' };
       const info = r && r.updateInfo;
       const latest = info ? info.version : null;
       const available = Boolean(r && (r.isUpdateAvailable ?? (latest && latest !== app.getVersion())));

@@ -60,7 +60,7 @@ function endMini() {
 }
 
 function tooltip() {
-  return state.due > 0 ? `Мнема — ${state.due} ${plural(state.due, 'карточка', 'карточки', 'карточек')} на сегодня` : 'Мнема — на сегодня всё повторено';
+  return state.due > 0 ? `Refrain — ${state.due} ${plural(state.due, 'карточка', 'карточки', 'карточек')} на сегодня` : 'Refrain — на сегодня всё повторено';
 }
 
 function rebuildMenu() {
@@ -68,7 +68,7 @@ function rebuildMenu() {
   tray.setToolTip(tooltip());
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Открыть Мнему', click: showMain },
+      { label: 'Открыть Refrain', click: showMain },
       { label: `Повторить 5 карточек${registered ? '   ' + registered.replace('CommandOrControl', 'Ctrl') : ''}`, enabled: state.due > 0, click: startMini },
       { type: 'separator' },
       {
@@ -115,7 +115,7 @@ function checkReminder() {
   if (hhmm >= state.reminder && lastNotified !== today) {
     lastNotified = today;
     const n = new Notification({
-      title: 'Мнема',
+      title: 'Refrain',
       body: `Пора повторить: ${state.due} ${plural(state.due, 'карточка', 'карточки', 'карточек')}. Это займёт несколько минут.`,
       icon: icon(64)
     });

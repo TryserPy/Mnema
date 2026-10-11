@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Refrain — логотип на сайте</title>
+<style>
+*{box-sizing:border-box}
+:root{--accent:#3F51D8;--bg:#F6F3EC;--bg2:#ECE7DC;--surface:#fff;--ink:#17181E;--ink2:#464853;--ink3:#64666F;--line:rgba(23,24,30,.10);--glass:rgba(246,243,236,.72);--accent-text:var(--accent)}
+[data-theme=dark]{--bg:#0E0F14;--bg2:#1A1C24;--surface:#16181F;--ink:#F1EFE9;--ink2:#BCBEC8;--ink3:#9496A2;--line:rgba(255,255,255,.09);--glass:rgba(14,15,20,.66);--accent-text:color-mix(in oklab,var(--accent) 50%,white)}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:Onest,system-ui,-apple-system,'Segoe UI',sans-serif;transition:background-color .5s,color .5s}
+.wrap{max-width:980px;margin:0 auto;padding:0 24px}
+.nav{position:sticky;top:0;z-index:5;background:var(--glass);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;letter-spacing:-.01em;color:inherit;text-decoration:none;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 16px;font:500 14px inherit;cursor:pointer}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.tools{display:flex;gap:10px}
+
+/* ───── логотип Refrain: точка бежит по R, R прорисовывается, плитка «раскрывается», вокруг расходится эхо ───── */
+.mlogo{position:relative;display:inline-block;width:32px;height:32px;flex:none}
+.mlogo-bg{position:absolute;inset:0;border-radius:9px;background:var(--accent);box-shadow:inset 0 -2px 0 rgba(0,0,0,.18)}
+.mlogo svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.mlogo .r,.mlogo .echo{fill:none;stroke:#fff;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:0}
+.mlogo .echo{opacity:0;stroke-width:1.1;stroke-dasharray:none}
+.mlogo-dot{position:absolute;left:0;top:0;width:7px;height:7px;border-radius:50%;background:var(--accent-text);
+  offset-path:path('M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10');offset-rotate:0deg;offset-anchor:50% 50%;opacity:0;pointer-events:none}
+.mlogo-ring{position:absolute;inset:0;border-radius:9px;border:1.5px solid var(--accent-text);opacity:0;pointer-events:none}
+.mlogo.play .mlogo-dot{animation:mDot 1.6s cubic-bezier(.6,0,.3,1) both}
+.mlogo.play .r{animation:mDraw 1.6s cubic-bezier(.6,0,.3,1) both}
+.mlogo.play .mlogo-bg{animation:mBg 1.6s cubic-bezier(.3,1.55,.5,1) both}
+.mlogo.play .echo.e1{animation:mEcho 1.6s ease-out both;--dx:3.4px}
+.mlogo.play .echo.e2{animation:mEcho 1.6s ease-out .05s both;--dx:6.8px}
+.mlogo.play .mlogo-ring{animation:mRing 1.6s ease-out both}
+@keyframes mDot{0%{opacity:1;offset-distance:0%;transform:scale(0)}10%{transform:scale(1.8)}16%{opacity:1;offset-distance:0%;transform:scale(1)}40%{opacity:1;offset-distance:100%;transform:scale(1)}48%,100%{opacity:0;offset-distance:100%;transform:scale(0)}}
+@keyframes mDraw{0%,16%{stroke-dashoffset:100;stroke:var(--accent-text)}40%,44%{stroke-dashoffset:0;stroke:var(--accent-text)}54%,100%{stroke-dashoffset:0;stroke:#fff}}
+@keyframes mBg{0%,44%{opacity:0;transform:scale(.25);border-radius:50%}62%,100%{opacity:1;transform:scale(1);border-radius:9px}}
+/* эхо стартует сразу, как только R дорисована, и уходит вправо */
+@keyframes mEcho{0%,50%{opacity:0;transform:translateX(0)}56%{opacity:.75;transform:translateX(0)}100%{opacity:0;transform:translateX(var(--dx))}}
+@keyframes mRing{0%,50%{opacity:0;transform:scale(1)}56%{opacity:.6}100%{opacity:0;transform:scale(1.9)}}
+/* при наведении плитка чуть «дышит» */
+.brand:hover .mlogo-bg,.mlogo-big:hover .mlogo-bg{filter:brightness(1.08)}
+
+.mlogo-big{position:relative;display:block;width:64px;height:64px;border:0;padding:0;background:none;cursor:pointer}
+.mlogo-big .mlogo{position:absolute;left:0;top:0;transform:scale(2);transform-origin:0 0}
+
+.hero{padding:70px 0 40px;display:grid;gap:40px}
+h1{font:600 clamp(36px,6vw,60px)/1.05 Literata,Georgia,serif;letter-spacing:-.02em;margin:0}
+h1 span{color:var(--accent-text)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;display:grid;gap:14px;justify-items:start}
+.card p{margin:0;color:var(--ink2);font-size:15px;line-height:1.45}
+.card b{font-size:17px}
+.k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.row{display:flex;align-items:center;gap:18px}
+</style>
+<body data-theme="light">
+<header class="nav"><div class="wrap">
+  <a class="brand" data-logo><span class="mlogo play" aria-hidden="true"><span class="mlogo-bg"></span><span class="mlogo-ring"></span>
+    <svg viewBox="0 0 32 32"><path class="echo e2" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/><path class="echo e1" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/><path class="r" pathLength="100" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/></svg>
+    <span class="mlogo-dot"></span></span><span>Refrain</span></a>
+  <div class="tools"><button class="btn" id="theme">Тёмная тема</button><button class="btn p" id="replay">Повторить</button></div>
+</div></header>
+
+<main class="wrap hero">
+  <div style="display:grid;gap:14px"><div class="k">Появление и наведение</div><h1>Повтори — <span>и запомни.</span></h1></div>
+  <div class="cards">
+    <div class="card"><div class="k">При загрузке сайта</div><div class="row"><span class="brand" data-logo><span class="mlogo play"><span class="mlogo-bg"></span><span class="mlogo-ring"></span><svg viewBox="0 0 32 32"><path class="echo e2" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/><path class="echo e1" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/><path class="r" pathLength="100" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/></svg><span class="mlogo-dot"></span></span></span><p>Точка бежит по контуру R, он прорисовывается, плитка раскрывается — и расходится эхо.</p></div></div>
+    <div class="card"><div class="k">При наведении</div><button class="mlogo-big" data-logo aria-label="Показать анимацию"><span class="mlogo play"><span class="mlogo-bg"></span><span class="mlogo-ring"></span><svg viewBox="0 0 32 32"><path class="echo e2" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/><path class="echo e1" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/><path class="r" pathLength="100" d="M10 24 V8 H17 C21 8 23 10 23 12.5 C23 15 21 17 17 17 H10 M16.5 17.5 L23 24"/></svg><span class="mlogo-dot"></span></span></button><p>Наведи на значок (в шапке или здесь) — анимация проигрывается заново.</p></div>
+  </div>
+</main>
+<script>
+function replay(el){const l=el.querySelector('.mlogo');if(!l)return;l.classList.remove('play');void l.offsetWidth;l.classList.add('play')}
+document.querySelectorAll('[data-logo]').forEach(el=>el.addEventListener('pointerenter',()=>replay(el)));
+document.getElementById('replay').onclick=()=>document.querySelectorAll('[data-logo]').forEach(replay);
+document.getElementById('theme').onclick=e=>{const d=document.body.dataset.theme!=='dark';document.body.dataset.theme=d?'dark':'light';document.documentElement.dataset.theme=d?'dark':'light';e.target.textContent=d?'Светлая тема':'Тёмная тема'};
+</script>
+</html>

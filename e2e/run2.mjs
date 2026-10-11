@@ -22,7 +22,7 @@ await page.goto(URL);
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 await step('welcome', async () => {
-  await page.getByText('Привет! Это Мнема').waitFor();
+  await page.getByText('Привет! Это Refrain').waitFor();
   await shot('01-welcome');
 });
 await step('example', async () => {

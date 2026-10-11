@@ -138,7 +138,7 @@ export function FormulaEditor({ initial = '', allowDisplay = true, onInsert, onC
           </button>
         )}
         {!empty && showCode && <div className="formula-preview" dangerouslySetInnerHTML={{ __html: renderTex(latex, true) }} />}
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button type="button" className="btn ghost" onClick={onClose}>
             Отмена
           </button>

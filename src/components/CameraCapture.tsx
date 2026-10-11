@@ -1,4 +1,4 @@
-// Съёмка страниц камерой прямо в Мнеме (удобно на телефоне): щёлк — страница добавлена, можно снимать следующую.
+// Съёмка страниц камерой прямо в Refrain (удобно на телефоне): щёлк — страница добавлена, можно снимать следующую.
 import { useEffect, useRef, useState } from 'react';
 import { Icon, Modal } from './ui';
 
@@ -16,7 +16,7 @@ export function CameraCapture({ onShot, onClose }: { onShot: (f: File) => void; 
         v.srcObject = stream;
         await v.play();
       } catch (e) {
-        setErr('Нет доступа к камере. Разреши Мнеме камеру в настройках или выбери готовые фото. ' + ((e as Error).message ?? ''));
+        setErr('Нет доступа к камере. Разреши Refrain камеру в настройках или выбери готовые фото. ' + ((e as Error).message ?? ''));
       }
     })();
     return () => stream?.getTracks().forEach((t) => t.stop());
@@ -53,7 +53,7 @@ export function CameraCapture({ onShot, onClose }: { onShot: (f: File) => void; 
           </div>
         )}
         <p className="small muted">Держи телефон ровно над страницей, чтобы она занимала почти весь кадр. Снимай страницы по порядку.</p>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           <span className="grow small">{count ? `Снято страниц: ${count}` : ''}</span>
           <button className="btn" onClick={onClose}>
             Готово

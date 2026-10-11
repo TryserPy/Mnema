@@ -191,18 +191,56 @@ export interface CardTemplate {
   why?: string;
 }
 
-/** Мод: оформление, которым можно поделиться (только стили, без программ). */
+/** Настройка стиля (как в плагине Style Settings из Obsidian): человек меняет её в «Настройки → Стили» без кода. */
+export type StyleSettingType = 'color' | 'slider' | 'select' | 'toggle' | 'text' | 'font';
+export type StyleValue = string | number | boolean;
+export interface StyleSetting {
+  id: string; // латиница, цифры и «-»: ключ значения внутри стиля
+  type: StyleSettingType;
+  label: string;
+  description?: string;
+  /** Куда подставляется значение: CSS-переменная (--имя) … */
+  var?: string;
+  /** … или атрибут оформления (sidebar, content, cards, grades, topics, tabs, anim — data-ui-*; любое другое имя — data-st-*). Для select и toggle. */
+  attr?: string;
+  default: StyleValue;
+  defaultDark?: string; // color: другой цвет по умолчанию в тёмной теме
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string; // slider: px, rem, em, %, ms, s, deg, vw, vh или пусто
+  options?: { value: string; label: string }[]; // select
+  on?: string; // toggle: значение при «вкл» (по умолчанию «1» для переменной и «on» для атрибута)
+  off?: string; // toggle: значение при «выкл» («0» и «off»)
+}
+
+/** Стиль: оформление, которым можно поделиться (только CSS и настройки вида — никаких программ). */
 export interface Mod {
   id: string;
   name: string;
   description: string;
   author?: string;
+  version?: string;
   css?: string;
   look?: Partial<Look>;
   accent?: string;
   icon?: string; // значок в списке
   where?: string; // где видно изменение
   font?: string; // шрифт, который нужно подгрузить (id из FONTS)
+  /** Переменные стиля: отдельно для светлой и тёмной темы. */
+  vars?: { light?: Record<string, string>; dark?: Record<string, string> };
+  /** Атрибуты оформления, которые стиль включает (раскладка): имя → значение. */
+  attrs?: Record<string, string>;
+  /** Настройки стиля, которые меняет человек. */
+  settings?: StyleSetting[];
+}
+
+/** Сниппет «мой CSS» (как в Obsidian): маленький кусочек своего CSS, который включается и выключается отдельно. */
+export interface CssSnippet {
+  id: string;
+  name: string;
+  css: string;
+  on: boolean;
 }
 
 /** Мод с кодом: сохранённый текст программы и описание. */
@@ -240,7 +278,9 @@ export interface Settings {
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов
-  userCss: string; // свой CSS
+  userCss: string; // свой CSS (до 1.29 — один кусок; теперь переносится в cssSnippets)
+  cssSnippets: CssSnippet[]; // сниппеты «мой CSS»
+  styleValues: Record<string, Record<string, StyleValue>>; // значения настроек стилей: id стиля → id настройки → значение
   plugins: PluginRec[]; // моды с кодом (как плагины Obsidian)
   pluginsSafe: boolean; // безопасный режим: моды с кодом не запускаются
   pluginData: Record<string, Record<string, unknown>>; // что моды сохранили
@@ -356,7 +396,7 @@ export type Route =
   | { name: 'plugin'; id: string }
   | { name: 'exam'; id: string } // экран подготовки к контрольной; id вида `topic:<id>` — контрольная из старой даты темы
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
-  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; folderId?: string; topicIds?: string[]; cardIds?: string[]; cram?: boolean; only?: RepeatKind; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean } // folderId — папка, из которой запущено (subjectIds — её предметы): после повторения вернёмся в неё; only — «Повторить ещё раз»: что именно брать (вместе с cram); topicIds — выбранные темы (только их карточки): тогда topicId/subjectId/folderId лишь говорят, куда вернуться
+  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; folderId?: string; topicIds?: string[]; cardIds?: string[]; cram?: boolean; only?: RepeatKind; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean; extraNew?: number } // folderId — папка, из которой запущено (subjectIds — её предметы): после повторения вернёмся в неё; only — «Повторить ещё раз»: что именно брать (вместе с cram); topicIds — выбранные темы (только их карточки): тогда topicId/subjectId/folderId лишь говорят, куда вернуться
   | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
   | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'trash' }

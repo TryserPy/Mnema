@@ -14,12 +14,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * Напоминания: домашние задания и «пора повторить». Будильник → уведомление, даже если Мнема закрыта.
- * Этот приёмник открыт для системы (включение телефона, обновление Мнемы) и чужие сообщения с текстом не показывает:
- * будильники приходят в закрытый {@link Fire}, иначе любое приложение могло бы показать уведомление от имени Мнемы.
+ * Напоминания: домашние задания и «пора повторить». Будильник → уведомление, даже если Refrain закрыта.
+ * Этот приёмник открыт для системы (включение телефона, обновление Refrain) и чужие сообщения с текстом не показывает:
+ * будильники приходят в закрытый {@link Fire}, иначе любое приложение могло бы показать уведомление от имени Refrain.
  */
 public class Reminders extends BroadcastReceiver {
-    /** Сработал будильник напоминания. Не экспортируется — сюда может прислать только сама Мнема (через AlarmManager). */
+    /** Сработал будильник напоминания. Не экспортируется — сюда может прислать только сама Refrain (через AlarmManager). */
     public static class Fire extends BroadcastReceiver {
         @Override
         public void onReceive(Context ctx, Intent intent) {
@@ -86,13 +86,13 @@ public class Reminders extends BroadcastReceiver {
         if (Intent.ACTION_BOOT_COMPLETED.equals(action) || "android.intent.action.MY_PACKAGE_REPLACED".equals(action)) {
             scheduleAll(ctx);
             if ("android.intent.action.MY_PACKAGE_REPLACED".equals(action)) {
-                // После обновления Android закрывает Мнему — скажем, что всё готово, и дадим открыть одним нажатием.
+                // После обновления Android закрывает Refrain — скажем, что всё готово, и дадим открыть одним нажатием.
                 String v = "";
                 try {
                     v = " " + ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionName;
                 } catch (Exception ignored) {
                 }
-                show(ctx, 7302, "Мнема обновлена" + v, "Нажми, чтобы открыть. Все карточки и настройки на месте.", "today");
+                show(ctx, 7302, "Refrain обновлена" + v, "Нажми, чтобы открыть. Все карточки и настройки на месте.", "today");
             }
         }
         // Остальное сюда присылать некому: будильники идут в Fire.
@@ -119,7 +119,7 @@ public class Reminders extends BroadcastReceiver {
         it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pi = PendingIntent.getActivity(ctx, code, it, PendingIntent.FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE);
         b.setSmallIcon(R.drawable.ic_notify)
-                .setContentTitle(title == null ? "Мнема" : title)
+                .setContentTitle(title == null ? "Refrain" : title)
                 .setContentText(body == null ? "" : body)
                 .setStyle(new Notification.BigTextStyle().bigText(body == null ? "" : body))
                 .setColor(0xFF3F51D8)

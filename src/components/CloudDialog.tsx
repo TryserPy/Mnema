@@ -13,7 +13,7 @@ export function CloudDialog({ onClose }: { onClose: () => void }) {
   const data = useData();
   const api = window.mnemaApi;
   const saved = data.settings.cloud;
-  const [c, setC] = useState<CloudSettings>(saved ?? { url: PRESETS[0].url, user: '', folder: 'Mnema', encrypt: false, auto: true });
+  const [c, setC] = useState<CloudSettings>(saved ?? { url: PRESETS[0].url, user: '', folder: 'Refrain', encrypt: false, auto: true });
   const [pass, setPass] = useState('');
   const [encPass, setEncPass] = useState('');
   const [hasPass, setHasPass] = useState(false);
@@ -29,7 +29,7 @@ export function CloudDialog({ onClose }: { onClose: () => void }) {
   if (!api?.http || !api.secretGet) {
     return (
       <Modal title="Облачная копия" onClose={onClose}>
-        <p>Облако работает в приложении Мнема для Windows и Android.</p>
+        <p>Облако работает в приложении Refrain для Windows и Android.</p>
       </Modal>
     );
   }
@@ -58,7 +58,7 @@ export function CloudDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Облачная копия" onClose={onClose} width={560} sticky={busy}>
       <div className="stack gap12">
-        <p className="small muted">Мнема хранит копию в твоём облаке и объединяет её с данными на каждом устройстве. Так и телефон, и компьютер всегда будут с одинаковыми карточками — даже без общей сети Wi-Fi.</p>
+        <p className="small muted">Refrain хранит копию в твоём облаке и объединяет её с данными на каждом устройстве. Так и телефон, и компьютер всегда будут с одинаковыми карточками — даже без общей сети Wi-Fi.</p>
         {api.platform === 'web' && <p className="hint small">В браузере облако работает только с серверами, которые разрешают доступ с других сайтов (CORS), — например, с Nextcloud, где это включено. Если облако не отвечает, скорее всего, оно такого доступа не даёт: тогда используй приложение для Windows или Android.</p>}
         <label className="field">
           <span>Облако</span>
@@ -103,7 +103,7 @@ export function CloudDialog({ onClose }: { onClose: () => void }) {
         </div>
         {saved?.lastAt && <span className="small muted">Последний раз: {new Date(saved.lastAt).toLocaleString('ru-RU')}</span>}
         {msg && <div className={'hint ' + (msg.ok ? (busy ? '' : 'ok') : 'warn')}>{msg.text}</div>}
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           {saved && (
             <button
               className="btn ghost danger small"

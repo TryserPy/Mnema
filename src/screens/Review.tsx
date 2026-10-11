@@ -46,8 +46,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         ? buildSession(getData(), new Date(), route.session).items // «Учиться»: план на сегодня с учётом времени и пропущенных шагов
         : route.only
           ? buildRepeatQueue(getData(), new Date(), route.topicIds ? { topicIds: route.topicIds, cardIds: route.cardIds } : { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds }, route.only).slice(0, route.limit ?? Infinity) // «Повторить ещё раз»
-          : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead) }).slice(0, route.limit ?? Infinity),
-    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session, route.only, route.topicIds]
+          : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead), extraNew: route.extraNew }).slice(0, route.limit ?? Infinity),
+    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session, route.only, route.topicIds, route.extraNew]
   );
   const [queue, setQueue] = useState<QueueItem[]>(initial.slice(1));
   const [waiting, setWaiting] = useState<Waiting[]>([]);
@@ -62,6 +62,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const [errCount, setErrCount] = useState({ forgot: 0, mixed: 0, lost: 0 });
   const [handOpen, setHandOpen] = useState(false);
   const [handStrokes, setHandStrokes] = useState<Stroke[]>([]);
+  const handOpenRef = useRef(false);
+  handOpenRef.current = handOpen;
   const [explain, setExplain] = useState<{ state: 'idle' | 'loading' | 'done' | 'error'; text: string; added?: boolean }>({ state: 'idle', text: '' });
   const [editLeech, setEditLeech] = useState(false);
   // «Почему?»: после верного ответа иногда просим объяснить себе одной фразой (самообъяснение).
@@ -144,6 +146,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const reasonRef = useRef(reason);
   reasonRef.current = reason;
   useEffect(() => setReason(null), [current?.key]);
+  const showIv = settings.showIntervals && !cram; // подпись «через сколько вернётся» под кнопкой оценки
   const grade = useCallback(
     (rating: Grade) => {
       if (!current || !revealed || !card) return;
@@ -197,6 +200,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
       // Поверх повторения открыто окно (например, «Повторить ещё раз» на экране «Готово!»): клавиши — ему, а не повторению.
       if (blocked || document.querySelector('.modal-back')) return;
       const inInput = typingTarget(e);
+      // Открыт холст «Ответ от руки»: Esc сначала сворачивает его (рисунок остаётся), а не закрывает всё повторение.
+      if (e.key === 'Escape' && handOpenRef.current) {
+        e.preventDefault();
+        setHandOpen(false);
+        return;
+      }
       if (matches(e, settings, 'exitReview') || e.key === 'Escape') {
         exitRef.current();
         return;
@@ -312,7 +321,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
             {settings.focusMinutes} минут позади — ответов: {stats.done}. Встань, подвигайся, попей воды.
           </p>
           <div className="big-clock">{left > 0 ? fmtClock(left) : 'Можно продолжать'}</div>
-          <div className="row gap8 center-row">
+          <div className="row gap8 center-row wrap">
             <button className="btn" onClick={exit}>
               Закончить
             </button>
@@ -342,12 +351,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
                 </p>
               )}
               {stats.overconf > 0 && <div className="hint warn">Ошибок «с уверенностью»: {stats.overconf}. Разбери их — такие ошибки исправляются особенно хорошо.</div>}
-              {!cram && <p className="muted">Следующие повторения Мнема покажет сама, когда придёт время.</p>}
+              {!cram && <p className="muted">Следующие повторения Refrain покажет сама, когда придёт время.</p>}
             </>
           ) : (
             <p className="muted">Все карточки повторены или ещё не добавлены.</p>
           )}
-          <div className="row gap8">
+          <div className="row gap8 wrap">
             <button className="btn primary" onClick={exit}>
               {route.mini ? 'Закрыть' : route.topicId ? 'На главную' : route.folderId ? 'К папке' : route.subjectId ? 'К предмету' : 'На главную'}
             </button>
@@ -404,10 +413,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         )}
       </div>
 
-      <div className="review-card" key={current?.key}>
-        <div className="row gap8 small muted">
-          <span className="dot" style={{ background: subject?.color }} />
-          <span>{topic?.name}</span>
+      <div className="review-card" data-part="review-card" key={current?.key}>
+        <div className="review-meta small muted">
+          <span className="review-where">
+            <span className="dot" style={{ background: subject?.color }} />
+            <span className="review-topic">{topic?.name}</span>
+          </span>
           {cram && <span className="chip neutral">без изменения расписания</span>}
           {route.only && !route.cardIds && <span className="chip neutral">{REPEAT_TEXT[route.only].short}</span>}
           {route.ahead && <span className="chip neutral">заранее — слабые места</span>}
@@ -432,7 +443,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         {!revealed && settings.features.handwriting && (prompt.typed === undefined || prompt.numeric) && (
           <div className="stack gap8">
             {handOpen ? (
-              <SketchPad strokes={handStrokes} onChange={setHandStrokes} height={200} label="Ответ от руки" />
+              <SketchPad strokes={handStrokes} onChange={setHandStrokes} height={200} label="Ответ от руки" onClose={() => setHandOpen(false)} />
             ) : (
               <button type="button" className="link-btn" onClick={() => setHandOpen(true)}>
                 ✎ Ответить от руки
@@ -556,26 +567,29 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
             Показать ответ
           </button>
         ) : settings.simpleButtons ? (
-          <div className="grades two">
+          <div className="grades two" data-part="grades">
             <button className="grade again" onClick={() => grade(Rating.Again)}>
               <span className="strong">Не помню</span>
+              {showIv && <span className="small grade-iv">{formatInterval(intervals[0])}</span>}
               {keyFor(settings, 'again') && <span className="kbd">{prettyCombo(keyFor(settings, 'again')).join('+')}</span>}
             </button>
             <button className="grade good" onClick={() => grade(Rating.Good)}>
               <span className="strong">Помню</span>
+              {showIv && <span className="small grade-iv">{formatInterval(intervals[2])}</span>}
               {keyFor(settings, 'good') && <span className="kbd">{prettyCombo(keyFor(settings, 'good')).join('+')}</span>}
             </button>
           </div>
         ) : (
-          <div className="grades">
+          <div className="grades" data-part="grades">
             {GRADES.map((g, i) => (
               <button key={g} className={'grade ' + GRADE_UI[i].cls} onClick={() => grade(g)}>
                 <span className="strong">{GRADE_UI[i].label}</span>
-                {settings.showIntervals && !cram && <span className="small">{formatInterval(intervals[i])}</span>}
+                {showIv && <span className="small grade-iv" title="Через сколько карточка вернётся, если выбрать так">{formatInterval(intervals[i])}</span>}
               </button>
             ))}
           </div>
         )}
+        {revealed && cram && <p className="small muted center grade-note">Расписание не меняется — это повторение «сверх плана»</p>}
         {revealed && !cram && (
           <div className="err-chips" role="group" aria-label="Если ошибся — что случилось?">
             <span className="small muted">{reason ? 'Запомню причину. Теперь нажми «Снова» — или выбери другую оценку.' : 'Ошибся? Отметь, что случилось, и нажми «Снова»:'}</span>
@@ -632,7 +646,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               }}
               placeholder="Потому что…"
             />
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button type="button" className="btn ghost" onClick={() => { const g = whyAsk.go; setWhyAsk(null); g(); }}>
                 Пропустить
               </button>
@@ -661,7 +675,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               <li>Сформулируй вопрос своими словами.</li>
               <li>Добавь объяснение «почему» или пример.</li>
             </ul>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button
                 className="btn ghost"
                 onClick={() => {

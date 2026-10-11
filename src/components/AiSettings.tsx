@@ -14,7 +14,7 @@ const LINKS: Record<'anthropic' | 'gemini', { name: string; url: string }> = {
 /** Готовые шаблоны — подставляют адрес и формат. Модель выбирается кнопкой «Найти модели». */
 export const AI_PRESETS: { name: string; format: AiFormat; baseUrl: string; auth: AiAuth; vision: boolean; note?: string }[] = [
   { name: 'OpenAI (ChatGPT)', format: 'openai', baseUrl: 'https://api.openai.com/v1', auth: 'bearer', vision: true },
-  { name: 'OpenRouter', format: 'openai', baseUrl: 'https://openrouter.ai/api/v1', auth: 'bearer', vision: true, note: 'Сотни моделей по одному ключу, есть бесплатные (с «:free»). Бесплатные бывают перегружены — тогда Мнема сама возьмёт другую бесплатную. «openrouter/free» — любая свободная бесплатная модель.' },
+  { name: 'OpenRouter', format: 'openai', baseUrl: 'https://openrouter.ai/api/v1', auth: 'bearer', vision: true, note: 'Сотни моделей по одному ключу, есть бесплатные (с «:free»). Бесплатные бывают перегружены — тогда Refrain сам возьмёт другую бесплатную. «openrouter/free» — любая свободная бесплатная модель.' },
   { name: 'DeepSeek', format: 'openai', baseUrl: 'https://api.deepseek.com/v1', auth: 'bearer', vision: false, note: 'Картинки не понимает — для фото выбери другой ИИ.' },
   { name: 'Mistral', format: 'openai', baseUrl: 'https://api.mistral.ai/v1', auth: 'bearer', vision: true },
   { name: 'Groq', format: 'openai', baseUrl: 'https://api.groq.com/openai/v1', auth: 'bearer', vision: false },
@@ -357,7 +357,7 @@ function CustomAiEditor({ initial, onClose, onSaved, onDeleted }: { initial: Cus
           <span>Адрес API</span>
           <input className="input mono" value={d.baseUrl} onChange={(e) => set({ baseUrl: e.target.value })} placeholder="https://api.example.com/v1" />
           <span className="small muted">
-            {d.format === 'openai' ? 'Обычно заканчивается на /v1 — Мнема добавит /chat/completions сама.' : d.format === 'anthropic' ? 'Без /v1/messages — например https://api.anthropic.com' : 'Без /v1beta — например https://generativelanguage.googleapis.com'}
+            {d.format === 'openai' ? 'Обычно заканчивается на /v1 — Refrain добавит /chat/completions сама.' : d.format === 'anthropic' ? 'Без /v1/messages — например https://api.anthropic.com' : 'Без /v1beta — например https://generativelanguage.googleapis.com'}
           </span>
           {insecure && <span className="small warn-text">Адрес без https: ключ пойдёт по сети незашифрованным. Так можно только для своего компьютера или домашней сети.</span>}
         </label>
@@ -413,7 +413,7 @@ function CustomAiEditor({ initial, onClose, onSaved, onDeleted }: { initial: Cus
           </div>
         </Collapse>
         {status && <div className={'hint ' + (status.kind === 'ok' ? 'ok' : status.kind === 'warn' ? 'warn' : '')}>{status.text}</div>}
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           {initial &&
             (confirmDel ? (
               <button

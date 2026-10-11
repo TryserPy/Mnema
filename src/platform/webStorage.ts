@@ -6,7 +6,7 @@ const DB_NAME = 'mnema-web';
 const KV = 'kv';
 const BACKUPS = 'backups';
 const DATA_KEY = 'data';
-/** Старый путь: до веб-версии Мнема в обычном браузере писала в localStorage (store.ts). */
+/** Старый путь: до веб-версии Refrain в обычном браузере писала в localStorage (store.ts). */
 const LS_KEY = 'mnema-data';
 /** Копия, которую успели сохранить синхронно при закрытии вкладки, пока IndexedDB не ответил. */
 const LS_PENDING = 'mnema-data-pending';

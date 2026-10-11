@@ -1,4 +1,4 @@
-// Перевод заметки Obsidian в конспект Мнемы.
+// Перевод заметки Obsidian в конспект Refrain.
 
 export const CALLOUT_TITLES: Record<string, string> = {
   note: 'Заметка',

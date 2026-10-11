@@ -29,7 +29,7 @@ export function PageViewer({ pages, page, onClose }: { pages: PagePhoto[]; page:
           <img src={cur.img} alt={`Страница ${cur.n}`} />
         </div>
         {sorted.length > 1 && (
-          <div className="row center-row gap12">
+          <div className="row center-row gap12 wrap">
             <button className="icon-btn bordered" aria-label="Предыдущая страница" disabled={i === 0} onClick={() => setI(i - 1)}>
               <Icon name="left" />
             </button>

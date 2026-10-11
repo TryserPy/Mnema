@@ -1,8 +1,8 @@
 {
   "name": "mnema",
-  "productName": "Mnema",
+  "productName": "Refrain",
   "version": "1.28.0",
-  "description": "Мнема — приложение для запоминания учебного материала",
+  "description": "Refrain — приложение для запоминания учебного материала",
   "private": true,
   "main": "electron/main.cjs",
   "type": "module",
@@ -56,10 +56,10 @@
     "vite": "^8.3.1",
     "vitest": "^5.0.1"
   },
-  "author": "Mnema",
+  "author": "Refrain",
   "build": {
     "appId": "app.mnema.study",
-    "productName": "Mnema",
+    "productName": "Refrain",
     "publish": [
       {
         "provider": "github",
@@ -99,9 +99,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Мнема",
-      "uninstallDisplayName": "Мнема",
-      "artifactName": "Mnema-Setup-${version}.exe",
+      "shortcutName": "Refrain",
+      "uninstallDisplayName": "Refrain",
+      "artifactName": "Refrain-Setup-${version}.exe",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerLanguages": [

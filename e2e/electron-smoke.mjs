@@ -5,7 +5,7 @@ const win = await app.firstWindow();
 const errors = [];
 win.on('pageerror', (e) => errors.push(e.message));
 win.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-await win.waitForSelector('text=Мнема');
+await win.waitForSelector('text=Refrain');
 const hasApi = await win.evaluate(() => Boolean(window.mnemaApi));
 await win.getByRole('button', { name: /Добавить пример/ }).click();
 await win.waitForTimeout(1000);

@@ -53,7 +53,7 @@ function authHeaders(p, key) {
 }
 
 const isOpenRouter = (p) => /openrouter\.ai/i.test(p.baseUrl || '');
-const extraFor = (p) => (isOpenRouter(p) ? { 'HTTP-Referer': 'https://mnema.local', 'X-Title': 'Mnema' } : {});
+const extraFor = (p) => (isOpenRouter(p) ? { 'HTTP-Referer': 'https://mnema.local', 'X-Title': 'Refrain' } : {});
 const trimBase = (u) => String(u || '').trim().replace(/\/+$/, '');
 /** Сохранённый ключ годится только для того же сервера: если адрес поменяли, ключ нужно ввести заново — иначе его увёл бы любой, кто подставит свой адрес. */
 export function sameServer(a, b) {

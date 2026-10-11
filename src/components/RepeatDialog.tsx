@@ -1,5 +1,5 @@
 // «Повторить ещё раз»: одно окно для темы (вместе с подтемами), предмета, папки и «Сегодня». Выбираешь, что повторять и сколько,
-// а при желании — из каких именно тем (можно из разных предметов и папок), — и Мнема запускает повторение, которое не трогает
+// а при желании — из каких именно тем (можно из разных предметов и папок), — и Refrain запускает повторение, которое не трогает
 // расписание. Окно живёт один раз, в App; открыть его можно из любого места.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { defaultRepeatKind, REPEAT_KINDS, REPEAT_TEXT, repeatCounts, repeatTopicTree, type RepeatScope, type RepeatSubject } from '../repeat';
@@ -241,7 +241,7 @@ export function RepeatDialog({ at, go, onClose }: { at: RepeatAt; go: (r: Route)
           </>
         )}
 
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           <button className="btn ghost" onClick={onClose}>
             Отмена
           </button>

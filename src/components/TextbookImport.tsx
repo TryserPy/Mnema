@@ -190,7 +190,7 @@ export function TextbookImport({
                       <span className="small muted">стр.</span>
                       <input className="input tiny num" type="number" value={p.n} onChange={(e) => patch(p.id, { n: Number(e.target.value) || p.n })} aria-label="Номер страницы" />
                     </div>
-                    <div className="row gap4 center-row">
+                    <div className="row gap4 center-row wrap">
                       <button className="icon-btn small" title="Повернуть" aria-label="Повернуть" onClick={() => patch(p.id, { rotate: (((p.rotate + 90) % 360) as PageInput['rotate']) })}>
                         <Icon name="rotate" size={17} />
                       </button>
@@ -240,7 +240,7 @@ export function TextbookImport({
                   : 'Работает в приложении для Windows.'}
             </span>
           </div>
-          <div className="row end gap8">
+          <div className="row end gap8 wrap">
             <button className="btn ghost" onClick={onClose}>
               Отмена
             </button>
@@ -348,7 +348,7 @@ export function TextbookImport({
                 <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Сохранить фото страниц в теме
               </label>
             </div>
-            <div className="row end gap8">
+            <div className="row end gap8 wrap">
               <button className="btn ghost" onClick={() => setStep('pages')}>
                 Назад
               </button>
@@ -467,7 +467,7 @@ function CropModal({ load, box, title = 'Обрезать страницу', onC
             ))}
           </div>
         </div>
-        <div className="row end gap8">
+        <div className="row end gap8 wrap">
           {onRemove && (
             <button className="btn ghost danger" onClick={onRemove}>
               Это не рисунок

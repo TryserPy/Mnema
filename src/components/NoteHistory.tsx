@@ -20,7 +20,7 @@ export function NoteHistoryDialog({ topicId, onClose, onRestored }: { topicId: s
     <Modal title="История конспекта" onClose={onClose} width={640}>
       <div className="stack gap12">
         {list.length === 0 ? (
-          <p className="muted">Пока нет сохранённых версий. Мнема запоминает прежний текст, когда ты правишь конспект (не чаще раза в 10 минут) или когда текст вдруг сильно сокращается.</p>
+          <p className="muted">Пока нет сохранённых версий. Refrain запоминает прежний текст, когда ты правишь конспект (не чаще раза в 10 минут) или когда текст вдруг сильно сокращается.</p>
         ) : (
           <>
             <p className="muted small">
@@ -44,7 +44,7 @@ export function NoteHistoryDialog({ topicId, onClose, onRestored }: { topicId: s
                   {preview(cur.note, 1500)}
                 </div>
                 <div className="small muted">Сейчас в конспекте: {topic.note.length} знаков.</div>
-                <div className="row end gap8">
+                <div className="row end gap8 wrap">
                   <button className="btn ghost" onClick={onClose}>
                     Закрыть
                   </button>
