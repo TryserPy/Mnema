@@ -160,53 +160,28 @@ function notice(title: string, text: string, button?: { label: string; run: () =
   return box;
 }
 
-/** Небольшая плашка внизу экрана: вышла новая версия. */
-function updateBanner(apply: () => void) {
-  if (document.getElementById('mnema-update')) return;
-  const bar = document.createElement('div');
-  bar.id = 'mnema-update';
-  bar.style.cssText =
-    'position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:9000;margin:auto;max-width:420px;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:14px;background:var(--text,#1b1d24);color:var(--bg,#fff);font:14px/1.4 Onest,system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.28)';
-  const t = document.createElement('span');
-  t.textContent = 'Вышла новая версия Refrain';
-  const b = document.createElement('button');
-  b.textContent = 'Обновить';
-  b.className = 'btn small primary';
-  b.onclick = apply;
-  const x = document.createElement('button');
-  x.textContent = '×';
-  x.setAttribute('aria-label', 'Позже');
-  x.style.cssText = 'background:none;border:none;color:inherit;font-size:20px;cursor:pointer;padding:0 4px';
-  x.onclick = () => bar.remove();
-  const right = document.createElement('span');
-  right.style.cssText = 'display:flex;gap:6px;align-items:center';
-  right.append(b, x);
-  bar.append(t, right);
-  document.body.append(bar);
-}
-
-/** Работа без интернета и обновления: service worker (sw.js собирается вместе с приложением). */
+/**
+ * Работа без интернета и обновления: service worker (sw.js собирается вместе с приложением).
+ * Обновление применяется тихо, без плашек: новая версия скачивается в фоне и ждёт; при следующем открытии
+ * (или перезагрузке) приложения, пока страница ещё «свежая», она включается сама. Посреди работы страница
+ * никогда не перезагружается.
+ */
 function registerWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
   const sw = navigator.serviceWorker;
+  const bornAt = Date.now();
+  let reloading = false;
   void sw.register(new URL('sw.js', document.baseURI).href).then((reg) => {
-    const offer = (w: ServiceWorker | null) => {
-      if (!w || !sw.controller) return; // первая установка — предлагать нечего
-      updateBanner(() => w.postMessage({ type: 'skip-waiting' }));
-    };
-    offer(reg.waiting);
-    reg.addEventListener('updatefound', () => {
-      const w = reg.installing;
-      w?.addEventListener('statechange', () => w.state === 'installed' && offer(w));
-    });
-    // Искать обновление при возвращении в приложение и раз в час, пока оно открыто.
+    // Новая версия уже ждёт с прошлого раза, а страница только что открылась — включаем её сразу.
+    if (reg.waiting && sw.controller) reg.waiting.postMessage({ type: 'skip-waiting' });
+    // Искать обновление при возвращении в приложение и раз в час, пока оно открыто (само оно включится при следующем открытии).
     const check = () => void reg.update().catch(() => {});
     document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check());
     setInterval(check, 3600_000);
   });
-  let reloading = false;
   sw.addEventListener('controllerchange', () => {
-    if (reloading) return;
+    // Смена версии позже первых секунд после открытия — человек уже работает: ничего не перезагружаем.
+    if (reloading || Date.now() - bornAt > 8000) return;
     reloading = true;
     (window as unknown as { __mnemaFlush?: () => void }).__mnemaFlush?.();
     location.reload();
