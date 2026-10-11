@@ -351,3 +351,54 @@ describe('zip: защита и лимиты', () => {
     expect(pack.warnings.join()).toContain('Заметок больше');
   });
 });
+
+// ---------- Применение плана: полный круг «данные → папка → данные → папка» ----------
+import { applyImportPlan } from './mdApply';
+
+describe('полный круг в данные приложения', () => {
+  const strip = (md: string) => md.replace(/^(refrain-id|created|updated): .*\n/gm, '').replace(/mnema:\/\/[a-z]+\/[\w-]+/g, 'mnema://x').replace(/"id":"[^"]*"/g, '"id":"-"');
+  it('после импорта экспорт даёт тот же набор файлов и те же тексты', async () => {
+    let n = 0;
+    const uid = () => 'n' + ++n;
+    const d1 = world();
+    const { plan } = await roundTrip(d1);
+    const r = applyImportPlan(emptyData(), plan, uid, '2026-10-11T10:00:00.000Z');
+    expect(r).toMatchObject({ folders: 1, subjects: 2, topics: 5, cards: 6 });
+    const d2 = r.data;
+    expect(d2.subjects.find((s) => s.name === 'Физика')).toMatchObject({ color: '#2A5BB8', icon: '⚡', iconImg: WEBP });
+    expect(d2.folders[0]).toMatchObject({ name: 'Естественные науки', iconImg: PNG });
+    expect(d2.subjects.find((s) => s.name === 'Физика')!.folderId).toBe(d2.folders[0].id);
+    const t2 = d2.topics.find((t) => t.name === 'Сопротивление')!;
+    expect(t2.parentId).toBe(d2.topics.find((t) => t.name === 'Закон Ома' && t.subjectId === t2.subjectId)!.id);
+    expect(d2.topics.find((t) => t.kind === 'rule')!.name).toBe('Правило ЖИ/ШИ');
+    const l = d2.topics.find((t) => t.lists?.length)!;
+    expect(d2.cards.filter((c) => c.listId === l.lists![0].id)).toHaveLength(2);
+    const a = buildMarkdownExport(d1);
+    const b = buildMarkdownExport(d2);
+    expect(b.map((f) => f.path).sort()).toEqual(a.map((f) => f.path).sort());
+    for (const f of a) {
+      const g = b.find((x) => x.path === f.path)!;
+      if (f.base64) expect(g.content).toBe(f.content);
+      else expect(strip(g.content)).toBe(strip(f.content));
+    }
+  });
+  it('в существующий предмет: всё идёт в него, папки и значки не создаются', async () => {
+    const { plan } = await roundTrip(world());
+    const base = emptyData();
+    base.subjects = [{ id: 'mine', name: 'Мой', color: '#000', createdAt: T0 }];
+    const r = applyImportPlan(base, plan, () => Math.random().toString(36).slice(2), T0, 'mine');
+    expect(r.data.subjects).toHaveLength(1);
+    expect(r.data.folders).toHaveLength(0);
+    expect(r.data.topics.every((t) => t.subjectId === 'mine')).toBe(true);
+  });
+  it('повторный импорт не плодит предметы и папки, а добавляет темы в найденные по имени', async () => {
+    const { plan } = await roundTrip(world());
+    let n = 0;
+    const uid = () => 'm' + ++n;
+    const once = applyImportPlan(emptyData(), plan, uid, T0).data;
+    const twice = applyImportPlan(once, plan, uid, T0).data;
+    expect(twice.subjects).toHaveLength(2);
+    expect(twice.folders).toHaveLength(1);
+    expect(twice.topics).toHaveLength(10);
+  });
+});

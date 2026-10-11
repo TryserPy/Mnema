@@ -10,6 +10,8 @@ import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
 import { cleanIconImg, cleanIconImgs } from './iconImage';
+import { applyImportPlan } from './mdApply';
+import type { ImportPlan } from './mdImport';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
@@ -1140,6 +1142,13 @@ export function importTopics(
   }
   commit(d);
   return { topics, cards, firstTopicId };
+}
+
+/** Импорт папки Markdown / архива / хранилища Obsidian (план из mdImport.planImport): папки, предметы, темы с подтемами, словари, карточки. Одно изменение данных. */
+export function importTree(plan: ImportPlan, targetSubjectId?: string): { folders: number; subjects: number; topics: number; cards: number; firstTopicId?: string } {
+  const r = applyImportPlan(data, plan, uid, nowIso(), targetSubjectId);
+  commit(r.data);
+  return { folders: r.folders, subjects: r.subjects, topics: r.topics, cards: r.cards, firstTopicId: r.firstTopicId };
 }
 
 export function replaceData(next: AppData) {

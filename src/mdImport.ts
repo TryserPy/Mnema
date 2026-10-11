@@ -275,6 +275,7 @@ export function planImport(pack: Pack, opts: { fallbackName?: string } = {}): Im
     const lists: StudyList[] = [];
     const rawLists = Array.isArray(meta['refrain-lists']) ? (meta['refrain-lists'] as unknown[]) : [];
     const cards: ImportedCard[] = [];
+    const listCards: ImportedCard[] = [];
     for (const l of rawLists) {
       const o = l as Partial<StudyList>;
       if (!o || typeof o.id !== 'string' || typeof o.title !== 'string' || !Array.isArray(o.cols) || o.cols.length !== 3 || !LIST_KINDS.has(o.kind as ListKind)) continue;
@@ -285,11 +286,11 @@ export function planImport(pack: Pack, opts: { fallbackName?: string } = {}): Im
       body = t.rest;
       lists.push(list);
       const type: CardType = mode === 'reverse' ? 'reverse' : mode === 'typing' ? 'typing' : 'basic';
-      for (const r of t.rows) cards.push({ type, front: r.front, back: r.back, ...(r.why ? { why: r.why } : {}), listId: list.id });
+      for (const r of t.rows) listCards.push({ type, front: r.front, back: r.back, ...(r.why ? { why: r.why } : {}), listId: list.id });
     }
     const pc = parseCards(body);
     body = pc.rest;
-    cards.push(...pc.cards.map((c: PlainCard): ImportedCard => ({ type: c.type, front: c.front, back: c.back, ...(c.why ? { why: c.why } : {}) })));
+    cards.push(...pc.cards.map((c: PlainCard): ImportedCard => ({ type: c.type, front: c.front, back: c.back, ...(c.why ? { why: c.why } : {}) })), ...listCards);
     const pp = parsePoems(body);
     body = pp.rest;
     if (hasMeta) body = body.replace(/\n## Подтемы\n(?:\s*\n)?(?:[ \t]*[-*] .*(?:\n|$))+/g, '\n');

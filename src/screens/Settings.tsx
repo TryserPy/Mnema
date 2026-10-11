@@ -8,6 +8,7 @@ import { PluginsSettings } from '../components/PluginsSettings';
 import { StylesSettings } from '../components/ModsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
+import { MarkdownImport } from '../components/MarkdownImport';
 import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
 import { CloudDialog } from '../components/CloudDialog';
@@ -15,7 +16,7 @@ import { AiSettings } from '../components/AiSettings';
 import { FEATURES, MODS_AVAILABLE } from '../featureList';
 import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
-import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
+import { downloadBytes, downloadFile, importTopicPackage, isTopicPackage } from '../share';
 import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
@@ -416,6 +417,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   const [msg, setMsg] = useState('');
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [anki, setAnki] = useState(false);
+  const [mdImport, setMdImport] = useState(false);
   const [sync, setSync] = useState(false);
   const [cloud, setCloud] = useState(false);
   const [exportKind, setExportKind] = useState<'anki' | 'print' | null>(null);
@@ -432,6 +434,24 @@ function DataPane({ go }: { go: (r: Route) => void }) {
     void api?.dataFolderPath?.().then(setDataDir, () => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const desktop = Boolean(api?.dataFolderPath);
+  async function runMarkdownExport(flavor: 'plain' | 'obsidian') {
+    try {
+      const { buildMarkdownExport, zipExport } = await import('../mdExport');
+      const files = buildMarkdownExport(data, { flavor });
+      const name = `Refrain конспекты ${new Date().toISOString().slice(0, 10)}.zip`;
+      const ok = await downloadBytes(name, await zipExport(files), 'application/zip');
+      setMsg(ok ? `Готово: ${files.length} файлов в архиве «${name}». Распакуй его — внутри папка с конспектами.` : 'Сохранение отменено.');
+    } catch (e) {
+      setMsg('Не получилось: ' + (e as Error).message);
+    }
+  }
+  async function runCardsExport(kind: 'csv' | 'md') {
+    const { cardsToCsv, cardsToMarkdown } = await import('../mdCards');
+    const flat = data.subjects.flatMap((s) => data.topics.filter((t) => t.subjectId === s.id).flatMap((t) => data.cards.filter((c) => c.topicId === t.id).map((c) => ({ subject: s.name, topic: t.name, type: c.type, front: c.front, back: c.back, why: c.why }))));
+    if (!flat.length) return setMsg('Карточек пока нет.');
+    const day = new Date().toISOString().slice(0, 10);
+    downloadFile(kind === 'csv' ? `Карточки ${day}.csv` : `Карточки ${day}.md`, kind === 'csv' ? cardsToCsv(flat) : cardsToMarkdown(flat), kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/markdown;charset=utf-8');
+  }
   const where = api?.platform === 'android' ? 'телефоне' : api?.platform === 'web' ? 'устройстве, в браузере' : api ? 'компьютере' : 'устройстве';
   return (
     <div className="stack gap16">
@@ -516,6 +536,11 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Выбрать файл
           </button>
         </SRow>
+        <SRow label="Из папки Markdown, Obsidian или .zip" hint="Конспекты .md с картинками и карточками; подойдёт и архив из «Всё в Markdown»">
+          <button className="btn small" onClick={() => setMdImport(true)}>
+            Выбрать
+          </button>
+        </SRow>
         <SRow label="Тема из файла" hint="Файл .mnema, которым поделился друг">
           <button className="btn small" onClick={() => topicRef.current?.click()}>
             Выбрать файл
@@ -536,6 +561,22 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         <SRow label="Распечатать карточки" hint="Для вырезания или списком">
           <button className="btn small" onClick={() => setExportKind('print')}>
             Печать
+          </button>
+        </SRow>
+        <SRow label="Всё в Markdown (.zip)" hint="Папки, предметы и темы — файлами .md, картинки и рисунки — в attachments, карточки внутри тем, формулы $…$. Откроется в Obsidian, Typora, VS Code; вернуть в приложение можно через «Импорт»">
+          <button className="btn small" onClick={() => void runMarkdownExport('plain')} title="Обычные ссылки между темами">
+            Экспорт
+          </button>
+          <button className="btn small" onClick={() => void runMarkdownExport('obsidian')} title="Ссылки [[между темами]], выноски и видео в стиле Obsidian">
+            Для Obsidian
+          </button>
+        </SRow>
+        <SRow label="Карточки таблицей и текстом" hint="CSV для Excel, Anki и Quizlet или Markdown со всеми карточками">
+          <button className="btn small" onClick={() => void runCardsExport('csv')}>
+            CSV
+          </button>
+          <button className="btn small" onClick={() => void runCardsExport('md')}>
+            Markdown
           </button>
         </SRow>
         {api?.obsidianExport && (
@@ -592,6 +633,16 @@ function DataPane({ go }: { go: (r: Route) => void }) {
       {cloud && <CloudDialog onClose={() => setCloud(false)} />}
       {exportKind === 'anki' && <AnkiExportDialog onClose={() => setExportKind(null)} />}
       {exportKind === 'print' && <PrintDialog onClose={() => setExportKind(null)} />}
+      {mdImport && (
+        <MarkdownImport
+          onClose={() => setMdImport(false)}
+          onDone={(id) => {
+            setMdImport(false);
+            setMsg('Импорт готов.');
+            if (id) go({ name: 'topic', id });
+          }}
+        />
+      )}
       {anki && <AnkiImport onClose={() => setAnki(false)} onOpenTopic={(id) => go({ name: 'topic', id })} />}
       {confirmWipe && (
         <Modal title="Удалить все данные?" onClose={() => setConfirmWipe(false)}>
