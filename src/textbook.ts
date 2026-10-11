@@ -224,9 +224,9 @@ export async function recognizeOffline(p: PageInput, onProgress?: (t: string) =>
   const lines = (res.lines as OcrLine[]).filter((l) => l.words?.some((w) => w.text.trim()));
   markBold(lines, gray);
   // Размер строки — для порогов; рисунки и рамки ищем там, где нет уверенного текста.
-  const goodWords = lines.flatMap((l) => l.words.filter((w) => w.conf >= 55 && w.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2).map((w) => w.bbox));
+  const goodWords = lines.flatMap((l) => l.words.filter((w) => w.conf >= 30 && w.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2).map((w) => w.bbox));
   const mh = median(lines.map((l) => l.bbox.y1 - l.bbox.y0)) || 30;
-  const regions = analyzeRegions(prep.rgba, gray, goodWords, mh);
+  const regions = analyzeRegions(prep.rgba, gray, goodWords, mh, prep.info.glyph * prep.info.scale);
   const layout = buildPage({ lines, width: gray.w, height: gray.h, figures: regions.figures, boxes: regions.boxes });
   const canvas = prep.color;
   const doubts: Doubt[] = layout.doubts.slice(0, 40).map((d) => {

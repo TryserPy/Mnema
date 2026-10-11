@@ -452,7 +452,11 @@ function renderToks(toks: Tok[], doubts: LayoutDoubt[], idOf: () => string): str
   return parts.join(' ');
 }
 
-const mergeBold = (s: string) => s.replace(/\*\*\s+\*\*/g, ' ').replace(/\*\*([^*]+)\*\*\s+\*\*([^*]+)\*\*/g, '**$1 $2**');
+const mergeBold = (s: string) =>
+  s
+    .replace(/\*\*\s+\*\*/g, ' ')
+    .replace(/\*\*([^*]*[А-ЯЁA-Z])\*\*\. \*\*/g, '**$1. ')
+    .replace(/\*\*([^*]+)\*\*\s+\*\*([^*]+)\*\*/g, '**$1 $2**');
 
 /** Формула ли эта строка: знак равенства или сравнения и почти нет русских слов. */
 export function looksLikeFormula(text: string): boolean {

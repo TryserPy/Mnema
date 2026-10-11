@@ -132,11 +132,61 @@ const iou = (a: RectPx, b: RectPx) => {
   return i / ((a.x1 - a.x0) * (a.y1 - a.y0) + (b.x1 - b.x0) * (b.y1 - b.y0) - i);
 };
 
+/** В области много пятен размером с букву — это нераспознанный текст (тёмная полоса, плохая строка), а не рисунок. */
+export function looksLikeText(g: Gray, r: RectPx, glyphH: number): boolean {
+  const x0 = Math.max(0, Math.floor(r.x0));
+  const y0 = Math.max(0, Math.floor(r.y0));
+  const x1 = Math.min(g.w, Math.ceil(r.x1));
+  const y1 = Math.min(g.h, Math.ceil(r.y1));
+  const w = x1 - x0;
+  const h = y1 - y0;
+  if (w < 8 || h < 8) return false;
+  const label = new Int32Array(w * h);
+  const stack = new Int32Array(w * h);
+  let glyphs = 0;
+  let glyphInk = 0;
+  let allInk = 0;
+  let n = 0;
+  for (let st = 0; st < w * h; st++) {
+    const sx = st % w;
+    const sy = (st - sx) / w;
+    if (label[st] || g.d[(y0 + sy) * g.w + x0 + sx] >= 140) continue;
+    n++;
+    let top = 0;
+    stack[top++] = st;
+    label[st] = n;
+    let minX = w, maxX = 0, minY = h, maxY = 0, area = 0; // prettier-ignore
+    while (top) {
+      const p = stack[--top];
+      const x = p % w;
+      const y = (p - x) / w;
+      area++;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+          const q = yy * w + xx;
+          if (!label[q] && g.d[(y0 + yy) * g.w + x0 + xx] < 140) (label[q] = n), (stack[top++] = q);
+        }
+    }
+    const ch = maxY - minY + 1;
+    const cw = maxX - minX + 1;
+    allInk += area;
+    if (ch >= glyphH * 0.45 && ch <= glyphH * 1.9 && cw <= glyphH * 2.4 && cw >= glyphH * 0.15) (glyphs++, (glyphInk += area));
+  }
+  return glyphs >= 18 && glyphInk >= allInk * 0.55;
+}
+
 /**
  * Рисунки и рамки на выровненной цветной странице. Текст (слова, найденные распознаванием) стирается,
  * остальное «не бумага» собирается в пятна: пятно с содержимым — рисунок, пустая обводка или заливка вокруг текста — рамка.
  */
-export function analyzeRegions(rgba: Uint8ClampedArray, g: Gray, textRects: RectPx[], mh: number): RegionsResult {
+export function analyzeRegions(rgba: Uint8ClampedArray, g: Gray, textRects: RectPx[], mh: number, glyphH = 0): RegionsResult {
   const { w: W, h: H } = g;
   const c = 4;
   const gw = Math.ceil(W / c);
@@ -209,6 +259,7 @@ export function analyzeRegions(rgba: Uint8ClampedArray, g: Gray, textRects: Rect
     if (cw * ch > gw * gh * 0.6) return;
     let own = 0;
     let inner = 0;
+    let tx0 = gw, ty0 = gh, tx1 = 0, ty1 = 0; // prettier-ignore
     const mx = Math.max(2, Math.round(cw * 0.04) + rd);
     const my = Math.max(2, Math.round(ch * 0.04) + rd);
     for (let y = cp.y0; y <= cp.y1; y++)
@@ -216,6 +267,10 @@ export function analyzeRegions(rgba: Uint8ClampedArray, g: Gray, textRects: Rect
         const k = y * gw + x;
         if (label[k] === id && noText[k]) {
           own++;
+          if (x < tx0) tx0 = x;
+          if (x > tx1) tx1 = x;
+          if (y < ty0) ty0 = y;
+          if (y > ty1) ty1 = y;
           if (x >= cp.x0 + mx && x <= cp.x1 - mx && y >= cp.y0 + my && y <= cp.y1 - my) inner++;
         }
       }
@@ -225,13 +280,14 @@ export function analyzeRegions(rgba: Uint8ClampedArray, g: Gray, textRects: Rect
     const touches = cp.x0 <= 1 || cp.y0 <= 1 || cp.x1 >= gw - 2 || cp.y1 >= gh - 2;
     if (touches && cw * ch > gw * gh * 0.25) return;
     const textIn = sum(cp.x0, cp.y0, cp.x1, cp.y1) / (cw * ch);
-    const rect = { x0: px(cp.x0) - c, y0: px(cp.y0) - c, x1: px(cp.x1 + 1) + c, y1: px(cp.y1 + 1) + c };
+    const rect = own ? { x0: px(tx0) - c, y0: px(ty0) - c, x1: px(tx1 + 1) + c, y1: px(ty1 + 1) + c } : { x0: px(cp.x0), y0: px(cp.y0), x1: px(cp.x1 + 1), y1: px(cp.y1 + 1) };
     // Обводка с текстом внутри и без собственного содержимого — рамка.
     if (innerShare < 0.004 && own > 0) {
       if (textIn > 0.06) boxes.push(rect);
       return;
     }
     if (own < 14) return;
+    if (glyphH && looksLikeText(g, rect, glyphH)) return;
     figures.push(rect);
   });
 
@@ -267,5 +323,16 @@ export function analyzeRegions(rgba: Uint8ClampedArray, g: Gray, textRects: Rect
     if (k >= 0) merged[k] = { x0: Math.min(merged[k].x0, b.x0), y0: Math.min(merged[k].y0, b.y0), x1: Math.max(merged[k].x1, b.x1), y1: Math.max(merged[k].y1, b.y1) };
     else merged.push(b);
   }
-  return { figures: figures.filter((f) => !merged.some((b) => iou(f, b) > 0.35)), boxes: merged };
+  // Вложенные и пересекающиеся рисунки — один рисунок.
+  const figs: RectPx[] = [];
+  for (const f of figures.filter((f) => !merged.some((b) => iou(f, b) > 0.35)).sort((a, b) => (b.x1 - b.x0) * (b.y1 - b.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))) {
+    const k = figs.findIndex((m) => {
+      const w = Math.min(m.x1, f.x1) - Math.max(m.x0, f.x0);
+      const h = Math.min(m.y1, f.y1) - Math.max(m.y0, f.y0);
+      return w > 0 && h > 0 && (w * h) / ((f.x1 - f.x0) * (f.y1 - f.y0)) > 0.3;
+    });
+    if (k >= 0) figs[k] = { x0: Math.min(figs[k].x0, f.x0), y0: Math.min(figs[k].y0, f.y0), x1: Math.max(figs[k].x1, f.x1), y1: Math.max(figs[k].y1, f.y1) };
+    else figs.push(f);
+  }
+  return { figures: figs, boxes: merged };
 }
