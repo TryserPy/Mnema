@@ -82,17 +82,16 @@ CHANGELOG.md не трогаем (соберёт руководитель). Пр
 4. Буфер обмена (`NoteEditor.tsx`): `editorProps.clipboardTextSerializer` — Markdown выделения (вместо голого текста; data-URI-картинки заменять на `*(рисунок)*`, `mnema://`-ссылки — на текст); `clipboardSerializer` — обёртка над `DOMSerializer`, которая в HTML кладёт читаемый текст `$TeX$` внутрь `span[data-type=inline-math]`/блока (атрибуты оставить, чтобы вставка внутрь приложения не ломалась).
 5. Тесты: round-trip «экспорт → импорт → те же конспекты (с точностью до `canonNote`) и карточки», защита zip-slip, лимиты, зарезервированные имена Windows, валидация значков при импорте, санитизация HTML. Проверить в Playwright копирование.
 
-## Где остановился (обновлено перед паузой)
+## Итог (все три пункта сделаны)
 
-Файлы пункта 3, написанные и проходящие `npx tsc --noEmit` (tsc зелёный), но БЕЗ тестов и БЕЗ подключения к интерфейсу:
-- `src/mdPortable.ts` — безопасные имена файлов (Windows-запрещённые символы, CON/PRN…), `uniquePath`, `relPath`/`linkPath`/`cleanPath`/`resolveRel` (защита от zip-slip), data-URI ↔ байты, `safeSvgText`, YAML-свойства (`emitFrontmatter`/`parseFrontmatter`), `sanitizeImportedMarkdown`, CSV.
-- `src/mdCards.ts` — раздел «## Карточки» (по типам), таблицы словарей, «## Стихи», `cardsToCsv`, `cardsToMarkdown`; парсеры обратно.
-- `src/mdExport.ts` — `buildMarkdownExport(data, {flavor})` (структура Папка/Предмет/Тема.md, `attachments/`, README.md с меткой, Карточки.md/.csv), `zipExport`.
-- `src/mdImport.ts` — `packFromZip` (лимиты, zip-slip), `packFromEntries`, `planImport` (frontmatter, вики- и относительные ссылки → `mnema://topic/pk-N`, картинки, видео, карточки, словари, стихи, значки через `validIconImg`, подтемы по папкам). В `src/obsidian.ts` лишь добавлен `export` к `CALLOUT_TITLES`.
+Коммиты: `2cdc3ee` (п.1), `2db2b18` (п.2), `700927c` + `b54e976` + `24d1f20` + `69e13a9` (п.3: модули, тесты, интерфейс, буфер обмена) и последний коммит с e2e и документацией.
+Проверено: `npx tsc --noEmit` чисто; `npm test` — 47 файлов, 559+ тестов зелёные; `npm run build:web` собирается; Playwright (`e2e/portable.mjs`, веб-сборка): значок-картинка (выбор, кадрирование, показ в боковой панели, на экране предмета и в поиске, «убрать картинку»), «Всё в Markdown» → архив → импорт обратно (предмет, значок, подтема, ссылки, формулы, рамка, карточки), буфер обмена (Markdown и HTML с `$…$`) — все проверки зелёные, ошибок страницы нет.
 
-Следующие шаги (по порядку):
-1. Тесты: `src/mdPortable.test.ts`, `src/mdCards.test.ts`, `src/mdExport.test.ts`, `src/mdImport.test.ts` — round-trip «экспорт → zip → `packFromZip` → `planImport` → те же конспекты (`sameNote`) и карточки», zip-slip (`../x.md`, `C:\x.md`, `/etc/x.md`), лимиты, зарезервированные имена, санитизация (`<script>`, `javascript:`), подложный значок. Ожидаемо найдутся мелкие ошибки в уже написанном коде (код ни разу не запускался).
-2. `store.importTree(plan, targetSubjectId?)` в конец `src/store.ts`: создать папки/предметы (по имени, как `importTopics`), темы с `parentId`, `order`, `lists` (новые id + перенос `listId` карточек), `poems` (learned 0), `pages`, заменить `mnema://topic/pk-N` на реальные id, одна `commit`.
-3. UI: Настройки → Данные → Экспорт: «Всё в папку Markdown (.zip)» (`buildMarkdownExport` + `zipExport` + `downloadBytes`), «Для Obsidian» (flavor obsidian); карточки Markdown/CSV в `ExportDialogs.tsx`; Импорт: окно «Из папки Markdown, Obsidian или .zip» (`<input type=file accept=.zip,.md,.png... multiple>` и `webkitdirectory`, предпросмотр `plan.stats` и `plan.warnings`).
-4. Буфер обмена в `NoteEditor.tsx` (`clipboardTextSerializer`, обёртка `clipboardSerializer` с `$TeX$`).
-5. Проверка в Playwright (значки, импорт/экспорт, копирование), `npm test`, `npm run build:web`, обновить `docs/PROJECT.md` (раздел о разметке).
+Что сделано по п.3 (файлы): `src/mdPortable.ts`, `src/mdCards.ts`, `src/mdExport.ts`, `src/mdImport.ts`, `src/mdApply.ts`, `src/noteClipboard.ts`, `src/components/MarkdownImport.tsx`, `store.importTree`, строки в Настройки → Данные (экспорт «Всё в Markdown (.zip)» и «Для Obsidian», карточки CSV/Markdown, импорт «Из папки Markdown, Obsidian или .zip»), `NoteEditor.tsx` (clipboardTextSerializer, clipboardSerializer).
+
+Не делали / оставили:
+- `buildObsidianExport` (старый экспорт в папку Obsidian на Windows) не менялся — на него завязаны `lists.test.ts` и `sync.test.ts`; новый экспорт «Для Obsidian» (zip) его заменяет по возможностям (вики-ссылки, выноски, `attachments`). При желании перевести старую кнопку «В Obsidian» на `buildMarkdownExport(data, {flavor:'obsidian'})` и поправить два теста.
+- Прогресс повторений в файлы не входит (по замыслу). Прогресс заучивания стихов и их настройки не переносятся (только название, автор, текст).
+- Ссылка на карточку при экспорте становится ссылкой на её тему (карточки без собственных страниц).
+- Окно «Импорт из Obsidian» (только Windows, выбор файлов) осталось как было; новый общий импорт работает везде, но вики-ссылки там разрешаются только внутри выбранного набора файлов.
+- Электрон-часть (п.2) не запускалась.
