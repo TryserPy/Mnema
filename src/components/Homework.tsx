@@ -178,7 +178,7 @@ export function HomeworkForm({ initial, subjectId: presetSubject, onDone }: { in
           <div className="hw-subjects">
             {subjects.map((s) => (
               <button type="button" key={s.id} className={'hw-subj' + (s.id === subjectId ? ' on' : '')} style={{ ['--c' as string]: s.color }} onClick={() => pickSubject(s.id)}>
-                <SubjectMark color={s.color} icon={s.icon} /> {s.name}
+                <SubjectMark color={s.color} icon={s.icon} img={s.iconImg} /> {s.name}
               </button>
             ))}
           </div>
@@ -392,7 +392,7 @@ function QuickAdd({ presetSubject }: { presetSubject?: string }) {
           </button>
           {subjects.map((x) => (
             <button type="button" role="menuitem" key={x.id} onClick={() => (setSubjectId(x.id), setMenu(null))}>
-              <SubjectMark color={x.color} icon={x.icon} /> <span className="grow clamp1">{x.name}</span>
+              <SubjectMark color={x.color} icon={x.icon} img={x.iconImg} /> <span className="grow clamp1">{x.name}</span>
             </button>
           ))}
         </Pill>

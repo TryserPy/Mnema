@@ -1,4 +1,5 @@
 // Обмен темами: файл .mnema с конспектом и карточками (без личного прогресса).
+import { cleanIconImg } from './iconImage';
 import { importTopics } from './store';
 import type { AppData, Card, Topic } from './types';
 
@@ -8,7 +9,7 @@ interface TopicPackage {
   kind: 'mnema-topic';
   version: 1;
   exportedAt: string;
-  subject: { name: string; color: string };
+  subject: { name: string; color: string; icon?: string; iconImg?: string };
   topic: Pick<Topic, 'name' | 'note'> & Partial<Pick<Topic, 'lists' | 'kind' | 'poems'>>;
   cards: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId'>>)[];
 }
@@ -54,7 +55,7 @@ export function exportTopic(data: AppData, topicId: string) {
     kind: 'mnema-topic',
     version: 1,
     exportedAt: new Date().toISOString(),
-    subject: { name: subject?.name ?? 'Без предмета', color: subject?.color ?? '#3A3F4E' },
+    subject: { name: subject?.name ?? 'Без предмета', color: subject?.color ?? '#3A3F4E', ...(subject?.icon ? { icon: subject.icon } : {}), ...(subject?.iconImg ? { iconImg: subject.iconImg } : {}) },
     topic: { name: topic.name, note: topic.note, ...(topic.lists?.length ? { lists: topic.lists } : {}), ...(topic.kind ? { kind: topic.kind } : {}), ...(topic.poems?.length ? { poems: topic.poems.map((p) => ({ id: p.id, title: p.title, author: p.author, text: p.text, chunk: p.chunk, learned: 0, createdAt: p.createdAt, updatedAt: p.updatedAt })) } : {}) },
     cards: data.cards.filter((c) => c.topicId === topicId).map(({ type, front, back, why, listId }) => ({ type, front, back, why, ...(listId ? { listId } : {}) }))
   };
@@ -75,5 +76,5 @@ export function importTopicPackage(pkg: TopicPackage) {
     .filter((c) => c && TYPES.has(c.type) && typeof c.front === 'string')
     .map((c) => ({ type: c.type, front: String(c.front), back: String(c.back ?? ''), why: c.why ? String(c.why) : undefined, listId: typeof c.listId === 'string' ? c.listId : undefined }));
   const lists = Array.isArray(pkg.topic.lists) ? pkg.topic.lists.filter((l) => l && typeof l.id === 'string' && typeof l.title === 'string' && Array.isArray(l.cols)) : undefined;
-  return importTopics([{ subjectName: String(pkg.subject?.name ?? 'Без предмета'), subjectColor: pkg.subject?.color, topic: { name: pkg.topic.name, note: String(pkg.topic.note ?? ''), lists, kind: pkg.topic.kind === 'rule' ? 'rule' : undefined, poems: Array.isArray(pkg.topic.poems) ? pkg.topic.poems.filter((p) => p && typeof p.text === 'string').map((p) => ({ id: String(p.id || Math.random().toString(36).slice(2, 10)), title: String(p.title ?? ''), author: p.author ? String(p.author) : undefined, text: p.text, chunk: Number(p.chunk) || 0, learned: 0, createdAt: String(p.createdAt ?? new Date().toISOString()), updatedAt: new Date().toISOString() })) : undefined }, cards }]);
+  return importTopics([{ subjectName: String(pkg.subject?.name ?? 'Без предмета'), subjectColor: pkg.subject?.color, subjectIcon: typeof pkg.subject?.icon === 'string' ? [...pkg.subject.icon].slice(0, 4).join('') : undefined, subjectIconImg: cleanIconImg(pkg.subject?.iconImg), topic: { name: pkg.topic.name, note: String(pkg.topic.note ?? ''), lists, kind: pkg.topic.kind === 'rule' ? 'rule' : undefined, poems: Array.isArray(pkg.topic.poems) ? pkg.topic.poems.filter((p) => p && typeof p.text === 'string').map((p) => ({ id: String(p.id || Math.random().toString(36).slice(2, 10)), title: String(p.title ?? ''), author: p.author ? String(p.author) : undefined, text: p.text, chunk: Number(p.chunk) || 0, learned: 0, createdAt: String(p.createdAt ?? new Date().toISOString()), updatedAt: new Date().toISOString() })) : undefined }, cards }]);
 }

@@ -9,6 +9,7 @@ import { emit } from './plugins/bus';
 import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
+import { cleanIconImg, cleanIconImgs } from './iconImage';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
@@ -214,10 +215,10 @@ export function normalizeData(raw: unknown): AppData {
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
   const out: AppData = {
     version: 1,
-    folders: Array.isArray(r.folders) ? r.folders : [],
+    folders: Array.isArray(r.folders) ? cleanIconImgs(r.folders) : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
     exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
-    subjects: r.subjects,
+    subjects: cleanIconImgs(r.subjects),
     ...(Array.isArray(r.trash) && r.trash.length ? { trash: cleanTrash(r.trash) } : {}),
     topics: cleanTopics(r.topics),
     cards: r.cards,
@@ -909,8 +910,8 @@ export function addListRows(topicId: string, list: StudyList, rows: { a: string;
 
 // ---------- Папки предметов ----------
 
-export function addFolder(name: string, color: string, icon?: string): Folder {
-  const f: Folder = { id: uid(), name: name.trim() || 'Папка', color, icon, order: data.folders.length + 1, createdAt: nowIso(), updatedAt: nowIso() };
+export function addFolder(name: string, color: string, icon?: string, iconImg?: string): Folder {
+  const f: Folder = { id: uid(), name: name.trim() || 'Папка', color, icon, ...(iconImg ? { iconImg } : {}), order: data.folders.length + 1, createdAt: nowIso(), updatedAt: nowIso() };
   commit({ ...data, folders: [...data.folders, f], settings: { ...data.settings, treeOpen: [...data.settings.treeOpen, f.id] } });
   return f;
 }
@@ -1096,6 +1097,8 @@ export function importTopics(
   items: {
     subjectName: string;
     subjectColor?: string;
+    subjectIcon?: string; // значок нового предмета (эмодзи) и/или своя картинка — только если предмет создаётся
+    subjectIconImg?: string;
     topic: Pick<Topic, 'name' | 'note'> & Partial<Pick<Topic, 'examDate' | 'source' | 'lists' | 'kind' | 'poems'>>;
     cards?: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId'>> & {
       states?: Record<number, ItemState>;
@@ -1114,7 +1117,7 @@ export function importTopics(
       const existing = d.subjects.find((s) => s.name.trim().toLowerCase() === it.subjectName.trim().toLowerCase());
       if (existing) subjectId = existing.id;
       else {
-        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', createdAt: nowIso() };
+        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', ...(it.subjectIcon ? { icon: it.subjectIcon } : {}), ...(cleanIconImg(it.subjectIconImg) ? { iconImg: it.subjectIconImg } : {}), createdAt: nowIso() };
         d = { ...d, subjects: [...d.subjects, s] };
         subjectId = s.id;
       }
