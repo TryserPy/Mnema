@@ -225,3 +225,48 @@ describe('«Вставить» (pasteCopies): куда и что приезжа�
     expect(d.settings.treeOpen).toContain(r[0].id);
   });
 });
+
+// ---------- Домашка: удалить любую, сделанные исчезают на следующий день ----------
+import { splitDoneHomework } from './homework';
+import { deleteHomeworkMany, pruneDoneHomework, restoreHomework, toggleHomework, addHomework } from './store';
+import type { Homework } from './types';
+
+const hw = (id: string, extra: Partial<Homework> = {}): Homework => ({ id, text: 'ДЗ ' + id, createdAt: T0, updatedAt: T0, ...extra });
+
+describe('сделанная домашка', () => {
+  const NOW11 = new Date('2026-10-11T15:00:00');
+  it('сегодняшнее остаётся в «Сделано», вчерашнее и без даты отметки — уходит', () => {
+    const list = [hw('a', { done: true, doneAt: new Date('2026-10-11T09:00:00').toISOString() }), hw('b', { done: true, doneAt: new Date('2026-10-10T20:00:00').toISOString() }), hw('c', { done: true }), hw('d')];
+    const { keep, old } = splitDoneHomework(list, NOW11, 4);
+    expect(keep.map((h) => h.id)).toEqual(['a', 'd']);
+    expect(old.map((h) => h.id)).toEqual(['b', 'c']);
+  });
+  it('ночью до начала учебного дня «сегодня» — ещё вчерашний день', () => {
+    const list = [hw('a', { done: true, doneAt: new Date('2026-10-10T22:00:00').toISOString() })];
+    expect(splitDoneHomework(list, new Date('2026-10-11T02:00:00'), 4).old).toHaveLength(0);
+    expect(splitDoneHomework(list, new Date('2026-10-11T05:00:00'), 4).old).toHaveLength(1);
+  });
+  it('удаление любой домашки и «Вернуть»; невыполненная не трогается при очистке', () => {
+    const d = emptyData();
+    d.homework = [hw('a'), hw('b', { done: true, doneAt: T0 }), hw('c')];
+    replaceData(d);
+    const undo = deleteHomeworkMany(['a', 'b']);
+    expect(getData().homework.map((h) => h.id)).toEqual(['c']);
+    expect(getData().deleted?.['hw:a']).toBeTruthy();
+    undo();
+    expect(getData().homework.map((h) => h.id).sort()).toEqual(['a', 'b', 'c']);
+    expect(getData().deleted?.['hw:a']).toBeUndefined();
+    restoreHomework([hw('a')]); // повторный возврат ничего не дублирует
+    expect(getData().homework).toHaveLength(3);
+  });
+  it('pruneDoneHomework убирает только сделанное в прошлые дни', () => {
+    const d = emptyData();
+    d.homework = [hw('old', { done: true, doneAt: '2026-10-01T10:00:00.000Z' }), hw('open'), hw('fresh')];
+    replaceData(d);
+    toggleHomework('fresh'); // отмечено «сейчас» — остаётся до конца дня
+    expect(pruneDoneHomework()).toBe(1);
+    expect(getData().homework.map((h) => h.id).sort()).toEqual(['fresh', 'open']);
+    const x = addHomework({ text: 'новое' });
+    expect(getData().homework.some((h) => h.id === x.id)).toBe(true);
+  });
+});

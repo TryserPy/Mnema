@@ -28,6 +28,23 @@ export function defaultRemind(data: AppData, due?: string): string | undefined {
   return d.getTime() > Date.now() ? d.toISOString() : undefined;
 }
 
+/**
+ * Сделанные задания живут в списке «Сделано» до конца того дня, когда их отметили, — чтобы можно было вернуть по ошибке.
+ * На следующий (учебный) день они исчезают совсем. Возвращает, что оставить и что убрать.
+ */
+export function splitDoneHomework(list: Homework[], now: Date, dayStartHour: number): { keep: Homework[]; old: Homework[] } {
+  const start = new Date(now);
+  if (start.getHours() < dayStartHour) start.setDate(start.getDate() - 1);
+  start.setHours(dayStartHour, 0, 0, 0);
+  const keep: Homework[] = [];
+  const old: Homework[] = [];
+  for (const h of list) {
+    if (h.done && !(h.doneAt && Date.parse(h.doneAt) >= start.getTime())) old.push(h);
+    else keep.push(h);
+  }
+  return { keep, old };
+}
+
 export type HwGroup = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'nodate' | 'done';
 export const GROUP_LABEL: Record<HwGroup, string> = {
   overdue: 'Просрочено',

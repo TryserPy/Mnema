@@ -43,7 +43,7 @@ import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
 import { importTopicPackage, isTopicPackage } from './share';
 import { forecast, itemKey, itemOrds, streak, todayCounts, tomorrowSubjects } from './srs';
-import { dataReadOnly, getData, updateSettings, updateTopic, useData } from './store';
+import { dataReadOnly, getData, pruneDoneHomework, updateSettings, updateTopic, useData } from './store';
 import type { Route } from './types';
 
 export function useMobile() {
@@ -204,6 +204,14 @@ export function App() {
     }, 6000);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Сделанное домашнее задание прошлых дней убираем само: при запуске и когда возвращаешься в приложение.
+  useEffect(() => {
+    pruneDoneHomework();
+    const onVisible = () => document.visibilityState === 'visible' && pruneDoneHomework();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   // Виджет на телефоне: считаем на неделю вперёд, чтобы он был верен и без запуска Refrain.
   useEffect(() => {

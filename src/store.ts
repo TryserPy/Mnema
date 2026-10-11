@@ -1,4 +1,5 @@
 // Хранилище данных: состояние в памяти + сохранение в файл (Electron) или localStorage (браузер).
+import { splitDoneHomework } from './homework';
 import { copyCard, copyFolder, copySubject, copyTopic, type CopyResult } from './copy';
 import { useSyncExternalStore } from 'react';
 import { bridgeKey } from './platform/bridgeKey';
@@ -958,6 +959,33 @@ export function toggleHomework(id: string) {
 
 export function deleteHomework(id: string) {
   commit(tomb({ ...data, homework: data.homework.filter((h) => h.id !== id) }, ['hw:' + id]));
+}
+
+/** Вернуть удалённые задания (кнопка «Вернуть» после удаления): те же задания с теми же id, метка удаления снимается. */
+export function restoreHomework(list: Homework[]) {
+  if (!list.length) return;
+  const have = new Set(data.homework.map((h) => h.id));
+  const back = list.filter((h) => !have.has(h.id));
+  const deleted = { ...(data.deleted ?? {}) };
+  for (const h of list) delete deleted['hw:' + h.id];
+  commit({ ...data, homework: [...data.homework, ...back.map((h) => ({ ...h, updatedAt: nowIso() }))], deleted });
+}
+
+/** Удалить задания (все выбранные одним действием). Возвращает «Вернуть». */
+export function deleteHomeworkMany(ids: string[]): () => void {
+  const set = new Set(ids);
+  const gone = data.homework.filter((h) => set.has(h.id));
+  if (!gone.length) return () => undefined;
+  commit(tomb({ ...data, homework: data.homework.filter((h) => !set.has(h.id)) }, gone.map((h) => 'hw:' + h.id)));
+  return () => restoreHomework(gone);
+}
+
+/** Убрать сделанные задания прошлых дней (сегодняшние остаются в «Сделано» — их можно вернуть). Возвращает, сколько убрано. */
+export function pruneDoneHomework(now = new Date()): number {
+  const { old } = splitDoneHomework(data.homework, now, data.settings.dayStartHour);
+  if (!old.length) return 0;
+  deleteHomeworkMany(old.map((h) => h.id));
+  return old.length;
 }
 
 export function sortedSubjects(d: AppData): Subject[] {
