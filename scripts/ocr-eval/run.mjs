@@ -28,7 +28,7 @@ for (const f of files) {
       let dbg = null; tb.setDebugHook((x) => (dbg = x));
       const res = await tb.recognizeOffline({ id: 'x', file: blob, name, n: 1, rotate: 0 }, () => {});
       const md = tb.assemble([res], {});
-      return { md, raw: res.markdown, figures: res.figures.map((f) => ({ box: f.box, caption: f.caption })), doubts: res.doubts.map((d) => d.text), detectedPage: res.detectedPage, ms: Math.round(performance.now() - t), info: dbg && dbg.info, regions: dbg && dbg.regions, quality: res.quality, rawLayout: dbg && { captions: dbg.layout.captions } };
+      return { md, raw: res.markdown, figures: res.figures.map((f) => ({ box: f.box, caption: f.caption })), doubts: res.doubts.map((d) => d.text), detectedPage: res.detectedPage, ms: Math.round(performance.now() - t), info: dbg && dbg.info, regions: dbg && dbg.regions, quality: res.quality, rawLines: dbg && dbg.lines };
     } catch (e) {
       return { error: String(e && e.message || e) };
     }
@@ -37,7 +37,7 @@ for (const f of files) {
   if (r.error) console.log(base, 'ERROR', r.error);
   else {
     fs.writeFileSync(`${outDir}/${base}.md`, r.md.replace(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/g, 'DATA'));
-    fs.writeFileSync(`${outDir}/${base}.json`, JSON.stringify({ figures: r.figures, doubts: r.doubts, detectedPage: r.detectedPage, ms: r.ms, info: r.info, regions: r.regions, quality: r.quality }));
+    fs.writeFileSync(`${outDir}/${base}.json`, JSON.stringify({ rawLines: r.rawLines, figures: r.figures, doubts: r.doubts, detectedPage: r.detectedPage, ms: r.ms, info: r.info, regions: r.regions, quality: r.quality }));
     console.log(base, r.ms + 'ms', 'figs', r.figures.length, 'doubts', r.doubts.length, JSON.stringify(r.info), 'regions', r.regions && r.regions.figures.length + '/' + r.regions.boxes.length);
   }
 }

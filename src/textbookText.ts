@@ -142,6 +142,9 @@ export function fixOcrText(s: string): string {
         return line.replace(/[\p{L}\d][\p{L}\d]*/gu, (w) => fixWordLetters(w, lineCyr));
       })
       .join('\n');
+    // Одинокая латинская «B», «a» между русскими словами — это «в», «а»; «ИЛИ» заглавными посреди строчных — «или».
+    p = p.replace(/(?<=[а-яё,;] )([A-Za-z])(?= [а-яё])/g, (m, ch: string) => (LAT2CYR[ch] ? LAT2CYR[ch].toLowerCase() : m));
+    p = p.replace(/(?<=[а-яё,;] )([А-ЯЁ]{2,4})(?= [а-яё])/g, (m) => (SHORT_RU.has(m.toLowerCase()) ? m.toLowerCase() : m));
     // Римские цифры после имени: «Александр П» → «Александр II», «Пётр Т» → «Пётр I».
     p = p.replace(/([А-ЯЁ][а-яё]{2,}\**\s)(П|Ш|Т|Г)(?=[\s.,;:)*]|$)/gm, (_m, a: string, r: string) => a + ({ П: 'II', Ш: 'III', Т: 'I', Г: 'I' } as Record<string, string>)[r]);
     p = p.replace(/\*\*([^*\n]+)\*\* (I{1,3}|IV|VI{0,3}|IX|X{1,3})(?=[\s.,;:)]|$)/gm, '**$1 $2**');
@@ -152,7 +155,7 @@ export function fixOcrText(s: string): string {
     p = p.replace(/(?<=[а-яё,] )([ВСКОУИА])(?= [а-яё])/g, (m) => m.toLowerCase());
     // Тире: « - » между словами → « — »; диапазон лет и страниц → «–».
     p = p.replace(/(?<=[\p{L}\d.,;:)»\]*]) [-–−] (?=[\p{L}\d«(\[*])/gu, ' — ');
-    p = p.replace(/(?<=\s)[-–−](?=\s)/g, '—');
+    p = p.replace(/(?<=\S[ \t])[-–−](?=[ \t])/g, '—');
     p = p.replace(/(\b\d{3,4})-(\d{2,4}\b)/g, '$1–$2');
     // Пробелы вокруг знаков препинания.
     p = p.replace(/[ \t]+([,.;:!?)»\]])/g, '$1').replace(/([(«\[])[ \t]+/g, '$1');
@@ -204,6 +207,8 @@ export interface LayoutInput {
   figures: Rect[];
   /** Рамки с заливкой или обводкой (пиксели страницы). */
   boxes?: Rect[];
+  /** Отладка: получает порядок блоков. */
+  debug?: (x: unknown) => void;
 }
 export interface LayoutDoubt {
   id: string;
@@ -326,6 +331,41 @@ export function xyCut(units: Unit[], tolX: number, tolY: number, col = ''): Unit
   return s;
 }
 
+const PARA_SIGN = /^(?:§|\$|S|&)\s?\d{1,3}[.:\s]/;
+/**
+ * Порядок чтения, когда известны просветы между колонками: полноширинные блоки (заголовок, рисунок во всю ширину)
+ * делят страницу на полосы, в каждой полосе сначала левая колонка сверху вниз, потом правая.
+ */
+export function orderByGutters(units: Unit[], gs: Gutter[], mh: number): Unit[] {
+  const crosses = (u: Unit) => gs.some((g) => u.rect.x0 < g.x0 + mh * 0.5 && u.rect.x1 > g.x1 - mh * 0.5);
+  const full = units.filter(crosses).sort((a, b) => a.rect.y0 - b.rect.y0);
+  const rest = units.filter((u) => !crosses(u));
+  const segs: Unit[][] = full.map(() => []);
+  segs.push([]);
+  for (const u of rest) {
+    const cy = (u.rect.y0 + u.rect.y1) / 2;
+    let k = 0;
+    while (k < full.length && cy > (full[k].rect.y0 + full[k].rect.y1) / 2) k++;
+    segs[k].push(u);
+  }
+  const out: Unit[] = [];
+  const side = (u: Unit) => sideOf(gs, (u.rect.x0 + u.rect.x1) / 2);
+  segs.forEach((seg, k) => {
+    const sides = new Set(seg.map(side));
+    const bySide = [...sides].sort((a, b) => a - b);
+    for (const sd of bySide) {
+      const part = seg.filter((u) => side(u) === sd).sort((a, b) => a.rect.y0 - b.rect.y0 || a.rect.x0 - b.rect.x0);
+      for (const u of part) u.col = bySide.length > 1 ? `c${sd}` : '';
+      out.push(...part);
+    }
+    if (k < full.length) {
+      full[k].col = '';
+      out.push(full[k]);
+    }
+  });
+  return out;
+}
+
 const SENT_END = /[.!?…:;»)\]]['"»*]*$/;
 const BULLET_CLEAN = /^[•·●○▪■◦▫∙‣⁃]$/;
 const BULLET_NOISE = /^[®©°*«»eEoOоО0]$/;
@@ -344,7 +384,7 @@ function isNoiseWord(w: OcrWord): boolean {
   const alnum = t.replace(/[^\p{L}\p{N}]/gu, '');
   if (!t.trim()) return true;
   if (w.conf < 18) return true;
-  if (!alnum.length) return !/^[—–\-.,:;!?()«»"'§%№=+×·•®©°*]$/.test(t) || w.conf < 40;
+  if (!alnum.length) return !/^[—–\-.,:;!?()«»"'§%№=+×·•®©°*]$/.test(t) || w.conf < (/^[—–\-]$/.test(t) ? 15 : 40);
   if (alnum.length === 1 && w.conf < 40 && !/\d/.test(alnum)) return true;
   return false;
 }
@@ -355,7 +395,7 @@ function isGarbageLine(l: OcrLine): boolean {
   if (!ws.length) return true;
   const alnum = ws.reduce((n, w) => n + w.text.replace(/[^\p{L}\p{N}]/gu, '').length, 0);
   const conf = ws.reduce((n, w) => n + w.conf, 0) / ws.length;
-  if (alnum === 0 && !(ws.length === 1 && /^[§—–\-•·●®©°*]$/.test(ws[0].text))) return true;
+  if (alnum === 0) return true;
   if (alnum <= 2 && conf < 60 && ws.length <= 2) return true;
   if (conf < 38 && alnum < 14) return true;
   if (conf < 30) return true;
@@ -448,6 +488,8 @@ export function formulaToTex(text: string, toks?: Tok[]): string {
     .replace(/β/g, '\\beta ')
     .replace(/∙/g, ' \\cdot ');
   // Кириллица посреди формулы (единицы измерения) — в \text{}.
+  const CYR2LAT: Record<string, string> = { с: 'c', С: 'C', т: 'm', к: 'k', х: 'x', у: 'y', о: 'o', р: 'p', е: 'e', а: 'a', в: 'B', Т: 'T', М: 'M', Н: 'H', К: 'K', Х: 'X', А: 'A', Е: 'E', В: 'B', О: 'O', Р: 'P' };
+  t = t.replace(/(?<![А-Яа-яЁё])[А-Яа-яЁё](?![А-Яа-яЁё])/g, (ch) => CYR2LAT[ch] ?? ch);
   t = t.replace(/[А-Яа-яЁё]+/g, (w) => `\\text{${w}}`);
   // Индексы вида t2 − t1: цифра после буквы, если у буквы есть пара с другой цифрой.
   const withDigit = new Map<string, Set<string>>();
@@ -481,6 +523,13 @@ export function buildPage(input: LayoutInput): LayoutResult {
     .filter((l) => l.words.length && !isGarbageLine(l))
     .map((l) => ({ ...l, bbox: unionRect(l.words.map((w) => w.bbox)) }));
   if (!lines.length) return EMPTY;
+  let gutters: Gutter[] = [];
+  {
+    const mh0 = median(lines.map((l) => rectH(l.bbox))) || 30;
+    const gs = findGutters(lines, mh0);
+    gutters = gs;
+    lines = mergeRows(splitAtGutters(lines, gs), gs, mh0).map((l) => ({ ...l, words: [...l.words].sort((a, b) => a.bbox.x0 - b.bbox.x0) }));
+  }
 
   // 2. Слова внутри рисунков — подписи на самом рисунке, в текст не идут.
   if (input.figures.length) {
@@ -496,7 +545,13 @@ export function buildPage(input: LayoutInput): LayoutResult {
   let infos = lines.map(describe);
   const wordHs = infos.flatMap((i) => i.line.words.filter((w) => lettersOf(w.text).length >= 3).map((w) => w.bbox.y1 - w.bbox.y0));
   const mwh = median(wordHs) || 24;
-  for (const i of infos) i.size = i.h / mwh;
+  // Размер букв: высота слов зависит от выносных элементов («р», «й»), поэтому берём меньшее из отношений высоты и ширины знака.
+  const widthPerChar = (ws: OcrWord[]) => median(ws.filter((w) => lettersOf(w.text).length >= 3).map((w) => (w.bbox.x1 - w.bbox.x0) / [...w.text].length));
+  const mcw = widthPerChar(infos.flatMap((i) => i.line.words)) || 1;
+  for (const i of infos) {
+    const wl = widthPerChar(i.line.words);
+    i.size = wl ? Math.min(i.h / mwh, wl / mcw) : i.h / mwh;
+  }
   const mh = median(infos.map((i) => rectH(i.line.bbox))) || mwh * 1.4;
 
   // 3. Номер страницы и колонтитулы: одиночные строки у верхнего и нижнего края.
@@ -543,18 +598,17 @@ export function buildPage(input: LayoutInput): LayoutResult {
   const units: Unit[] = [];
   const byBlock = new Map<string, LineInfo[]>();
   for (const i of infos) {
-    const key = i.box >= 0 ? `b${i.box}` : `t${i.line.block ?? 'x' + units.length}`;
+    const key = i.box >= 0 ? `b${i.box}` : `t${i.line.block ?? 'x' + units.length}_${sideOf(gutters, (i.line.bbox.x0 + i.line.bbox.x1) / 2)}`;
     if (!byBlock.has(key)) byBlock.set(key, []);
     byBlock.get(key)!.push(i);
   }
   for (const [key, ls] of byBlock) {
     ls.sort((a, b) => a.yb - b.yb || a.x0 - b.x0);
-    // Один блок Tesseract иногда захватывает строки из двух колонок: разрезаем по пустой вертикальной полосе.
-    const parts: LineInfo[][] = key.startsWith('t') ? splitSideBySide(ls, mh) : [ls];
-    for (const p of parts) units.push({ rect: unionRect(p.map((l) => l.line.bbox)), lines: p, col: '', box: key.startsWith('b') ? Number(key.slice(1)) : -1 });
+    units.push({ rect: unionRect(ls.map((l) => l.line.bbox)), lines: ls, col: '', box: key.startsWith('b') ? Number(key.slice(1)) : -1 });
   }
   input.figures.forEach((f, idx) => units.push({ rect: f, lines: [], fig: idx, col: '', box: -1 }));
-  const ordered = xyCut(units, mh * 0.5, mh * 0.2);
+  const ordered = gutters.length ? orderByGutters(units, gutters, mh) : xyCut(units, mh * 0.5, mh * 0.2);
+  input.debug?.(ordered.map((u) => `${u.col || '-'} ${Math.round(u.rect.x0)}-${Math.round(u.rect.x1)} y${Math.round(u.rect.y0)}-${Math.round(u.rect.y1)} ${u.fig !== undefined ? 'FIG' : u.lines.map((l) => l.text).join(' / ').slice(0, 50)}`));
 
   // 6. Линейный список: строки и рисунки в порядке чтения.
   type Item = { kind: 'line'; info: LineInfo } | { kind: 'fig'; idx: number; col: string };
@@ -646,7 +700,7 @@ export function buildPage(input: LayoutInput): LayoutResult {
 
     // Заголовок.
     if (heading) {
-      const lvl: 'h2' | 'h3' = /^§|^(Глава|Тема|Раздел|Параграф|Урок|Лекция)\s+[\dIVXLC]+/i.test(plain) || l.size >= Math.max(1.3, maxHead * 0.88) ? 'h2' : 'h3';
+      const lvl: 'h2' | 'h3' = PARA_SIGN.test(plain) || /^(Глава|Тема|Раздел|Параграф|Урок|Лекция)\s+[\dIVXLC]+/i.test(plain) || l.size >= Math.max(1.3, maxHead * 0.88) ? 'h2' : 'h3';
       if (cur && (cur.type === 'h2' || cur.type === 'h3') && cur.type === lvl && Math.abs(prevInfo!.size - l.size) < 0.12 && dy < pitch * 1.6 * Math.max(1, l.size) && !/[.!?]$/.test(prevInfo!.text) && sameCol) cur.lines.push(l);
       else {
         flush();
@@ -692,7 +746,7 @@ export function buildPage(input: LayoutInput): LayoutResult {
       const indented = l.x0 - st.left > mwh * 0.9 && l.x0 - st.left < st.width * 0.4;
       const gapBig = dy > gapUnit * 1.22 && sameCol;
       const gapHuge = dy > gapUnit * 1.9 && sameCol;
-      if (cur.type === 'cap') newPara = gapBig || dy > gapUnit * 1.2 || !(l.size < 1.05) || (prevEnds && l.x0 < prevInfo.x0 - mwh) || short && prevEnds;
+      if (cur.type === 'cap') newPara = !sameCol || gapBig || dy > gapUnit * 1.2 || !(l.size < 1.05) || (prevEnds && l.x0 < prevInfo.x0 - mwh) || short && prevEnds;
       else if (!sameCol) {
         // Абзац может перетекать из одной колонки в другую.
         newPara = !(!short && !prevEnds && /^[а-яё]/.test(plain) && !indented) || prevBox !== (inBox ? l.box : -1);
@@ -701,7 +755,7 @@ export function buildPage(input: LayoutInput): LayoutResult {
         const textX = listIndents.get(l.col) ?? st.left;
         const hanging = l.x0 >= textX - mwh * 0.9;
         newPara = !hanging || gapBig || (short && prevEnds && dy > gapUnit * 1.05) || l.x0 < textX - mwh * 1.1;
-      } else if (cur.boxTitle && cur.lines.length === 1) newPara = false;
+      } else if (cur.boxTitle) newPara = true;
       else if (gapHuge || gapBig) newPara = true;
       else if (indented && prevEnds) newPara = true;
       else if (indented && short) newPara = true;
@@ -839,26 +893,112 @@ export function buildPage(input: LayoutInput): LayoutResult {
   return { markdown, doubts, captions, detectedPage, quality };
 }
 
-/** Блок Tesseract иногда включает строки двух колонок: делим по пустой вертикальной полосе. */
-function splitSideBySide(ls: LineInfo[], mh: number): LineInfo[][] {
-  if (ls.length < 4) return [ls];
-  const rects = ls.map((l) => l.line.bbox);
-  const sorted = [...rects].sort((a, b) => a.x0 - b.x0);
-  let end = sorted[0].x1;
-  const cuts: number[] = [];
-  for (const r of sorted.slice(1)) {
-    if (r.x0 > end + mh * 1.1) cuts.push((end + r.x0) / 2);
-    end = Math.max(end, r.x1);
+export interface Gutter {
+  x0: number;
+  x1: number;
+}
+
+/** Вертикальные просветы между колонками: полосы, которые пересекают лишь отдельные полноширинные строки. */
+export function findGutters(lines: OcrLine[], mh: number): Gutter[] {
+  const body = lines.filter((l) => l.words.length >= 1);
+  if (body.length < 10) return [];
+  const xmin = Math.min(...body.map((l) => l.bbox.x0));
+  const xmax = Math.max(...body.map((l) => l.bbox.x1));
+  const step = 4;
+  const n = Math.ceil((xmax - xmin) / step) + 1;
+  const cov = new Int32Array(n);
+  for (const l of body) {
+    const mark = new Uint8Array(n);
+    for (const w of l.words) for (let b = Math.floor((w.bbox.x0 - xmin) / step); b <= Math.floor((w.bbox.x1 - xmin) / step); b++) mark[Math.max(0, Math.min(n - 1, b))] = 1;
+    for (let b = 0; b < n; b++) cov[b] += mark[b];
   }
-  if (!cuts.length) return [ls];
-  const parts: LineInfo[][] = [];
-  const edges = [-Infinity, ...cuts, Infinity];
-  for (let i = 0; i < edges.length - 1; i++) {
-    const p = ls.filter((l) => (l.x0 + l.x1) / 2 >= edges[i] && (l.x0 + l.x1) / 2 < edges[i + 1]);
-    if (p.length) parts.push(p);
+  const maxCov = percentile([...cov], 0.95);
+  const thr = Math.max(2, maxCov * 0.3);
+  const out: Gutter[] = [];
+  let b = 0;
+  while (b < n) {
+    if (cov[b] > thr) {
+      b++;
+      continue;
+    }
+    let e = b;
+    while (e < n && cov[e] <= thr) e++;
+    const g = { x0: xmin + b * step, x1: xmin + e * step };
+    // Только внутри текста, не у краёв, и достаточно широкие.
+    if (b > 0 && e < n && g.x1 - g.x0 >= mh * 1.1 && g.x0 - xmin > (xmax - xmin) * 0.12 && xmax - g.x1 > (xmax - xmin) * 0.12) {
+      const allWords = body.flatMap((l) => l.words);
+      const left = allWords.filter((w) => w.bbox.x1 <= g.x0 + mh * 0.3).length;
+      const right = allWords.filter((w) => w.bbox.x0 >= g.x1 - mh * 0.3).length;
+      if (left >= 14 && right >= 14) out.push(g);
+    }
+    b = e;
   }
-  // Деление принимаем, только если в каждой части есть хотя бы две строки.
-  return parts.every((p) => p.length >= 2) ? parts : [ls];
+  return out;
+}
+
+const sideOf = (gs: Gutter[], x: number) => gs.filter((g) => (g.x0 + g.x1) / 2 < x).length;
+
+/** Строка, захватившая обе колонки, рвётся по просвету. */
+export function splitAtGutters(lines: OcrLine[], gs: Gutter[]): OcrLine[] {
+  if (!gs.length) return lines;
+  const out: OcrLine[] = [];
+  for (const l of lines) {
+    const ws = [...l.words].sort((a, b) => a.bbox.x0 - b.bbox.x0);
+    let cur: OcrWord[] = [];
+    const flush = () => {
+      if (cur.length) out.push({ ...l, words: cur, bbox: unionRect(cur.map((w) => w.bbox)) });
+      cur = [];
+    };
+    for (let i = 0; i < ws.length; i++) {
+      const prev = ws[i - 1];
+      if (prev) {
+        const cut = gs.some((g) => {
+          const mid = (g.x0 + g.x1) / 2;
+          return prev.bbox.x1 <= mid && ws[i].bbox.x0 >= mid && ws[i].bbox.x0 - prev.bbox.x1 >= (g.x1 - g.x0) * 0.6;
+        });
+        if (cut) flush();
+      }
+      cur.push(ws[i]);
+    }
+    flush();
+  }
+  return out;
+}
+
+const baseY = (l: OcrLine) => {
+  const base = l.base;
+  const midX = (l.bbox.x0 + l.bbox.x1) / 2;
+  return base && base.length === 4 ? base[1] + ((base[3] - base[1]) * (midX - base[0])) / Math.max(1, base[2] - base[0]) : l.bbox.y1 - (l.bbox.y1 - l.bbox.y0) * 0.22;
+};
+
+/** Обрывки одной строки (Tesseract рвёт строку по широким пробелам) собираем обратно — в пределах колонки. */
+export function mergeRows(lines: OcrLine[], gs: Gutter[], mh: number): OcrLine[] {
+  const sorted = [...lines].sort((a, b) => a.bbox.x0 - b.bbox.x0);
+  const used = new Set<OcrLine>();
+  const out: OcrLine[] = [];
+  for (const a of sorted) {
+    if (used.has(a)) continue;
+    used.add(a);
+    let cur = a;
+    let grown = true;
+    while (grown) {
+      grown = false;
+      for (const b of sorted) {
+        if (used.has(b)) continue;
+        if (Math.abs(baseY(cur) - baseY(b)) > mh * 0.3) continue;
+        if (Math.abs(rectH(cur.bbox) - rectH(b.bbox)) > mh * 0.8) continue;
+        const gap = b.bbox.x0 - cur.bbox.x1;
+        if (gap < -mh * 0.3 || gap > mh * 4.5) continue;
+        if (sideOf(gs, cur.bbox.x1) !== sideOf(gs, b.bbox.x0)) continue;
+        used.add(b);
+        const words = [...cur.words, ...b.words].sort((x, y) => x.bbox.x0 - y.bbox.x0);
+        cur = { ...cur, words, bbox: unionRect([cur.bbox, b.bbox]) };
+        grown = true;
+      }
+    }
+    out.push(cur);
+  }
+  return out;
 }
 
 function isHeadingLine(l: LineInfo, mwh: number): boolean {
@@ -867,10 +1007,11 @@ function isHeadingLine(l: LineInfo, mwh: number): boolean {
   const words = l.toks.length;
   if (words > 14 || words === 0) return false;
   if (/^§\s*\d|^(?:\$|S|&)\s?\d{1,3}[.:]\s+\p{Lu}/u.test(plain) && words <= 14) return true;
+  if (looksLikeFormula(plain) && !/[А-Яа-яЁё]{4,}/.test(plain)) return false;
   if (/^(Глава|Тема|Раздел|Параграф|Урок|Лекция)\s+[\dIVXLC]+/i.test(plain) && words <= 10) return true;
   if (BOX_TITLES.test(plain.replace(/[:!.]$/, ''))) return false;
   if (CAPTION_RE.test(plain)) return false;
-  if (l.size >= 1.22 && !/[,;]$/.test(plain) && plain.length <= 110) return true;
+  if (l.size >= 1.22 && !/[,;:]$/.test(plain) && plain.length <= 110) return true;
   if (l.boldShare >= 0.99 && words <= 9 && plain.length <= 70 && !/[.,;:!?]$/.test(plain) && l.size >= 0.95 && !/^[-–—•]/.test(plain)) return true;
   if (l.line.btype === 2 && words <= 8 && !/[.,;:]$/.test(plain) && l.size >= 1.05 && lettersOf(plain).length >= 4) return true;
   return false;
