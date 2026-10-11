@@ -1,5 +1,5 @@
 # Выпуск новой версии: по тегу vX.Y.Z собираются APK и установщик Windows и выкладываются в GitHub Releases.
-# Оттуда Мнема сама берёт обновления (Windows — electron-updater по latest.yml, Android — APK из выпуска).
+# Оттуда Refrain сам берёт обновления (Windows — electron-updater по latest.yml, Android — APK из выпуска).
 #
 # Нужен один секрет репозитория: ANDROID_KEYSTORE_B64 — ключ подписи APK в base64
 # (тот же ключ, которым подписаны прошлые версии, иначе обновление не встанет поверх).
@@ -80,7 +80,7 @@ jobs:
       - name: Имя файла
         run: |
           V=${{ needs.web.outputs.version }}
-          mkdir -p out && cp "android/build/Mnema-$V.apk" "out/Mnema-$V-Android.apk"
+          mkdir -p out && cp "android/build/Refrain-$V.apk" "out/Refrain-$V-Android.apk"
           rm -f android/mnema-release.jks
       - uses: actions/upload-artifact@v4
         with:
@@ -128,14 +128,14 @@ jobs:
         run: |
           V=${{ needs.web.outputs.version }}
           awk -v v="## $V" 'index($0, v)==1 {on=1; next} /^## / {if (on) exit} on' CHANGELOG.md > notes.md
-          [ -s notes.md ] || echo "Мнема $V" > notes.md
+          [ -s notes.md ] || echo "Refrain $V" > notes.md
           ls -la files
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.web.outputs.version }}
           # Запуск кнопкой (без метки): метка создаётся на собранном коммите.
           target_commitish: ${{ github.sha }}
-          name: Мнема ${{ needs.web.outputs.version }}
+          name: Refrain ${{ needs.web.outputs.version }}
           body_path: notes.md
           make_latest: true
           files: files/*

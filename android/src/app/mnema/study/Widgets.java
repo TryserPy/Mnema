@@ -22,7 +22,7 @@ import java.util.Calendar;
 import java.util.Locale;
 
 /**
- * Дополнительные виджеты Мнемы: «Повторить» (маленький), «Домашка», «Уроки».
+ * Дополнительные виджеты Refrain: «Повторить» (маленький), «Домашка», «Уроки».
  * Данные те же, что у главного виджета: приложение заранее кладёт их в MnemaWidget.PREFS (Bridge.setWidget).
  */
 public class Widgets {
@@ -123,7 +123,7 @@ public class Widgets {
             for (int id : ids) {
                 RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_small);
                 v.setTextViewText(R.id.ws_count, n < 0 ? "М" : n == 0 ? "✓" : String.valueOf(n));
-                v.setTextViewText(R.id.ws_label, n < 0 ? "Открыть Мнему" : n == 0 ? "Всё повторено" : "▶ Повторить");
+                v.setTextViewText(R.id.ws_label, n < 0 ? "Открыть Refrain" : n == 0 ? "Всё повторено" : "▶ Повторить");
                 v.setOnClickPendingIntent(R.id.ws_root, open(ctx, n > 0 ? "mini" : "today", 51));
                 m.updateAppWidget(id, v);
             }
@@ -157,7 +157,7 @@ public class Widgets {
                         if (tomorrow + today <= 6) line(sb, h.optString("subject"), h.optString("color"), (pass == 1 ? "(сегодня) " : "") + h.optString("text"));
                     }
             }
-            String text = d.st == null ? "Открой Мнему — здесь появится домашка" : sb.length() == 0 ? "На завтра ничего не задано 🎉" : sb.toString();
+            String text = d.st == null ? "Открой Refrain — здесь появится домашка" : sb.length() == 0 ? "На завтра ничего не задано 🎉" : sb.toString();
             for (int id : ids) {
                 RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_list);
                 v.setTextViewText(R.id.wl_title, "Домашка на завтра");
@@ -197,7 +197,7 @@ public class Widgets {
                     total += n;
                     line(sb, (i + 1) + ". " + l.optString("name"), l.optString("color"), n > 0 && !evening ? cards(n) : "");
                 }
-            String empty = d.st == null ? "Открой Мнему — здесь появятся уроки" : lessons == null || lessons.length() == 0 ? "Заполни расписание в Мнеме (на «Сегодня»)" : "Уроков нет — отдыхай";
+            String empty = d.st == null ? "Открой Refrain — здесь появятся уроки" : lessons == null || lessons.length() == 0 ? "Заполни расписание в Refrain (на «Сегодня»)" : "Уроков нет — отдыхай";
             for (int id : ids) {
                 RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_list);
                 v.setTextViewText(R.id.wl_title, evening ? "Уроки завтра" : "Уроки сегодня");

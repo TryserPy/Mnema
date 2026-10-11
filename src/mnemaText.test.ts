@@ -8,7 +8,7 @@ let n = 0;
 const env = { now: new Date('2026-09-29T10:00:00Z'), uid: () => 'x' + ++n };
 const T0 = '2026-09-01T10:00:00.000Z';
 
-describe('1.8: Мнема-текст — простой формат для нейросети', () => {
+describe('1.8: Refrain-текст — простой формат для нейросети', () => {
   it('пример из инструкции читается без предупреждений', () => {
     const example = MNEMA_TEXT_GUIDE.split('ПРИМЕР:\n')[1].split('\n\nОтветь только')[0];
     const r = parseChangeFile(example);

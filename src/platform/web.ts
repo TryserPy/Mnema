@@ -110,8 +110,8 @@ function createApi(): Api {
       const { zipSync, strToU8 } = await import('fflate');
       const { downloadBytes } = await import('../share');
       const tree: Record<string, Uint8Array> = {};
-      for (const f of files) tree['Мнема/' + f.path] = f.base64 ? Uint8Array.from(atob(f.content), (c) => c.charCodeAt(0)) : strToU8(f.content);
-      const name = 'Мнема для Obsidian.zip';
+      for (const f of files) tree['Refrain/' + f.path] = f.base64 ? Uint8Array.from(atob(f.content), (c) => c.charCodeAt(0)) : strToU8(f.content);
+      const name = 'Refrain для Obsidian.zip';
       const ok = await downloadBytes(name, zipSync(tree, { level: 6 }), 'application/zip');
       return { ok, folder: name, written: files.length, zip: true };
     },
@@ -168,7 +168,7 @@ function updateBanner(apply: () => void) {
   bar.style.cssText =
     'position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:9000;margin:auto;max-width:420px;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:14px;background:var(--text,#1b1d24);color:var(--bg,#fff);font:14px/1.4 Onest,system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.28)';
   const t = document.createElement('span');
-  t.textContent = 'Вышла новая версия Мнемы';
+  t.textContent = 'Вышла новая версия Refrain';
   const b = document.createElement('button');
   b.textContent = 'Обновить';
   b.className = 'btn small primary';
@@ -218,7 +218,7 @@ export async function initWeb(): Promise<boolean> {
   if (window.mnemaApi) return true;
   listenInstall();
   if (!(await takeLock())) {
-    notice('Мнема уже открыта в другой вкладке', 'Данные у вкладок общие, и две сразу затёрли бы изменения друг друга. Закрой другую вкладку или окно Мнемы и обнови эту страницу.', {
+    notice('Refrain уже открыта в другой вкладке', 'Данные у вкладок общие, и две сразу затёрли бы изменения друг друга. Закрой другую вкладку или окно Refrain и обнови эту страницу.', {
       label: 'Обновить страницу',
       run: () => location.reload()
     });

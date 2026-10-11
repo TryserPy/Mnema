@@ -160,7 +160,7 @@ export function App() {
     const t = setTimeout(() => window.mnemaApi?.scheduleNotifications?.(JSON.parse(plan)), 500);
     return () => clearTimeout(t);
   }, [plan]);
-  // Ссылки Мнемы (из конспекта, ответа карточки, правила): перейти к теме или термину.
+  // Ссылки Refrain (из конспекта, ответа карточки, правила): перейти к теме или термину.
   useEffect(() => {
     const h = async (e: Event) => {
       const { linkRoute } = await import('./components/Links');
@@ -188,7 +188,7 @@ export function App() {
 
   // Файл данных есть, но не прочитался — честно сказать, что сейчас ничего не сохранится.
   useEffect(() => {
-    if (dataReadOnly()) showToast('Не получилось открыть твои данные — сейчас ничего не сохранится. Закрой и открой Мнему снова; если не поможет — восстанови автокопию в «Настройки → Данные».');
+    if (dataReadOnly()) showToast('Не получилось открыть твои данные — сейчас ничего не сохранится. Закрой и открой Refrain снова; если не поможет — восстанови автокопию в «Настройки → Данные».');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Любое меню, которое открылось у края окна (особенно на телефоне), сдвигаем внутрь.
@@ -200,12 +200,12 @@ export function App() {
       const { dueForAutoCheck, checkUpdate } = await import('./update');
       if (!dueForAutoCheck()) return;
       const r = await checkUpdate();
-      if (r.ok && r.available) showToast(`Вышла Мнема ${r.latest}`, { label: 'Обновить', run: () => setUpdateInfo(r) });
+      if (r.ok && r.available) showToast(`Вышла Refrain ${r.latest}`, { label: 'Обновить', run: () => setUpdateInfo(r) });
     }, 6000);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Виджет на телефоне: считаем на неделю вперёд, чтобы он был верен и без запуска Мнемы.
+  // Виджет на телефоне: считаем на неделю вперёд, чтобы он был верен и без запуска Refrain.
   useEffect(() => {
     if (!window.mnemaApi?.setWidget) return;
     const t = setTimeout(() => {
@@ -420,7 +420,7 @@ export function App() {
     const f = e.dataTransfer.files?.[0];
     if (!f) return;
     if (/^image\//.test(f.type)) {
-      showToast('Фото страниц перетащи в открытую тему — Мнема сделает из них конспект');
+      showToast('Фото страниц перетащи в открытую тему — Refrain сделает из них конспект');
       return;
     }
     // Ответ нейросети, сохранённый как .txt или .md, — это файл изменений, а не колода Anki.
@@ -450,7 +450,7 @@ export function App() {
       setChanges(text);
       return;
     }
-    showToast('Сюда можно перетащить ответ нейросети (файл изменений), тему Мнемы (.mnema) или колоду Anki (.apkg)');
+    showToast('Сюда можно перетащить ответ нейросети (файл изменений), тему Refrain (.mnema) или колоду Anki (.apkg)');
   }
 
   const dropProps = {
@@ -491,7 +491,7 @@ export function App() {
       {mobile && (
         <header className="mobile-bar">
           <button className="mobile-brand" onClick={() => go({ name: 'today' })}>
-            <span className="logo small-logo">М</span> Мнема
+            <span className="logo small-logo">R</span> Refrain
           </button>
           <span className="grow" />
           <button className="icon-btn mobile-create" aria-label="Создать" title="Создать: карточку, тему, предмет…" onClick={openCreate}>
@@ -532,7 +532,7 @@ export function App() {
 
       {mobile && <TabBar route={route} go={go} dueAll={dueAll} />}
 
-      {dragging && <div className="drop-hint"><span>Отпусти файл: тема Мнемы (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
+      {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
           <span>{toast || lastToast.current}</span>

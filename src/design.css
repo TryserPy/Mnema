@@ -1,4 +1,4 @@
-/* ===================== Мнема 1.5: дизайн ===================== */
+/* ===================== Refrain 1.5: дизайн ===================== */
 /* Этот файл подключается после styles.css и уточняет его: общий вид, настройки, стили, моды. */
 
 /* ---------- Текст не вылезает за рамки ---------- */
@@ -182,7 +182,7 @@ html[data-no-screens] .set-pane { animation: none; }
 .menu.up { top: auto; bottom: calc(100% + 8px); left: 0; transform-origin: bottom left; }
 .menu-title { padding: 6px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 
-/* О Мнеме */
+/* О Refrain */
 .about { display: flex; align-items: center; gap: 16px; padding: 6px 2px; }
 .about h2 { font-size: 1.4rem; }
 .whats-new { margin: 0; padding: 14px 18px 14px 36px; display: flex; flex-direction: column; gap: 6px; }

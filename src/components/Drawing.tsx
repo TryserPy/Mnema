@@ -113,7 +113,7 @@ export function svgToDataUri(svg: string): string {
   return 'data:image/svg+xml;base64,' + btoa(bin);
 }
 
-/** Прочитать рисунок Мнемы из data: URI. Возвращает null, если это обычная картинка. */
+/** Прочитать рисунок Refrain из data: URI. Возвращает null, если это обычная картинка. */
 export function parseDrawing(src: string): DrawingData | null {
   if (!src.startsWith('data:image/svg+xml;base64,')) return null;
   try {
@@ -145,7 +145,7 @@ export function inlineDrawing(src: string): HTMLElement | null {
   try {
     const bin = atob(src.slice('data:image/svg+xml;base64,'.length));
     const svgText = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-    // Рисунок Мнемы состоит только из этих элементов. <style> и атрибут style из чужого рисунка пропускать нельзя: глобальный CSS прячет кнопки и подделывает окна.
+    // Рисунок Refrain состоит только из этих элементов. <style> и атрибут style из чужого рисунка пропускать нельзя: глобальный CSS прячет кнопки и подделывает окна.
     const clean = DOMPurify.sanitize(svgText, {
       ALLOWED_TAGS: ['svg', 'g', 'path', 'rect', 'circle', 'defs', 'pattern'],
       FORBID_ATTR: ['style', 'class', 'id', 'href', 'xlink:href'],

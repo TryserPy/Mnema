@@ -524,7 +524,7 @@ public class Bridge {
         pendingSpeechLang = null;
         if (lang == null) return;
         if (granted) startRecognizer(lang);
-        else speechEvent("error", "Нет разрешения на микрофон. Разреши его в настройках телефона → Приложения → Мнема.");
+        else speechEvent("error", "Нет разрешения на микрофон. Разреши его в настройках телефона → Приложения → Refrain.");
     }
 
     void startRecognizer(String lang) {
@@ -648,7 +648,7 @@ public class Bridge {
             public void run() {
                 try {
                     android.print.PrintManager pm = (android.print.PrintManager) activity.getSystemService(Context.PRINT_SERVICE);
-                    pm.print("Мнема — карточки", web.createPrintDocumentAdapter("Мнема"), new android.print.PrintAttributes.Builder().build());
+                    pm.print("Refrain — карточки", web.createPrintDocumentAdapter("Refrain"), new android.print.PrintAttributes.Builder().build());
                 } catch (Exception ignored) {
                 }
             }
@@ -748,7 +748,7 @@ public class Bridge {
 
     // ---------- значок на рабочем столе ----------
 
-    /** Значок под тему: "default" или id темы. Поменяется, когда Мнема уйдёт с экрана. */
+    /** Значок под тему: "default" или id темы. Поменяется, когда Refrain уйдёт с экрана. */
     @JavascriptInterface
     public void setIcon(String k, String id) {
         if (!allowed(k)) return;
@@ -757,7 +757,7 @@ public class Bridge {
 
     // ---------- меню выделения текста ----------
 
-    /** Какие пункты Мнемы добавить в меню выделения Android (см. MnemaWebView). */
+    /** Какие пункты Refrain добавить в меню выделения Android (см. MnemaWebView). */
     @JavascriptInterface
     public void setSelMenu(String k, final String json) {
         if (!allowed(k)) return;

@@ -1,4 +1,4 @@
-// Новые версии Мнемы из выпусков на GitHub. На компьютере — скачать и поставить внутри приложения
+// Новые версии Refrain из выпусков на GitHub. На компьютере — скачать и поставить внутри приложения
 // (electron-updater), на телефоне — скачать APK из выпуска и отдать Android на установку (Updater.java).
 import { getData, updateSettings } from './store';
 
@@ -55,7 +55,7 @@ export async function checkUpdate(): Promise<UpdateInfo> {
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
     // Только через мост приложения (в окне сеть к GitHub закрыта правилами безопасности страницы).
-    if (!api?.http) return { ok: false, error: 'Обновления проверяются только в установленной Мнеме' };
+    if (!api?.http) return { ok: false, error: 'Обновления проверяются только в установленной Refrain' };
     const { status, text } = await api.http({ url, headers: { Accept: 'application/vnd.github+json' }, timeout: 15000 });
     if (status === 404) return { ok: false, error: 'Новых выпусков пока нет' };
     if (status === 403 || status === 429) return { ok: false, error: 'GitHub просит подождать — попробуй через час' };

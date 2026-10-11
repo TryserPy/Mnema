@@ -70,7 +70,7 @@ export function AnkiImport({ file, onClose, onOpenTopic }: { file?: File; onClos
       {step.name === 'pick' && (
         <div className="stack gap12">
           <p>Выбери файл, который сохранил в Anki: колоду (.apkg), всю коллекцию (.colpkg) или «Заметки в текстовом виде» (.txt).</p>
-          <p className="small muted">Колоды станут темами, картинки и формулы перенесутся. Звук пока не переносится. Файл можно и просто перетащить в окно Мнемы.</p>
+          <p className="small muted">Колоды станут темами, картинки и формулы перенесутся. Звук пока не переносится. Файл можно и просто перетащить в окно Refrain.</p>
           {error && <div className="hint warn">{error}</div>}
           <div className="row end">
             <button className="btn primary" onClick={() => inputRef.current?.click()}>

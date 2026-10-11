@@ -43,7 +43,7 @@ export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: 
     { icon: 'folderPlus', title: 'Новый предмет', hint: 'Например, «Биология»', run: () => (close(), onNewSubject()) },
     { icon: 'folder', title: 'Новая папка', hint: 'Собрать предметы вместе, например «Естественные науки»', run: () => (close(), onNewSubject({ as: 'folder' })) },
     { icon: 'homework', title: 'Домашка', hint: 'Что задали и к какому сроку', run: () => (close(), go({ name: 'homework' })), hidden: !data.settings.features.homework },
-    { icon: 'calendar', title: 'Контрольная', hint: 'Дата и темы — Мнема составит план', run: () => (close(), openExamDialog(at)), hidden: data.topics.length === 0 },
+    { icon: 'calendar', title: 'Контрольная', hint: 'Дата и темы — Refrain составит план', run: () => (close(), openExamDialog(at)), hidden: data.topics.length === 0 },
     { icon: 'upload', title: 'Файл изменений', hint: 'Загрузить конспекты и карточки от нейросети', run: () => (close(), openChanges()) }
   ];
   return (

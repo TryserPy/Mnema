@@ -1,4 +1,4 @@
-// Интерактивные примеры для справки: маленькая «игрушечная» Мнема, где можно понажимать и увидеть, как это работает,
+// Интерактивные примеры для справки: маленькая «игрушечная» Refrain, где можно понажимать и увидеть, как это работает,
 // ничего не меняя в своих данных. Мигающая кнопка — та, которую нажать дальше.
 import { useEffect, useState, type ReactNode } from 'react';
 import { Icon, Modal } from './ui';
@@ -18,7 +18,7 @@ const Btn = ({ children, onClick, hot = true, kind = '' }: { children: ReactNode
     {children}
   </button>
 );
-const Laptop = ({ children, title = 'Мнема' }: { children: ReactNode; title?: string }) => (
+const Laptop = ({ children, title = 'Refrain' }: { children: ReactNode; title?: string }) => (
   <div className="mock-laptop">
     <div className="mock-bar">
       <i />
@@ -167,7 +167,7 @@ const DEMOS: Record<DemoId, { title: string; frames: Frame[] }> = {
         )
       },
       {
-        text: 'Мнема сама отправляет и забирает изменения — на всех устройствах, где облако подключено.',
+        text: 'Refrain сам отправляет и забирает изменения — на всех устройствах, где облако подключено.',
         auto: 1800,
         scene: () => (
           <div className="mock-pair">
@@ -192,7 +192,7 @@ const DEMOS: Record<DemoId, { title: string; frames: Frame[] }> = {
     title: 'Пример: «Учиться»',
     frames: [
       {
-        text: 'На «Сегодня» одна кнопка — «Учиться». Мнема сама собрала план.',
+        text: 'На «Сегодня» одна кнопка — «Учиться». Refrain сам собрала план.',
         scene: (next) => (
           <Laptop title="Сегодня">
             <div className="mock-hero">
@@ -232,7 +232,7 @@ const DEMOS: Record<DemoId, { title: string; frames: Frame[] }> = {
           </Laptop>
         )
       },
-      { text: 'Мнема покажет эту карточку снова через несколько дней — чуть раньше, чем ты забудешь.', scene: () => <Done>Вернётся через 3 дня</Done> }
+      { text: 'Refrain покажет эту карточку снова через несколько дней — чуть раньше, чем ты забудешь.', scene: () => <Done>Вернётся через 3 дня</Done> }
     ]
   },
   mistake: {
@@ -310,7 +310,7 @@ const DEMOS: Record<DemoId, { title: string; frames: Frame[] }> = {
         )
       },
       {
-        text: 'Мнема сама предложила вопрос и ответ. Поправь, если нужно, и нажми «Сохранить».',
+        text: 'Refrain сам предложила вопрос и ответ. Поправь, если нужно, и нажми «Сохранить».',
         scene: (next) => (
           <Laptop title="Новая карточка">
             <div className="mock-field">Что такое клетка?</div>

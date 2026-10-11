@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Сборка APK Мнемы без Android Studio: aapt2 + javac + dx + zipalign + apksigner.
+# Сборка APK Refrain без Android Studio: aapt2 + javac + dx + zipalign + apksigner.
 # Запуск из корня проекта после `npm run build` (нужна папка dist):  bash android/build.sh
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -50,7 +50,7 @@ fi
 echo "▸ Выравнивание и подпись"
 zipalign -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 if [ ! -f "$KS" ] && [ -n "${CI:-}" ]; then
-  # На сборочном сервере новый ключ создавать нельзя: APK с другим ключом не встанет поверх старой Мнемы.
+  # На сборочном сервере новый ключ создавать нельзя: APK с другим ключом не встанет поверх старой Refrain.
   echo "✗ Нет ключа подписи ($KS). Добавь секрет ANDROID_KEYSTORE_B64 в настройках репозитория." >&2
   exit 1
 fi
@@ -60,6 +60,6 @@ if [ ! -f "$KS" ]; then
     -keyalg RSA -keysize 3072 -validity 12000 -dname "CN=Mnema, O=Mnema" -noprompt >/dev/null
 fi
 apksigner sign --ks "$KS" --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" --ks-key-alias mnema \
-  --v1-signing-enabled true --v2-signing-enabled true --out "$OUT/Mnema-$VERSION.apk" "$OUT/aligned.apk"
-apksigner verify "$OUT/Mnema-$VERSION.apk"
-echo "✓ $(pwd)/$OUT/Mnema-$VERSION.apk ($(du -h "$OUT/Mnema-$VERSION.apk" | cut -f1))"
+  --v1-signing-enabled true --v2-signing-enabled true --out "$OUT/Refrain-$VERSION.apk" "$OUT/aligned.apk"
+apksigner verify "$OUT/Refrain-$VERSION.apk"
+echo "✓ $(pwd)/$OUT/Refrain-$VERSION.apk ($(du -h "$OUT/Refrain-$VERSION.apk" | cut -f1))"

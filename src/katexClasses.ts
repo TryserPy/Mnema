@@ -1,5 +1,5 @@
 // Классы, которые ставит сам KaTeX (получены из katex/dist/katex.min.css; тест следит, чтобы список не отстал от версии).
-// В конспектах, карточках и рисунках атрибут class оставляем только из этого списка и из своих классов Мнемы: иначе текст вида
+// В конспектах, карточках и рисунках атрибут class оставляем только из этого списка и из своих классов Refrain: иначе текст вида
 // <div class="modal-back"> рисовал бы поверх приложения поддельное окно.
 export const KATEX_CLASSES: ReadonlySet<string> = new Set([
   'accent-body',
@@ -142,7 +142,7 @@ export const KATEX_CLASSES: ReadonlySet<string> = new Set([
   'x-arrow-pad'
 ]);
 
-/** Свои классы, которые Мнема сама кладёт в разметку конспекта. */
+/** Свои классы, которые Refrain сам кладёт в разметку конспекта. */
 export const MD_OWN_CLASSES: ReadonlySet<string> = new Set(['math-block', 'page-ref', 'mlink', 'md-video', 'md-drawing', 'drawing-img', 'md-check']);
 
 /** Оставить в значении class только разрешённое. */

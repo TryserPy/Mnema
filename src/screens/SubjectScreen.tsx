@@ -86,7 +86,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
               { label: 'Повторить ещё раз', icon: 'repeat', hint: 'Все темы и подтемы: повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ subjectId: id }), hidden: !hasCards },
               { label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
               { label: 'Сделать копию', icon: 'copy', hint: 'Все темы, конспекты и карточки', onClick: () => makeCopy('subject', id, go) },
-              { label: 'Новая контрольная', icon: 'test', hint: 'Выбрать темы и дату — Мнема составит план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },
+              { label: 'Новая контрольная', icon: 'test', hint: 'Выбрать темы и дату — Refrain составит план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },
               { label: 'Импорт из Obsidian', icon: 'folder', onClick: () => setObsidian(true), hidden: !data.settings.features.obsidian },
               { label: 'Распечатать карточки', icon: 'print', onClick: () => setExportKind('print') },
               subject.topicSort !== 'manual'

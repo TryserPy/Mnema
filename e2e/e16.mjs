@@ -115,7 +115,7 @@ await win.keyboard.press('Escape');
 
 // 7. Обновления
 await win.getByRole('button', { name: 'Настройки', exact: true }).click();
-await win.locator('.set-nav-item', { hasText: 'О Мнеме' }).click();
+await win.locator('.set-nav-item', { hasText: 'О Refrain' }).click();
 await win.getByLabel('Репозиторий GitHub').fill('test-user/mnema');
 await win.getByRole('button', { name: /Проверить обновления/ }).click();
 await win.waitForTimeout(6000);

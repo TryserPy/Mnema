@@ -210,7 +210,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                   { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 }
                 ]
               },
-              { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Мнема составит план', onClick: () => openExamDialog({ topicId: id }) },
+              { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Refrain составит план', onClick: () => openExamDialog({ topicId: id }) },
               {
                 label: 'Поделиться',
                 icon: 'share',
@@ -522,7 +522,7 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
             <button className="tb-hint" onClick={() => setImportOpen(true)}>
               <Icon name="camera" size={22} />
               <span>
-                <strong>Есть параграф в учебнике?</strong> Сфотографируй страницы — Мнема сделает из них конспект, выделит важное и сохранит ссылки на страницы.
+                <strong>Есть параграф в учебнике?</strong> Сфотографируй страницы — Refrain сделает из них конспект, выделит важное и сохранит ссылки на страницы.
               </span>
             </button>
           </Dismissible>
@@ -643,7 +643,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
     return (
       <div className="empty">
         <strong>Карточек пока нет</strong>
-        <span>Мнема может сама сделать черновики из конспекта: жирное, определения, даты, «Запомни». Или {selHow('В карточку')}.</span>
+        <span>Refrain может сама сделать черновики из конспекта: жирное, определения, даты, «Запомни». Или {selHow('В карточку')}.</span>
         <div className="row gap8 wrap">
           <button className="btn primary" onClick={() => setFromNote(true)}>
             <Icon name="sparkle" size={18} /> Сделать из конспекта

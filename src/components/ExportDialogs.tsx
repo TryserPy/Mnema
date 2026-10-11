@@ -27,7 +27,7 @@ export function AnkiExportDialog({ onClose, subjectId }: { onClose: () => void; 
       const [{ loadSql }, { buildApkg }] = await Promise.all([import('../ankiSql'), import('../ankiExport')]);
       const SQL = await loadSql();
       const r = await buildApkg(data, SQL, { subjectIds: picked, progress });
-      const name = `Мнема ${new Date().toISOString().slice(0, 10)}.apkg`;
+      const name = `Refrain ${new Date().toISOString().slice(0, 10)}.apkg`;
       const ok = await downloadBytes(name, r.bytes, 'application/octet-stream');
       setMsg(ok ? { ok: true, text: `Готово: ${r.notes} ${plural(r.notes, 'карточка', 'карточки', 'карточек')} в файле «${name}». Открой его в Anki: «Файл → Импорт» или просто двойным щелчком.` } : { ok: false, text: 'Сохранение отменено.' });
     } catch (e) {
@@ -39,7 +39,7 @@ export function AnkiExportDialog({ onClose, subjectId }: { onClose: () => void; 
   return (
     <Modal title="Экспорт в Anki" onClose={onClose} width={560}>
       <div className="stack gap12">
-        <p className="small muted">Получится файл .apkg: каждый предмет и тема станут колодами «Мнема::Предмет::Тема». Формулы, жирный и пропуски сохранятся.</p>
+        <p className="small muted">Получится файл .apkg: каждый предмет и тема станут колодами «Refrain::Предмет::Тема». Формулы, жирный и пропуски сохранятся.</p>
         <div className="stack gap6">
           {subjects.map((s) => (
             <label key={s.id} className="row gap8 check-row">
@@ -51,7 +51,7 @@ export function AnkiExportDialog({ onClose, subjectId }: { onClose: () => void; 
         <div className="row gap12">
           <span className="grow">
             Перенести прогресс повторений
-            <span className="small muted block">Выученные карточки вернутся в Anki тогда же, когда вернулись бы в Мнеме.</span>
+            <span className="small muted block">Выученные карточки вернутся в Anki тогда же, когда вернулись бы в Refrain.</span>
           </span>
           <Switch label="Перенести прогресс" checked={progress} onChange={setProgress} />
         </div>

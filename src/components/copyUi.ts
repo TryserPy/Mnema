@@ -18,7 +18,7 @@ export function makeCopy(kind: CopyKind, id: string, go: (r: Route) => void) {
 }
 
 // ---------- Ctrl+C / Ctrl+V ----------
-// Буфер — внутри Мнемы (в системный буфер уходит только текст при обычном копировании).
+// Буфер — внутри Refrain (в системный буфер уходит только текст при обычном копировании).
 let clip: ClipItem[] = [];
 
 const what = (items: ClipItem[]) => {

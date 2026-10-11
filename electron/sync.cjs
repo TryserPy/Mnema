@@ -1,6 +1,6 @@
 // Синхронизация по Wi-Fi: компьютер открывает на время маленький сервер в домашней сети,
 // телефон сканирует QR-код (адрес + одноразовый код) и присылает свои данные — зашифрованными ключом из кода.
-// Слияние делает окно Мнемы (там живые данные), сервер только передаёт.
+// Слияние делает окно Refrain (там живые данные), сервер только передаёт.
 const { ipcMain } = require('electron');
 const http = require('http');
 const os = require('os');
@@ -38,7 +38,7 @@ function stop() {
 
 function askRenderer(data) {
   const win = getWin();
-  if (!win) return Promise.reject(new Error('Окно Мнемы закрыто'));
+  if (!win) return Promise.reject(new Error('Окно Refrain закрыто'));
   const id = crypto.randomBytes(8).toString('hex');
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
@@ -46,7 +46,7 @@ function askRenderer(data) {
     setTimeout(() => {
       if (pending.has(id)) {
         pending.delete(id);
-        reject(new Error('Мнема на компьютере не ответила'));
+        reject(new Error('Refrain на компьютере не ответила'));
       }
     }, 60000);
   });
@@ -69,8 +69,8 @@ async function start() {
         res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
         res.end(typeof body === 'string' ? body : JSON.stringify(body));
       };
-      // Старая Мнема (код из 8 цифр в заголовке) — с ней обмен без шифрования не ведём.
-      if (req.headers['x-mnema-token'] !== undefined) return send(426, { error: 'Обнови Мнему на этом устройстве — синхронизация теперь зашифрована' });
+      // Старая Refrain (код из 8 цифр в заголовке) — с ней обмен без шифрования не ведём.
+      if (req.headers['x-mnema-token'] !== undefined) return send(426, { error: 'Обнови Refrain на этом устройстве — синхронизация теперь зашифрована' });
       const route = req.method === 'POST' && (req.url === '/mnema/hello' ? 'hello' : req.url === '/mnema/sync' ? 'sync' : null);
       if (!route) return send(404, { error: 'Нет такого адреса' });
       const chunks = [];

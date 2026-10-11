@@ -52,8 +52,8 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
     return (
       <div className="page narrow">
         <div className="welcome">
-          <div className="logo big">М</div>
-          <h1 className="display">Привет! Это Мнема</h1>
+          <div className="logo big">R</div>
+          <h1 className="display">Привет! Это Refrain</h1>
           <p className="lead">Она помогает запоминать то, что ты учишь, — и напоминает повторить как раз тогда, когда ты начинаешь забывать.</p>
           <div className="row gap8 wrap center-row">
             <button className="btn primary big-ish" onClick={onNewSubject}>
@@ -224,7 +224,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
 
       {!f.schedule && (
         <button className="add-schedule" onClick={() => updateSettings({ features: { ...f, schedule: true } })}>
-          <Icon name="calendar" size={18} /> Добавить расписание уроков — накануне Мнема будет ставить карточки этих предметов первыми
+          <Icon name="calendar" size={18} /> Добавить расписание уроков — накануне Refrain будет ставить карточки этих предметов первыми
         </button>
       )}
     </div>
@@ -296,7 +296,7 @@ function WeekSchedule({ now, go }: { now: Date; go: (r: Route) => void }) {
         </button>
       </div>
       {empty ? (
-        <p className="small muted">Отметь, какие предметы в какие дни. Накануне урока Мнема поставит их карточки первыми — повторить перед уроком полезнее всего. А домашке сама подставит срок «к следующему уроку».</p>
+        <p className="small muted">Отметь, какие предметы в какие дни. Накануне урока Refrain поставит их карточки первыми — повторить перед уроком полезнее всего. А домашке сама подставит срок «к следующему уроку».</p>
       ) : (
         <div className="les-cols">
           {col('Сегодня', todayDow, false)}

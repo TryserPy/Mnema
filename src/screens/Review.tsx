@@ -342,7 +342,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
                 </p>
               )}
               {stats.overconf > 0 && <div className="hint warn">Ошибок «с уверенностью»: {stats.overconf}. Разбери их — такие ошибки исправляются особенно хорошо.</div>}
-              {!cram && <p className="muted">Следующие повторения Мнема покажет сама, когда придёт время.</p>}
+              {!cram && <p className="muted">Следующие повторения Refrain покажет сама, когда придёт время.</p>}
             </>
           ) : (
             <p className="muted">Все карточки повторены или ещё не добавлены.</p>

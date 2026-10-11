@@ -41,7 +41,7 @@ export function StylesSettings() {
     setErr('');
     try {
       const raw = JSON.parse(await f.text());
-      if (!isMod(raw)) throw new Error('Это не стиль Мнемы.');
+      if (!isMod(raw)) throw new Error('Это не стиль Refrain.');
       const m: Mod = {
         id: 'm-' + Math.random().toString(36).slice(2, 9),
         name: String(raw.name).slice(0, 50),
@@ -61,7 +61,7 @@ export function StylesSettings() {
   }
 
   function exportMine() {
-    const mod = { kind: 'mnema-mod', name: 'Мой стиль', description: 'Оформление из Мнемы', look: s.look, accent: s.accent, css: s.userCss || undefined };
+    const mod = { kind: 'mnema-mod', name: 'Мой стиль', description: 'Оформление из Refrain', look: s.look, accent: s.accent, css: s.userCss || undefined };
     downloadFile('Мой стиль' + MOD_EXT, JSON.stringify(mod, null, 1));
   }
 

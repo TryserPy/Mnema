@@ -1,6 +1,6 @@
 // Сборка веб-версии (`npm run build:web`): всё, что нужно сайту сверх обычной сборки приложения.
 //  • index.html: политика безопасности для браузера, значки и теги установки (PWA);
-//  • manifest.webmanifest и значки — чтобы Мнему можно было поставить на компьютер, Android, iPhone и iPad;
+//  • manifest.webmanifest и значки — чтобы Refrain можно было поставить на компьютер, Android, iPhone и iPad;
 //  • sw.js — работа без интернета и обновления;
 //  • ocr/ — Tesseract и словари, чтобы фото страниц распознавались без интернета.
 import { createHash } from 'node:crypto';
@@ -46,18 +46,18 @@ export function mnemaWeb(): Plugin {
           .replace(/(<meta http-equiv="Content-Security-Policy" content=")[^"]*(")/, `$1${WEB_CSP}$2`)
           .replace('content="width=device-width, initial-scale=1"', 'content="width=device-width, initial-scale=1, viewport-fit=cover"');
         const tags = [
-          '<meta name="description" content="Мнема — запоминай учебный материал: конспект, карточки и повторения по расписанию.">',
+          '<meta name="description" content="Refrain — запоминай учебный материал: конспект, карточки и повторения по расписанию.">',
           `<meta name="theme-color" content="${THEME}">`,
-          '<meta name="application-name" content="Мнема">',
+          '<meta name="application-name" content="Refrain">',
           '<meta name="mobile-web-app-capable" content="yes">',
           '<meta name="apple-mobile-web-app-capable" content="yes">',
-          '<meta name="apple-mobile-web-app-title" content="Мнема">',
+          '<meta name="apple-mobile-web-app-title" content="Refrain">',
           '<meta name="apple-mobile-web-app-status-bar-style" content="default">',
           '<link rel="manifest" href="manifest.webmanifest">',
           '<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">',
           '<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">'
         ].join('\n  ');
-        return out.replace('</title>', `</title>\n  ${tags}`).replace('<div id="root"></div>', '<div id="root"></div>\n  <noscript>Мнеме нужен JavaScript — включи его в настройках браузера.</noscript>');
+        return out.replace('</title>', `</title>\n  ${tags}`).replace('<div id="root"></div>', '<div id="root"></div>\n  <noscript>Refrain нужен JavaScript — включи его в настройках браузера.</noscript>');
       }
     },
     writeBundle(options) {
@@ -79,8 +79,8 @@ export function mnemaWeb(): Plugin {
         JSON.stringify(
           {
             id: './',
-            name: 'Мнема',
-            short_name: 'Мнема',
+            name: 'Refrain',
+            short_name: 'Refrain',
             description: 'Запоминай учебный материал: конспект, карточки и повторения по расписанию.',
             lang: 'ru',
             dir: 'ltr',

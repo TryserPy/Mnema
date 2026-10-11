@@ -31,7 +31,7 @@ describe('экспорт в Anki', () => {
     expect(r.notes).toBe(4);
     expect(r.cards).toBe(1 + 2 + 2 + 1);
     const back = parseAnki('mnema.apkg', r.bytes, SQL, { progress: true, settings: { retention: 0.9 } });
-    const deck = back.decks.find((x) => x.path.join('::') === 'Мнема::Физика::§8 Закон Ома')!;
+    const deck = back.decks.find((x) => x.path.join('::') === 'Refrain::Физика::§8 Закон Ома')!;
     expect(deck).toBeTruthy();
     expect(deck.cards.map((c) => c.type).sort()).toEqual(['basic', 'cloze', 'reverse', 'typing']);
     const basic = deck.cards.find((c) => c.type === 'basic')!;

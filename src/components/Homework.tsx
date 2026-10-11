@@ -201,7 +201,7 @@ export function HomeworkForm({ initial, subjectId: presetSubject, onDone }: { in
         <span className="grow">Напомнить</span>
         {remindOn && <input className="input" type="datetime-local" aria-label="Когда напомнить" value={localDateTime(shownRemind)} onChange={(e) => setRemind(e.target.value ? new Date(e.target.value).toISOString() : undefined)} />}
       </div>
-      {remindOn && !shownRemind && <span className="small muted">Выбери дату — и Мнема напомнит накануне в {data.settings.homeworkRemind.time}.</span>}
+      {remindOn && !shownRemind && <span className="small muted">Выбери дату — и Refrain напомнит накануне в {data.settings.homeworkRemind.time}.</span>}
       <div className="row end gap8">
         <button type="button" className="btn ghost" onClick={onDone}>
           Отмена

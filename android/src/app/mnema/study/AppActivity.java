@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Мнема для Android: окно WebView, в котором работает то же приложение, что и на Windows.
+ * Refrain для Android: окно WebView, в котором работает то же приложение, что и на Windows.
  * Значок на рабочем столе — это «псевдонимы» этого окна в манифесте (MainActivity, Icon_<тема>), см. Icons.
  * Файлы приложения отдаются с адреса https://mnema.app/ прямо из APK (так работают модули JS и WebAssembly).
  */
@@ -304,7 +304,7 @@ public class AppActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Значок меняем, когда Мнема ушла с экрана: так смена ярлыка не мешает работе.
+        // Значок меняем, когда Refrain ушла с экрана: так смена ярлыка не мешает работе.
         Icons.applyPending(this);
     }
 

@@ -189,7 +189,7 @@ export function useLinkTips(go: (r: Route) => void): { onLinkHover: (href: strin
   };
 }
 
-/** Перейти по ссылке Мнемы откуда угодно (конспект, ответ карточки, правило). */
+/** Перейти по ссылке Refrain откуда угодно (конспект, ответ карточки, правило). */
 export function openMnemaLink(href: string) {
   window.dispatchEvent(new CustomEvent('mnema:open-link', { detail: href }));
 }

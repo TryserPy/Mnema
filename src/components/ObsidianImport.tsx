@@ -83,8 +83,8 @@ export function ObsidianImport({ subjectId, onClose, onDone }: { subjectId?: str
     <Modal title="Импорт заметок из Obsidian" onClose={onClose} width={720} sticky={busy}>
       {!vault ? (
         <div className="stack gap12">
-          <p>Выбери папку своего хранилища Obsidian (или папку внутри него). Мнема покажет заметки — отметь те, что станут темами. Картинки и формулы переносятся, ссылки [[…]] превращаются в обычный текст.</p>
-          <p className="small muted">Мнема только читает файлы и ничего не меняет в хранилище.</p>
+          <p>Выбери папку своего хранилища Obsidian (или папку внутри него). Refrain покажет заметки — отметь те, что станут темами. Картинки и формулы переносятся, ссылки [[…]] превращаются в обычный текст.</p>
+          <p className="small muted">Refrain только читает файлы и ничего не меняет в хранилище.</p>
           <div className="row end">
             <button className="btn primary" onClick={pick}>
               Выбрать папку…

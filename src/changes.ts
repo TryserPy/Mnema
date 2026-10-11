@@ -1,5 +1,5 @@
 // Файл изменений: нейросеть (или сам ученик) пишет JSON со списком действий — «создай предмет»,
-// «замени конспект темы», «добавь термины», «удали карточку»… Мнема показывает, что поменяется,
+// «замени конспект темы», «добавь термины», «удали карточку»… Refrain показывает, что поменяется,
 // и применяет одним нажатием (с кнопкой «Вернуть»). Всё находится по названиям, а не по внутренним номерам,
 // поэтому такой файл легко написать руками или попросить у любой нейросети.
 import { looksLikeMnemaText, MNEMA_TEXT_GUIDE, parseMnemaText, splitDash, toMnemaText } from './mnemaText';
@@ -18,7 +18,7 @@ export type Change = { do: string; [k: string]: unknown };
 export interface ChangePack {
   title?: string;
   changes: Change[];
-  /** Что не удалось прочитать в самом файле (строки Мнема-текста без «::» и т. п.). */
+  /** Что не удалось прочитать в самом файле (строки Refrain-текста без «::» и т. п.). */
   warnings?: string[];
 }
 
@@ -75,12 +75,12 @@ export function parseChangeFile(text: string): { ok: true; pack: ChangePack } | 
     try {
       raw = JSON.parse(src.replace(/,\s*([}\]])/g, '$1').replace(/[“”«»]/g, (q) => (q === '«' || q === '»' ? q : '"')));
     } catch (e) {
-      return { ok: false, error: 'Это не похоже на файл изменений Мнемы: нужны строки «@предмет …», «@тема …». (Как JSON тоже не читается: ' + String((e as Error).message).slice(0, 100) + ')' };
+      return { ok: false, error: 'Это не похоже на файл изменений Refrain: нужны строки «@предмет …», «@тема …». (Как JSON тоже не читается: ' + String((e as Error).message).slice(0, 100) + ')' };
     }
   }
   const obj = raw as { changes?: unknown; title?: unknown } | unknown[];
   const list = Array.isArray(obj) ? obj : Array.isArray((obj as { changes?: unknown }).changes) ? ((obj as { changes: unknown[] }).changes) : null;
-  if (!list) return { ok: false, error: 'Это не похоже на файл изменений Мнемы: нужны строки «@предмет …», «@тема …» (или JSON с полем "changes")' };
+  if (!list) return { ok: false, error: 'Это не похоже на файл изменений Refrain: нужны строки «@предмет …», «@тема …» (или JSON с полем "changes")' };
   const changes = list.filter((c): c is Change => Boolean(c) && typeof c === 'object' && typeof (c as Change).do === 'string');
   if (!changes.length) return { ok: false, error: 'Список изменений пустой — нечего применять' };
   const title = !Array.isArray(obj) && typeof (obj as { title?: unknown }).title === 'string' ? ((obj as { title: string }).title) : undefined;
@@ -734,7 +734,7 @@ export function packToText(pack: ChangePack): string {
 
 // ---------- Инструкция для нейросети ----------
 
-export const CHANGES_GUIDE = `Ты помогаешь ученику с приложением «Мнема» (конспекты, карточки, повторение). Ответь ОДНИМ файлом JSON — «файлом изменений». Ученик загрузит его в Мнему («Настройки → Данные → Файл изменений» или просто перетащит), увидит список изменений и применит.
+export const CHANGES_GUIDE = `Ты помогаешь ученику с приложением «Refrain» (конспекты, карточки, повторение). Ответь ОДНИМ файлом JSON — «файлом изменений». Ученик загрузит его в Refrain («Настройки → Данные → Файл изменений» или просто перетащит), увидит список изменений и применит.
 
 Формат:
 {
@@ -749,7 +749,7 @@ export const CHANGES_GUIDE = `Ты помогаешь ученику с прил
 • "folder" — папка предметов: {"do":"folder","name":"8 класс","color":"синий","rename":"новое имя"}
 • "subject" — предмет: {"do":"subject","name":"Биология","color":"зелёный","icon":"🌿","folder":"8 класс","rename":"…"}
 • "topic" — тема и её конспект: {"do":"topic","subject":"Биология","topic":"§12 Фотосинтез","parent":"Глава 3 (необязательно — сделает подтему)","note":"Конспект в Markdown","noteMode":"replace | append | prepend","examDate":"2026-10-20","rename":"…"}
-   Конспект — Markdown: **жирное** (станет «важным»), ==маркер==, заголовки ##, списки, формулы $E=mc^2$ и $$…$$. Картинки вида ![Рисунок](mnema-img:…) не трогай — Мнема вернёт их на место.
+   Конспект — Markdown: **жирное** (станет «важным»), ==маркер==, заголовки ##, списки, формулы $E=mc^2$ и $$…$$. Картинки вида ![Рисунок](mnema-img:…) не трогай — Refrain вернёт их на место.
 • "cards" — карточки темы: {"do":"cards","subject":"…","topic":"…","mode":"add | replace","cards":[{"front":"Вопрос","back":"Ответ","why":"почему так (необязательно)","type":"basic | reverse | cloze | typing"}]}
    add — добавить новые и обновить совпадающие по вопросу; replace — оставить только эти (прогресс совпадающих сохранится).
    Изменить одну: {"find":"старый вопрос","front":"новый вопрос","back":"новый ответ"}. Пропуск (cloze): "front":"Столица Франции — {{Париж}}".

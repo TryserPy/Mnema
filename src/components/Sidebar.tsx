@@ -446,7 +446,7 @@ export function Sidebar({
     return (
       <aside className="sidebar rail">
         <button className="logo" title="Показать панель" aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
-          М
+          R
         </button>
         <button className={'foot-btn' + nav('today')} title="Сегодня" aria-label="Сегодня" onClick={() => go({ name: 'today' })}>
           <Icon name="home" />
@@ -513,8 +513,8 @@ export function Sidebar({
   return (
     <aside className={'sidebar' + (resizing ? ' resizing' : '')}>
       <div className="brand">
-        <span className="logo">М</span>
-        <span className="grow">Мнема</span>
+        <span className="logo">R</span>
+        <span className="grow">Refrain</span>
         {/* На телефоне панель — это шторка, её закрывают касанием мимо; кнопки «Скрыть» там нет. */}
         {!mobile && (
           <button

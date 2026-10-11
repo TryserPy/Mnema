@@ -49,7 +49,7 @@ export function parseCloze(text: string): ClozePart[] {
   return parts;
 }
 
-/** Номер Anki (c1, c2…) → номер элемента в Мнеме. */
+/** Номер Anki (c1, c2…) → номер элемента в Refrain. */
 export function clozeOrdForAnki(text: string, ankiNumber: number): number {
   const seen: number[] = [];
   const re = /\{\{c(\d+)::/gi;

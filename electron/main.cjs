@@ -1,9 +1,9 @@
-// Мнема — главный процесс Electron: окно и хранение данных в JSON-файле.
+// Refrain — главный процесс Electron: окно и хранение данных в JSON-файле.
 const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-// Вызовы моста принимаем только от главной страницы Мнемы (file:///…/dist/index.html), не от встроенных
+// Вызовы моста принимаем только от главной страницы Refrain (file:///…/dist/index.html), не от встроенных
 // видео и не от чужой страницы. Обёртка ставится до подключения остальных модулей — они тоже под ней.
 function fromApp(e) {
   try {
@@ -20,7 +20,7 @@ for (const m of ['handle', 'on', 'once']) {
   ipcMain[m] = (channel, fn) =>
     orig(channel, (e, ...args) => {
       if (fromApp(e)) return fn(e, ...args);
-      console.warn('mnema: вызов', channel, 'не от окна Мнемы — отклонён');
+      console.warn('mnema: вызов', channel, 'не от окна Refrain — отклонён');
       if (m === 'handle') throw new Error('Недоступно');
       e.returnValue = null;
     });
@@ -76,7 +76,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'Мнема',
+    title: 'Refrain',
     backgroundColor: '#F6F3EC',
     autoHideMenuBar: false, // false + скрытая полоса: Alt не выдвигает меню «File Edit View Window» сверху
     icon: nativeImage.createFromPath(path.join(__dirname, 'icon.png')),
@@ -91,7 +91,7 @@ function createWindow() {
   mainWin = win;
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  // При автозапуске окно не показываем — Мнема ждёт в трее.
+  // При автозапуске окно не показываем — Refrain ждёт в трее.
   if (!startHidden) win.once('ready-to-show', () => win.show());
   win.on('close', (e) => {
     if (tray.shouldHideOnClose()) {
@@ -107,7 +107,7 @@ function createWindow() {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
-  // Окно никогда не уходит со страницы Мнемы: сайты открываем в браузере, остальное (чужой файл,
+  // Окно никогда не уходит со страницы Refrain: сайты открываем в браузере, остальное (чужой файл,
   // //сервер/папка) запрещаем — иначе чужая страница получила бы доступ к данным через мост.
   win.webContents.on('will-navigate', (e, url) => {
     e.preventDefault();
@@ -244,7 +244,7 @@ ipcMain.handle('obsidian:export', async (e, files) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const r = await dialog.showOpenDialog(win, { title: 'Куда сохранить заметки (папка хранилища Obsidian)', properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
-  const root = path.resolve(r.filePaths[0], 'Мнема');
+  const root = path.resolve(r.filePaths[0], 'Refrain');
   let written = 0;
   for (const f of files || []) {
     const rel = String(f.path || '').replace(/[<>:"|?*\x00-\x1f]/g, '_');
@@ -283,6 +283,9 @@ ipcMain.handle('data:folder', () => {
   return app.getPath('userData');
 });
 
+// Папка данных осталась прежней («Mnema»), хотя приложение теперь называется Refrain: иначе после обновления
+// карточки лежали бы в старой папке, а Refrain открылся бы пустым.
+app.setPath('userData', path.join(app.getPath('appData'), 'Mnema'));
 // Отдельная папка данных (для проверки синхронизации двух копий на одном компьютере).
 if (process.env.MNEMA_USER_DATA) app.setPath('userData', process.env.MNEMA_USER_DATA);
 const single = app.requestSingleInstanceLock();
@@ -322,7 +325,7 @@ if (!single) {
     // Картинки и ссылки вида //сервер/папка (file://сервер/…) на Windows идут в сетевую папку —
     // это утечка (адрес, данные входа Windows). Такие запросы отменяем.
     session.defaultSession.webRequest.onBeforeRequest((d, cb) => cb({ cancel: /^file:\/\/[^/]/i.test(d.url) }));
-    // Electron по умолчанию выдаёт любые разрешения (камера, микрофон, место…) любому фрейму. Даём их только самой Мнеме
+    // Electron по умолчанию выдаёт любые разрешения (камера, микрофон, место…) любому фрейму. Даём их только самой Refrain
     // (камера для фото учебника, микрофон для ответов голосом); встроенным плеерам — лишь полный экран.
     session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => {
       let own = false;

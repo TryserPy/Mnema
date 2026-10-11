@@ -74,7 +74,7 @@ if (RAW) {
     }
   };
 
-  // Вернулись в Мнему (например, из настроек Android) — событие для всех, кому нужно.
+  // Вернулись в Refrain (например, из настроек Android) — событие для всех, кому нужно.
   window.__mnemaResume = () => window.dispatchEvent(new Event('mnema:resume'));
 
   // События обновления из Java (ход скачивания, ошибка установки) — всем, кто подписан.
@@ -150,13 +150,13 @@ if (RAW) {
           const bin = atob(f.content);
           const u = new Uint8Array(bin.length);
           for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-          tree['Мнема/' + f.path] = u;
-        } else tree['Мнема/' + f.path] = strToU8(f.content);
+          tree['Refrain/' + f.path] = u;
+        } else tree['Refrain/' + f.path] = strToU8(f.content);
       }
       const zip = zipSync(tree, { level: 6 });
       let s = '';
       for (let i = 0; i < zip.length; i += 0x8000) s += String.fromCharCode(...zip.subarray(i, i + 0x8000));
-      const name = 'Мнема для Obsidian.zip';
+      const name = 'Refrain для Obsidian.zip';
       const r = await call<{ ok: boolean; canceled?: boolean }>((id) => A.saveFile(id, name, 'application/zip', btoa(s)));
       return { ok: r.ok, canceled: !r.ok, folder: name, written: files.length, zip: true };
     },

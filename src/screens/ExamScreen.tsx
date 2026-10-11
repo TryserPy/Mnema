@@ -69,7 +69,7 @@ export function ExamScreen({ id, go }: { id: string; go: (r: Route) => void }) {
         {r.items === 0 ? (
           <>
             <strong>В выбранных темах пока нет карточек</strong>
-            <span className="muted">Сделай карточки из конспекта — тогда Мнема покажет, что ты помнишь и что повторить.</span>
+            <span className="muted">Сделай карточки из конспекта — тогда Refrain покажет, что ты помнишь и что повторить.</span>
           </>
         ) : (
           <>

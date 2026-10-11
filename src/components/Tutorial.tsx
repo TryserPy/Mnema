@@ -23,7 +23,7 @@ const setSt = (patch: Partial<State>) => {
   subs.forEach((f) => f());
 };
 
-/** Начать интерактивное знакомство (из «Знакомства», «Справки», «О Мнеме»). */
+/** Начать интерактивное знакомство (из «Знакомства», «Справки», «О Refrain»). */
 export function startTutorial() {
   const d = getData();
   setSt({ active: true, skipped: [], learned: false, base: { subjects: new Set(d.subjects.map((x) => x.id)), topics: new Set(d.topics.map((x) => x.id)), cards: new Set(d.cards.map((x) => x.id)) } });
@@ -135,7 +135,7 @@ function stageOf(c: Ctx): Stage {
       if (c.route.name === 'today' && (q('.hero-btn') as HTMLButtonElement | null)?.disabled) return { major, text: 'Сегодня повторять пока нечего — так бывает. Нажми «Пропустить шаг», чтобы закончить знакомство.', target: null };
       return { major, text: 'Теперь повторение. Вернись на «Сегодня» и нажми «Учиться».', target: c.route.name === 'today' ? q('.hero-btn') : (byText('.tab', 'Учусь') ?? byText('.sidebar .nav-item', 'Сегодня')) };
     default:
-      return { major: 5, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Мнема сама решит, когда показать карточку снова.', target: null };
+      return { major: 5, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Refrain сам решит, когда показать карточку снова.', target: null };
   }
 }
 
@@ -277,7 +277,7 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
         {flash && <p className="tut-flash">{flash}</p>}
         <p className="tut-text">{stage.text}</p>
         {stage.hint && <p className="small muted tut-hint">{stage.hint}</p>}
-        {stuck && <p className="small muted tut-hint">Не получается или шаг не засчитывается? Нажми «Пропустить шаг» — Мнема сделает его за тебя.</p>}
+        {stuck && <p className="small muted tut-hint">Не получается или шаг не засчитывается? Нажми «Пропустить шаг» — Refrain сделает его за тебя.</p>}
         <div className="tut-btns">
           <span className="row gap6">
             <button className="btn ghost small" onClick={() => finish(false)}>
@@ -289,7 +289,7 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
               <Icon name="check" size={16} /> Закончить
             </button>
           ) : (
-            <button className="btn small" onClick={() => doStep(stage.major, ctx, go)} title="Мнема сделает этот шаг за тебя">
+            <button className="btn small" onClick={() => doStep(stage.major, ctx, go)} title="Refrain сделает этот шаг за тебя">
               Пропустить шаг
             </button>
           )}

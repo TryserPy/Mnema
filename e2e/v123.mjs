@@ -217,7 +217,7 @@ const dataOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mn
   await page.waitForTimeout(500);
   check((await page.locator('.feat-tile', { hasText: 'Моды' }).count()) === 0, '1280: в «Возможностях» нет «Модов»');
   // «Что нового»
-  await page.locator('.settings-page').getByRole('button', { name: 'О Мнеме' }).first().click();
+  await page.locator('.settings-page').getByRole('button', { name: 'О Refrain' }).first().click();
   await page.waitForTimeout(400);
   check((await page.locator('.sgroup-title, .group-title, h3, .sgroup > span').filter({ hasText: 'Что нового в 1.' }).count()) >= 1, '1280: «Что нового в <текущей версии>»');
   await page.getByRole('button', { name: 'Что было раньше' }).click();

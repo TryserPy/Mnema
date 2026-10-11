@@ -97,7 +97,7 @@ declare global {
       /** Поставить скачанное. На телефоне может попросить разрешение «ставить приложения» (permission). */
       updateInstall?: (ask?: boolean) => Promise<boolean | { ok: boolean; permission?: boolean; error?: string }>;
       onUpdateEvent?: (cb: (e: { type: 'progress'; percent: number } | { type: 'ready'; version: string } | { type: 'error'; message: string }) => void) => () => void;
-      /** Пункты «Мнемы» в меню выделения текста Android (пустой список — убрать). */
+      /** Пункты «Refrain» в меню выделения текста Android (пустой список — убрать). */
       setSelMenu?: (items: { id: string; title: string }[]) => void;
       /** Значок приложения на рабочем столе телефона (под тему). */
       setAppIcon?: (name: string) => void;
@@ -182,7 +182,7 @@ export function dropRemoved(d: AppData): AppData {
 
 /** Данные пришли «со стороны» (копия из файла): то, что может запустить чужой код или увести пароль, берём у ЭТОГО устройства, а не из файла.
  *  — моды из копии остаются в списке, но не запускаются, пока их не разрешат здесь (`pluginsSafe`);
- *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Мнема сама отправила бы сохранённый пароль на чужой сервер. */
+ *  — облако (адрес, логин, автосинхронизация): с чужим адресом и `auto: true` Refrain сам отправила бы сохранённый пароль на чужой сервер. */
 export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; notes: string[] } {
   const notes: string[] = [];
   const ownCloud = local.settings.cloud ?? null;
@@ -206,10 +206,10 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
 export function normalizeData(raw: unknown): AppData {
-  if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Мнемы');
+  if (!raw || typeof raw !== 'object') throw new Error('Файл не похож на данные Refrain');
   const r = raw as Partial<AppData>;
   if (r.version !== 1 || !Array.isArray(r.subjects) || !Array.isArray(r.topics) || !Array.isArray(r.cards)) {
-    throw new Error('Файл не похож на данные Мнемы');
+    throw new Error('Файл не похож на данные Refrain');
   }
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
   const out: AppData = {
