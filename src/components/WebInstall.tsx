@@ -62,7 +62,7 @@ export function WebGroup() {
       />
       <div className="srow stack-row">
         <span className="small muted">
-          Для работы без браузера есть приложения для Windows и Android:{' '}
+          Для работы без браузера есть приложения для Windows, Linux и Android:{' '}
           <a href={`https://github.com/${UPDATE_REPO.owner}/${UPDATE_REPO.repo}/releases/latest`} target="_blank" rel="noreferrer">
             скачать
           </a>

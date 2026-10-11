@@ -6,7 +6,7 @@
 
 ## 0. Коротко
 
-**Refrain** — офлайн-приложение для школьников: параграф учебника → конспект → карточки → повторения по расписанию (алгоритм FSRS). Главная цель — запоминать больше, тратя меньше времени. Работает на **Windows** (Electron, установщик NSIS) и **Android** (своя обёртка WebView, APK) из одного кода на **TypeScript + React + Vite**.
+**Refrain** — офлайн-приложение для школьников: параграф учебника → конспект → карточки → повторения по расписанию (алгоритм FSRS). Главная цель — запоминать больше, тратя меньше времени. Работает на **Windows** (Electron, установщик NSIS), **Linux** (Electron: AppImage, .deb, .tar.gz; x64 и arm64) и **Android** (своя обёртка WebView, APK) из одного кода на **TypeScript + React + Vite**.
 
 
 Последняя версия — **1.6.4 «Стихи наизусть»**, собрана и доставлена (см. раздел 11).
@@ -346,13 +346,13 @@
 - **Повторения:** ts-fsrs.
 - **Граф:** d3-force.
 - **Импорт/экспорт:** sql.js + fflate + fzstd (Anki), tesseract.js (офлайн-распознавание), qrcode / jsqr (синхронизация).
-- **Windows:** Electron 44 (CJS main и preload), electron-builder (NSIS), electron-updater.
+- **Windows и Linux:** Electron 44 (CJS main и preload), electron-builder (NSIS; AppImage, deb, tar.gz), electron-updater. Особенности Linux — `electron/linux.cjs`, `electron/openFiles.cjs`, `docs/handoff/linux.md`; значки — `build/icons` (`npm run icons:linux`); сборка — `npm run dist:linux`.
 - **Шрифты:** @fontsource.
 - **Тесты:** Vitest (сейчас 95 тестов в 12 файлах), Playwright (e2e, отдельно).
 
 ### 6.2 Данные
 - **Всё состояние** — один объект `AppData` (раздел 7).
-- **Хранение:** Windows — JSON-файл `%APPDATA%\Refrain\Мои данные\refrain-data.json` с ежедневными копиями в `Резервные копии\` (служебные файлы Electron, ключи ИИ и пароль облака — отдельно, в `%APPDATA%\Refrain\Служебное\`; логика — `electron/dataLayout.cjs`; со старого `%APPDATA%\Mnema` данные копируются при первом запуске, старое не удаляется); Android — файл через мост; браузер (dev) — localStorage.
+- **Хранение:** Linux — то же в `~/.config/Refrain/` (XDG_CONFIG_HOME); Windows — JSON-файл `%APPDATA%\Refrain\Мои данные\refrain-data.json` с ежедневными копиями в `Резервные копии\` (служебные файлы Electron, ключи ИИ и пароль облака — отдельно, в `%APPDATA%\Refrain\Служебное\`; логика — `electron/dataLayout.cjs`; со старого `%APPDATA%\Mnema` данные копируются при первом запуске, старое не удаляется); Android — файл через мост; браузер (dev) — localStorage.
 - **Разметка и переносимость.** Внутри конспект — Markdown (TipTap + marked): CommonMark + GFM-таблицы, формулы `$…$`/`$$…$$`, выделение `==…==`, рисунки и картинки как data URI, ссылки между темами `mnema://topic|card/<id>`, видео `![video](url)`. При экспорте всё приводится к стандарту (внутренний формат не менялся):
   - `src/mdExport.ts` — «Всё в Markdown (.zip)»: `Папка/Предмет/Тема.md`, подтемы в папке темы, `Правила/`, `Термины/`, картинки/рисунки/значки/фото страниц — файлами в `attachments/`, свойства YAML (`title, subject, tags, created, exam, refrain-id, refrain-lists…`), ссылки между темами — относительные (режим Obsidian — `[[вики]]`), «Запомните» — выноска `> [!important]`, карточки внизу темы (`Вопрос::Ответ`, `Термин:::Определение`, `{{c1::пропуск}}`), `README.md`, `Карточки.md`, `Карточки.csv`;
   - `src/mdImport.ts` + `src/mdApply.ts` + `store.importTree` — обратный импорт папки/zip/хранилища Obsidian (zip-slip, лимиты, санитизация HTML, проверка значков `validIconImg`); окно `MarkdownImport.tsx`;
@@ -417,6 +417,7 @@
 ### 6.6 Обновления
 - `src/update.ts`: `APP_VERSION`, проверка раз в день.
 - **Windows** — electron-updater: скачать → перезапустить. Нужен `latest.yml` и установщик в выпуске GitHub.
+- **Linux** — AppImage: electron-updater по `latest-linux.yml` (arm64 — `latest-linux-arm64.yml`), как Windows. `.deb` и архив сами не обновляются: `electron/updater.cjs` спрашивает GitHub API и даёт ссылку на файл своего типа и архитектуры (`linux.manualUpdateInfo`).
 - **Android** — GitHub API → ссылка на APK из выпуска.
 - **Репозиторий:** настройки `settings.update.owner/repo` (раздел «О Refrain»). В `package.json` → `build.publish` стоит **заглушка** `mnema-app/mnema`: репозиторий задаётся в настройках. Инструкция «GitHub — как выложить обновление.txt» лежит в каждой папке выпуска.
 

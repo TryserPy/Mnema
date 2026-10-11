@@ -36,6 +36,13 @@ contextBridge.exposeInMainWorld('mnemaApi', {
     ipcRenderer.on('update:event', h);
     return () => ipcRenderer.removeListener('update:event', h);
   },
+  // Файл Refrain (.mnema, .refrainstyle, .mnemamod), который открыли двойным щелчком или из командной строки.
+  onOpenFile: (cb) => {
+    const h = (_e, f) => cb(f);
+    ipcRenderer.on('file:open', h);
+    ipcRenderer.send('openfile:ready');
+    return () => ipcRenderer.removeListener('file:open', h);
+  },
   onNotifyOpen: (cb) => {
     const h = (_e, what) => cb(what);
     ipcRenderer.on('notify:open', h);

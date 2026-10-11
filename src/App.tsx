@@ -44,6 +44,7 @@ import { RepeatDialogHost } from './components/RepeatDialog';
 import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
 import { importTopicPackage, isTopicPackage } from './share';
+import { readOpenedFile } from './openFile';
 import { forecast, itemKey, itemOrds, streak, todayCounts, tomorrowSubjects } from './srs';
 import { dataReadOnly, getData, pruneDoneHomework, updateSettings, updateTopic, useData } from './store';
 import type { Route } from './types';
@@ -329,6 +330,23 @@ export function App() {
     setDrawer(false);
     document.querySelector('.main')?.scrollTo(0, 0);
   };
+
+  // Файл Refrain, открытый двойным щелчком из файлового менеджера (.mnema — тема, .refrainstyle/.mnemamod — стиль).
+  useEffect(
+    () =>
+      window.mnemaApi?.onOpenFile?.((f) => {
+        const r = readOpenedFile(f, 'm-' + Math.random().toString(36).slice(2, 9));
+        if (r.kind === 'topic') {
+          const added = importTopicPackage(r.pkg);
+          showToast(`Добавлена тема «${r.pkg.topic.name}»`);
+          if (added.firstTopicId) go({ name: 'topic', id: added.firstTopicId });
+        } else if (r.kind === 'style') {
+          updateSettings({ customMods: [...getData().settings.customMods, r.mod] });
+          showToast(`Стиль «${r.mod.name}» добавлен — включи его в «Настройки → Оформление»`);
+        } else showToast(r.message);
+      }),
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Горячие клавиши, которые работают везде (кроме повторения — там свои).
   const routeRef = useRef(route);

@@ -220,7 +220,7 @@ function makeApi(p: PluginRec) {
       }
     },
     http: async (url: string, init: { method?: string; headers?: Record<string, string>; body?: string } = {}) => {
-      if (!window.mnemaApi?.http) throw new Error('Сеть для модов работает в приложении (Windows или Android)');
+      if (!window.mnemaApi?.http) throw new Error('Сеть для модов работает в приложении (Windows, Linux или Android)');
       return window.mnemaApi.http({ url, method: init.method ?? 'GET', headers: init.headers, body: init.body, timeout: 30000 });
     }
   };

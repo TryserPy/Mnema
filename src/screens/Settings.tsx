@@ -335,7 +335,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
   const hwOn = s.features.homework;
   return (
     <div className="stack gap16">
-      <PaneHead title="Напоминания" text={android ? 'Уведомления приходят, даже если Refrain закрыта. Если телефон спросит — разреши.' : 'Уведомления Windows приходят, пока Refrain открыта или работает у часов.'} />
+      <PaneHead title="Напоминания" text={android ? 'Уведомления приходят, даже если Refrain закрыта. Если телефон спросит — разреши.' : `Уведомления ${window.mnemaApi?.platform === 'win32' ? 'Windows' : 'компьютера'} приходят, пока Refrain открыта или работает у часов.`} />
       <Group title="Домашка" id="hw">
         {hwOn ? (
           <>
@@ -388,7 +388,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
       </Group>
       {desktop && (
         <Group title="Значок у часов" id="tray">
-          <SRow label="Показывать значок у часов" hint="Число карточек на сегодня и напоминания">
+          <SRow label="Показывать значок у часов" hint={window.mnemaApi?.platform === 'linux' ? 'Число карточек и напоминания. В GNOME нужно расширение «AppIndicator»; без значка закрытие окна сворачивает Refrain' : 'Число карточек на сегодня и напоминания'}>
             <Switch label="Значок у часов" checked={s.features.tray} onChange={(v) => setFeature('tray', v)} />
           </SRow>
           {s.features.tray && (
@@ -399,7 +399,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
               <SRow label="При закрытии окна оставаться у часов" hint="Тогда напоминания работают, даже если окно закрыто">
                 <Switch label="Оставаться у часов" checked={s.closeToTray} onChange={(v) => updateSettings({ closeToTray: v })} />
               </SRow>
-              <SRow label="Запускать вместе с Windows" hint="Тихо, сразу у часов">
+              <SRow label={window.mnemaApi?.platform === 'linux' ? 'Запускать при входе в систему' : 'Запускать вместе с Windows'} hint="Тихо, сразу у часов">
                 <Switch label="Автозапуск" checked={s.autostart} onChange={(v) => updateSettings({ autostart: v })} />
               </SRow>
             </>

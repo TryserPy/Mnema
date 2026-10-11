@@ -17,7 +17,11 @@ export interface UpdateInfo {
   available?: boolean;
   notes?: string;
   apk?: string; // ссылка на APK (телефон)
-  size?: number; // размер APK, байт
+  size?: number; // размер APK или файла для Linux, байт
+  /** Linux (пакет .deb, архив): сама Refrain не обновляется — показываем ссылку на файл выпуска. */
+  manual?: boolean;
+  url?: string; // ссылка на файл (или страницу выпуска) для ручной установки
+  fileName?: string;
 }
 
 /** 1.10.0 > 1.9.3 */
@@ -49,7 +53,7 @@ export async function checkUpdate(): Promise<UpdateInfo> {
   if (api?.platform === 'web') return { ok: false, error: 'Веб-версия обновляется сама: новая версия подтягивается при открытии' };
   if (api?.updateCheck) {
     const r = await api.updateCheck({ owner, repo });
-    return { ok: r.ok, error: r.error, latest: r.latest, available: Boolean(r.available), notes: r.notes };
+    return { ok: r.ok, error: r.error, latest: r.latest, available: Boolean(r.available), notes: r.notes, manual: r.manual, url: r.url, fileName: r.fileName, size: r.size };
   }
   // Телефон: спросить у GitHub последний выпуск.
   try {
