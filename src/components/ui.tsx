@@ -189,6 +189,13 @@ const paths: Record<string, ReactNode> = {
       <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
     </>
   ),
+  paste: (
+    <>
+      <rect x="5" y="5.5" width="14" height="15" rx="2" />
+      <path d="M9 5.5V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5v1" />
+      <path d="M9 12h6M9 16h4" />
+    </>
+  ),
   magic: (
     <>
       <path d="M5 19L15.5 8.5" />

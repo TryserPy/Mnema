@@ -1174,9 +1174,17 @@ export interface PastePlace {
   folderId?: string;
   subjectId?: string;
   topicId?: string;
+  /** Вставить на верхний уровень списка предметов (правая кнопка по свободному месту): предметы — вне папок. */
+  root?: boolean;
 }
 
-/** Вставить скопированное (Ctrl+C → Ctrl+V): темы — рядом с открытой темой или в открытый предмет, предметы — в открытую папку. Одно изменение данных на всё. */
+/**
+ * Вставить скопированное (Ctrl+C → Ctrl+V или «Вставить» в меню). Куда:
+ * - папка вставляется на верхний уровень; предмет — в папку, на которую нажал (или в папку открытого предмета; по свободному месту — вне папок);
+ * - тема — в предмет, на который нажал (в корень предмета), а если нажал на тему — рядом с ней; без предмета тему вставить некуда.
+ * Имя остаётся прежним, «(2)» — только если в этом месте уже есть такое. Копируется всё содержимое (подтемы, конспекты, карточки, словари, стихи),
+ * прогресс повторений не копируется: у копии расписание начинается с нуля. Одно изменение данных на всё.
+ */
 export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] {
   const stamp = nowIso();
   let d = data;
@@ -1184,13 +1192,14 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
   const here = place.topicId ? d.topics.find((t) => t.id === place.topicId) : undefined;
   for (const it of items) {
     let r: CopyResult | null = null;
-    if (it.kind === 'folder') r = copyFolder(d, it.id, uid, stamp);
+    if (it.kind === 'folder') r = copyFolder(d, it.id, uid, stamp, 'paste');
     else if (it.kind === 'subject') {
       const placeFolder = place.folderId ?? (place.subjectId ? d.subjects.find((x) => x.id === place.subjectId)?.folderId : undefined);
-      r = copySubject(d, it.id, uid, stamp, place.folderId || place.subjectId ? { folderId: placeFolder } : undefined);
+      r = copySubject(d, it.id, uid, stamp, place.root || place.folderId || place.subjectId ? { folderId: placeFolder } : undefined, 'paste');
     } else {
       const subjectId = place.subjectId && d.subjects.some((x) => x.id === place.subjectId) ? place.subjectId : undefined;
-      // Рядом с открытой темой (тот же родитель); если родитель — сама копируемая тема или её подтема, — рядом с оригиналом.
+      if (!subjectId) continue; // тему некуда вставить: нужен предмет
+      // Рядом с темой, на которую нажал (тот же родитель); если родитель — сама копируемая тема или её подтема, — в корень предмета.
       let parentId = here?.subjectId === subjectId ? here?.parentId : undefined;
       for (let p = parentId, guard = 0; p && guard < 500; guard++) {
         if (p === it.id) {
@@ -1199,7 +1208,7 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
         }
         p = d.topics.find((t) => t.id === p)?.parentId;
       }
-      r = copyTopic(d, it.id, uid, stamp, subjectId ? { subjectId, parentId } : undefined);
+      r = copyTopic(d, it.id, uid, stamp, { subjectId, parentId }, 'paste');
     }
     if (r) {
       d = r.data;
@@ -1207,8 +1216,9 @@ export function pasteCopies(items: ClipItem[], place: PastePlace): CopyResult[] 
     }
   }
   if (out.length) {
-    const folders = out.filter((r) => r.what === 'folder').map((r) => r.id);
-    commit({ ...d, settings: { ...d.settings, treeOpen: [...d.settings.treeOpen, ...folders] } });
+    // Раскрываем в левой панели то, во что вставили (иначе вставленного не видно).
+    const open = [...out.filter((r) => r.what === 'folder').map((r) => r.id), ...[place.folderId, place.subjectId].filter((x): x is string => Boolean(x))];
+    commit({ ...d, settings: { ...d.settings, treeOpen: [...new Set([...d.settings.treeOpen, ...open])] } });
   }
   return out;
 }

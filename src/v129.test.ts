@@ -112,3 +112,116 @@ describe('nextDueText', () => {
     expect(nextDueText(21 * DAY)).toBe('через 3 нед');
   });
 });
+
+// ---------- Копировать / Вставить / Дублировать ----------
+import { copyFolder, copySubject, copyTopic, pasteName } from './copy';
+import { getData, pasteCopies, replaceData } from './store';
+
+let uidN = 0;
+const uid = () => 'u' + ++uidN;
+const T0 = '2026-09-01T10:00:00.000Z';
+const STAMP = '2026-10-11T10:00:00.000Z';
+function copyWorld(): AppData {
+  const d = emptyData();
+  d.folders = [
+    { id: 'f1', name: 'Естественные', color: '#0a0', order: 1, createdAt: T0 },
+    { id: 'f2', name: 'Гуманитарные', color: '#a00', order: 2, createdAt: T0 }
+  ];
+  d.subjects = [
+    { id: 's1', name: 'Биология', color: '#0a0', folderId: 'f1', order: 1, createdAt: T0 },
+    { id: 's2', name: 'Физика', color: '#00a', folderId: 'f1', order: 2, createdAt: T0 },
+    { id: 's3', name: 'История', color: '#aa0', order: 3, createdAt: T0 }
+  ];
+  d.topics = [
+    { id: 't1', subjectId: 's1', name: 'Клетка', note: 'Конспект клетки', createdAt: T0, updatedAt: T0, lists: [{ id: 'L1', kind: 'vocab', title: 'Слова', cols: ['a', 'b', 'c'], mode: 'basic' }], poems: [{ id: 'P1', title: 'Стих', text: 'a\nb', chunk: 0, learned: 1, createdAt: T0, updatedAt: T0 }] },
+    { id: 't1a', subjectId: 's1', parentId: 't1', name: 'Ядро', note: 'Ядро', createdAt: T0, updatedAt: T0 },
+    { id: 't2', subjectId: 's2', name: 'Тепло', note: 'Тепло', createdAt: T0, updatedAt: T0 }
+  ];
+  d.cards = [
+    { id: 'c1', topicId: 't1', type: 'basic', front: 'Q1', back: 'A1', createdAt: T0, updatedAt: T0 },
+    { id: 'c2', topicId: 't1', listId: 'L1', type: 'basic', front: 'слово', back: 'перевод', createdAt: T0, updatedAt: T0 },
+    { id: 'c3', topicId: 't1a', type: 'basic', front: 'Q3', back: 'A3', createdAt: T0, updatedAt: T0 }
+  ];
+  d.states[itemKey('c1', 0)] = { due: T0, stability: 4, difficulty: 5, elapsed_days: 1, scheduled_days: 3, learning_steps: 0, reps: 2, lapses: 0, state: 2, last_review: T0 };
+  return d;
+}
+
+describe('имя при вставке', () => {
+  it('то же имя, если место свободно; «(2)» — только при конфликте', () => {
+    expect(pasteName('Тема', ['Другая'])).toBe('Тема');
+    expect(pasteName('Тема', ['Тема'])).toBe('Тема (2)');
+    expect(pasteName('Тема', ['тема', 'Тема (2)'])).toBe('Тема (3)');
+    expect(pasteName('Тема (2)', ['Тема', 'Тема (2)'])).toBe('Тема (3)');
+  });
+  it('тема: в другой предмет — без суффикса, в тот же — «(2)», «Дублировать» — «(копия)»', () => {
+    const d = copyWorld();
+    expect(copyTopic(d, 't1', uid, STAMP, { subjectId: 's2' }, 'paste')!.name).toBe('Клетка');
+    expect(copyTopic(d, 't1', uid, STAMP, { subjectId: 's1' }, 'paste')!.name).toBe('Клетка (2)');
+    expect(copyTopic(d, 't1', uid, STAMP)!.name).toBe('Клетка (копия)');
+  });
+  it('предмет: в другую папку — то же имя, в ту же — «(2)»; папка — «(2)», предметы внутри без суффикса', () => {
+    const d = copyWorld();
+    expect(copySubject(d, 's1', uid, STAMP, { folderId: 'f2' }, 'paste')!.name).toBe('Биология');
+    expect(copySubject(d, 's1', uid, STAMP, { folderId: 'f1' }, 'paste')!.name).toBe('Биология (2)');
+    expect(copySubject(d, 's1', uid, STAMP)!.name).toBe('Биология (копия)');
+    const f = copyFolder(d, 'f1', uid, STAMP, 'paste')!;
+    expect(f.name).toBe('Естественные (2)');
+    expect(f.data.subjects.filter((s) => s.folderId === f.id).map((s) => s.name).sort()).toEqual(['Биология', 'Физика']);
+  });
+});
+
+describe('«Вставить» (pasteCopies): куда и что приезжает', () => {
+  it('тема на предмет — в корень этого предмета, со всем вложенным и без прогресса', () => {
+    replaceData(copyWorld());
+    const r = pasteCopies([{ kind: 'topic', id: 't1' }], { subjectId: 's2' });
+    expect(r).toHaveLength(1);
+    const d = getData();
+    const copy = d.topics.find((t) => t.id === r[0].id)!;
+    expect(copy.subjectId).toBe('s2');
+    expect(copy.parentId).toBeUndefined();
+    expect(copy.name).toBe('Клетка');
+    expect(copy.note).toBe('Конспект клетки');
+    expect(copy.lists).toHaveLength(1);
+    expect(copy.poems![0].learned).toBe(0);
+    const kid = d.topics.find((t) => t.parentId === copy.id)!;
+    expect(kid.name).toBe('Ядро');
+    expect(d.cards.filter((c) => c.topicId === copy.id || c.topicId === kid.id)).toHaveLength(3);
+    expect(Object.keys(d.states)).toHaveLength(1); // прогресс остался только у оригинала
+  });
+  it('тема на тему — рядом с ней; повтор вставки в тот же предмет даёт «(2)»', () => {
+    replaceData(copyWorld());
+    pasteCopies([{ kind: 'topic', id: 't2' }], { subjectId: 's1', topicId: 't1a' });
+    const d = getData();
+    const copy = d.topics.find((t) => t.name === 'Тепло' && t.subjectId === 's1')!;
+    expect(copy.parentId).toBe('t1'); // рядом с «Ядро» — в той же теме
+    pasteCopies([{ kind: 'topic', id: 't2' }], { subjectId: 's1', topicId: 't1a' });
+    expect(getData().topics.some((t) => t.name === 'Тепло (2)' && t.subjectId === 's1')).toBe(true);
+  });
+  it('тему некуда вставить без предмета — ничего не создаётся', () => {
+    replaceData(copyWorld());
+    const before = getData().topics.length;
+    expect(pasteCopies([{ kind: 'topic', id: 't1' }], { root: true })).toHaveLength(0);
+    expect(getData().topics).toHaveLength(before);
+  });
+  it('предмет: на папку — в эту папку; по свободному месту — вне папок; на другой предмет — в его папку', () => {
+    replaceData(copyWorld());
+    const a = pasteCopies([{ kind: 'subject', id: 's3' }], { folderId: 'f2' });
+    expect(getData().subjects.find((s) => s.id === a[0].id)!.folderId).toBe('f2');
+    expect(a[0].name).toBe('История');
+    const b = pasteCopies([{ kind: 'subject', id: 's1' }], { root: true });
+    expect(getData().subjects.find((s) => s.id === b[0].id)!.folderId).toBeUndefined();
+    expect(b[0].name).toBe('Биология');
+    const c = pasteCopies([{ kind: 'subject', id: 's3' }], { subjectId: 's2' });
+    expect(getData().subjects.find((s) => s.id === c[0].id)!.folderId).toBe('f1');
+  });
+  it('папка вставляется на верхний уровень вместе с предметами, темами и карточками', () => {
+    replaceData(copyWorld());
+    const r = pasteCopies([{ kind: 'folder', id: 'f1' }], { folderId: 'f2' });
+    const d = getData();
+    expect(r[0].name).toBe('Естественные (2)');
+    expect(d.subjects.filter((s) => s.folderId === r[0].id)).toHaveLength(2);
+    expect(d.topics).toHaveLength(6);
+    expect(d.cards).toHaveLength(6);
+    expect(d.settings.treeOpen).toContain(r[0].id);
+  });
+});

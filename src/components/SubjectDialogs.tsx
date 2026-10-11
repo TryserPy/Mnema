@@ -1,6 +1,6 @@
 // Окна «Изменить предмет» и «Удалить предмет» — открываются из левой панели и со страницы предмета.
 import { useState } from 'react';
-import { addFolder, addSubject, deleteFolder, deleteSubject, deleteTopic, getData, restoreRemoved, sortedFolders, updateFolder, updateSubject, useData } from '../store';
+import { addFolder, addSubject, deleteFolder, deleteMany, deleteSubject, deleteTopic, getData, restoreRemoved, sortedFolders, updateFolder, updateSubject, useData } from '../store';
 import { ColorPicker, IconPicker, Modal, plural, Segmented, SUBJECT_COLORS, toast } from './ui';
 
 function FolderSelect({ value, onChange }: { value?: string; onChange: (v?: string) => void }) {
@@ -178,6 +178,47 @@ export function EditFolder({ id, onClose }: { id: string; onClose: () => void })
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/** Удалить папку из меню: предметы можно оставить (выйдут на верхний уровень) или удалить вместе с папкой. Всё уходит в корзину, сразу есть «Вернуть». */
+export function DeleteFolder({ id, onClose, onDeleted }: { id: string; onClose: () => void; onDeleted?: () => void }) {
+  const data = useData();
+  const f = data.folders.find((x) => x.id === id);
+  if (!f) return null;
+  const subjects = data.subjects.filter((s) => s.folderId === id);
+  const tIds = new Set(data.topics.filter((t) => subjects.some((s) => s.id === t.subjectId)).map((t) => t.id));
+  const cards = data.cards.filter((c) => tIds.has(c.topicId)).length;
+  const run = (withSubjects: boolean) => {
+    const undo = deleteMany({ folders: [id], subjects: withSubjects ? subjects.map((s) => s.id) : [] });
+    onDeleted?.();
+    onClose();
+    toast(withSubjects ? `Папка «${f.name}» удалена вместе с предметами` : `Папка «${f.name}» удалена, предметы остались`, { label: 'Вернуть', run: undo });
+  };
+  return (
+    <Modal title="Удалить папку?" onClose={onClose}>
+      <div className="stack gap12">
+        <p>
+          {subjects.length
+            ? `В папке «${f.name}» — ${subjects.length} ${plural(subjects.length, 'предмет', 'предмета', 'предметов')} (${tIds.size} ${plural(tIds.size, 'тема', 'темы', 'тем')}, ${cards} ${plural(cards, 'карточка', 'карточки', 'карточек')}). Что с ними сделать?`
+            : `Папка «${f.name}» пустая.`}
+        </p>
+        <p className="small muted">Сразу после удаления можно нажать «Вернуть»; удалённые предметы лежат в корзине.</p>
+        <div className="row end gap8 wrap">
+          <button className="btn ghost" onClick={onClose}>
+            Отмена
+          </button>
+          <button className="btn" onClick={() => run(false)}>
+            {subjects.length ? 'Удалить папку, предметы оставить' : 'Удалить папку'}
+          </button>
+          {subjects.length > 0 && (
+            <button className="btn danger-solid" onClick={() => run(true)}>
+              Удалить вместе с предметами
+            </button>
+          )}
+        </div>
+      </div>
     </Modal>
   );
 }
