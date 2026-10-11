@@ -35,6 +35,8 @@ import { keyFor, matches, prettyCombo } from '../keys';
 import type { Card, CardType, ListKind, Route } from '../types';
 import { openExamDialog } from '../components/ExamDialog';
 import { NoteHistoryDialog } from '../components/NoteHistory';
+import { AiCardDrafts } from '../components/AiCardDrafts';
+import { aiAvailable } from '../ai';
 
 const TYPE_LABEL: Record<CardType, string> = {
   basic: 'Вопрос — ответ',
@@ -60,6 +62,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [rulesOpen, setRulesOpen] = useState(false);
   const plugins = usePlugins();
   const [noteCards, setNoteCards] = useState(false);
+  const [aiCards, setAiCards] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   if (!topic) return <div className="page">Тема не найдена.</div>;
   const subject = data.subjects.find((s) => s.id === topic.subjectId);
@@ -187,7 +190,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
           )}
           {topic.examDate && topic.kind !== 'rule' && examInfo && examInfo.total > 0 && <ExamPlanLine plan={examInfo} />}
         </div>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           {sp.label && <span className="chip neutral" title="Выбрано в меню «Что учить» справа от кнопки">{sp.label}</span>}
           {due === 0 && canRepeat ? (
             <button className="btn primary big-ish" title="На сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) })}>
@@ -204,6 +207,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
             items={[
               { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) }), hidden: !canRepeat },
               { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
+              { label: 'Черновики карточек от ИИ', icon: 'bot', hint: 'ИИ предложит вопросы по конспекту, ты проверишь', onClick: () => setAiCards(true), hidden: !topic.note.trim() || !aiAvailable(data) },
               { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
               {
                 label: 'Проверить себя',
@@ -353,6 +357,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       )}
       {printOpen && <PrintDialog topicId={id} onClose={() => setPrintOpen(false)} />}
       {noteCards && <NoteToCards topicId={id} onClose={() => setNoteCards(false)} />}
+      {aiCards && <AiCardDrafts topicId={id} onClose={() => setAiCards(false)} />}
       {historyOpen && (
         <NoteHistoryDialog
           topicId={id}
@@ -626,8 +631,10 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
   const data = useData();
   const [editing, setEditing] = useState<string | null>(null);
   const [fromNote, setFromNote] = useState(false);
+  const [aiDrafts, setAiDrafts] = useState(false);
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
+  const canAi = aiAvailable(data) && Boolean(data.topics.find((t) => t.id === topicId)?.note.trim()); // ИИ включён и есть конспект: можно предложить черновики
   const [onlyHard, setOnlyHard] = useState(false);
   const now = Date.now();
   const q = normalizeAnswer(query);
@@ -655,8 +662,14 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           <button className="btn" onClick={() => setAdding(true)}>
             <Icon name="plus" size={18} /> Вручную
           </button>
+          {canAi && (
+            <button className="btn" onClick={() => setAiDrafts(true)} title="ИИ предложит вопросы по конспекту, а ты проверишь и поправишь">
+              <Icon name="bot" size={18} /> Черновики от ИИ
+            </button>
+          )}
         </div>
         {fromNote && <NoteToCards topicId={topicId} onClose={() => setFromNote(false)} />}
+        {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
         {adding && (
           <Modal title="Новая карточка" onClose={() => setAdding(false)} width={620}>
             <CardEditor topicId={topicId} onDone={() => setAdding(false)} />
@@ -676,6 +689,12 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           <Icon name="sparkle" size={16} /> Из конспекта
         </button>
         {fromNote && <NoteToCards topicId={topicId} onClose={() => setFromNote(false)} />}
+        {canAi && (
+          <button className="btn" onClick={() => setAiDrafts(true)} title="ИИ предложит вопросы по конспекту, а ты проверишь и поправишь">
+            <Icon name="bot" size={16} /> Черновики от ИИ
+          </button>
+        )}
+        {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
         {hard.length > 0 && (
           <button className={'chip-btn' + (onlyHard ? ' on' : '')} onClick={() => setOnlyHard(!onlyHard)} title="Карточки, которые долго не запоминаются">
             Трудные · {hard.length}

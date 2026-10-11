@@ -2,7 +2,7 @@
 // Безопасный режим — ни один мод не работает и ничего нельзя поставить, пока не разрешишь.
 import { useEffect, useRef, useState } from 'react';
 import { CATALOG_PLUGINS, TEMPLATE } from '../plugins/catalog';
-import { parseHeader, reloadPlugin, usePlugins } from '../plugins/host';
+import { parseHeader, reloadPlugin, setPluginAi, usePlugins } from '../plugins/host';
 import { downloadFile } from '../share';
 import { updateSettings, useData } from '../store';
 import type { PluginRec } from '../types';
@@ -199,12 +199,16 @@ export function PluginsSettings() {
                 <div className="plug-text">
                   <strong>{p.name}</strong>
                   <span className="small muted clamp">{p.description}</span>
+                  {p.ai && <span className="small muted">Может спрашивать ИИ</span>}
                   {err ? <span className="small err-text">Ошибка: {err}</span> : p.enabled && !running ? <span className="small muted">Запускается…</span> : null}
                 </div>
                 <MoreMenu
                   label={`Действия с модом ${p.name}`}
                   items={[
                     { label: 'Настройки мода', icon: 'sliders', onClick: () => setSettingsOf(p), hidden: !reg.settingsTabs.has(p.id) },
+                    p.ai
+                      ? { label: 'Запретить моду ИИ', icon: 'bot', hint: 'Сейчас мод может спрашивать ИИ-помощника', onClick: () => setPluginAi(p.id, false) }
+                      : { label: 'Разрешить моду ИИ', icon: 'bot', hint: p.ai === false ? 'Сейчас запрещено' : 'Мод сможет отправлять тексты ИИ-помощнику', onClick: () => setPluginAi(p.id, true) },
                     { label: 'Открыть код', icon: 'code', onClick: () => setEditing(p) },
                     { label: 'Сохранить файлом', icon: 'share', onClick: () => downloadFile(p.id + '.js', p.code, 'text/javascript') },
                     {

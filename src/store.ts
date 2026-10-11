@@ -198,10 +198,11 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
   const foreign: string[] = [];
   const plugins = (d.settings.plugins ?? []).map((p) => {
     const mine = own.get(p.id);
-    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog };
-    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true };
+    // Разрешение «спрашивать ИИ» тоже берём только у себя: из чужого файла оно не приходит.
+    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog, ai: mine.ai };
+    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true, ai: undefined };
     foreign.push(p.name);
-    return { ...p, enabled: false, fromCatalog: false };
+    return { ...p, enabled: false, fromCatalog: false, ai: undefined };
   });
   if (foreign.length) notes.push(`моды из копии выключены (${foreign.slice(0, 5).join(', ')}) — включай их сам, только если им доверяешь`);
   // Указания для ИИ и выбор ИИ для задач — тоже только свои: чужой файл не должен подсказывать ИИ, что отвечать.
@@ -235,7 +236,7 @@ export function normalizeData(raw: unknown): AppData {
       ...DEFAULT_SETTINGS,
       ...(r.settings ?? {}),
       features: { ...DEFAULT_SETTINGS.features, ...(r.settings?.features ?? {}) },
-      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins : [],
+      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins.map((p) => ({ ...p, ai: typeof p.ai === 'boolean' ? p.ai : undefined })) : [],
       pluginData: r.settings?.pluginData && typeof r.settings.pluginData === 'object' ? r.settings.pluginData : {},
       homeworkRemind: { ...DEFAULT_SETTINGS.homeworkRemind, ...(r.settings?.homeworkRemind ?? {}) },
       lessonsRemind: { ...DEFAULT_SETTINGS.lessonsRemind, ...(r.settings?.lessonsRemind ?? {}) },

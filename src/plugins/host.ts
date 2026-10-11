@@ -10,6 +10,7 @@ import { toast } from '../components/ui';
 import { addCard, addHomework, addTopic, getData, updateCard, updateSettings, updateTopic } from '../store';
 import type { AppData, Card, PluginRec, Route } from '../types';
 import { emit, on } from './bus';
+import { aiText, rateCheck } from './aiGate';
 
 export interface PluginCommand {
   id: string;
@@ -92,6 +93,74 @@ export function runPostProcessors(el: HTMLElement, source: string) {
 function safeData(d: AppData) {
   // Моду отдаём копию, чтобы он не испортил данные случайно — менять данные можно только методами app.data.*
   return structuredClone(d);
+}
+
+// ---------- ИИ для модов: с разрешения ученика ----------
+
+const aiHistory = new Map<string, number[]>();
+const aiAsking = new Map<string, Promise<boolean>>();
+
+/** Запомнить решение ученика для мода (в настройках, рядом с самим модом). */
+export function setPluginAi(id: string, allow: boolean | undefined) {
+  const plugins = getData().settings.plugins;
+  updateSettings({ plugins: plugins.map((x) => (x.id === id ? { ...x, ai: allow } : x)) });
+}
+
+/** Окно «Мод хочет спросить ИИ». Ответ запоминается; пока окно открыто, повторные запросы мода ждут то же решение. */
+function askAiPermission(p: PluginRec): Promise<boolean> {
+  const pending = aiAsking.get(p.id);
+  if (pending) return pending;
+  const res = new Promise<boolean>((resolve) => {
+    const back = document.createElement('div');
+    back.className = 'modal-back plugin-modal';
+    const box = document.createElement('div');
+    box.className = 'modal';
+    box.setAttribute('role', 'dialog');
+    box.style.width = '460px';
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    const h = document.createElement('h2');
+    h.textContent = 'Разрешить моду спрашивать ИИ?';
+    const x = document.createElement('button');
+    x.className = 'icon-btn';
+    x.textContent = '✕';
+    x.setAttribute('aria-label', 'Закрыть');
+    head.append(h, x);
+    const body = document.createElement('div');
+    body.style.cssText = 'display:flex;flex-direction:column;gap:12px';
+    const t1 = document.createElement('p');
+    t1.textContent = `Мод «${p.name}» хочет отправлять тексты твоему ИИ-помощнику и получать ответы. Ключи ИИ он при этом не получает.`;
+    const t2 = document.createElement('p');
+    t2.className = 'small muted';
+    t2.textContent = 'Тексты уходят в сервис ИИ — это может быть и то, что мод прочитал в твоих конспектах. Запросов не больше 6 в минуту. Передумаешь — «Настройки → Моды → ⋯ у мода».';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
+    const no = document.createElement('button');
+    no.className = 'btn ghost';
+    no.textContent = 'Не разрешать';
+    const yes = document.createElement('button');
+    yes.className = 'btn primary';
+    yes.textContent = 'Разрешить';
+    row.append(no, yes);
+    body.append(t1, t2, row);
+    box.append(head, body);
+    back.append(box);
+    document.body.append(back);
+    const done = (v: boolean) => {
+      back.remove();
+      resolve(v);
+    };
+    x.onclick = () => done(false);
+    no.onclick = () => done(false);
+    yes.onclick = () => done(true);
+    yes.focus();
+  }).then((v) => {
+    setPluginAi(p.id, v);
+    aiAsking.delete(p.id);
+    return v;
+  });
+  aiAsking.set(p.id, res);
+  return res;
 }
 
 function makeApi(p: PluginRec) {
@@ -213,7 +282,15 @@ function makeApi(p: PluginRec) {
     },
     ai: {
       async ask(text: string) {
-        const r = await window.mnemaApi?.aiAsk?.({ text: String(text), maxTokens: 800 });
+        const q = aiText(text);
+        // Разрешение берём из настроек каждый раз (ученик мог передумать); не решал — спросим.
+        const allowed = getData().settings.plugins.find((x) => x.id === p.id)?.ai ?? (await askAiPermission(p));
+        if (!allowed) throw new Error('Ученик не разрешил этому моду пользоваться ИИ.');
+        if (!getData().settings.features.ai) throw new Error('ИИ-помощник выключен в настройках.');
+        const gate = rateCheck(aiHistory.get(p.id) ?? [], Date.now());
+        aiHistory.set(p.id, gate.history);
+        if (!gate.ok) throw new Error(`Слишком много запросов к ИИ от этого мода. Подожди ${gate.waitSec} с.`);
+        const r = await window.mnemaApi?.aiAsk?.({ text: q, maxTokens: 800 });
         if (!r) throw new Error('ИИ-помощник не настроен');
         if (!r.ok) throw new Error(r.error);
         return r.text;

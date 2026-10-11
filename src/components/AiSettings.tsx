@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { humanError, testConnection } from '../ai';
 import type { AiAuth, AiConfig, AiFormat, AiModelInfo, AiProvider, CustomAi, CustomAiDraft } from '../store';
 import { Icon, Modal, Segmented, Switch, Collapse } from './ui';
+import { AiNotes } from './AiNotes';
 
 type ConfigPatch = Partial<Omit<AiConfig, 'hasKey' | 'custom'>> & { key?: { provider: 'anthropic' | 'gemini'; value: string } };
 type Status = { kind: 'ok' | 'warn' | 'info'; text: string } | null;
@@ -237,6 +238,8 @@ export function AiSettings() {
       <p className="small muted">
         ИИ получает текст карточки, рисунок, фото страницы или запись голоса только когда ты сам нажимаешь кнопку («Объясни иначе», «Распознать», «Из учебника», «Ответить голосом»). Ответы ИИ могут ошибаться — сверяй с учебником.
       </p>
+
+      <AiNotes cfg={cfg} />
 
       {editing && (
         <CustomAiEditor

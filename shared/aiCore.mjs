@@ -182,6 +182,19 @@ export function createAiService({ http, store }) {
     throw new Error('Не выбран ИИ.');
   }
 
+  /** Для задачи можно выбрать другой настроенный ИИ (req.provider). Такого нет, он удалён или без ключа — берём основной, чтобы задача не ломалась. */
+  function pickFor(c, want) {
+    if (typeof want === 'string' && want && want !== c.provider) {
+      try {
+        const r = resolve(c, want);
+        if (!r.needKey || r.key) return r;
+      } catch {
+        /* выбранный ИИ удалён */
+      }
+    }
+    return resolve(c, c.provider);
+  }
+
   async function runOnce(p, key, req, maxTokens) {
     if (p.format === 'anthropic') return callAnthropic(p, key, req, maxTokens);
     if (p.format === 'gemini') return callGemini(p, key, req, maxTokens);
@@ -385,7 +398,7 @@ export function createAiService({ http, store }) {
       if (req.image && (typeof req.image.data !== 'string' || req.image.data.length > 8 * 1024 * 1024)) return { ok: false, error: 'Картинка слишком большая' };
       try {
         const c = normalizeConfig(store.read());
-        let r = resolve(c, c.provider);
+        let r = pickFor(c, req.provider);
         if (req.image && r.p.vision === false) {
           if (!c.visionProvider) throw new Error(`«${r.p.name}» не понимает картинки. В настройках ИИ выбери, какой ИИ использовать для картинок.`);
           r = resolve(c, c.visionProvider);
