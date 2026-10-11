@@ -17,13 +17,13 @@ await win.getByRole('button', { name: 'Посмотреть на примере'
 await win.waitForTimeout(1500);
 await app.close();
 // Все карточки примера «выучены» 5 дней назад и ждут повторения сегодня — для «почему?».
-const d = JSON.parse(fs.readFileSync(dir + '/mnema-data.json', 'utf8'));
+const d = JSON.parse(fs.readFileSync(dir + '/Мои данные/refrain-data.json', 'utf8'));
 const now = Date.now();
 for (const c of d.cards) {
   const n = c.type === 'reverse' ? 2 : c.type === 'cloze' ? (c.front.match(/\{\{/g) || []).length : 1;
   for (let o = 0; o < Math.max(1, n); o++) d.states[c.id + ':' + o] = { due: new Date(now - 3600e3).toISOString(), stability: 5, difficulty: 5, elapsed_days: 5, scheduled_days: 5, reps: 3, lapses: 0, state: 2, last_review: new Date(now - 5 * 864e5).toISOString(), learning_steps: 0 };
 }
-fs.writeFileSync(dir + '/mnema-data.json', JSON.stringify(d));
+fs.writeFileSync(dir + '/Мои данные/refrain-data.json', JSON.stringify(d));
 app = await launch();
 win = await app.firstWindow();
 watch(win);

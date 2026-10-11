@@ -352,7 +352,7 @@
 
 ### 6.2 Данные
 - **Всё состояние** — один объект `AppData` (раздел 7).
-- **Хранение:** Windows — JSON-файл `%APPDATA%\Mnema\mnema-data.json` с ежедневными копиями; Android — файл через мост; браузер (dev) — localStorage.
+- **Хранение:** Windows — JSON-файл `%APPDATA%\Refrain\Мои данные\refrain-data.json` с ежедневными копиями в `Резервные копии\` (служебные файлы Electron, ключи ИИ и пароль облака — отдельно, в `%APPDATA%\Refrain\Служебное\`; логика — `electron/dataLayout.cjs`; со старого `%APPDATA%\Mnema` данные копируются при первом запуске, старое не удаляется); Android — файл через мост; браузер (dev) — localStorage.
 - **`src/store.ts`** — единый стор: `getData`, `useData` (useSyncExternalStore), `commit`, отложенное сохранение (`persistNow`), все операции:
   - `addTopic`, `updateTopic`, `addCard`, `updateCard`, `deleteCardsUndoable` / `restoreRemoved`;
   - `addList`, `updateList`, `deleteList`, `addListRow(s)`;

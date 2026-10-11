@@ -427,6 +427,11 @@ function DataPane({ go }: { go: (r: Route) => void }) {
     if (r.ok && r.zip) setMsg(`Готово: ${r.written} файлов в архиве «${r.folder}». Распакуй его в хранилище Obsidian.`);
     else if (r.ok) setMsg(`Готово: ${r.written} файлов в папке «${r.folder}».`);
   }
+  const [dataDir, setDataDir] = useState('');
+  useEffect(() => {
+    void api?.dataFolderPath?.().then(setDataDir, () => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const desktop = Boolean(api?.dataFolderPath);
   const where = api?.platform === 'android' ? 'телефоне' : api?.platform === 'web' ? 'устройстве, в браузере' : api ? 'компьютере' : 'устройстве';
   return (
     <div className="stack gap16">
@@ -455,13 +460,25 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Открыть
           </button>
         </SRow>
-        {api?.openDataFolder && (
-          <SRow label="Папка с данными">
-            <button className="btn small" onClick={() => void api.openDataFolder?.()}>
+        {desktop ? (
+          <SRow
+            label="Папка с данными"
+            hint={
+              <>
+                Здесь лежат твои предметы, конспекты и карточки (один файл refrain-data.json) и папка «Резервные копии»; в «ПРОЧТИ.txt» написано, как перенести всё на другой компьютер. Служебные файлы программы лежат отдельно — открывать их не нужно.
+                {dataDir && <span style={{ display: 'block', marginTop: 4, userSelect: 'text', wordBreak: 'break-all' }}>{dataDir}</span>}
+              </>
+            }
+          >
+            <button className="btn small" onClick={() => void api?.openDataFolder?.()}>
               Открыть
             </button>
           </SRow>
-        )}
+        ) : api?.platform === 'android' ? (
+          <SRow label="Где лежат данные" hint="В памяти приложения на этом телефоне — отдельной папки с файлами нет. Перенести на другое устройство можно через «Сохранить копию» и «Восстановить из копии» или через «Между устройствами»." />
+        ) : api?.platform === 'web' ? (
+          <SRow label="Где лежат данные" hint="В хранилище этого браузера на этом устройстве — папки с файлами нет. Если очистить данные сайтов или сменить браузер, они пропадут, поэтому иногда сохраняй копию. Перенести на другое устройство: «Сохранить копию» и «Восстановить из копии» или «Между устройствами»." />
+        ) : null}
       </Group>
       {(api?.http || api?.secretGet) && (
         <Group title="Между устройствами" id="sync">

@@ -61,6 +61,6 @@ await w2.locator('.modal .hint.warn').waitFor({ timeout: 20000 });
 step('wrong code: ' + (await w2.locator('.modal .hint.warn').innerText()));
 await pc.close();
 await ph.close();
-const da = JSON.parse(fs.readFileSync(A + '/mnema-data.json', 'utf8'));
-const db = JSON.parse(fs.readFileSync(B + '/mnema-data.json', 'utf8'));
+const da = JSON.parse(fs.readFileSync(A + '/Мои данные/refrain-data.json', 'utf8'));
+const db = JSON.parse(fs.readFileSync(B + '/Мои данные/refrain-data.json', 'utf8'));
 console.log('files equal content:', da.subjects.length, db.subjects.length, da.cards.length, db.cards.length, da.topics.length, db.topics.length);
