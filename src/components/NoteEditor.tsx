@@ -18,6 +18,7 @@ import type { HighlightSettings } from '../types';
 import { AutoHighlight, autoHighlightKey, findTextRange } from './autoHighlight';
 import type { RuleMatcher } from '../rules';
 import { VideoImage } from './videoNode';
+import { clipboardSerializer, sliceToMarkdown } from '../noteClipboard';
 import { LinkPicker, openMnemaLink } from './Links';
 import { parseVideo, VIDEO_ALT } from '../video';
 import { DRAWING_ALT, DrawingEditor, drawingToSvg, parseDrawing, svgToDataUri, type DrawingData } from './Drawing';
@@ -206,6 +207,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   // Панель выделения показывает, что уже включено (жирный, маркер…) — перерисовываем её, пока она открыта.
   const [, repaint] = useReducer((x: number) => x + 1, 0);
 
+  const edRef = useRef<Editor | null>(null);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, protocols: ['mnema'], isAllowedUri: (url, c) => url.startsWith('mnema://') || c.defaultValidate(url) } }),
@@ -234,7 +236,13 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     ],
     content: markdown,
     contentType: 'markdown',
+    // В буфер уходит чистый Markdown (для текстовых программ) и HTML, где формулы видны текстом $…$ (для Word и Google Docs).
+    onCreate: ({ editor: ed }) => {
+      edRef.current = ed;
+      ed.view.setProps({ clipboardSerializer: clipboardSerializer(ed.schema) });
+    },
     editorProps: {
+      clipboardTextSerializer: (slice) => (edRef.current ? sliceToMarkdown(edRef.current, slice) : slice.content.textBetween(0, slice.content.size, '\n\n')),
       attributes: { class: 'note-doc', spellcheck: 'true' },
       // Вставил ссылку на видео — появился плеер.
       handlePaste: (view, event) => {
@@ -660,7 +668,7 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   }
 
   return (
-    <div className="note-page">
+    <div className="note-page" data-part="note">
       <div className="note-insert" ref={barRef}>
         {bar('inline')}
       </div>

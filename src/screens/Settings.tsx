@@ -1,5 +1,6 @@
 // Настройки: слева разделы, справа — один раздел. Ничего не надо листать и искать глазами: есть поиск по настройкам.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Logo } from '../components/Logo';
 import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
@@ -8,6 +9,7 @@ import { PluginsSettings } from '../components/PluginsSettings';
 import { StylesSettings } from '../components/ModsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
+import { MarkdownImport } from '../components/MarkdownImport';
 import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
 import { CloudDialog } from '../components/CloudDialog';
@@ -15,7 +17,7 @@ import { AiSettings } from '../components/AiSettings';
 import { FEATURES, MODS_AVAILABLE } from '../featureList';
 import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
-import { downloadFile, importTopicPackage, isTopicPackage } from '../share';
+import { downloadBytes, downloadFile, importTopicPackage, isTopicPackage } from '../share';
 import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
@@ -333,7 +335,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
   const hwOn = s.features.homework;
   return (
     <div className="stack gap16">
-      <PaneHead title="Напоминания" text={android ? 'Уведомления приходят, даже если Refrain закрыта. Если телефон спросит — разреши.' : 'Уведомления Windows приходят, пока Refrain открыта или работает у часов.'} />
+      <PaneHead title="Напоминания" text={android ? 'Уведомления приходят, даже если Refrain закрыта. Если телефон спросит — разреши.' : `Уведомления ${window.mnemaApi?.platform === 'win32' ? 'Windows' : 'компьютера'} приходят, пока Refrain открыта или работает у часов.`} />
       <Group title="Домашка" id="hw">
         {hwOn ? (
           <>
@@ -386,7 +388,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
       </Group>
       {desktop && (
         <Group title="Значок у часов" id="tray">
-          <SRow label="Показывать значок у часов" hint="Число карточек на сегодня и напоминания">
+          <SRow label="Показывать значок у часов" hint={window.mnemaApi?.platform === 'linux' ? 'Число карточек и напоминания. В GNOME нужно расширение «AppIndicator»; без значка закрытие окна сворачивает Refrain' : 'Число карточек на сегодня и напоминания'}>
             <Switch label="Значок у часов" checked={s.features.tray} onChange={(v) => setFeature('tray', v)} />
           </SRow>
           {s.features.tray && (
@@ -397,7 +399,7 @@ function RemindersPane({ desktop, android }: { desktop: boolean; android: boolea
               <SRow label="При закрытии окна оставаться у часов" hint="Тогда напоминания работают, даже если окно закрыто">
                 <Switch label="Оставаться у часов" checked={s.closeToTray} onChange={(v) => updateSettings({ closeToTray: v })} />
               </SRow>
-              <SRow label="Запускать вместе с Windows" hint="Тихо, сразу у часов">
+              <SRow label={window.mnemaApi?.platform === 'linux' ? 'Запускать при входе в систему' : 'Запускать вместе с Windows'} hint="Тихо, сразу у часов">
                 <Switch label="Автозапуск" checked={s.autostart} onChange={(v) => updateSettings({ autostart: v })} />
               </SRow>
             </>
@@ -416,6 +418,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   const [msg, setMsg] = useState('');
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [anki, setAnki] = useState(false);
+  const [mdImport, setMdImport] = useState(false);
   const [sync, setSync] = useState(false);
   const [cloud, setCloud] = useState(false);
   const [exportKind, setExportKind] = useState<'anki' | 'print' | null>(null);
@@ -426,6 +429,29 @@ function DataPane({ go }: { go: (r: Route) => void }) {
     const r = await api!.obsidianExport!(buildObsidianExport(data));
     if (r.ok && r.zip) setMsg(`Готово: ${r.written} файлов в архиве «${r.folder}». Распакуй его в хранилище Obsidian.`);
     else if (r.ok) setMsg(`Готово: ${r.written} файлов в папке «${r.folder}».`);
+  }
+  const [dataDir, setDataDir] = useState('');
+  useEffect(() => {
+    void api?.dataFolderPath?.().then(setDataDir, () => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const desktop = Boolean(api?.dataFolderPath);
+  async function runMarkdownExport(flavor: 'plain' | 'obsidian') {
+    try {
+      const { buildMarkdownExport, zipExport } = await import('../mdExport');
+      const files = buildMarkdownExport(data, { flavor });
+      const name = `Refrain конспекты ${new Date().toISOString().slice(0, 10)}.zip`;
+      const ok = await downloadBytes(name, await zipExport(files), 'application/zip');
+      setMsg(ok ? `Готово: ${files.length} файлов в архиве «${name}». Распакуй его — внутри папка с конспектами.` : 'Сохранение отменено.');
+    } catch (e) {
+      setMsg('Не получилось: ' + (e as Error).message);
+    }
+  }
+  async function runCardsExport(kind: 'csv' | 'md') {
+    const { cardsToCsv, cardsToMarkdown } = await import('../mdCards');
+    const flat = data.subjects.flatMap((s) => data.topics.filter((t) => t.subjectId === s.id).flatMap((t) => data.cards.filter((c) => c.topicId === t.id).map((c) => ({ subject: s.name, topic: t.name, type: c.type, front: c.front, back: c.back, why: c.why }))));
+    if (!flat.length) return setMsg('Карточек пока нет.');
+    const day = new Date().toISOString().slice(0, 10);
+    downloadFile(kind === 'csv' ? `Карточки ${day}.csv` : `Карточки ${day}.md`, kind === 'csv' ? cardsToCsv(flat) : cardsToMarkdown(flat), kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/markdown;charset=utf-8');
   }
   const where = api?.platform === 'android' ? 'телефоне' : api?.platform === 'web' ? 'устройстве, в браузере' : api ? 'компьютере' : 'устройстве';
   return (
@@ -455,13 +481,25 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Открыть
           </button>
         </SRow>
-        {api?.openDataFolder && (
-          <SRow label="Папка с данными">
-            <button className="btn small" onClick={() => void api.openDataFolder?.()}>
+        {desktop ? (
+          <SRow
+            label="Папка с данными"
+            hint={
+              <>
+                Здесь лежат твои предметы, конспекты и карточки (один файл refrain-data.json) и папка «Резервные копии»; в «ПРОЧТИ.txt» написано, как перенести всё на другой компьютер. Служебные файлы программы лежат отдельно — открывать их не нужно.
+                {dataDir && <span style={{ display: 'block', marginTop: 4, userSelect: 'text', wordBreak: 'break-all' }}>{dataDir}</span>}
+              </>
+            }
+          >
+            <button className="btn small" onClick={() => void api?.openDataFolder?.()}>
               Открыть
             </button>
           </SRow>
-        )}
+        ) : api?.platform === 'android' ? (
+          <SRow label="Где лежат данные" hint="В памяти приложения на этом телефоне — отдельной папки с файлами нет. Перенести на другое устройство можно через «Сохранить копию» и «Восстановить из копии» или через «Между устройствами»." />
+        ) : api?.platform === 'web' ? (
+          <SRow label="Где лежат данные" hint="В хранилище этого браузера на этом устройстве — папки с файлами нет. Если очистить данные сайтов или сменить браузер, они пропадут, поэтому иногда сохраняй копию. Перенести на другое устройство: «Сохранить копию» и «Восстановить из копии» или «Между устройствами»." />
+        ) : null}
       </Group>
       {(api?.http || api?.secretGet) && (
         <Group title="Между устройствами" id="sync">
@@ -499,6 +537,11 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Выбрать файл
           </button>
         </SRow>
+        <SRow label="Из папки Markdown, Obsidian или .zip" hint="Конспекты .md с картинками и карточками; подойдёт и архив из «Всё в Markdown»">
+          <button className="btn small" onClick={() => setMdImport(true)}>
+            Выбрать
+          </button>
+        </SRow>
         <SRow label="Тема из файла" hint="Файл .mnema, которым поделился друг">
           <button className="btn small" onClick={() => topicRef.current?.click()}>
             Выбрать файл
@@ -519,6 +562,22 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         <SRow label="Распечатать карточки" hint="Для вырезания или списком">
           <button className="btn small" onClick={() => setExportKind('print')}>
             Печать
+          </button>
+        </SRow>
+        <SRow label="Всё в Markdown (.zip)" hint="Папки, предметы и темы — файлами .md, картинки и рисунки — в attachments, карточки внутри тем, формулы $…$. Откроется в Obsidian, Typora, VS Code; вернуть в приложение можно через «Импорт»">
+          <button className="btn small" onClick={() => void runMarkdownExport('plain')} title="Обычные ссылки между темами">
+            Экспорт
+          </button>
+          <button className="btn small" onClick={() => void runMarkdownExport('obsidian')} title="Ссылки [[между темами]], выноски и видео в стиле Obsidian">
+            Для Obsidian
+          </button>
+        </SRow>
+        <SRow label="Карточки таблицей и текстом" hint="CSV для Excel, Anki и Quizlet или Markdown со всеми карточками">
+          <button className="btn small" onClick={() => void runCardsExport('csv')}>
+            CSV
+          </button>
+          <button className="btn small" onClick={() => void runCardsExport('md')}>
+            Markdown
           </button>
         </SRow>
         {api?.obsidianExport && (
@@ -575,6 +634,16 @@ function DataPane({ go }: { go: (r: Route) => void }) {
       {cloud && <CloudDialog onClose={() => setCloud(false)} />}
       {exportKind === 'anki' && <AnkiExportDialog onClose={() => setExportKind(null)} />}
       {exportKind === 'print' && <PrintDialog onClose={() => setExportKind(null)} />}
+      {mdImport && (
+        <MarkdownImport
+          onClose={() => setMdImport(false)}
+          onDone={(id) => {
+            setMdImport(false);
+            setMsg('Импорт готов.');
+            if (id) go({ name: 'topic', id });
+          }}
+        />
+      )}
       {anki && <AnkiImport onClose={() => setAnki(false)} onOpenTopic={(id) => go({ name: 'topic', id })} />}
       {confirmWipe && (
         <Modal title="Удалить все данные?" onClose={() => setConfirmWipe(false)}>
@@ -631,6 +700,22 @@ function DataPane({ go }: { go: (r: Route) => void }) {
 
 /** Что нового — по версиям. Показывается в «О Refrain» одной панелью с переключателем версий. */
 const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
+  {
+    v: '1.29.0',
+    items: [
+      { t: 'Refrain для Linux: AppImage, .deb и архив; файлы Refrain открываются двойным щелчком, есть автозапуск и уведомления' },
+      { t: 'Конспект по фото учебника стал в разы точнее: страница на столе выпрямляется, тени убираются, две колонки читаются по порядку, абзацы, списки, рамки «Запомните» и рисунки с подписями на месте' },
+      { t: 'Свои значки из картинок для папок и предметов' },
+      { t: '«Всё в Markdown (.zip)» и импорт обратно — переносится в Obsidian и другие программы без потерь; понятная папка «Мои данные»', desk: true },
+      { t: 'Настоящие стили: не только цвета, но и раскладка. «Настройки → Стили»: панель слева, справа, сверху или узкая со значками; плотность, ширина, плитки вместо списка тем, вид карточек, кнопок оценки и вкладок. Встроенные: Компакт, Фокус, Плитки, Панель сверху и справа, Крупно для планшета, Стекло — у каждого живой пример' },
+      { t: 'Можно включить несколько стилей сразу и расставить их по порядку (нижний перекрывает верхние); у стиля есть свои настройки — цвета, ползунки, переключатели' },
+      { t: 'Свои стили: редактор справа от настоящего интерфейса — конструктор без кода, режим CSS с подсказками переменных и классов, настройки для тех, кто будет пользоваться стилем, справка. «Создать на основе» любого стиля, файлы .refrainstyle (старые .mnemamod открываются), сниппеты «Мой CSS»' },
+      { t: 'Стили — только оформление, программ в них нет: ссылки в интернет и скрипты из файла не работают' },
+      { t: 'Заставка при запуске в цвет твоей темы и больше не играет дважды; в веб-версии обновление применяется тихо, без плашки' },
+      { t: 'Новый логотип Refrain — R с эхо: играет при появлении и при наведении (в «анимациях выкл» стоит спокойно)' },
+      { t: 'Исправлено: текст не вылезает за рамки, подписи на кнопках оценки («через сколько вернётся»), «Всё повторено» только когда правда повторено, копирование и вставка папок, предметов и тем, удаление папки, домашка (удаление и очистка сделанного), значки по центру, знакомство без задержек' }
+    ]
+  },
   {
     v: '1.28.0',
     items: [
@@ -965,7 +1050,7 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
   return (
     <div className="stack gap16">
       <div className="about">
-        <div className="logo big">R</div>
+        <Logo size={64} />
         <div className="stack gap4">
           <h2>Refrain {VERSION}</h2>
           <span className="muted">Конспекты, карточки и повторение по науке о памяти.</span>

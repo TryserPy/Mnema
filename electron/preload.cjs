@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('mnemaApi', {
   save: (json) => ipcRenderer.invoke('data:save', json),
   saveSync: (json) => ipcRenderer.sendSync('data:saveSync', json),
   openDataFolder: () => ipcRenderer.invoke('data:folder'),
+  dataFolderPath: () => ipcRenderer.invoke('data:folderPath'),
   backupList: () => ipcRenderer.invoke('backup:list'),
   backupRead: (name) => ipcRenderer.invoke('backup:read', name),
   obsidianPick: () => ipcRenderer.invoke('obsidian:pick'),
@@ -34,6 +35,13 @@ contextBridge.exposeInMainWorld('mnemaApi', {
     const h = (_e, p) => cb(p);
     ipcRenderer.on('update:event', h);
     return () => ipcRenderer.removeListener('update:event', h);
+  },
+  // Файл Refrain (.mnema, .refrainstyle, .mnemamod), который открыли двойным щелчком или из командной строки.
+  onOpenFile: (cb) => {
+    const h = (_e, f) => cb(f);
+    ipcRenderer.on('file:open', h);
+    ipcRenderer.send('openfile:ready');
+    return () => ipcRenderer.removeListener('file:open', h);
   },
   onNotifyOpen: (cb) => {
     const h = (_e, what) => cb(what);

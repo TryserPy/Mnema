@@ -83,7 +83,7 @@ export interface CloudResult {
 /** Синхронизация с облаком: скачать → слить → загрузить. */
 export async function cloudSync(c: CloudSettings, pass: string, encPass: string, onStep?: (s: string) => void): Promise<CloudResult> {
   const http = window.mnemaApi?.http;
-  if (!http) throw new Error('Облако работает в приложении Refrain (Windows или Android).');
+  if (!http) throw new Error('Облако работает в приложении Refrain (Windows, Linux или Android).');
   if (c.encrypt && !encPass) throw new Error('Включено шифрование — задай пароль шифрования.');
   if (!/^https:\/\//i.test(c.url) && !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/i.test(c.url)) throw new Error('Адрес облака должен начинаться с https://');
   const auth = { authorization: basic(c.user, pass) };

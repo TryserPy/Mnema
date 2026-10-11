@@ -1,8 +1,9 @@
 // «Настройки → Стили»: плитки с живым примером каждого стиля. Пример — кусочек Refrain в своём Shadow DOM,
 // на него действует только CSS этого стиля (включённые стили и остальное приложение его не меняют).
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cssForDemo, demoParts, type DemoPart } from '../styleDemo';
+import { attrName, compileStyles } from '../styleSystem';
 import type { Mod } from '../types';
 import { Icon } from './ui';
 
@@ -50,9 +51,82 @@ const BASE_CSS = `
 .switch { width: 50px; height: 30px; box-sizing: border-box; border-radius: 15px; padding: 3px; margin-left: auto; background: var(--line-2); display: flex; justify-content: flex-start; }
 .switch.on { background: var(--accent); justify-content: flex-end; }
 .switch span { width: 24px; height: 24px; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+
+/* мини-приложение для стилей, которые меняют раскладку (атрибуты data-ui-* приходят на хозяина примера) */
+.mini { display: flex; gap: 8px; height: 190px; width: 100%; }
+.mini-side { width: 62px; flex: none; background: var(--side); border: 1px solid var(--line); border-radius: calc(var(--rf-radius-nav, 10px) + 2px); padding: 8px; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; }
+.mini-side i { display: block; height: calc(var(--rf-nav-h, 42px) * 0.2); min-height: 6px; border-radius: 4px; background: var(--line-2); }
+.mini-side i.on { background: var(--accent); }
+.mini-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; background: var(--bg); }
+.mini-col { width: 100%; max-width: 230px; display: flex; flex-direction: column; gap: calc(var(--gap, 16px) * 0.4); }
+.mini-tabs { display: flex; gap: 10px; border-bottom: 1px solid var(--line); font-size: 0.7rem; color: var(--muted); }
+.mini-tabs b { font-weight: 500; padding: 2px 4px; }
+.mini-tabs b.on { color: var(--ink); border-bottom: 2px solid var(--accent); }
+.mini-topics { display: flex; flex-direction: column; gap: calc(var(--rf-list-gap, 8px) * 0.5); }
+.mini-topics .topic-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: calc(var(--rf-btn-h, 42px) * 0.62); padding: 0 9px; font-size: 0.72rem; background: var(--surface); border: var(--rf-border-w, 1px) solid var(--line); border-radius: calc(var(--rf-radius-row, 14px) * 0.6); box-shadow: var(--shadow); box-sizing: border-box; }
+.mini-topics .badge { font-size: 0.6rem; min-width: 0; height: 15px; padding: 0 5px; }
+.mini .grades { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+.mini .grade { min-height: calc(var(--rf-grade-h, 70px) * 0.3); font-size: 0.6rem; border-radius: calc(var(--rf-radius-grade, 16px) * 0.4); }
+:host([data-ui-sidebar='right']) .mini { flex-direction: row-reverse; }
+:host([data-ui-sidebar='top']) .mini { flex-direction: column; }
+:host([data-ui-sidebar='top']) .mini-side { width: auto; flex-direction: row; align-items: center; height: 24px; padding: 0 8px; }
+:host([data-ui-sidebar='top']) .mini-side i { width: 30px; height: 7px; }
+:host([data-ui-sidebar='rail']) .mini-side { width: 24px; padding: 8px 5px; }
+:host([data-ui-content='narrow']) .mini-col { max-width: 140px; }
+:host([data-ui-content='wide']) .mini-col, :host([data-ui-content='full']) .mini-col { max-width: none; }
+:host([data-ui-topics='tiles']) .mini-topics { display: grid; grid-template-columns: 1fr 1fr; }
+:host([data-ui-topics='tiles']) .mini-topics .topic-row { min-height: 44px; flex-direction: column; align-items: flex-start; justify-content: center; }
+:host([data-ui-grades='grid']) .mini .grades { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:host([data-ui-grades='tall']) .mini .grade { min-height: 34px; }
+:host([data-ui-cards='flat']) .mini-topics .topic-row { border-color: transparent; box-shadow: none; }
+:host([data-ui-cards='outline']) .mini-topics .topic-row { border-width: 2px; box-shadow: none; }
+:host([data-ui-cards='sharp']) .mini-topics .topic-row { border-radius: 2px; }
+:host([data-ui-tabs='pills']) .mini-tabs { border-bottom: 0; }
+:host([data-ui-tabs='pills']) .mini-tabs b { border-radius: 999px; padding: 2px 8px; }
+:host([data-ui-tabs='pills']) .mini-tabs b.on { border-bottom: 0; background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+:host([data-ui-tabs='boxed']) .mini-tabs { border: 1px solid var(--line); border-radius: 9px; padding: 2px; background: var(--sunken); align-self: flex-start; gap: 2px; }
+:host([data-ui-tabs='boxed']) .mini-tabs b.on { border-bottom: 0; background: var(--surface); border-radius: 7px; }
 `;
 
 const PARTS: Record<DemoPart, ReactNode> = {
+  layout: (
+    <div className="mini">
+      <div className="mini-side">
+        <i className="on" />
+        <i />
+        <i />
+        <i />
+      </div>
+      <div className="mini-main">
+        <div className="mini-col">
+          <div className="mini-tabs">
+            <b className="on">Конспект</b>
+            <b>Карточки</b>
+            <b>Тест</b>
+          </div>
+          <div className="mini-topics">
+            <div className="topic-row">
+              <span>§1 Клетка</span>
+              <span className="badge">3</span>
+            </div>
+            <div className="topic-row">
+              <span>§2 Ткани</span>
+            </div>
+            <div className="topic-row">
+              <span>§3 Органы</span>
+              <span className="badge">1</span>
+            </div>
+          </div>
+          <div className="grades">
+            <span className="grade again">Снова</span>
+            <span className="grade hard">Трудно</span>
+            <span className="grade good">Хорошо</span>
+            <span className="grade easy">Легко</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  ),
   title: <div className="display">Сегодня</div>,
   nav: (
     <div className="nav-item">
@@ -117,7 +191,9 @@ export function StyleDemo({ mod, theme }: { mod: Mod; theme: string }) {
     const h = host.current;
     if (h) setRoot(h.shadowRoot ?? h.attachShadow({ mode: 'open' }));
   }, []);
-  const css = mod.css ?? '';
+  // Пример собирается тем же кодом, что и настоящий интерфейс: переменные, настройки (по умолчанию) и CSS стиля.
+  const compiled = useMemo(() => compileStyles([{ mod }]), [mod]);
+  const css = compiled.css;
   useEffect(() => {
     const h = host.current;
     if (!h || !root) return;
@@ -140,9 +216,10 @@ export function StyleDemo({ mod, theme }: { mod: Mod; theme: string }) {
       fonts?.removeEventListener?.('loadingdone', fit);
     };
   }, [root, css]);
-  const parts = demoParts(css);
+  const parts = demoParts(mod.css ?? '', compiled.attrs);
+  const hostAttrs = Object.fromEntries(Object.entries(compiled.attrs).map(([k, v]) => [attrName(k), v]));
   return (
-    <span ref={host} className="st-demo" data-theme={theme} style={mod.accent ? ({ '--accent': mod.accent } as CSSProperties) : undefined} aria-hidden="true">
+    <span ref={host} className="st-demo" data-theme={theme} {...hostAttrs} style={mod.accent ? ({ '--accent': mod.accent } as CSSProperties) : undefined} aria-hidden="true">
       {root &&
         createPortal(
           <>
@@ -159,8 +236,14 @@ export function StyleDemo({ mod, theme }: { mod: Mod; theme: string }) {
   );
 }
 
-/** Плитка стиля: пример сверху, название и пояснение снизу. Нажатие включает и выключает стиль. */
-export function StyleTile({ mod, on, theme, onToggle, onDelete, delay }: { mod: Mod; on: boolean; theme: string; onToggle: () => void; onDelete?: () => void; delay: number }) {
+export interface TileAction {
+  icon: string;
+  label: string;
+  run: () => void;
+}
+
+/** Плитка стиля: пример сверху, название и пояснение снизу. Нажатие включает и выключает стиль; в углу — «на основе», правка, файл, удаление. */
+export function StyleTile({ mod, on, theme, onToggle, actions = [], delay }: { mod: Mod; on: boolean; theme: string; onToggle: () => void; actions?: TileAction[]; delay: number }) {
   return (
     <div className={'st-cell' + (on ? ' on' : '')} style={{ animationDelay: delay + 'ms' }}>
       <button type="button" className="st-tile" aria-pressed={on} onClick={onToggle}>
@@ -172,14 +255,21 @@ export function StyleTile({ mod, on, theme, onToggle, onDelete, delay }: { mod: 
         </span>
         <span className="st-info">
           {mod.where && <span className="st-where">{mod.where}</span>}
-          <span className="st-name">{mod.name}</span>
+          <span className="st-name">
+            {mod.icon && <span aria-hidden="true">{mod.icon} </span>}
+            {mod.name}
+          </span>
           {mod.description && <span className="st-desc">{mod.description}</span>}
         </span>
       </button>
-      {onDelete && (
-        <button type="button" className="st-del" aria-label={`Удалить стиль «${mod.name}»`} title="Удалить" onClick={onDelete}>
-          <Icon name="trash" size={15} />
-        </button>
+      {actions.length > 0 && (
+        <span className="st-actions">
+          {actions.map((a) => (
+            <button key={a.label} type="button" className="st-act" aria-label={`${a.label}: «${mod.name}»`} title={a.label} onClick={a.run}>
+              <Icon name={a.icon} size={15} />
+            </button>
+          ))}
+        </span>
       )}
     </div>
   );

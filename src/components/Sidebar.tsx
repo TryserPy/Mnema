@@ -1,6 +1,8 @@
 // Левая панель: предметы → темы → подтемы. Её можно тянуть по ширине и сворачивать,
 // темы — перетаскивать (порядок, в другой предмет, внутрь другой темы), отмечать звёздочкой.
 import { openCreate } from './CreateMenu';
+import { useStyleAttr } from '../styleApply';
+import { Logo } from './Logo';
 import { copyToClip, hasClip, makeCopy, pasteClip } from './copyUi';
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as RPointerEvent } from 'react';
 import { keyFor, prettyCombo, typingTarget } from '../keys';
@@ -66,6 +68,7 @@ export function Sidebar({
   const [editFolder, setEditFolder] = useState<string | null>(null);
   const [delSubj, setDelSubj] = useState<string | null>(null);
   const [delFolder, setDelFolder] = useState<string | null>(null);
+  const railForced = useStyleAttr('sidebar') === 'rail'; // стиль с узкой панелью (значки без подписей)
   // Выбор нескольких: 'f:<id>' папка, 's:<id>' предмет, 't:<id>' тема.
   const [sel, setSel] = useState<Set<string>>(() => new Set());
   const [askDelete, setAskDelete] = useState(false);
@@ -383,7 +386,7 @@ export function Sidebar({
                 </button>
                 <button className="tree-label" onClick={pickOr('s:' + sub.id, () => go({ name: 'subject', id: sub.id }))}>
                   {pickBox('s:' + sub.id)}
-                  <SubjectMark color={sub.color} icon={sub.icon} />
+                  <SubjectMark color={sub.color} icon={sub.icon} img={sub.iconImg} />
                   <span className="grow clamp1">{sub.name}</span>
                   <span className="muted small count">{roots.length || ''}</span>
                 </button>
@@ -454,7 +457,7 @@ export function Sidebar({
           </button>
           <button className="tree-label" onClick={pickOr('f:' + f.id, () => (toggleTreeOpen(f.id, true), go({ name: 'folder', id: f.id })))}>
             {pickBox('f:' + f.id)}
-            {f.icon ? <SubjectMark color={f.color} icon={f.icon} /> : <Icon name="folder" size={16} />}
+            {f.icon || f.iconImg ? <SubjectMark color={f.color} icon={f.icon} img={f.iconImg} /> : <Icon name="folder" size={16} />}
             <span className="grow clamp1 folder-name">{f.name}</span>
             <span className="muted small count">{inside.length || ''}</span>
           </button>
@@ -476,11 +479,11 @@ export function Sidebar({
   }
 
   // ---------- Свёрнутая панель ----------
-  if (s.sidebarCollapsed && !mobile) {
+  if ((s.sidebarCollapsed || railForced) && !mobile) {
     return (
       <aside className="sidebar rail">
-        <button className="logo" title={window.mnemaApi?.platform === 'web' ? 'Показать панель (тестовая версия)' : 'Показать панель'} aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
-          R
+        <button className="logo-btn" title={window.mnemaApi?.platform === 'web' ? 'Показать панель (тестовая версия)' : 'Показать панель'} aria-label="Показать панель" onClick={() => updateSettings({ sidebarCollapsed: false })}>
+          <Logo size={34} appear={false} />
         </button>
         <button className={'foot-btn' + nav('today')} title="Сегодня" aria-label="Сегодня" onClick={() => go({ name: 'today' })}>
           <Icon name="home" />
@@ -545,9 +548,9 @@ export function Sidebar({
   const hideKey = keyFor(s, 'toggleSidebar');
 
   return (
-    <aside className={'sidebar' + (resizing ? ' resizing' : '')}>
+    <aside className={'sidebar' + (resizing ? ' resizing' : '')} data-part="sidebar">
       <div className="brand">
-        <span className="logo">R</span>
+        <Logo size={34} />
         <span className="grow brand-name">
           Refrain
           {window.mnemaApi?.platform === 'web' && <span className="test-tag" title="Онлайн-версия только для тестов: данные хранятся в этом браузере">тестовая версия</span>}
@@ -564,7 +567,7 @@ export function Sidebar({
           </button>
         )}
       </div>
-      <nav className="nav">
+      <nav className="nav" data-part="nav">
         {!mobile && (
           <button className="nav-item create-btn" onClick={openCreate} title="Создать: карточку, тему, предмет, контрольную…">
             <Icon name="plus" /> <span className="grow">Создать</span>

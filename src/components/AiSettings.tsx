@@ -41,7 +41,7 @@ export function AiSettings() {
     void api?.aiGetConfig?.().then(setCfg);
   }, [api]);
 
-  if (!api?.aiGetConfig) return <p className="small muted">ИИ-помощник работает в приложении для Windows.</p>;
+  if (!api?.aiGetConfig) return <p className="small muted">ИИ-помощник работает в приложении для Windows и Linux.</p>;
   if (!cfg) return null;
   const p = cfg.provider;
   const custom = p.startsWith('custom:') ? cfg.custom.find((x) => 'custom:' + x.id === p) : undefined;

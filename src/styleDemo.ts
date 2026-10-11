@@ -3,7 +3,7 @@
 import { sanitizeCss } from './mods';
 
 /** Части примера: заголовок, пункт меню со значком, плашка «На сегодня», карточка, оценки, конспект, кнопки и поля. */
-export type DemoPart = 'title' | 'nav' | 'hero' | 'card' | 'grades' | 'note' | 'controls';
+export type DemoPart = 'title' | 'nav' | 'hero' | 'card' | 'grades' | 'note' | 'controls' | 'layout';
 
 // Порядок важен: первые две найденные части и попадут в пример.
 const DETECT: [DemoPart, RegExp][] = [
@@ -17,13 +17,15 @@ const DETECT: [DemoPart, RegExp][] = [
 ];
 
 /** Какие части примера показать для стиля: те, что он меняет (не больше двух). Только шрифт или ничего знакомого — заголовок и карточка. */
-export function demoParts(css: string): DemoPart[] {
+export function demoParts(css: string, attrs?: Record<string, string>): DemoPart[] {
+  // Стиль меняет раскладку (панель, ширину, темы плитками…) — показываем мини-приложение целиком: части по отдельности этого не покажут.
+  if (attrs && Object.keys(attrs).some((k) => ['sidebar', 'content', 'topics', 'tabs', 'cards', 'grades'].includes(k))) return ['layout'];
   const found = DETECT.filter(([, re]) => re.test(css)).map(([p]) => p);
   const parts = found.slice(0, 2);
   if (parts.length === 0) return ['title', 'card'];
   if (parts.length === 1 && (parts[0] === 'title' || parts[0] === 'nav')) parts.push('card');
   // Заголовок — сверху, остальное в порядке, как на экране.
-  const order: DemoPart[] = ['title', 'nav', 'hero', 'card', 'grades', 'note', 'controls'];
+  const order: DemoPart[] = ['title', 'nav', 'hero', 'card', 'grades', 'note', 'controls', 'layout'];
   return parts.sort((a, b) => order.indexOf(a) - order.indexOf(b));
 }
 

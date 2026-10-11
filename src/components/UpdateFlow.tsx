@@ -75,12 +75,17 @@ export function UpdateFlow({ info }: { info: UpdateInfo }) {
     if (android) void install();
   };
 
-  const canInstall = Boolean(api?.updateDownload) && (!android || Boolean(info.apk));
+  const canInstall = Boolean(api?.updateDownload) && (!android || Boolean(info.apk)) && !info.manual;
   return (
     <div className="update-box on">
       <strong>Доступна Refrain {info.latest}</strong>
       {info.notes && <p className="small muted update-notes">{info.notes}</p>}
-      {!canInstall ? (
+      {info.manual && info.url ? (
+        // Linux: пакет .deb и архив сами не обновляются — даём ссылку на файл выпуска.
+        <a className="btn primary" href={info.url} target="_blank" rel="noreferrer">
+          {info.fileName ? `Скачать ${info.fileName}${mb(info.size)}` : 'Открыть страницу выпуска'}
+        </a>
+      ) : !canInstall ? (
         info.apk ? (
           <a className="btn primary" href={info.apk} target="_blank" rel="noreferrer">
             Скачать APK{mb(info.size)}

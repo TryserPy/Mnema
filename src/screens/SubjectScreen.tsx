@@ -64,11 +64,11 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
     <div className="page narrow">
       <div className="row between end-align gap12">
         <div className="row gap12">
-          <SubjectMark color={subject.color} icon={subject.icon} size="big" />
+          <SubjectMark color={subject.color} icon={subject.icon} img={subject.iconImg} size="big" />
           <div className="stack gap2">
             {folder && (
               <button className="crumb" onClick={() => go({ name: 'folder', id: folder.id })}>
-                {folder.icon ?? '📁'} {folder.name}
+                {folder.iconImg ? <SubjectMark color={folder.color} img={folder.iconImg} /> : folder.icon ?? '📁'} {folder.name}
               </button>
             )}
             <h1 className="display">{subject.name}</h1>
@@ -147,7 +147,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           <Timeline data={data} subjectId={id} color={subject.color} go={go} />
         </div>
       ) : (
-      <div className="topic-list tab-pane" key="topics">
+      <div className="topic-list tab-pane" data-part="topic-list" key="topics">
         {topics.length === 0 && !adding && (
           <div className="empty">
             <strong>Тем пока нет</strong>

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { placeMenu } from '../menuPlace';
 
@@ -422,7 +422,7 @@ export function Modal({ title, onClose, children, width = 520, sticky = false }:
   // Окно всегда в <body>: иначе карточка с анимацией (transform) обрезает его и перекрывает соседями.
   return createPortal(
     <div className={'modal-back' + (closing ? ' closing' : '')} onMouseDown={(e) => !sticky && e.target === e.currentTarget && close()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
+      <div className="modal" data-part="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button className="icon-btn" onClick={close} aria-label="Закрыть">
@@ -688,9 +688,12 @@ export const SUBJECT_ICONS = [
   '💻', '🤖', '🎨', '🎵', '⚽', '🏃', '🧠', '🍳', '🛠️', '⭐'
 ];
 
-/** Значок: одна кнопка, по нажатию — сетка значков. */
-export function IconPicker({ value, onChange, color }: { value?: string; onChange: (v?: string) => void; color?: string }) {
+const IconCropDialog = lazy(() => import('./IconCrop').then((m) => ({ default: m.IconCropDialog })));
+
+/** Значок: одна кнопка, по нажатию — сетка значков и «Своя картинка…». image/onImage — своя картинка (iconImg) предмета или папки. */
+export function IconPicker({ value, onChange, color, image, onImage }: { value?: string; onChange: (v?: string) => void; color?: string; image?: string; onImage?: (v?: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [cropping, setCropping] = useState(false);
   const pres = usePresence(open, 140);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -699,17 +702,24 @@ export function IconPicker({ value, onChange, color }: { value?: string; onChang
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
   }, [open]);
+  const has = Boolean(value || image);
   return (
     <div className="icon-pick" ref={ref}>
       <button type="button" className={'icon-pick-btn' + (open ? ' open' : '')} aria-expanded={open} onClick={() => setOpen(!open)}>
-        {value ? <SubjectMark color={color ?? 'var(--accent)'} icon={value} /> : <span className="icon-pick-none" />}
-        <span>{value ? 'Сменить значок' : 'Выбрать значок'}</span>
+        {has ? <SubjectMark color={color ?? 'var(--accent)'} icon={value} img={image} /> : <span className="icon-pick-none" />}
+        <span>{has ? 'Сменить значок' : 'Выбрать значок'}</span>
         <Icon name="chevron" size={12} />
       </button>
-      {value && (
-        <button type="button" className="link-btn small" onClick={() => onChange(undefined)}>
-          убрать
+      {image ? (
+        <button type="button" className="link-btn small" onClick={() => onImage?.(undefined)}>
+          убрать картинку
         </button>
+      ) : (
+        value && (
+          <button type="button" className="link-btn small" onClick={() => onChange(undefined)}>
+            убрать
+          </button>
+        )
       )}
       {pres.mounted && (
         <div className={'icon-pop' + (pres.closing ? ' closing' : '')} role="listbox" aria-label="Значки">
@@ -718,10 +728,11 @@ export function IconPicker({ value, onChange, color }: { value?: string; onChang
               key={i}
               type="button"
               role="option"
-              aria-selected={value === i}
-              className={'ico-opt' + (value === i ? ' on' : '')}
+              aria-selected={!image && value === i}
+              className={'ico-opt' + (!image && value === i ? ' on' : '')}
               onClick={() => {
                 onChange(i);
+                if (image) onImage?.(undefined); // выбрал эмодзи — картинка больше не нужна
                 setOpen(false);
               }}
               aria-label={`Значок ${i}`}
@@ -729,7 +740,31 @@ export function IconPicker({ value, onChange, color }: { value?: string; onChang
               <Glyph ch={i} />
             </button>
           ))}
+          {onImage && (
+            <button
+              type="button"
+              className={'ico-opt ico-own' + (image ? ' on' : '')}
+              onClick={() => {
+                setOpen(false);
+                setCropping(true);
+              }}
+            >
+              <Icon name="upload" size={15} /> Своя картинка…
+            </button>
+          )}
         </div>
+      )}
+      {cropping && onImage && (
+        <Suspense fallback={null}>
+          <IconCropDialog
+            color={color}
+            onClose={() => setCropping(false)}
+            onDone={(uri) => {
+              onImage(uri);
+              setCropping(false);
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );
@@ -818,8 +853,14 @@ export function Glyph({ ch }: { ch: string }) {
   );
 }
 
-/** Значок предмета: эмодзи на цветной подложке или просто цветная точка. */
-export function SubjectMark({ color, icon, size = 'small' }: { color: string; icon?: string; size?: 'small' | 'big' }) {
+/** Значок предмета: своя картинка или эмодзи на цветной подложке, а без них — просто цветная точка. */
+export function SubjectMark({ color, icon, img, size = 'small' }: { color: string; icon?: string; img?: string; size?: 'small' | 'big' }) {
+  if (img)
+    return (
+      <span className={'subj-ico has-img ' + size} style={{ borderColor: color }}>
+        <img src={img} alt="" draggable={false} />
+      </span>
+    );
   if (!icon) return <span className={size === 'big' ? 'subject-badge' : 'dot'} style={{ background: color }} />;
   return (
     <span className={'subj-ico ' + size} style={{ background: `color-mix(in srgb, ${color} 22%, transparent)`, borderColor: color }}>

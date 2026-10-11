@@ -43,7 +43,8 @@ describe('2.0, этап 2: старые данные', () => {
     expect(d.settings.features.mods).toBe(true);
     expect(d.settings.modsOn).toEqual(['notebook', 'm-1']);
     expect(d.settings.customMods).toHaveLength(1);
-    expect(d.settings.userCss).toBe('.hero { opacity: .9; }');
+    // «Свой CSS» переехал в первый сниппет (1.29): ничего не потерялось
+    expect(d.settings.cssSnippets).toEqual([{ id: 'legacy', name: 'Мой CSS', css: '.hero { opacity: .9; }', on: true }]);
   });
 
   it('остальные возможности не задеты', () => {
