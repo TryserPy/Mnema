@@ -254,6 +254,7 @@ export interface PluginRec {
   enabled: boolean;
   fromCatalog?: boolean;
   icon?: string;
+  ai?: boolean; // разрешил ли ученик этому моду спрашивать ИИ (нет поля — ещё не решал: спросим при первом запросе)
 }
 
 export interface Look {
