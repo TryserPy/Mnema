@@ -344,3 +344,16 @@ describe('Н5: распаковка чужого .apkg', () => {
     expect(zstd(packed, 4 * MB).length).toBe(3 * MB);
   });
 });
+
+// ---------- Н6: внешние ссылки в Android ----------
+describe('Н6: AppActivity.java — внешние ссылки', () => {
+  const java = readFileSync('android/src/app/mnema/study/AppActivity.java', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''); // без комментариев
+  it('только http, https, mailto; CATEGORY_BROWSABLE; без Intent.parseUri', () => {
+    expect(java).not.toMatch(/parseUri/);
+    expect(java).toMatch(/CATEGORY_BROWSABLE/);
+    expect(java).toMatch(/s\.equals\("http"\) \|\| s\.equals\("https"\) \|\| s\.equals\("mailto"\)/);
+    // ссылка не уходит в startActivity мимо проверки схемы
+    expect(java.match(/new Intent\(Intent\.ACTION_VIEW, u\)/g)).toHaveLength(1);
+    expect(java).toMatch(/if \(u == null \|\| !externalScheme\(u\.getScheme\(\)\)\) return false;/);
+  });
+});
