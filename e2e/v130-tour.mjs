@@ -2,7 +2,7 @@
 // Проверяет: рамка совпадает с элементом (после анимации окна, при прокрутке), плашка не закрывает подсвеченное и не вылезает за экран,
 // счёт «Шаг N из М» растёт по порядку, нажатие в рамку продвигает знакомство. Прогоняет и «Пропустить шаг» до «Готово».
 // Нужен dev-сервер (`npx vite --port 5217`): знакомство запускается через модуль Tutorial прямо на странице.
-//   URL=http://localhost:5217 OUT=out-v130-tour [DEVICE=phone|tablet|desktop] [STYLES=none,notebook,focus,ui-focus,...] [UI_CSS=api.css] node e2e/v130-tour.mjs
+//   URL=http://localhost:5217 OUT=out-v130-tour [DEVICE=phone|land|narrow|tablet|desktop] [STYLES=none,notebook,focus,ui-focus,...] [UI_CSS=api.css] node e2e/v130-tour.mjs
 import { chromium } from 'playwright';
 import fs from 'fs';
 
@@ -10,6 +10,7 @@ const URL = process.env.URL || 'http://localhost:5217';
 const OUT = process.env.OUT || 'out-v130-tour';
 const DEVICES = {
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  land: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, // телефон на боку: уже не «телефонная» раскладка (шире 720), но экран низкий
   narrow: { viewport: { width: 700, height: 700 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1 }, // как на жалобе: узкое окно ~700
   tablet: { viewport: { width: 820, height: 1180 }, isMobile: false, hasTouch: true, deviceScaleFactor: 1 },
   desktop: { viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1 }

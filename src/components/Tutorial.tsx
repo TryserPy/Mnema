@@ -204,8 +204,8 @@ export function cardPlace(r: Rect | null, phone: boolean, cardH = CARD_H): React
   const top = Math.max(16, Math.min(vh - cardH - 16, r.y));
   if (right >= w + 24) return { left: r.x + r.w + 16, top, bottom: 'auto', transform: 'none' };
   if (r.x >= w + 24) return { left: r.x - w - 16, top, bottom: 'auto', transform: 'none' };
-  // Места нет нигде (окно на весь экран) — туда, где свободнее, пусть и поверх края.
-  return below >= above ? atBottom : atTop;
+  // Места нет нигде (окно на весь экран или экран низкий, например телефон на боку) — наверх: там у окна заголовок, а внизу кнопки, их закрывать нельзя.
+  return atTop;
 }
 
 /** Видимая область элемента: экран, суженный каждым родителем с прокруткой (окно «Создать» со своим списком и т. п.). */
@@ -325,12 +325,13 @@ export function TutorialHost({ route, go }: { route: Route; go: (r: Route) => vo
   };
   const last = stage.major === LAST;
   const phone = isPhone();
+  const low = window.innerHeight < 520; // телефон на боку: плашка сжимается до самого нужного
   const place = cardPlace(rect, phone, cardH);
   const info = stepInfo(stage.major, stage.left);
   return (
     <div className="tut" aria-live="polite">
       {rect && <div className="tut-ring" style={{ left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12 }} />}
-      <div ref={cardRef} className={'tut-card' + (phone ? ' phone' : '')} style={place} role="dialog" aria-label="Знакомство">
+      <div ref={cardRef} className={'tut-card' + (phone ? ' phone' : '') + (low ? ' low' : '')} style={place} role="dialog" aria-label="Знакомство">
         <div className="tut-step">
           {last ? 'Всё готово' : `Шаг ${info.n} из ${info.total} · ${info.title}`}
           <span className="tut-bar">
