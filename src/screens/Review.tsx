@@ -11,6 +11,7 @@ import { checkNumber } from '../problems';
 import { compareSpoken, startVoice, voiceSupported, type VoiceSession } from '../voice';
 import { buildSession } from '../session';
 import { buildRepeatQueue, REPEAT_TEXT } from '../repeat';
+import { backLabel, reviewBack } from '../studyBack';
 import { openRepeatDialog, repeatAtOf } from '../components/RepeatDialog';
 import '../session.css';
 import { buildPrompt, buildQueue, cardLapses, checkTyped, formatInterval, GRADES, MINUTE, previewIntervals, type QueueItem } from '../srs';
@@ -45,9 +46,9 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
       route.session
         ? buildSession(getData(), new Date(), route.session).items // «Учиться»: план на сегодня с учётом времени и пропущенных шагов
         : route.only
-          ? buildRepeatQueue(getData(), new Date(), route.topicIds ? { topicIds: route.topicIds, cardIds: route.cardIds } : { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds }, route.only).slice(0, route.limit ?? Infinity) // «Повторить ещё раз»
-          : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, cram, ahead: Boolean(route.ahead), extraNew: route.extraNew }).slice(0, route.limit ?? Infinity),
-    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, cram, route.ahead, route.limit, route.session, route.only, route.topicIds, route.extraNew]
+          ? buildRepeatQueue(getData(), new Date(), route.topicIds ? { topicIds: route.topicIds, cardIds: route.cardIds, source: route.source, listId: route.listId } : { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, source: route.source, listId: route.listId }, route.only).slice(0, route.limit ?? Infinity) // «Повторить ещё раз»
+          : buildQueue(getData(), new Date(), { topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, cardIds: route.cardIds, source: route.source, listId: route.listId, cram, ahead: Boolean(route.ahead), extraNew: route.extraNew }).slice(0, route.limit ?? Infinity),
+    [route.topicId, route.subjectId, route.subjectIds, route.cardIds, route.source, route.listId, cram, route.ahead, route.limit, route.session, route.only, route.topicIds, route.extraNew]
   );
   const [queue, setQueue] = useState<QueueItem[]>(initial.slice(1));
   const [waiting, setWaiting] = useState<Waiting[]>([]);
@@ -298,8 +299,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
 
   const remaining = queue.length + waiting.length + (current ? 1 : 0);
   const total = stats.done + remaining;
-  // Куда вернуться: туда, откуда запустили (тема, папка, предмет), а без места — на «Сегодня».
-  const back: Route = route.topicId ? { name: 'topic', id: route.topicId } : route.folderId ? { name: 'folder', id: route.folderId } : route.subjectId ? { name: 'subject', id: route.subjectId } : { name: 'today' };
+  // Куда вернуться: туда, откуда запустили (с той же вкладкой: термины, карточки, список…), а без места — тема, папка, предмет или «Сегодня».
+  const back = reviewBack(data, route);
   const exit = () => {
     if (route.mini) window.mnemaApi?.miniEnd?.();
     go(back);
@@ -358,15 +359,15 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           )}
           <div className="row gap8 wrap">
             <button className="btn primary" onClick={exit}>
-              {route.mini ? 'Закрыть' : route.topicId ? 'На главную' : route.folderId ? 'К папке' : route.subjectId ? 'К предмету' : 'На главную'}
+              {route.mini ? 'Закрыть' : backLabel(back)}
             </button>
             {!cram && !route.mini && mistakes.length > 0 && (
-              <button className="btn" onClick={() => go({ name: 'review', cardIds: mistakes, ahead: true, run: Date.now() })}>
+              <button className="btn" onClick={() => go({ name: 'review', cardIds: mistakes, ahead: true, back, run: Date.now() })}>
                 Повторить ошибки · {mistakes.length}
               </button>
             )}
             {cram && !route.mini && mistakes.length > 0 && (
-              <button className="btn" onClick={() => go({ name: 'review', topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, folderId: route.folderId, topicIds: route.topicIds, cardIds: mistakes, cram: true, only: route.topicIds ? 'all' : undefined, run: Date.now() })}>
+              <button className="btn" onClick={() => go({ name: 'review', topicId: route.topicId, subjectId: route.subjectId, subjectIds: route.subjectIds, folderId: route.folderId, topicIds: route.topicIds, cardIds: mistakes, cram: true, only: route.topicIds ? 'all' : undefined, back, run: Date.now() })}>
                 Повторить ошибки · {mistakes.length}
               </button>
             )}
@@ -380,7 +381,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
                 <Icon name="repeat" size={16} /> Повторить ещё раз
               </button>
             )}
-            {route.topicId && (
+            {route.topicId && !(back.name === 'topic' && back.id === route.topicId) && (
               <button className="btn" onClick={() => go({ name: 'topic', id: route.topicId! })}>
                 К теме
               </button>
