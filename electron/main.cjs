@@ -34,6 +34,7 @@ const sync = require('./sync.cjs');
 const openFiles = require('./openFiles.cjs');
 const linux = require('./linux.cjs');
 const { permissionAllowed, lockDown } = require('./secure.cjs');
+const vault = require('./vaultPath.cjs');
 linux.applyEarlyFlags(app); // Linux: Wayland/X11 по умолчанию и портал горячих клавиш — до запуска окна
 
 let mainWin = null;
@@ -137,8 +138,9 @@ ipcMain.handle('obsidian:pick', async (e) => {
 
 ipcMain.handle('obsidian:read', (_e, rel) => {
   if (!vaultRoot || typeof rel !== 'string') throw new Error('Папка не выбрана');
-  const full = path.resolve(vaultRoot, rel);
-  if (!full.startsWith(path.resolve(vaultRoot) + path.sep) || path.extname(full).toLowerCase() !== '.md') throw new Error('Недопустимый путь');
+  // Путь проверяется по настоящему положению файла: ссылка внутри папки на файл снаружи не читается.
+  const full = vault.resolveInside(vaultRoot, rel);
+  if (path.extname(full).toLowerCase() !== '.md') throw new Error('Недопустимый путь');
   const text = fs.readFileSync(full, 'utf8');
   const images = {};
   for (const m of text.matchAll(/!\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]|!\[[^\]]*\]\(([^)\s]+)\)/g)) {
@@ -151,7 +153,7 @@ ipcMain.handle('obsidian:read', (_e, rel) => {
     }
     const name = path.basename(decoded);
     const found = vaultImages.get(name.toLowerCase());
-    if (!found) continue;
+    if (!found || !vault.isRealInside(vaultRoot, found)) continue;
     const st = fs.statSync(found);
     if (st.size > 3 * 1024 * 1024) continue;
     images[name] = `data:${MIME[path.extname(found).toLowerCase()]};base64,${fs.readFileSync(found).toString('base64')}`;
@@ -224,13 +226,23 @@ ipcMain.handle('obsidian:export', async (e, files) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const r = await dialog.showOpenDialog(win, { title: 'Куда сохранить заметки (папка хранилища Obsidian)', properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
-  const root = path.resolve(r.filePaths[0], 'Refrain');
+  let root;
+  try {
+    root = vault.exportRoot(r.filePaths[0]); // «Refrain» внутри выбранной папки; если это ссылка наружу — отказ
+  } catch {
+    return { ok: false, error: 'Папка «Refrain» в выбранном месте ведёт за его пределы — выбери другую папку.' };
+  }
   let written = 0;
   for (const f of files || []) {
     const rel = String(f.path || '').replace(/[<>:"|?*\x00-\x1f]/g, '_');
-    const full = path.resolve(root, rel);
-    if (!full.startsWith(root + path.sep)) continue;
-    fs.mkdirSync(path.dirname(full), { recursive: true });
+    let full;
+    try {
+      full = vault.resolveInside(root, rel); // и сам файл, и его папки не должны быть ссылками за пределы «Refrain»
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      full = vault.resolveInside(root, rel); // папки созданы — проверяем ещё раз по настоящему положению
+    } catch {
+      continue;
+    }
     fs.writeFileSync(full, f.base64 ? Buffer.from(f.content, 'base64') : String(f.content), f.base64 ? undefined : 'utf8');
     written++;
   }

@@ -1,5 +1,5 @@
 // 1.30: правки по итогам проверки безопасности (С1–С2, Н1–Н11).
-import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -486,5 +486,96 @@ describe('Н9: sandbox окна плеера', () => {
     expect(src.indexOf("setAttribute('sandbox', PLAYER_SANDBOX)", i)).toBeGreaterThan(i);
     expect(src.indexOf("setAttribute('sandbox', PLAYER_SANDBOX)", i)).toBeLessThan(src.indexOf('f.src = info.embed', i));
     expect(src).toMatch(/f\.allowFullscreen = true/);
+  });
+});
+
+// ---------- Н11: символические ссылки в папке Obsidian ----------
+describe('Н11: electron/vaultPath.cjs', () => {
+  const vp = createRequire(import.meta.url)('../electron/vaultPath.cjs') as {
+    resolveInside: (root: string, rel: string) => string;
+    isRealInside: (root: string, file: string) => boolean;
+    exportRoot: (chosen: string) => string;
+    within: (b: string, p: string) => boolean;
+  };
+  const posix = process.platform !== 'win32';
+  let dir = '';
+  let vault = '';
+  let outside = '';
+  const setup = () => {
+    dir = mkdtempSync(join(tmpdir(), 'mn-vault-'));
+    vault = join(dir, 'vault');
+    outside = join(dir, 'outside');
+    mkdirSync(join(vault, 'Тема'), { recursive: true });
+    mkdirSync(outside);
+    writeFileSync(join(vault, 'Тема', 'заметка.md'), '# ok');
+    writeFileSync(join(outside, 'секрет.md'), 'ключи');
+    writeFileSync(join(outside, 'file.txt'), 'x');
+  };
+  const cleanup = () => rmSync(dir, { recursive: true, force: true });
+
+  it('обычные пути внутри папки проходят, выход наружу текстом пути — нет', () => {
+    setup();
+    try {
+      expect(vp.resolveInside(vault, 'Тема/заметка.md')).toBe(join(realpathSync.native(vault), 'Тема', 'заметка.md'));
+      expect(() => vp.resolveInside(vault, '../outside/секрет.md')).toThrow(/Недопустимый путь/);
+      expect(() => vp.resolveInside(vault, join(outside, 'секрет.md'))).toThrow(/Недопустимый путь/);
+      expect(() => vp.resolveInside(vault, '')).toThrow(/Недопустимый путь/);
+      expect(() => vp.resolveInside(vault, '.')).toThrow(/Недопустимый путь/);
+      // файла может ещё не быть (запись)
+      expect(vp.resolveInside(vault, 'Новая/глубокая/заметка.md').endsWith(join('Новая', 'глубокая', 'заметка.md'))).toBe(true);
+    } finally {
+      cleanup();
+    }
+  });
+  it.runIf(posix)('ссылка на файл вне папки и ссылка на папку вне папки — не читаются и не пишутся', () => {
+    setup();
+    try {
+      symlinkSync(join(outside, 'секрет.md'), join(vault, 'ссылка.md'));
+      symlinkSync(outside, join(vault, 'наружу'));
+      expect(() => vp.resolveInside(vault, 'ссылка.md')).toThrow(/Недопустимый путь/); // чтение
+      expect(() => vp.resolveInside(vault, 'наружу/секрет.md')).toThrow(/Недопустимый путь/);
+      expect(() => vp.resolveInside(vault, 'наружу/новый.md')).toThrow(/Недопустимый путь/); // запись: файла ещё нет, но папка — ссылка наружу
+      expect(() => vp.resolveInside(vault, 'наружу/глубже/новый.md')).toThrow(/Недопустимый путь/);
+      expect(vp.isRealInside(vault, join(vault, 'ссылка.md'))).toBe(false);
+      expect(vp.isRealInside(vault, join(vault, 'Тема', 'заметка.md'))).toBe(true);
+      expect(existsSync(join(outside, 'новый.md'))).toBe(false);
+    } finally {
+      cleanup();
+    }
+  });
+  it.runIf(posix)('ссылка, которая ведёт внутрь папки, по-прежнему работает; сама папка может быть ссылкой', () => {
+    setup();
+    try {
+      symlinkSync(join(vault, 'Тема'), join(vault, 'Псевдоним'));
+      expect(() => vp.resolveInside(vault, 'Псевдоним/заметка.md')).not.toThrow();
+      const alias = join(dir, 'alias-to-vault');
+      symlinkSync(vault, alias);
+      expect(() => vp.resolveInside(alias, 'Тема/заметка.md')).not.toThrow(); // выбрали папку через ссылку
+    } finally {
+      cleanup();
+    }
+  });
+  it.runIf(posix)('экспорт: «Refrain» в выбранной папке создаётся; если это ссылка наружу — отказ', () => {
+    setup();
+    try {
+      const root = vp.exportRoot(vault);
+      expect(root.endsWith(join('vault', 'Refrain'))).toBe(true);
+      expect(existsSync(root)).toBe(true);
+      const chosen = join(dir, 'chosen');
+      mkdirSync(chosen);
+      symlinkSync(outside, join(chosen, 'Refrain'));
+      expect(() => vp.exportRoot(chosen)).toThrow(/Недопустимый путь/);
+      expect(existsSync(join(outside, 'новый.md'))).toBe(false);
+    } finally {
+      cleanup();
+    }
+  });
+  it('main.cjs использует эти проверки и для чтения, и для записи', () => {
+    const main = readFileSync('electron/main.cjs', 'utf8');
+    expect(main).toMatch(/vault\.resolveInside\(vaultRoot, rel\)/);
+    expect(main).toMatch(/vault\.isRealInside\(vaultRoot, found\)/);
+    expect(main).toMatch(/vault\.exportRoot\(/);
+    expect(main).toMatch(/vault\.resolveInside\(root, rel\)/);
+    expect(main).not.toMatch(/full\.startsWith\(root \+ path\.sep\)/);
   });
 });
