@@ -3,7 +3,7 @@
 // а колонки, абзацы, заголовки, списки, жирный, рисунки, рамки «Запомните» и формулы Refrain восстанавливает сама.
 // Точный режим — ИИ с зрением; если он не справился, страница читается без интернета.
 import { humanError } from './ai';
-import { aiSystem } from './aiTasks';
+import { aiRequest } from './aiTasks';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
 import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
 import { remapFigureMarks, tidyFigures } from './textbookFigures';
@@ -442,7 +442,7 @@ async function askAi(system: string, text: string, photoUri: string | null, maxT
   const api = window.mnemaApi;
   if (!api?.aiAsk) return { ok: false, error: 'ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.' };
   try {
-    const r = await api.aiAsk({ system: aiSystem('textbook', system), text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens });
+    const r = await api.aiAsk(aiRequest('textbook', { system, text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens }));
     if (!r.ok) return { ok: false, error: humanError(r.error) };
     return { ok: true, text: r.text };
   } catch (e) {
