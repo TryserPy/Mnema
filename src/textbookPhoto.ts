@@ -469,6 +469,36 @@ export function lightStats(gray: Gray): { paper: number; clipped: number; inkDep
   return { paper: at(0.8), clipped: clipped / Math.max(1, sample.length), inkDepth: at(0.02) };
 }
 
+/**
+ * Какая часть «чернил» страницы лежит внутри прочитанных слов (0..1). У чёткой страницы почти всё тёмное — это прочитанный текст;
+ * у размытой, смазанной или слишком мелкой тёмного много, а прочитано мало. Рисунки (skip) не считаем.
+ */
+export function inkCoverage(g: Gray, words: { x0: number; y0: number; x1: number; y1: number }[], skip: { x0: number; y0: number; x1: number; y1: number }[] = []): number {
+  const step = Math.max(1, Math.round(Math.max(g.w, g.h) / 1400));
+  const w = Math.ceil(g.w / step);
+  const h = Math.ceil(g.h / step);
+  const mark = new Uint8Array(w * h); // 1 — внутри слова, 2 — внутри рисунка
+  const paint = (r: { x0: number; y0: number; x1: number; y1: number }, v: number, pad: number) => {
+    const x0 = clamp(Math.floor((r.x0 - pad) / step), 0, w);
+    const x1 = clamp(Math.ceil((r.x1 + pad) / step), 0, w);
+    const y0 = clamp(Math.floor((r.y0 - pad) / step), 0, h);
+    const y1 = clamp(Math.ceil((r.y1 + pad) / step), 0, h);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) mark[y * w + x] = v;
+  };
+  for (const r of words) paint(r, 1, 3);
+  for (const r of skip) paint(r, 2, 0);
+  let inside = 0;
+  let total = 0;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const m = mark[y * w + x];
+      if (m === 2 || g.d[y * step * g.w + x * step] >= 150) continue;
+      total++;
+      if (m === 1) inside++;
+    }
+  return total < 40 ? 1 : inside / total;
+}
+
 export type AdviceCode = 'dark' | 'bright' | 'glare' | 'blur' | 'small' | 'tilt' | 'moire' | 'spread' | 'generic';
 export interface Advice {
   code: AdviceCode;
@@ -501,27 +531,35 @@ export interface PhotoFacts {
   glareShare: number;
   /** Признак «снимка с экрана». */
   moire: number;
+  /** Доля «чернил» внутри прочитанных слов (см. inkCoverage). */
+  cover?: number;
   /** Уверенность чтения: средняя по словам и доля неуверенных. */
   conf: number;
   unsureShare: number;
   words: number;
 }
 
+/** Если прочитанные слова покрывают меньше этой доли тёмного на странице — страница прочиталась плохо, даже если уверенность высокая. */
+export const COVER_WEAK = 0.62;
+/** Резкость ниже этого — снимок размытый (у чёткого текста 1.3–1.6, у расфокуса и смаза около 1.1–1.2). */
+export const BLUR_SHARP = 1.25;
+
 /**
  * Что посоветовать: только если чтение действительно слабое (иначе не пугаем — снимки со слабым светом Мнема читает хорошо).
  * Возвращает от нуля до двух советов, самая вероятная причина — первой.
  */
 export function adviceFor(f: PhotoFacts): Advice[] {
-  const weak = f.conf < 66 || f.unsureShare > 0.3 || (f.words < 12 && f.conf < 80);
+  const weak = f.conf < 66 || f.unsureShare > 0.3 || (f.words < 12 && f.conf < 80) || (f.cover !== undefined && f.cover < COVER_WEAK);
   if (!weak) return [];
   const out: AdviceCode[] = [];
   if (f.moire > 0.5) out.push('moire');
   if (f.glyph > 0 && f.glyph < 11.5) out.push('small');
-  if (f.sharp > 0 && f.sharp < 1.55) out.push('blur');
+  if (f.sharp > 0 && f.sharp < BLUR_SHARP) out.push('blur');
   if (f.paper < 90) out.push('dark');
   if (f.paper > 245 && f.inkDepth > 110) out.push('bright');
   if (f.glareShare > 0.04) out.push('glare');
-  if (f.foreshorten > 1.35) out.push('tilt');
+  // Строки видны, а прочиталось мало, и снимок резкий: страница снята не ровно или не целиком.
+  if (f.foreshorten > 1.35 || (f.cover !== undefined && f.cover < COVER_WEAK && !out.length)) out.push('tilt');
   if (!out.length) out.push('generic');
   return out.slice(0, 2).map((code) => ({ code, text: ADVICE_TEXT[code] }));
 }

@@ -420,3 +420,200 @@ describe('рисунки: уточнение рамки по пикселям', 
     expect(normalizeCaption('x'.repeat(300)).length).toBeLessThanOrEqual(160);
   });
 });
+
+// ---------- Снимок «как в жизни»: чистые функции предобработки ----------
+import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type PhotoFacts } from './textbookPhoto';
+import { boxBlur, type Gray } from './textbookImage';
+
+/** Серая «страница» с текстом: строки из «слов» (тёмные прямоугольники), детерминированно. */
+function textPage(w: number, h: number, o: { x0?: number; x1?: number; pitch?: number; barH?: number; wave?: (x: number) => number } = {}): Gray {
+  const d = new Uint8ClampedArray(w * h).fill(235);
+  let s = 12345;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const x0 = o.x0 ?? Math.round(w * 0.08);
+  const x1 = o.x1 ?? Math.round(w * 0.92);
+  const pitch = o.pitch ?? 26;
+  const bh = o.barH ?? 9;
+  for (let y = Math.round(h * 0.08); y + pitch < h * 0.92; y += pitch) {
+    let x = x0;
+    while (x < x1) {
+      const ww = 14 + Math.floor(rnd() * 40);
+      for (let xx = x; xx < Math.min(x1, x + ww); xx++) {
+        const dy = o.wave ? Math.round(o.wave(xx)) : 0;
+        for (let yy = y; yy < y + bh; yy++) {
+          const Y = yy + dy;
+          if (Y >= 0 && Y < h) d[Y * w + xx] = 40;
+        }
+      }
+      x += ww + 7;
+    }
+  }
+  return { w, h, d };
+}
+
+describe('снимок: повороты и вырезка', () => {
+  const g: Gray = { w: 3, h: 2, d: new Uint8ClampedArray([1, 2, 3, 4, 5, 6]) };
+  it('поворот серой картинки на 90°, 180°, 270° и обратно', () => {
+    const r1 = rotateGrayQ(g, 1);
+    expect([r1.w, r1.h, ...r1.d]).toEqual([2, 3, 4, 1, 5, 2, 6, 3]);
+    expect([...rotateGrayQ(g, 2).d]).toEqual([6, 5, 4, 3, 2, 1]);
+    const back = rotateGrayQ(rotateGrayQ(g, 1), 3);
+    expect([back.w, back.h, ...back.d]).toEqual([3, 2, 1, 2, 3, 4, 5, 6]);
+    expect(rotateGrayQ(g, 4)).toBe(g);
+  });
+  it('поворот RGBA совпадает с серым', () => {
+    const rgba = new Uint8ClampedArray(g.d.length * 4);
+    g.d.forEach((v, i) => rgba.set([v, v, v, 255], i * 4));
+    for (const q of [1, 2, 3]) {
+      const a = rotateRgbaQ(rgba, 3, 2, q);
+      const b = rotateGrayQ(g, q);
+      expect([a.w, a.h]).toEqual([b.w, b.h]);
+      expect(Array.from({ length: b.d.length }, (_, i) => a.data[i * 4])).toEqual([...b.d]);
+    }
+  });
+  it('вырезка прямоугольника', () => {
+    const rgba = new Uint8ClampedArray(4 * 4 * 4);
+    for (let i = 0; i < 16; i++) rgba.set([i, 0, 0, 255], i * 4);
+    const c = cropRgba(rgba, 4, 4, 1, 1, 3, 3);
+    expect([c.w, c.h]).toEqual([2, 2]);
+    expect([c.data[0], c.data[4], c.data[8], c.data[12]]).toEqual([5, 6, 9, 10]);
+  });
+});
+
+describe('снимок: направление строк', () => {
+  it('обычная страница — строки по горизонтали, на боку — по вертикали', () => {
+    const g = textPage(600, 800);
+    expect(textDirection(g).dir).toBe('h');
+    expect(textDirection(rotateGrayQ(g, 1)).dir).toBe('v');
+    expect(textDirection(rotateGrayQ(g, 3)).dir).toBe('v');
+    // вверх ногами строки всё равно горизонтальные: это решает чтение (двойной прогон)
+    expect(textDirection(rotateGrayQ(g, 2)).dir).toBe('h');
+  });
+});
+
+describe('снимок: разворот и корешок', () => {
+  const spread = (shadow: boolean, fold: boolean) => {
+    const w = 1200;
+    const h = 800;
+    const left = textPage(500, h, { x0: 40, x1: 470 });
+    const right = textPage(500, h, { x0: 30, x1: 460 });
+    const d = new Uint8ClampedArray(w * h).fill(230);
+    for (let y = 0; y < h; y++) {
+      d.set(left.d.subarray(y * 500, y * 500 + 500), y * w + 40);
+      d.set(right.d.subarray(y * 500, y * 500 + 500), y * w + 660);
+    }
+    if (shadow)
+      for (let y = 0; y < h; y++) for (let x = 480; x < 720; x++) d[y * w + x] = Math.min(d[y * w + x], Math.round(230 - 30 * Math.exp(-(((x - 600) / 60) ** 2))));
+    if (fold) for (let y = 0; y < h; y++) for (let x = 597; x < 603; x++) d[y * w + x] = 30;
+    return { w, h, d } as Gray;
+  };
+  it('пустая полоса у корешка находится посередине', () => {
+    const sp = findSpine(spread(false, false))!;
+    expect(sp).not.toBeNull();
+    expect(sp.x).toBeGreaterThan(520);
+    expect(sp.x).toBeLessThan(680);
+    expect(sp.a).toBeGreaterThan(400);
+    expect(sp.b).toBeLessThan(800);
+    expect(sp.a).toBeLessThan(sp.b);
+  });
+  it('тёмная складка и тень не мешают, обе страницы остаются слева и справа', () => {
+    const sp = findSpine(spread(true, true))!;
+    expect(sp).not.toBeNull();
+    expect(sp.a).toBeGreaterThan(450);
+    expect(sp.b).toBeLessThan(750);
+    expect(sp.a).toBeLessThanOrEqual(597);
+    expect(sp.b).toBeGreaterThanOrEqual(603);
+  });
+  it('одна страница (высокая или с текстом по всей ширине) — не разворот', () => {
+    expect(findSpine(textPage(600, 800))).toBeNull();
+    expect(findSpine(textPage(1000, 800, { x0: 20, x1: 980 }))).toBeNull();
+  });
+});
+
+describe('снимок: «волна» строк', () => {
+  it('ровные строки — волны нет', () => {
+    expect(estimateRowWarp(textPage(900, 700))).toBeNull();
+  });
+  it('волна находится и выпрямляется', () => {
+    const wave = (x: number) => 7 * Math.sin((x / 900) * Math.PI * 3);
+    const g = textPage(900, 700, { wave });
+    const w = estimateRowWarp(g);
+    expect(w).not.toBeNull();
+    expect(w!.amp).toBeGreaterThan(3);
+    const rgba = new Uint8ClampedArray(g.w * g.h * 4);
+    g.d.forEach((v, i) => rgba.set([v, v, v, 255], i * 4));
+    const fixed = applyRowWarp(rgba, g.w, g.h, w!.dy);
+    const gf: Gray = { w: g.w, h: g.h, d: new Uint8ClampedArray(g.w * g.h) };
+    for (let i = 0; i < gf.d.length; i++) gf.d[i] = fixed[i * 4];
+    // после выпрямления строки ровнее: остаточная волна меньше исходной
+    const again = estimateRowWarp(gf);
+    expect(again === null || again.amp < w!.amp * 0.6).toBe(true);
+  });
+});
+
+describe('снимок: резкость, свет, покрытие, советы', () => {
+  const sharp = textPage(500, 400);
+  /** Мелкий «текст»: случайные чёрные штрихи 2×2 px — у резкого снимка край теряет силу при размытии сильнее, чем у размытого. */
+  const fine = (() => {
+    const d = new Uint8ClampedArray(400 * 300).fill(235);
+    let s = 7;
+    for (let by = 0; by < 150; by++)
+      for (let bx = 0; bx < 200; bx++) {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        if ((s >>> 8) % 100 < 45) for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) d[(by * 2 + y) * 400 + bx * 2 + x] = 40;
+      }
+    return { w: 400, h: 300, d } as Gray;
+  })();
+  it('размытая страница заметно менее резкая', () => {
+    const blurred = boxBlur(boxBlur(fine, 1), 1);
+    expect(sharpness(blurred)).toBeLessThan(sharpness(fine) - 0.1);
+  });
+  it('свет: яркость бумаги, пересвет, глубина чернил', () => {
+    const st = lightStats(sharp);
+    expect(st.paper).toBeGreaterThan(200);
+    expect(st.inkDepth).toBeLessThan(80);
+    const dark: Gray = { ...sharp, d: sharp.d.map((v) => v * 0.25) as unknown as Uint8ClampedArray };
+    expect(lightStats(dark).paper).toBeLessThan(90);
+    const white: Gray = { w: 10, h: 10, d: new Uint8ClampedArray(100).fill(255) };
+    expect(lightStats(white).clipped).toBeGreaterThan(0.9);
+  });
+  it('покрытие: слова закрывают чернила — 1, ничего не прочитано — около 0, рисунок не считается', () => {
+    const g: Gray = { w: 200, h: 100, d: new Uint8ClampedArray(200 * 100).fill(240) };
+    for (let y = 10; y < 30; y++) for (let x = 10; x < 90; x++) g.d[y * 200 + x] = 30;
+    for (let y = 50; y < 90; y++) for (let x = 100; x < 190; x++) g.d[y * 200 + x] = 30;
+    const w = { x0: 10, y0: 10, x1: 90, y1: 30 };
+    const fig = { x0: 100, y0: 50, x1: 190, y1: 90 };
+    expect(inkCoverage(g, [w], [fig])).toBeGreaterThan(0.95);
+    expect(inkCoverage(g, [w], [])).toBeLessThan(0.4);
+    expect(inkCoverage(g, [], [fig])).toBeLessThan(0.05);
+    expect(inkCoverage({ w: 50, h: 50, d: new Uint8ClampedArray(2500).fill(250) }, [], [])).toBe(1);
+  });
+  const ok: PhotoFacts = { paper: 240, clipped: 0.02, inkDepth: 60, sharp: 1.4, glyph: 20, foreshorten: 1, glareShare: 0, moire: 0, conf: 92, unsureShare: 0.02, words: 140, cover: 0.9 };
+  it('хорошо прочиталось — не пугаем, даже если свет не идеален', () => {
+    expect(adviceFor(ok)).toEqual([]);
+    expect(adviceFor({ ...ok, paper: 80 })).toEqual([]);
+  });
+  it('слабое чтение: темно, пересвет, размыто, мелко, наклон — каждый со своим советом', () => {
+    const weak = { conf: 50, unsureShare: 0.5 };
+    expect(adviceFor({ ...ok, ...weak, paper: 70 })[0].code).toBe('dark');
+    expect(adviceFor({ ...ok, ...weak, paper: 252, inkDepth: 140 })[0].code).toBe('bright');
+    expect(adviceFor({ ...ok, ...weak, sharp: 1.08 })[0].code).toBe('blur');
+    expect(adviceFor({ ...ok, ...weak, glyph: 8 })[0].code).toBe('small');
+    expect(adviceFor({ ...ok, ...weak, foreshorten: 1.6 })[0].code).toBe('tilt');
+    expect(adviceFor({ ...ok, ...weak, moire: 0.9 })[0].code).toBe('moire');
+    expect(adviceFor({ ...ok, ...weak }).map((a) => a.code)).toEqual(['generic']);
+  });
+  it('мало прочитано при высокой уверенности (смаз, расфокус) — тоже совет, с понятным текстом', () => {
+    const a = adviceFor({ ...ok, sharp: 1.1, cover: 0.3, words: 60 });
+    expect(a.length).toBeGreaterThan(0);
+    expect(a[0].code).toBe('blur');
+    expect(a[0].text).toMatch(/размыт/);
+  });
+  it('мало прочитано при резком снимке — наклон или съёмка не ровно, а не размытие', () => {
+    const a = adviceFor({ ...ok, sharp: 1.45, cover: 0.25 });
+    expect(a[0].code).toBe('tilt');
+  });
+  it('не больше двух советов', () => {
+    expect(adviceFor({ ...ok, conf: 40, unsureShare: 0.6, paper: 60, glyph: 8, sharp: 1.1, foreshorten: 1.8 }).length).toBeLessThanOrEqual(2);
+  });
+});

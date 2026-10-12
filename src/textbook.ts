@@ -5,7 +5,7 @@
 import { humanError } from './ai';
 import { aiSystem } from './aiTasks';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
-import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
+import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
 import { remapFigureMarks, tidyFigures } from './textbookFigures';
 import { mergeInput, mergeSystem, pageSystem, parseMerged, READ_SYSTEM, type NoteStyle } from './textbookNote';
 import { analyzeRegions, strokeStat } from './textbookRegions';
@@ -364,6 +364,7 @@ async function readPrepared(p: PageInput, prep: Prepared, onProgress?: Progress,
     unsureShare: q.words ? q.unsure / q.words : 0,
     words: q.words
   };
+  facts.cover = inkCoverage(gray, goodWords, regions.figures);
   const advice: Advice[] = adviceFor(facts);
   debugHook?.({ info: prep.info, lines, layout, regions, facts, advice });
   const page: PageResult = { n: p.n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts, detectedPage: layout.detectedPage, quality: q, advice: advice.length ? advice : undefined };
