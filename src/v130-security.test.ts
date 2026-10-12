@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { assertCloudEncrypted } from './cloud';
 import { KATEX_CLASSES, KATEX_POSITIONED, safeClassList } from './katexClasses';
-import { safeStyleAttr } from './safeCss';
+import { sanitizeCss, safeStyleAttr } from './safeCss';
 import { emptyData, getData, replaceData, restoreFromTrash } from './store';
 import { mergeData } from './sync';
 import type { AppData, Card, Subject, Topic } from './types';
@@ -143,5 +143,26 @@ describe('С2: массовое удаление при слиянии идёт 
     expect(data.cards.length).toBe(0);
     expect(report.trashed).toEqual({ subjects: 1, topics: 1, cards: 8 });
     expect(data.trash![0].removed.cards.length).toBe(8);
+  });
+});
+
+// ---------- Н1: незакрытый url( ----------
+describe('Н1: незакрытый url( в конце листа', () => {
+  const cases = ['body{background:url(https://evil.example/x', 'body{background:url("https://evil.example/x', "a{background:URL('https://e/x", 'a{background:u\\rl(https://e/x', 'a{b:\\75rl(https://e/x', 'a{c:u/**/rl(http://e/x', 'a{b:url(', 'a{background:UrL (  https://e/x\n}'];
+  it('не остаётся ни url(, ни адреса', () => {
+    for (const c of cases) {
+      const out = sanitizeCss(c);
+      expect(out, c).not.toMatch(/url\s*\(/i);
+      expect(out, c).not.toMatch(/https?:/i);
+    }
+  });
+  it('вырезается до конца объявления — остальной CSS цел', () => {
+    expect(sanitizeCss('a{color:red;background:url(\'https://e/x\n}\nb{color:blue}')).toBe('a{color:red;background:none}\nb{color:blue}');
+    expect(sanitizeCss('a{b:URL ( https://e/x;color:red}')).toBe('a{b:none;color:red}');
+  });
+  it('закрытый url(data:image…) и обычный CSS не портятся', () => {
+    const img = 'a{background:url(data:image/png;base64,AAAA)}';
+    expect(sanitizeCss(img)).toBe(img);
+    expect(sanitizeCss('.btn{min-height:48px;background:linear-gradient(red,blue)}')).toBe('.btn{min-height:48px;background:linear-gradient(red,blue)}');
   });
 });

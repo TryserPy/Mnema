@@ -94,6 +94,8 @@ export function sanitizeCss(css: string): string {
     t
       .replace(/@\s*(?:-[a-z]+-)?(?:import|namespace|charset|document)\b[^;{]*(?:;|(?=\{)|$)/gi, '')
       .replace(/url\s*\(\s*[^)]*\)/gi, (m) => (DATA_IMG.test(m.replace(/^url\s*\(/i, 'url(')) ? m : 'none'))
+      // Незакрытый url( (после него до конца листа нет «)»): браузер дочитает адрес до конца листа и загрузит его — вырезаем до конца объявления.
+      .replace(/url\s*\((?![^)]*\))[^;}]*/gi, 'none')
       .replace(/(?<![\w-])(?:-[a-z]+-)?(?:image-set|cross-fade|element|image|src|paint)\s*\(/gi, 'blocked-fn(') // функции, которые тоже умеют грузить картинки
       .replace(/expression\s*\(|(?:java|vb|live)script\s*:|-moz-binding|(?:-ms-)?behavior\s*:|binding\s*:/gi, '');
   // Вырезание может склеить новое запретное слово (expreexpression(ssion() — повторяем до устойчивого вида.
