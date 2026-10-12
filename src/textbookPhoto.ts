@@ -558,7 +558,7 @@ export function adviceFor(f: PhotoFacts): Advice[] {
   if (f.glyph > 0 && f.glyph < 11.5) out.push('small');
   if (f.sharp > 0 && f.sharp < BLUR_SHARP) out.push('blur');
   if (f.paper < 90) out.push('dark');
-  if (f.paper > 245 && f.inkDepth > 110) out.push('bright');
+  if (f.paper > 245 && f.inkDepth > 110 && f.clipped > 0.15) out.push('bright');
   if (f.glareShare > 0.04) out.push('glare');
   // Строки видны, а прочиталось мало, и снимок резкий: страница снята не ровно или не целиком.
   if (f.foreshorten > 1.35 || (f.cover !== undefined && f.cover < COVER_WEAK && !out.length)) out.push('tilt');

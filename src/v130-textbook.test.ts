@@ -612,7 +612,7 @@ describe('снимок: резкость, свет, покрытие, совет
   it('слабое чтение: темно, пересвет, размыто, мелко, наклон — каждый со своим советом', () => {
     const weak = { conf: 50, unsureShare: 0.5 };
     expect(adviceFor({ ...ok, ...weak, paper: 70 })[0].code).toBe('dark');
-    expect(adviceFor({ ...ok, ...weak, paper: 252, inkDepth: 140 })[0].code).toBe('bright');
+    expect(adviceFor({ ...ok, ...weak, paper: 252, inkDepth: 140, clipped: 0.3 })[0].code).toBe('bright');
     expect(adviceFor({ ...ok, ...weak, sharp: 1.08 })[0].code).toBe('blur');
     expect(adviceFor({ ...ok, ...weak, glyph: 8 })[0].code).toBe('small');
     expect(adviceFor({ ...ok, ...weak, foreshorten: 1.6 })[0].code).toBe('tilt');
