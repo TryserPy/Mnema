@@ -1,13 +1,13 @@
 // Dev-сервер для замеров: исходники приложения + файлы Tesseract по адресу /ocr/.
 import fs from 'fs';
 import path from 'path';
-const ROOT = '/home/user/Mnema/.claude/worktrees/agent-a370845ee40a2fce2';
+const ROOT = process.env.MNEMA_ROOT || process.cwd();
 export default {
   root: ROOT,
   base: '/',
   logLevel: 'warn',
   server: { port: Number(process.env.PORT || 5199), strictPort: true, fs: { strict: false } },
-  optimizeDeps: { noDiscovery: true, include: ['tesseract.js'] },
+  optimizeDeps: { noDiscovery: true, include: ['tesseract.js', 'react', 'react-dom', 'react/jsx-runtime'] },
   plugins: [
     {
       name: 'harness',

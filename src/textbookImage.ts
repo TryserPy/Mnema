@@ -161,6 +161,43 @@ export function findPageQuad(g: Gray): Quad | null {
   if (!nlo || !nhi || hi / nhi - lo / nlo < 28) return null;
   const mask = new Uint8Array(sw * sh);
   for (let i = 0; i < mask.length; i++) mask[i] = blurred.d[i] > thr ? 1 : 0;
+  const one = quadFromMask(mask, sw, sh, g);
+  // Разворот: тень у корешка режет светлое пятно на две страницы. Закрываем узкие тёмные щели по строкам:
+  // если получился один разумный четырёхугольник «в полтора-два раза шире страницы» — это разворот целиком.
+  const closed = closeGaps(mask, sw, sh, Math.round(sw * 0.07));
+  const two = closed ? quadFromMask(closed, sw, sh, g) : null;
+  if (two) {
+    const aspect = quadAspect(two);
+    if (aspect > 1.15 && aspect < 2.3 && (!one || polyArea(two) > polyArea(one) * 1.35)) return two;
+  }
+  return one;
+}
+
+/** Ширина к высоте четырёхугольника (по средним сторонам). */
+function quadAspect(q: Quad): number {
+  return (dist(q[0], q[1]) + dist(q[3], q[2])) / Math.max(1, dist(q[0], q[3]) + dist(q[1], q[2]));
+}
+
+/** Закрашивает тёмные промежутки не длиннее maxGap между светлыми по строкам. null — ничего не поменялось. */
+function closeGaps(mask: Uint8Array, w: number, h: number, maxGap: number): Uint8Array | null {
+  const out = new Uint8Array(mask);
+  let changed = 0;
+  for (let y = 0; y < h; y++) {
+    let lastOn = -1;
+    for (let x = 0; x < w; x++) {
+      if (!mask[y * w + x]) continue;
+      if (lastOn >= 0 && x - lastOn > 1 && x - lastOn <= maxGap) {
+        for (let k = lastOn + 1; k < x; k++) (out[y * w + k] = 1), changed++;
+      }
+      lastOn = x;
+    }
+  }
+  return changed ? out : null;
+}
+
+/** Четырёхугольник страницы из маски «светлое»: все проверки на разумность. */
+function quadFromMask(mask: Uint8Array, sw: number, sh: number, g: Gray): Quad | null {
+  const k = g.w / sw;
   const { pts, area } = largestBlob(mask, sw, sh);
   if (area < sw * sh * 0.25) return null;
   let tl = { x: 0, y: 0, v: Infinity };
@@ -186,7 +223,7 @@ export function findPageQuad(g: Gray): Quad | null {
   const left = dist(q[0], q[3]);
   const right = dist(q[1], q[2]);
   if (Math.min(top, bottom, left, right) < Math.min(g.w, g.h) * 0.2) return null;
-  if (Math.max(top, bottom) / Math.min(top, bottom) > 1.6 || Math.max(left, right) / Math.min(left, right) > 1.6) return null;
+  if (Math.max(top, bottom) / Math.min(top, bottom) > 1.9 || Math.max(left, right) / Math.min(left, right) > 1.9) return null;
   const aspect = Math.max(top, bottom) / Math.max(left, right);
   if (aspect < 0.35 || aspect > 2.6) return null;
   if (polyArea(q) < g.w * g.h * 0.22) return null;
