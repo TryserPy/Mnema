@@ -10,6 +10,22 @@ export function safeColor(v: unknown): string | null {
   return null;
 }
 
+/** Цвет по умолчанию у предмета и папки, если цвет из файла не годится. */
+export const FALLBACK_COLOR = '#3A3F4E';
+
+/** У предметов и папок (и в корзине) оставить только безопасный цвет — иначе он попадает в style/CSS-переменную как есть. Если менять нечего, возвращает тот же массив. */
+export function cleanColors<T extends { color?: unknown }>(items: T[]): T[] {
+  let changed = false;
+  const out = items.map((it) => {
+    if (!it || typeof it !== 'object') return it;
+    const c = safeColor(it.color);
+    if (c !== null && c === it.color) return it;
+    changed = true;
+    return { ...it, color: c ?? FALLBACK_COLOR };
+  });
+  return changed ? out : items;
+}
+
 // Что KaTeX кладёт в style="…" у частей формулы (размеры, сдвиги, цвет). position/z-index/inset/url(…) среди них нет — их и не пропускаем.
 const KATEX_PROPS = new Set([
   'height',
@@ -28,7 +44,8 @@ const KATEX_PROPS = new Set([
   'border-right-width',
   'border-left-width',
   'color',
-  'background-color'
+  'background-color',
+  'border-color' // фон и рамка \fcolorbox
 ]);
 const SAFE_VALUE = /^(?:[-+]?[\d.]+(?:px|em|rem|ex|%)?|#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z-]+)$/i;
 
@@ -93,6 +110,8 @@ export function sanitizeCss(css: string): string {
     t
       .replace(/@\s*(?:-[a-z]+-)?(?:import|namespace|charset|document)\b[^;{]*(?:;|(?=\{)|$)/gi, '')
       .replace(/url\s*\(\s*[^)]*\)/gi, (m) => (DATA_IMG.test(m.replace(/^url\s*\(/i, 'url(')) ? m : 'none'))
+      // Незакрытый url( (после него до конца листа нет «)»): браузер дочитает адрес до конца листа и загрузит его — вырезаем до конца объявления.
+      .replace(/url\s*\((?![^)]*\))[^;}]*/gi, 'none')
       .replace(/(?<![\w-])(?:-[a-z]+-)?(?:image-set|cross-fade|element|image|src|paint)\s*\(/gi, 'blocked-fn(') // функции, которые тоже умеют грузить картинки
       .replace(/expression\s*\(|(?:java|vb|live)script\s*:|-moz-binding|(?:-ms-)?behavior\s*:|binding\s*:/gi, '');
   // Вырезание может склеить новое запретное слово (expreexpression(ssion() — повторяем до устойчивого вида.

@@ -10,6 +10,7 @@ import { CreateHost, openCreate } from './components/CreateMenu';
 import { Trash } from './screens/Trash';
 import { hidesTabBar, TabBar } from './components/TabBar';
 import { sessionPrefs } from './session';
+import { fillBack, getPlace, testBack } from './studyBack';
 import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
 import { RuleView } from './components/Rules';
@@ -139,14 +140,14 @@ export function App() {
     else apply();
     root.dataset.look = lookKey(s.look);
     firstTheme.current = false;
-  }, [dark, s.accent, s.density, s.fontScale, s.motion, s.motionOff.join(), JSON.stringify(s.look), s.bgImage?.src, s.bgImage?.fade]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dark, s.accent, s.density, s.fontScale, s.motion, s.motionOff.join(), JSON.stringify(s.look), s.bgImage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Заставка в цвет темы: после каждой смены оформления запоминаем итоговые цвета (с небольшой задержкой — смена темы идёт плавным переходом),
   // а при уходе из приложения — сразу.
   useEffect(() => {
     const t = setTimeout(cacheSplashTheme, 450);
     return () => clearTimeout(t);
-  }, [dark, s.accent, JSON.stringify(s.look), s.bgImage?.src, s.modsOn, s.customMods, s.styleValues, s.cssSnippets]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dark, s.accent, JSON.stringify(s.look), s.bgImage?.src, s.modsOn, s.customMods, s.styleValues, s.cssSnippets, s.myStyle]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const now = () => cacheSplashTheme();
     const hidden = () => document.visibilityState === 'hidden' && cacheSplashTheme();
@@ -161,7 +162,7 @@ export function App() {
   // Стили: один <style> на все включённые стили (по порядку) и сниппеты «мой CSS» + атрибуты раскладки на <html> — React-дерево не перерисовывается.
   useEffect(() => {
     applyStyles(s);
-  }, [s.modsOn, s.customMods, s.styleValues, s.cssSnippets]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [s.modsOn, s.customMods, s.styleValues, s.cssSnippets, s.myStyle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Напоминания о домашке (и на телефоне — ежедневное «пора повторить»): отдаём список системе.
   const plan = JSON.stringify(notificationPlan(data, new Date(), window.mnemaApi?.platform === 'android'));
@@ -326,7 +327,8 @@ export function App() {
       if (t?.kind === 'glossary') r = { name: 'subject', id: t.subjectId, view: 'terms', filter: 'general' };
     }
     setRuleOpen(null);
-    setRoute(r);
+    // Повторение и контрольная помнят, откуда их запустили (с вкладкой), — туда и вернёмся.
+    setRoute(fillBack(r, routeRef.current, getPlace()));
     setDrawer(false);
     document.querySelector('.main')?.scrollTo(0, 0);
   };
@@ -372,7 +374,7 @@ export function App() {
         return true;
       }
       if (r.name === 'test') {
-        go({ name: 'topic', id: r.topicId });
+        go(testBack(getData(), r));
         return true;
       }
       if (r.name !== 'today') {
@@ -508,7 +510,7 @@ export function App() {
     return (
       <div className={'app review-mode' + (route.name === 'review' && route.mini ? ' mini' : '')}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
-          {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId + (route.examId ?? '')} topicId={route.topicId} pretest={route.pretest} examId={route.examId} go={go} />}
+          {route.name === 'review' ? <Review key={JSON.stringify(route)} route={route} go={go} /> : <TestScreen key={route.topicId + (route.examId ?? '')} topicId={route.topicId} pretest={route.pretest} examId={route.examId} back={route.back} go={go} />}
         </ErrorBoundary>
         <RepeatDialogHost go={go} />
         <TutorialHost route={route} go={go} />

@@ -27,13 +27,20 @@ import { sameLook } from '../notePhantom';
 import { orderTabs, reorderTab } from '../tabs';
 import { ExamPlanLine } from './Today';
 import { openRepeatDialog } from '../components/RepeatDialog';
-import { nextDueText, studyStatus } from '../studyStatus';
+import { nextDueText } from '../studyStatus';
+import { StudyPickMenu, useStudyPick } from '../components/StudyPick';
+import { pickScope } from '../studyPick';
 import { hasRepeatable } from '../repeat';
 import { PrintDialog } from '../components/ExportDialogs';
 import { keyFor, matches, prettyCombo } from '../keys';
 import type { Card, CardType, ListKind, Route } from '../types';
 import { openExamDialog } from '../components/ExamDialog';
 import { NoteHistoryDialog } from '../components/NoteHistory';
+import { AiCardDrafts } from '../components/AiCardDrafts';
+import { aiAvailable } from '../ai';
+
+/** Темы, где ученик нажал «Не сейчас» у подсказки про черновики карточек: до перезапуска не напоминаем. */
+const offerDismissed = new Set<string>();
 
 const TYPE_LABEL: Record<CardType, string> = {
   basic: 'Вопрос — ответ',
@@ -48,6 +55,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [reload, setReload] = useState(0); // растёт, когда конспект поменяли «снаружи» (возврат версии): редактор перечитывает текст
   const data = useData();
   const topic = data.topics.find((t) => t.id === id);
+  const sp = useStudyPick({ topicId: id }); // что учить: всё / только карточки / только списки (помнится для темы)
   const [recall, setRecall] = useState(false);
   const [pickDate, setPickDate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -58,6 +66,8 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [rulesOpen, setRulesOpen] = useState(false);
   const plugins = usePlugins();
   const [noteCards, setNoteCards] = useState(false);
+  const [aiCards, setAiCards] = useState(false);
+  const [, setOfferTick] = useState(0);
   const [printOpen, setPrintOpen] = useState(false);
   if (!topic) return <div className="page">Тема не найдена.</div>;
   const subject = data.subjects.find((s) => s.id === topic.subjectId);
@@ -75,7 +85,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   }, [data.cards]);
   const subCount = topicWithDescendants(data, id).size - 1;
   // Повторять можно всё в теме вместе с подтемами, а не только её собственные карточки.
-  const study = useMemo(() => studyStatus(data, new Date(), { topicId: id }), [data, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const study = sp.status; // по выбранному в меню «Что учить»
   const canRepeat = useMemo(() => hasRepeatable(data, { topicId: id }), [data.cards, data.topics, id]); // eslint-disable-line react-hooks/exhaustive-deps
   const listTab = tab?.startsWith('list:') ? lists.find((l) => 'list:' + l.id === tab) : undefined;
   const poems = topic.poems ?? [];
@@ -187,24 +197,27 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
         </div>
         <div className="head-actions">
         <div className="row gap8">
+          {sp.label && <span className="chip neutral" title="Выбрано в меню «Что учить» справа от кнопки">{sp.label}</span>}
           {study.kind === 'done' ? (
-            <button className="btn primary big-ish" title="Сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id })}>
+            <button className="btn primary big-ish" title="Сегодня всё повторено — можно повторить ещё раз" onClick={() => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) })}>
               <Icon name="repeat" size={18} /> Повторить ещё раз
             </button>
           ) : study.kind === 'new' ? (
-            <button className="btn primary big-ish" title="По расписанию на сегодня всё, но есть новые карточки" onClick={() => go({ name: 'review', topicId: id, extraNew: study.fresh })}>
+            <button className="btn primary big-ish" title="По расписанию на сегодня всё, но есть новые карточки" onClick={() => go(sp.route(sp.pick, study.fresh))}>
               <Icon name="play" size={16} /> Учить новые · {study.fresh}
             </button>
           ) : (
-            <button className="btn primary big-ish" disabled={study.kind !== 'learn'} onClick={() => go({ name: 'review', topicId: id })}>
+            <button className="btn primary big-ish" disabled={study.kind !== 'learn'} onClick={() => go(sp.route())}>
               <AnimText value={study.kind === 'learn' ? `Учить · ${study.due}` : study.kind === 'idle' ? 'Нечего повторять' : 'Нет карточек'} />
             </button>
           )}
+          <StudyPickMenu sp={sp} go={go} />
           <MoreMenu
             label="Действия с темой"
             items={[
-              { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id }), hidden: !canRepeat },
+              { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) }), hidden: !canRepeat },
               { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
+              { label: 'Черновики карточек от ИИ', icon: 'bot', hint: 'ИИ предложит вопросы по конспекту, ты проверишь', onClick: () => setAiCards(true), hidden: !topic.note.trim() || !aiAvailable(data) },
               { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
               {
                 label: 'Проверить себя',
@@ -345,6 +358,25 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
         )}
       </div>
 
+      {current === 'note' && data.settings.aiAuto?.cards && topic.kind !== 'rule' && allCards.length === 0 && topic.note.trim().length >= 200 && aiAvailable(data) && !offerDismissed.has(id) && (
+        <div className="hint row gap8 wrap ai-offer" role="status">
+          <Icon name="bot" size={16} />
+          <span style={{ flex: '1 1 220px' }}>В конспекте есть текст, а карточек пока нет. ИИ может предложить черновики — ты проверишь и выберешь нужные.</span>
+          <button className="btn small primary" onClick={() => setAiCards(true)}>
+            Предложить карточки
+          </button>
+          <button
+            className="btn small ghost"
+            onClick={() => {
+              offerDismissed.add(id);
+              setOfferTick((n) => n + 1);
+            }}
+          >
+            Не сейчас
+          </button>
+        </div>
+      )}
+
       {poemTab ? (
         <PoemView key={poemTab.id + (tab?.endsWith(':whole') ? 'w' : '')} topicId={id} poem={poemTab} start={tab?.endsWith(':whole') ? 'whole' : undefined} go={go} />
       ) : listTab ? (
@@ -358,6 +390,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       )}
       {printOpen && <PrintDialog topicId={id} onClose={() => setPrintOpen(false)} />}
       {noteCards && <NoteToCards topicId={id} onClose={() => setNoteCards(false)} />}
+      {aiCards && <AiCardDrafts topicId={id} onClose={() => setAiCards(false)} />}
       {historyOpen && (
         <NoteHistoryDialog
           topicId={id}
@@ -631,8 +664,10 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
   const data = useData();
   const [editing, setEditing] = useState<string | null>(null);
   const [fromNote, setFromNote] = useState(false);
+  const [aiDrafts, setAiDrafts] = useState(false);
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
+  const canAi = aiAvailable(data) && Boolean(data.topics.find((t) => t.id === topicId)?.note.trim()); // ИИ включён и есть конспект: можно предложить черновики
   const [onlyHard, setOnlyHard] = useState(false);
   const now = Date.now();
   const q = normalizeAnswer(query);
@@ -660,8 +695,14 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           <button className="btn" onClick={() => setAdding(true)}>
             <Icon name="plus" size={18} /> Вручную
           </button>
+          {canAi && (
+            <button className="btn" onClick={() => setAiDrafts(true)} title="ИИ предложит вопросы по конспекту, а ты проверишь и поправишь">
+              <Icon name="bot" size={18} /> Черновики от ИИ
+            </button>
+          )}
         </div>
         {fromNote && <NoteToCards topicId={topicId} onClose={() => setFromNote(false)} />}
+        {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
         {adding && (
           <Modal title="Новая карточка" onClose={() => setAdding(false)} width={620}>
             <CardEditor topicId={topicId} onDone={() => setAdding(false)} />
@@ -681,6 +722,12 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           <Icon name="sparkle" size={16} /> Из конспекта
         </button>
         {fromNote && <NoteToCards topicId={topicId} onClose={() => setFromNote(false)} />}
+        {canAi && (
+          <button className="btn" onClick={() => setAiDrafts(true)} title="ИИ предложит вопросы по конспекту, а ты проверишь и поправишь">
+            <Icon name="bot" size={16} /> Черновики от ИИ
+          </button>
+        )}
+        {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
         {hard.length > 0 && (
           <button className={'chip-btn' + (onlyHard ? ' on' : '')} onClick={() => setOnlyHard(!onlyHard)} title="Карточки, которые долго не запоминаются">
             Трудные · {hard.length}

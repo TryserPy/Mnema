@@ -260,6 +260,11 @@ export function StyleTile({ mod, on, theme, onToggle, actions = [], delay }: { m
             {mod.name}
           </span>
           {mod.description && <span className="st-desc">{mod.description}</span>}
+          {mod.desktopOnly && (
+            <span className="st-pc" title="На телефоне этот стиль почти ничего не меняет">
+              только для компьютера
+            </span>
+          )}
         </span>
       </button>
       {actions.length > 0 && (

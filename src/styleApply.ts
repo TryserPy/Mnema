@@ -2,7 +2,7 @@
 // React-дерево при этом не перерисовывается: меняются только текст одного <style> и несколько атрибутов.
 import { useSyncExternalStore } from 'react';
 import { allMods } from './mods';
-import { attrName, compileStyles, type Compiled } from './styleSystem';
+import { attrName, compileStyles, MINE_ID, type Compiled } from './styleSystem';
 import { FONTS } from './themes';
 import type { CssSnippet, Mod, Settings, StyleValue } from './types';
 
@@ -13,11 +13,11 @@ let current: Compiled = { css: '', attrs: {} };
 let applied: string[] = []; // имена атрибутов, которые мы поставили на <html>
 /** Черновик из редактора: пока открыт, показывается на настоящем интерфейсе; закрыли без сохранения — откат. */
 let draft: { mod: Mod; values?: Record<string, StyleValue> } | null = null;
-let lastSettings: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues' | 'cssSnippets'> | null = null;
+let lastSettings: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues' | 'cssSnippets' | 'myStyle'> | null = null;
 const subs = new Set<() => void>();
 
 /** Включённые стили по порядку (сверху вниз), с их настройками. */
-export function styleStack(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues'>, replace?: { mod: Mod; values?: Record<string, StyleValue> } | null) {
+export function styleStack(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues'> & { myStyle?: Mod }, replace?: { mod: Mod; values?: Record<string, StyleValue> } | null) {
   const byId = new Map(allMods(s.customMods).map((m) => [m.id, m]));
   const out: { mod: Mod; values?: Record<string, StyleValue> }[] = [];
   const seen = new Set<string>();
@@ -29,7 +29,10 @@ export function styleStack(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleVal
     if (replace && replace.mod.id === id) out.push({ mod: replace.mod, values: replace.values ?? s.styleValues[id] });
     else out.push({ mod: m, values: s.styleValues[id] });
   }
-  if (replace && !seen.has(replace.mod.id)) out.push({ mod: replace.mod, values: replace.values });
+  if (replace && !seen.has(replace.mod.id) && replace.mod.id !== MINE_ID) out.push({ mod: replace.mod, values: replace.values });
+  // «Мой вид» — последним: правки из «Настроить текущий» перекрывают любые включённые стили.
+  if (replace && replace.mod.id === MINE_ID) out.push({ mod: replace.mod, values: replace.values });
+  else if (s.myStyle) out.push({ mod: s.myStyle });
   return out;
 }
 
@@ -58,8 +61,8 @@ function recompute(s: NonNullable<typeof lastSettings>) {
 }
 
 /** Применить включённые стили (вызывается при смене настроек; если ссылки на данные те же — ничего не делает). */
-export function applyStyles(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues' | 'cssSnippets'>) {
-  const refs = [s.modsOn, s.customMods, s.styleValues, s.cssSnippets];
+export function applyStyles(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues' | 'cssSnippets' | 'myStyle'>) {
+  const refs = [s.modsOn, s.customMods, s.styleValues, s.cssSnippets, s.myStyle];
   lastSettings = s;
   if (refs.length === lastRefs.length && refs.every((r, i) => r === lastRefs[i])) return;
   lastRefs = refs;

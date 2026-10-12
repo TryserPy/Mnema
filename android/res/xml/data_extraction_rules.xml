@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- То же для Android 12+ (android:dataExtractionRules): и облачная копия Google, и перенос на новый телефон по кабелю. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="mnema.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="mnema.xml" />
+    </device-transfer>
+</data-extraction-rules>

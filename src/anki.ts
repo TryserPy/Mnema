@@ -2,7 +2,7 @@
 // Колоды превращаются в предметы и темы, карточки — в карточки Refrain, картинки встраиваются,
 // звук пропускается. Прогресс можно перенести: история ответов прогоняется через FSRS.
 import { unzipSync } from 'fflate';
-import { decompress as zstd } from 'fzstd';
+import { Decompress as ZstdStream } from 'fzstd';
 import type { Database, SqlJsStatic } from 'sql.js';
 import { clozeOrdForAnki, gradeItem } from './srs';
 import type { CardType, ItemState, Settings } from './types';
@@ -51,6 +51,76 @@ export interface ParseOptions {
 
 const MAX_IMAGE = 3 * 1024 * 1024;
 const MAX_ALL_IMAGES = 80 * 1024 * 1024;
+
+/**
+ * Пределы при распаковке чужого .apkg/.colpkg (защита от «бомбы»: маленький файл, который раздувается до гигабайт).
+ * Размер каждой записи проверяется ДО распаковки по заявленному в архиве (fflate дальше заявленного не распаковывает), после zstd — по факту.
+ */
+export const ANKI_LIMITS = {
+  entries: 100000, // записей в архиве (в большой коллекции картинок бывают десятки тысяч)
+  collection: 500 * 1024 * 1024, // сама база коллекции
+  mediaList: 20 * 1024 * 1024, // список «номер → имя файла»
+  mediaFile: MAX_IMAGE, // одна картинка; звук и видео не читаем, их размер неважен
+  total: 800 * 1024 * 1024 // всё вместе после распаковки
+};
+const TOO_BIG = 'Колода Anki слишком большая после распаковки — похоже на повреждённый или вредный файл. Распакуй её в самой Anki поменьше (без лишних медиа) и попробуй снова.';
+
+/** Лимит записи архива по имени: база коллекции и список медиа — свои; всё остальное (номерные медиа) — размер одной картинки. */
+function entryLimit(name: string): number {
+  if (/^collection\.anki(2|21|21b)$/.test(name)) return ANKI_LIMITS.collection;
+  if (name === 'media') return ANKI_LIMITS.mediaList;
+  return ANKI_LIMITS.mediaFile;
+}
+const isMain = (name: string) => name === 'media' || /^collection\.anki(2|21|21b)$/.test(name);
+
+/** Распаковка zstd с пределом по факту (заявленный размер в заголовке кадра подделывают): как только перебор — ошибка. */
+export function zstd(data: Uint8Array, max: number = ANKI_LIMITS.collection): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const d = new ZstdStream((chunk) => {
+    total += chunk.length;
+    if (total > max) throw new Error(TOO_BIG);
+    chunks.push(chunk.slice());
+  });
+  d.push(data, true);
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
+}
+
+/**
+ * unzipSync с проверкой заявленных размеров до распаковки. Большая база коллекции или список медиа — ошибка; запись крупнее картинки
+ * (звук, видео) пропускается, не распаковываясь; перебор по числу записей и по сумме — ошибка.
+ */
+export function safeUnzip(bytes: Uint8Array, limits: Pick<typeof ANKI_LIMITS, 'entries'> = ANKI_LIMITS): Record<string, Uint8Array> {
+  let entries = 0;
+  let declared = 0;
+  const out = unzipSync(bytes, {
+    filter(f) {
+      if (++entries > limits.entries) throw new Error('В архиве слишком много файлов — это не похоже на колоду Anki.');
+      if (f.name.endsWith('/')) return false;
+      if (f.originalSize > entryLimit(f.name)) {
+        if (isMain(f.name)) throw new Error(TOO_BIG);
+        return false;
+      }
+      declared += f.originalSize;
+      if (declared > ANKI_LIMITS.total) throw new Error(TOO_BIG);
+      return true;
+    }
+  });
+  // Страховка по факту: заявленное в архиве могло не совпасть с настоящим.
+  let real = 0;
+  for (const [name, b] of Object.entries(out)) {
+    if (b.length > entryLimit(name)) throw new Error(TOO_BIG);
+    real += b.length;
+    if (real > ANKI_LIMITS.total) throw new Error(TOO_BIG);
+  }
+  return out;
+}
 
 // ---------- Мелочи ----------
 
@@ -538,16 +608,21 @@ export function parseAnki(fileName: string, bytes: Uint8Array, SQL: SqlJsStatic,
   let decks: Map<string, AnkiDeck>;
 
   if (isZip(bytes)) {
-    const zip = unzipSync(bytes);
+    const zip = safeUnzip(bytes);
     const media = new Map<string, () => Uint8Array | null>();
     const raw = (zipName: string) => () => {
       const b = zip[zipName];
       if (!b) return null;
-      return isZstd(b) ? zstd(b) : b;
+      if (!isZstd(b)) return b;
+      try {
+        return zstd(b, ANKI_LIMITS.mediaFile); // картинка больше предела — пропускаем, как раньше слишком большие
+      } catch {
+        return null;
+      }
     };
     const mediaFile = zip['media'];
     if (mediaFile) {
-      if (isZstd(mediaFile)) for (const e of readMediaEntries(zstd(mediaFile))) media.set(e.name, raw(e.zipName));
+      if (isZstd(mediaFile)) for (const e of readMediaEntries(zstd(mediaFile, ANKI_LIMITS.mediaList))) media.set(e.name, raw(e.zipName));
       else {
         try {
           for (const [zipName, name] of Object.entries(JSON.parse(td.decode(mediaFile)) as Record<string, string>)) media.set(name, raw(zipName));
@@ -558,7 +633,7 @@ export function parseAnki(fileName: string, bytes: Uint8Array, SQL: SqlJsStatic,
     }
     let colBytes: Uint8Array | undefined;
     if (zip['collection.anki21b']) {
-      colBytes = zstd(zip['collection.anki21b']);
+      colBytes = zstd(zip['collection.anki21b'], ANKI_LIMITS.collection);
       report.format = 'Anki 23.10+';
     } else if (zip['collection.anki21']) {
       colBytes = zip['collection.anki21'];

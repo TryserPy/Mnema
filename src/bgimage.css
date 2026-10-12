@@ -1,0 +1,53 @@
+/* Свой фон картинкой (1.30). Переменные и атрибуты ставит applyLook (themes.ts) по настройкам из bgImage.ts:
+   --bg-img, --bg-pos, --bg-size, --bg-repeat, --bg-blur, --bg-fade, --bg-dim, --bg-side, --bg-side-drawer, --bg-bar;
+   html[data-bgimg] (есть картинка), [data-bgfix=fixed|scroll], [data-bgside=under|solid], [data-bgbar=under|solid].
+
+   Слои снизу вверх: цвет темы на html → картинка (body::before, размытая один раз, а не на каждый кадр) → цвет темы с прозрачностью
+   (.app: чем больше видимость картинки, тем он прозрачнее) → боковая панель и шапка на телефоне (свои плашки с прозрачностью).
+
+   ПОЧЕМУ раньше картинка «не налезала» на боковую панель: у .sidebar и шапки на телефоне фон был непрозрачным (var(--side)), а позже —
+   почти непрозрачным (цвет панели на 82–100 %). Теперь, пока «Под боковой панелью» включено, панель — стекло: цвет панели с настраиваемой
+   прозрачностью и размытие того, что под ней (текст в панели читается, картинка просвечивает). */
+
+/* Картинка стоит на месте (по умолчанию). Поля вокруг окна (−2,4 × размытие) прячут светлую кайму от размытия. */
+html[data-bgimg][data-bgfix='fixed'] { background: var(--bg); }
+html[data-bgimg][data-bgfix='fixed'] body { background: transparent; }
+html[data-bgimg][data-bgfix='fixed'] body::before {
+  content: '';
+  position: fixed;
+  inset: calc(var(--bg-blur, 10px) * -2.4);
+  z-index: -1;
+  background-image: linear-gradient(var(--bg-dim, transparent), var(--bg-dim, transparent)), var(--bg-img);
+  background-position: 0 0, var(--bg-pos, 50% 50%);
+  background-size: 100% 100%, var(--bg-size, cover);
+  background-repeat: no-repeat, var(--bg-repeat, no-repeat);
+  filter: blur(var(--bg-blur, 10px));
+}
+html[data-bgimg][data-bgfix='fixed'] .app { background: color-mix(in srgb, var(--bg) calc(var(--bg-fade, 0.78) * 100%), transparent); }
+
+/* Боковая панель: картинка видна и под ней. */
+html[data-bgimg][data-bgside='under'] .sidebar {
+  background: color-mix(in srgb, var(--side) calc(var(--bg-side, 0.88) * 100%), transparent);
+  backdrop-filter: blur(calc(4px + (1 - var(--bg-side, 0.88)) * 20px));
+}
+/* Выдвижная панель на телефоне лежит поверх текста экрана — ей нужно больше непрозрачности. */
+html[data-bgimg][data-bgside='under'] .app.mobile .sidebar { background: color-mix(in srgb, var(--side) calc(var(--bg-side-drawer, 0.94) * 100%), transparent); }
+/* Шапка на телефоне. */
+html[data-bgimg][data-bgbar='under'] .app.mobile .mobile-bar {
+  background: color-mix(in srgb, var(--side) calc(var(--bg-bar, 0.8) * 100%), transparent);
+  backdrop-filter: blur(calc(4px + (1 - var(--bg-bar, 0.8)) * 20px));
+}
+
+/* Картинка прокручивается вместе с экраном: лежит на самой области экрана (размытия у неё нет — размыть можно только отдельный слой). */
+html[data-bgimg][data-bgfix='scroll'] .main {
+  background-image: linear-gradient(color-mix(in srgb, var(--bg) calc(var(--bg-fade, 0.78) * 100%), transparent), color-mix(in srgb, var(--bg) calc(var(--bg-fade, 0.78) * 100%), transparent)), linear-gradient(var(--bg-dim, transparent), var(--bg-dim, transparent)), var(--bg-img);
+  background-attachment: local;
+  background-position: 0 0, 0 0, var(--bg-pos, 50% 50%);
+  background-size: 100% 100%, 100% 100%, var(--bg-size, cover);
+  background-repeat: no-repeat, no-repeat, var(--bg-repeat, no-repeat);
+}
+
+/* Редактор: предпросмотр и точка фокуса */
+.bg-pick { position: relative; width: 100%; max-width: 360px; aspect-ratio: 16 / 10; border-radius: 12px; overflow: hidden; background-color: var(--sunken); background-repeat: no-repeat; box-shadow: 0 0 0 1px var(--line); cursor: crosshair; touch-action: none; user-select: none; }
+.bg-pick .bg-dot { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid #fff; background: var(--accent); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.45); pointer-events: none; }
+.bg-pick .bg-layer { position: absolute; inset: 0; pointer-events: none; }

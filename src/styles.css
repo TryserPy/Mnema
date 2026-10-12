@@ -57,14 +57,14 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 1rem; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 1rem; line-height: var(--rf-body-lh, 1.45); -webkit-font-smoothing: antialiased; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: 0.5; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 h1, h2, h3 { margin: 0; }
 h3 { font-size: 1.05rem; font-weight: 600; }
-code, .mono { font-family: 'Cascadia Mono', Consolas, ui-monospace, monospace; font-size: 0.88em; }
+code, .mono { font-family: var(--mono, 'Cascadia Mono', Consolas, ui-monospace, monospace); font-size: 0.88em; }
 code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 
 /* ---------- Раскладка ---------- */
@@ -317,6 +317,9 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .compare-box .md { white-space: normal; }
 
 .md { line-height: 1.6; overflow-wrap: anywhere; }
+/* Всё, что нарисовано внутри текста (в том числе положенное position:absolute), не выходит за его рамку: поддельное окно поверх приложения не получится.
+   Небольшой запас по краям — чтобы не обрезались выносные части настоящих формул и рамка фокуса у ссылок. Для .inline-md (display:inline) не действует — там держит очистка class/style. */
+.md { contain: paint; overflow-clip-margin: 6px; }
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
 .md h1, .md h2, .md h3 { margin: 1em 0 0.35em; font-weight: 600; }
@@ -1379,11 +1382,11 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .safe-row { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); }
 .safe-row.on { border-color: color-mix(in srgb, var(--good-ink) 40%, var(--line)); }
 .mod.plugin { align-items: flex-start; }
-.code-area { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.86rem; min-height: 55vh; line-height: 1.5; tab-size: 2; white-space: pre; resize: vertical; }
+.code-area { font-family: var(--mono, ui-monospace, 'Cascadia Mono', Consolas, monospace); font-size: 0.86rem; min-height: 55vh; line-height: 1.5; tab-size: 2; white-space: pre; resize: vertical; }
 .plugin-settings { padding: 8px 0; }
 .plugin-view { min-height: 100%; }
 .link-btn.danger-text { color: var(--again-ink); }
-.code-sample { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.84rem; overflow-x: auto; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code-sample { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-family: var(--mono, ui-monospace, 'Cascadia Mono', Consolas, monospace); font-size: 0.84rem; overflow-x: auto; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .api-table { display: flex; flex-direction: column; }
 .api-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .api-row code { font-size: 0.8rem; overflow-wrap: anywhere; }
