@@ -78,6 +78,29 @@ ok(/paint/.test(r.clip.contain) && !r.clip.hitProbe, 'C1: .md {contain: paint} �
 ok(r.drawing >= 1 && r.paths >= 2, 'настоящий рисунок Refrain (svg, pattern, path, rect) по-прежнему рисуется');
 ok(r.styleTags === 0 && r.rectStyle === null, 'в рисунке нет <style> и атрибута style');
 
+// ---- 1б. Н9: окно плеера видео — iframe с sandbox, без перехода верхнего окна; полный экран остаётся
+{
+  const d = await idbGet(page);
+  for (const c of d.cards) c.back = 'Видео:\n\n![video](https://www.youtube.com/watch?v=dQw4w9WgXcQ)';
+  await idbPut(page, d);
+  await page.reload();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: /Учиться/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Показать ответ' }).click();
+  await page.waitForTimeout(400);
+  await page.locator('.ve-cover').first().click();
+  await page.waitForTimeout(300);
+  const fr = await page.evaluate(() => { const f = document.querySelector('.video-embed iframe'); return f ? { sandbox: f.getAttribute('sandbox'), allow: f.getAttribute('allow'), fs: f.hasAttribute('allowfullscreen') } : null; });
+  console.log('   ', JSON.stringify(fr));
+  ok(fr !== null, 'Н9: плеер видео открылся (iframe)');
+  const sb = new Set((fr?.sandbox ?? '').split(/\s+/));
+  ok(['allow-scripts', 'allow-same-origin', 'allow-presentation', 'allow-popups', 'allow-popups-to-escape-sandbox'].every((t) => sb.has(t)), 'Н9: у iframe плеера есть sandbox с нужным плееру (скрипты, презентация, всплывающие окна)');
+  ok(!sb.has('allow-top-navigation') && !sb.has('allow-forms') && !sb.has('allow-modals') && !sb.has('allow-downloads'), 'Н9: плеер не может увести окно Refrain, слать формы, показывать alert и качать файлы');
+  ok(/fullscreen/.test(fr?.allow ?? '') && fr?.fs === true, 'Н9: полный экран у плеера сохранён (allow=fullscreen, allowfullscreen)');
+  await page.keyboard.press('Escape');
+}
+
 // ---- 2. «Восстановить из копии» с чужим облаком и включёнными модами
 const own = await idbGet(page);
 own.settings.cloud = { url: 'https://evil.example', user: 'x', folder: 'f', encrypt: false, auto: true };

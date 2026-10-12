@@ -472,3 +472,19 @@ describe('Н8: разрешения, права на файлы с ключам�
     expect(f.onlyLoadAppFromAsar).toBeUndefined();
   });
 });
+
+// ---------- Н9: sandbox у iframe плеера ----------
+describe('Н9: sandbox окна плеера', () => {
+  const src = readFileSync('src/components/videoNode.ts', 'utf8');
+  it('значение sandbox из задания, без top-navigation, forms, modals, downloads', () => {
+    const m = /export const PLAYER_SANDBOX = '([^']+)'/.exec(src);
+    expect(m?.[1]).toBe('allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox');
+    for (const bad of ['allow-top-navigation', 'allow-forms', 'allow-modals', 'allow-downloads']) expect(m![1]).not.toContain(bad);
+  });
+  it('iframe получает sandbox до src; полный экран остаётся', () => {
+    const i = src.indexOf("createElement('iframe')");
+    expect(src.indexOf("setAttribute('sandbox', PLAYER_SANDBOX)", i)).toBeGreaterThan(i);
+    expect(src.indexOf("setAttribute('sandbox', PLAYER_SANDBOX)", i)).toBeLessThan(src.indexOf('f.src = info.embed', i));
+    expect(src).toMatch(/f\.allowFullscreen = true/);
+  });
+});
