@@ -1,6 +1,7 @@
 // Защита от кривых данных: файл, облако и Wi-Fi-обмен могут принести что угодно, а одна плохая запись не должна вешать приложение.
 // Чистые функции без интерфейса.
 import { cleanIconImgs } from './iconImage';
+import { cleanColors } from './safeCss';
 import type { Exam, NoteVersion, Removed, Topic, TrashEntry } from './types';
 
 /** Контрольные дальше этого числа дней вперёд в планы не берём (годовой план бессмыслен, а считать его дорого). */
@@ -89,7 +90,7 @@ export function cleanTrash(raw: unknown): TrashEntry[] {
     if (!withId(r.subjects) || !withId(r.topics) || !withId(r.cards) || !Array.isArray(r.logs) || !Array.isArray(r.marks) || !isObj(r.states)) continue;
     if (!r.marks.every((m) => typeof m === 'string')) continue;
     const removed = r as unknown as Removed;
-    out.push({ id: e.id, at: e.at, label: e.label.slice(0, 200), removed: { ...removed, subjects: cleanIconImgs(removed.subjects) } });
+    out.push({ id: e.id, at: e.at, label: e.label.slice(0, 200), removed: { ...removed, subjects: cleanColors(cleanIconImgs(removed.subjects)) } });
     if (out.length >= 30) break;
   }
   return out;

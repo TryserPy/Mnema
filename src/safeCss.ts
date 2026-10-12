@@ -10,6 +10,22 @@ export function safeColor(v: unknown): string | null {
   return null;
 }
 
+/** Цвет по умолчанию у предмета и папки, если цвет из файла не годится. */
+export const FALLBACK_COLOR = '#3A3F4E';
+
+/** У предметов и папок (и в корзине) оставить только безопасный цвет — иначе он попадает в style/CSS-переменную как есть. Если менять нечего, возвращает тот же массив. */
+export function cleanColors<T extends { color?: unknown }>(items: T[]): T[] {
+  let changed = false;
+  const out = items.map((it) => {
+    if (!it || typeof it !== 'object') return it;
+    const c = safeColor(it.color);
+    if (c !== null && c === it.color) return it;
+    changed = true;
+    return { ...it, color: c ?? FALLBACK_COLOR };
+  });
+  return changed ? out : items;
+}
+
 // Что KaTeX кладёт в style="…" у частей формулы (размеры, сдвиги, цвет). position/z-index/inset/url(…) среди них нет — их и не пропускаем.
 const KATEX_PROPS = new Set([
   'height',

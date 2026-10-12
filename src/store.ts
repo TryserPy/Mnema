@@ -11,6 +11,7 @@ import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
 import { cleanIconImg, cleanIconImgs } from './iconImage';
+import { cleanColors, FALLBACK_COLOR, safeColor } from './safeCss';
 import { applyImportPlan } from './mdApply';
 import type { ImportPlan } from './mdImport';
 import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
@@ -224,10 +225,10 @@ export function normalizeData(raw: unknown): AppData {
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
   const out: AppData = {
     version: 1,
-    folders: Array.isArray(r.folders) ? cleanIconImgs(r.folders) : [],
+    folders: Array.isArray(r.folders) ? cleanColors(cleanIconImgs(r.folders)) : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
     exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
-    subjects: cleanIconImgs(r.subjects),
+    subjects: cleanColors(cleanIconImgs(r.subjects)),
     ...(Array.isArray(r.trash) && r.trash.length ? { trash: cleanTrash(r.trash) } : {}),
     topics: cleanTopics(r.topics),
     cards: r.cards,
@@ -1155,7 +1156,7 @@ export function importTopics(
       const existing = d.subjects.find((s) => s.name.trim().toLowerCase() === it.subjectName.trim().toLowerCase());
       if (existing) subjectId = existing.id;
       else {
-        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', ...(it.subjectIcon ? { icon: it.subjectIcon } : {}), ...(cleanIconImg(it.subjectIconImg) ? { iconImg: it.subjectIconImg } : {}), createdAt: nowIso() };
+        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: safeColor(it.subjectColor) ?? FALLBACK_COLOR, ...(it.subjectIcon ? { icon: it.subjectIcon } : {}), ...(cleanIconImg(it.subjectIconImg) ? { iconImg: it.subjectIconImg } : {}), createdAt: nowIso() };
         d = { ...d, subjects: [...d.subjects, s] };
         subjectId = s.id;
       }

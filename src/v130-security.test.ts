@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { assertCloudEncrypted } from './cloud';
 import { KATEX_CLASSES, KATEX_POSITIONED, safeClassList } from './katexClasses';
-import { sanitizeCss, safeStyleAttr } from './safeCss';
-import { emptyData, getData, replaceData, restoreFromTrash } from './store';
+import { cleanColors, sanitizeCss, safeColor, safeStyleAttr } from './safeCss';
+import { emptyData, getData, importTopics, normalizeData, replaceData, restoreFromTrash } from './store';
 import { mergeData } from './sync';
 import type { AppData, Card, Subject, Topic } from './types';
 
@@ -164,5 +164,33 @@ describe('Н1: незакрытый url( в конце листа', () => {
     const img = 'a{background:url(data:image/png;base64,AAAA)}';
     expect(sanitizeCss(img)).toBe(img);
     expect(sanitizeCss('.btn{min-height:48px;background:linear-gradient(red,blue)}')).toBe('.btn{min-height:48px;background:linear-gradient(red,blue)}');
+  });
+});
+
+// ---------- Н2: цвет предмета и папки из файла ----------
+describe('Н2: цвет из файла', () => {
+  const bad = ['red;background:url(//evil)', 'url(https://evil/x)', '#12', 'var(--x)', '', 5, null, { a: 1 }, 'constructor'];
+  it('cleanColors: годные цвета остаются (тот же массив), негодные заменяются', () => {
+    const ok = [{ id: 'a', color: '#3F51D8' }, { id: 'b', color: 'rgb(1, 2, 3)' }];
+    expect(cleanColors(ok)).toBe(ok);
+    for (const c of bad) expect(cleanColors([{ id: 'x', color: c }])[0].color, String(c)).toBe('#3A3F4E');
+    expect(safeColor('#3F51D8')).toBe('#3F51D8');
+  });
+  it('normalizeData чистит цвет предметов, папок и предметов в корзине', () => {
+    const d = emptyData();
+    d.subjects = [{ ...mkSubj('s1'), color: 'red;background:url(//evil)' }, { ...mkSubj('s2'), color: '#2F8F5B' }];
+    d.folders = [{ id: 'f1', name: 'П', color: 'url(https://evil/x)', createdAt: T0, updatedAt: T0 }];
+    d.trash = [{ id: 'tr', at: T0, label: 'x', removed: { subjects: [{ ...mkSubj('s3'), color: '"><img src=x>' }], topics: [], cards: [], states: {}, logs: [], marks: [] } }];
+    const n = normalizeData(JSON.parse(JSON.stringify(d)));
+    expect(n.subjects.map((s) => s.color)).toEqual(['#3A3F4E', '#2F8F5B']);
+    expect(n.folders[0].color).toBe('#3A3F4E');
+    expect(n.trash![0].removed.subjects[0].color).toBe('#3A3F4E');
+  });
+  it('импорт темы из файла (importTopics) не принимает чужой цвет предмета', () => {
+    replaceData(emptyData());
+    importTopics([{ subjectName: 'Из файла', subjectColor: 'red;background:url(//evil)', topic: { name: 'Т', note: '' }, cards: [] }]);
+    expect(getData().subjects.find((s) => s.name === 'Из файла')!.color).toBe('#3A3F4E');
+    importTopics([{ subjectName: 'Хороший', subjectColor: '#2F8F5B', topic: { name: 'Т', note: '' }, cards: [] }]);
+    expect(getData().subjects.find((s) => s.name === 'Хороший')!.color).toBe('#2F8F5B');
   });
 });
