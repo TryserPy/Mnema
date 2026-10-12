@@ -3,7 +3,7 @@
 // (переменные, атрибуты, настройки, CSS через sanitizeCss) и проверка читаемости. Кода в стиле нет и быть не может.
 // Чистые функции — их проверяют тесты (v130-styles.test.ts); запрос к модели — в самом конце файла (askStyle).
 import { humanError } from './ai';
-import { aiSystem } from './aiTasks';
+import { aiRequest } from './aiTasks';
 import { sanitizeCss } from './safeCss';
 import { fixContrast, type BaseAppearance, type Fix } from './styleContrast';
 import { API_CLASSES, API_PARTS, API_ROOT_ATTRS, API_VARS } from './styleApi';
@@ -37,10 +37,9 @@ export function styleReference(): string {
   return lines.join('\n');
 }
 
-/** Системный текст для ИИ (с указаниями ученика к задаче «style» через aiSystem). */
+/** Системный текст для ИИ. Указания ученика к задаче «style» и выбранный для неё ИИ добавляет aiRequest при запросе (askStyle). */
 export function styleSystemPrompt(): string {
-  return aiSystem(
-    'style',
+  return (
     [
       'Ты — дизайнер оформления приложения для повторения учебных карточек Refrain (его используют школьники). Тебе описывают, как должно выглядеть приложение, а ты возвращаешь СТИЛЬ.',
       'Верни ТОЛЬКО один JSON-объект — без пояснений до и после, без ```. Формат (все поля, кроме name, необязательны):',
@@ -342,7 +341,7 @@ export async function aiReady(data: AppData): Promise<AiReady> {
 export async function askStyle(wish: string, opts: { id: string; base: BaseAppearance; current?: Mod }): Promise<AiStyleResult> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
-  const r = await api.aiAsk({ system: styleSystemPrompt(), text: styleUserText(wish, opts.current), maxTokens: 4000 });
+  const r = await api.aiAsk(aiRequest('style', { system: styleSystemPrompt(), text: styleUserText(wish, opts.current), maxTokens: 4000 }));
   if (!r.ok) throw new Error(humanError(r.error));
   if (!r.text?.trim()) throw new Error('Модель вернула пустой ответ. Попробуй ещё раз.');
   return parseAiStyle(r.text, { id: opts.id, fallbackName: opts.current?.name ?? wish.slice(0, 40), base: opts.base });

@@ -1,4 +1,5 @@
 // Синхронизация по Wi-Fi зашифрована: код в сеть не уходит, подмену и чужой код сервер не принимает.
+import { readFileSync } from 'node:fs';
 import Module, { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { formatCode, newCode, nonce, normCode, open, seal, syncKey } from '../shared/syncCrypto.mjs';
@@ -50,6 +51,7 @@ describe('сервер синхронизации на компьютере (ele
   const received: unknown[] = [];
   const done: unknown[] = [];
   let reply: unknown = { merged: true };
+  let delay = 5; // через сколько «окно» отвечает на обмен
   let session: { ok: boolean; token: string; port: number };
   const origLoad = (Module as unknown as { _load: (...a: unknown[]) => unknown })._load;
 
@@ -70,7 +72,7 @@ describe('сервер синхронизации на компьютере (ele
         send: (ch: string, msg: { id: string; data: unknown }) => {
           if (ch === 'sync:incoming') {
             received.push(msg.data);
-            setTimeout(() => handlers['sync:reply']({}, { id: msg.id, data: reply, report: { added: 1 } }), 5);
+            setTimeout(() => handlers['sync:reply']({}, { id: msg.id, data: reply, report: { added: 1 } }), delay);
           } else if (ch === 'sync:done') done.push(msg);
         }
       }
@@ -86,6 +88,12 @@ describe('сервер синхронизации на компьютере (ele
   const post = (path: string, body: string, headers: Record<string, string> = {}) =>
     fetch(`http://127.0.0.1:${session.port}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body });
 
+  /** Пройти «hello» и получить билет на обмен. */
+  const ticket = async (key: CryptoKey) => {
+    const hello = await post('/mnema/hello', await seal(key, 'hello-req', { n: nonce() }));
+    return (await open<{ t: string }>(key, 'hello-res', await hello.text())).t;
+  };
+
   it('показывает 12-значный код', () => {
     expect(session.ok).toBe(true);
     expect(normCode(session.token)).toBe(session.token);
@@ -96,10 +104,11 @@ describe('сервер синхронизации на компьютере (ele
     const n1 = nonce();
     const hello = await post('/mnema/hello', await seal(key, 'hello-req', { n: n1 }));
     expect(hello.status).toBe(200);
-    const hi = await open<{ n: string; app: string }>(key, 'hello-res', await hello.text());
+    const hi = await open<{ n: string; app: string; t: string }>(key, 'hello-res', await hello.text());
     expect(hi).toMatchObject({ n: n1, app: 'Mnema' });
+    expect(hi.t).toMatch(/^[0-9a-f]{32}$/); // билет на один обмен
     const n2 = nonce();
-    const res = await post('/mnema/sync', await seal(key, 'sync-req', { n: n2, device: 'телефон', data: { subjects: ['конспект'] } }));
+    const res = await post('/mnema/sync', await seal(key, 'sync-req', { n: n2, device: 'телефон', data: { subjects: ['конспект'] } }), { 'x-mnema-session': hi.t });
     const text = await res.text();
     expect(res.status).toBe(200);
     expect(text).not.toContain('merged');
@@ -111,9 +120,10 @@ describe('сервер синхронизации на компьютере (ele
   it('чужой код, открытый текст и подменённый ответ на месте запроса — отказ', async () => {
     const wrong = await syncKey(newCode());
     expect((await post('/mnema/hello', await seal(wrong, 'hello-req', { n: 'x' }))).status).toBe(403);
-    expect((await post('/mnema/sync', JSON.stringify({ device: 'x', data: {} }))).status).toBe(403);
     const key = await syncKey(session.token);
-    expect((await post('/mnema/sync', await seal(key, 'sync-res', { n: 'x', data: {} }))).status).toBe(403);
+    const t = await ticket(key);
+    expect((await post('/mnema/sync', JSON.stringify({ device: 'x', data: {} }), { 'x-mnema-session': t })).status).toBe(403);
+    expect((await post('/mnema/sync', await seal(key, 'sync-res', { n: 'x', data: {} }), { 'x-mnema-session': await ticket(key) })).status).toBe(403);
     expect(received).toHaveLength(1); // ничего из этого до окна не дошло
   });
 
@@ -149,5 +159,75 @@ describe('сервер синхронизации на компьютере (ele
     expect(OLD_VERSION).toContain('Обнови');
     const r = await fetch(`http://127.0.0.1:${session.port}/mnema/hello`, { headers: { 'x-mnema-token': '12345678' } });
     expect(r.status).toBe(426);
+  });
+
+  // ---- Н4: ограничения сервера (каждый тест, где нужен чистый счётчик неудач, перезапускает сервер) ----
+  const restart = async () => {
+    session = (await handlers['sync:start']()) as typeof session;
+    return syncKey(session.token);
+  };
+
+  it('Н4: обмен без билета не принимается, билет одноразовый, чужой билет — отказ', async () => {
+    const key = await restart();
+    const body = await seal(key, 'sync-req', { n: nonce(), device: 'телефон', data: {} });
+    expect((await post('/mnema/sync', body)).status).toBe(426);
+    expect((await post('/mnema/sync', body, { 'x-mnema-session': 'deadbeef' })).status).toBe(403);
+    const t = await ticket(key);
+    const ok = await post('/mnema/sync', await seal(key, 'sync-req', { n: nonce(), device: 'телефон', data: {} }), { 'x-mnema-session': t });
+    expect(ok.status).toBe(200);
+    const again = await post('/mnema/sync', await seal(key, 'sync-req', { n: nonce(), device: 'телефон', data: {} }), { 'x-mnema-session': t });
+    expect(again.status).toBe(403);
+  });
+
+  it('Н4: тело до проверки кода — не больше 64 КБ', async () => {
+    const key = await restart();
+    const big = 'x'.repeat(70 * 1024);
+    const st = await post('/mnema/hello', big).then((r) => r.status, () => 'reset');
+    expect([413, 'reset']).toContain(st);
+    // и «hello» с настоящим кодом по-прежнему проходит
+    expect((await post('/mnema/hello', await seal(key, 'hello-req', { n: nonce() }))).status).toBe(200);
+    // большое тело обмена принимается только с билетом: без него — отказ сразу, не дочитывая
+    const noTicket = await post('/mnema/sync', 'y'.repeat(200 * 1024)).then((r) => r.status, () => 'reset');
+    expect([426, 'reset']).toContain(noTicket);
+  });
+
+  it('Н4: повторно присланный запрос (тот же nonce) отклоняется', async () => {
+    const key = await restart();
+    const body = await seal(key, 'hello-req', { n: nonce() });
+    expect((await post('/mnema/hello', body)).status).toBe(200);
+    expect((await post('/mnema/hello', body)).status).toBe(409);
+  });
+
+  it('Н4: одновременно идёт не больше двух обменов', async () => {
+    const key = await restart();
+    delay = 400;
+    try {
+      const tickets = [await ticket(key), await ticket(key), await ticket(key)];
+      const codes = await Promise.all(
+        tickets.map(async (t) => (await post('/mnema/sync', await seal(key, 'sync-req', { n: nonce(), device: 'телефон', data: {} }), { 'x-mnema-session': t })).status)
+      );
+      expect(codes.filter((c) => c === 200)).toHaveLength(2);
+      expect(codes.filter((c) => c === 429)).toHaveLength(1);
+    } finally {
+      delay = 5;
+    }
+  });
+
+  it('Н4: перебор кода блокирует адрес источника, а не закрывает сервер', async () => {
+    const key = await restart();
+    const wrong = await syncKey(newCode());
+    const codes: number[] = [];
+    for (let i = 0; i < 12; i++) codes.push((await post('/mnema/hello', await seal(wrong, 'hello-req', { n: nonce() }))).status);
+    expect(codes.slice(0, 8).every((c) => c === 403)).toBe(true);
+    expect(codes.slice(8).every((c) => c === 429)).toBe(true);
+    // адрес заблокирован даже с верным кодом, но сервер жив (отвечает 429, а не «соединение отклонено»)
+    expect((await post('/mnema/hello', await seal(key, 'hello-req', { n: nonce() }))).status).toBe(429);
+    await restart(); // новый сеанс — чистые счётчики
+  });
+
+  it('Н4: сервер не слушает 0.0.0.0 — только адреса сети и петлю', () => {
+    const src = readFileSync('electron/sync.cjs', 'utf8').replace(/\/\/.*$/gm, '');
+    expect(src).not.toContain('0.0.0.0');
+    expect(src).toMatch(/lanAddresses\(\)/);
   });
 });

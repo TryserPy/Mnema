@@ -27,11 +27,17 @@
         </intent>
     </queries>
 
+    <!-- Резервная копия Android включена (данные Refrain можно вернуть на новом телефоне), но без shared_prefs/mnema.xml,
+         где лежат ключ ИИ и пароли облака: см. res/xml/backup_rules.xml (Android 6–11) и data_extraction_rules.xml (Android 12+).
+         usesCleartextTraffic="true" оставлен нарочно: обычный http нужен для синхронизации по Wi-Fi по локальному адресу компьютера
+         (http://192.168.x.x:порт — всё шифруется ключом из кода, см. shared/syncCrypto.mjs) и для локальных нейросетей LM Studio и Ollama. -->
     <application
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/AppTheme"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true"
         android:supportsRtl="false">

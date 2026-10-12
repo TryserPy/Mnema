@@ -11,7 +11,7 @@ import { API_CLASSES, API_VARS } from './styleApi';
 import { BASE_COLORS, contrastReport, fixContrast } from './styleContrast';
 import { bgWithStyle, toggleStyle } from './styleActions';
 import { cleanCustomMods, cleanMod, cleanMyStyle, cleanStyleBackup, compileStyles, parseStyleFile, STYLE_ATTRS, STYLE_FORMAT, styleToFile } from './styleSystem';
-import { emptyData, getData, normalizeData, replaceData } from './store';
+import { emptyData, getData, normalizeData, replaceData, updateSettings } from './store';
 import { DEFAULT_ACCENT, DEFAULT_LOOK, THEMES } from './themes';
 import type { Mod, Settings } from './types';
 
@@ -389,7 +389,7 @@ describe('ИИ: запрос к модели', () => {
     for (const t of THEMES) expect(ref, t.id).toContain(t.id);
     expect(ref.length).toBeLessThan(14000);
   });
-  it('системный текст — через aiSystem и без обещаний лишнего', () => {
+  it('системный текст без обещаний лишнего (указания ученика добавляет aiRequest)', () => {
     const p = styleSystemPrompt();
     expect(p).toMatch(/ТОЛЬКО один JSON/);
     expect(p).toMatch(/не ниже 4\.5/);
@@ -402,6 +402,23 @@ describe('ИИ: запрос к модели', () => {
     expect(t).toContain('"css":".a{}"');
     expect(t).not.toContain('base64');
     expect(styleUserText('х'.repeat(5000)).length).toBeLessThan(900);
+  });
+  it('askStyle: указания ученика для «style» и выбранный ИИ уходят в запрос (aiRequest), один раз', async () => {
+    replaceData(emptyData());
+    updateSettings({ aiNotes: { style: 'только спокойные цвета' }, aiTaskProvider: { style: 'gemini' } });
+    const calls: { system?: string; provider?: string }[] = [];
+    const w = globalThis as unknown as { window?: unknown };
+    const prev = w.window;
+    w.window = { mnemaApi: { aiAsk: async (r: { system?: string; provider?: string }) => (calls.push(r), { ok: true as const, text: '{"name":"Т","accent":"#112233"}' }) } };
+    try {
+      await askStyle('х', { id: 'n1', base: BASE });
+      expect(calls[0].provider).toBe('gemini');
+      expect(calls[0].system).toContain('только спокойные цвета');
+      expect(calls[0].system!.split('только спокойные цвета').length).toBe(2);
+    } finally {
+      w.window = prev;
+      replaceData(emptyData());
+    }
   });
   it('askStyle: запрос уходит в aiAsk, ответ превращается в безопасный стиль; ошибки по-русски', async () => {
     const calls: { system?: string; text: string }[] = [];

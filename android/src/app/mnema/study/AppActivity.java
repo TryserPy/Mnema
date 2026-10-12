@@ -30,6 +30,26 @@ import java.util.Map;
  */
 public class AppActivity extends Activity {
     static final String HOST = "mnema.app";
+
+    /** Схемы, которые можно открыть вне Refrain: сайты и почта. Всё остальное (intent:, file:, content:, market:, tel:, sms: …) страница открыть не может. */
+    static boolean externalScheme(String scheme) {
+        if (scheme == null) return false;
+        String s = scheme.toLowerCase(java.util.Locale.ROOT);
+        return s.equals("http") || s.equals("https") || s.equals("mailto");
+    }
+
+    /** Открыть ссылку из страницы в браузере или почте. Без Intent.parseUri: чужой адрес не может задать ни приложение, ни действие, ни данные. */
+    boolean openExternal(Uri u) {
+        if (u == null || !externalScheme(u.getScheme())) return false;
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, u);
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+            startActivity(i);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
     static final int REQ_FILE = 1;
     static final int REQ_SAVE = 2;
     static final int REQ_PERM_WEB = 3;
@@ -103,11 +123,8 @@ public class AppActivity extends Activity {
             @SuppressWarnings("deprecation")
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 Uri u = Uri.parse(url);
-                if (HOST.equals(u.getHost())) return false;
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, u));
-                } catch (Exception ignored) {
-                }
+                if ("https".equalsIgnoreCase(u.getScheme()) && HOST.equals(u.getHost())) return false;
+                openExternal(u);
                 return true;
             }
         });

@@ -285,6 +285,7 @@ export interface PluginRec {
   enabled: boolean;
   fromCatalog?: boolean;
   icon?: string;
+  ai?: boolean; // разрешил ли ученик этому моду спрашивать ИИ (нет поля — ещё не решал: спросим при первом запросе)
 }
 
 export interface Look {
@@ -298,8 +299,18 @@ export interface Look {
   custom: { light?: Record<string, string>; dark?: Record<string, string> }; // свои цвета поверх темы
 }
 
+/** Для чего у ИИ можно задать свои указания: 'all' — для всех задач сразу. */
+export type AiNoteKey = 'all' | 'textbook' | 'cards' | 'explain' | 'style';
+export type AiNotes = Partial<Record<AiNoteKey, string>>;
+/** Задачи ИИ, для которых можно выбрать свой ИИ (из настроенных). */
+export type AiTask = Exclude<AiNoteKey, 'all'>;
+
 export interface Settings {
   look: Look;
+  aiNotes?: AiNotes; // свои указания для ИИ: общие и для каждой задачи (короткие, до 400 знаков)
+  aiTaskProvider?: Partial<Record<AiTask, string>>; // какой из настроенных ИИ брать для задачи ('anthropic' | 'gemini' | 'local' | 'custom:<id>'); нет — основной
+  aiAuto?: { cards?: boolean }; // подсказки с ИИ — выключены, пока ученик не включит; ИИ спрашивается только по нажатию
+  studyPick?: Record<string, string>; // что учить в теме/предмете/папке: ключ 't:<id>' | 's:<id>' | 'f:<id>' → 'all' | 'cards' | 'lists' | 'list:<id>'
   styleBackup?: Record<string, { look: Look; accent: string; density?: Density; fontScale?: number; bgImage?: BgImage | null }>; // оформление до включения стиля — чтобы вернуть (плотность, размер текста и фон — только если стиль их меняет)
   homeworkRemind: { on: boolean; time: string; when: 'dayBefore' | 'sameDay' }; // напоминания о ДЗ по умолчанию
   lessonsRemind: { on: boolean; time: string }; // вечером: «завтра такие-то уроки — повтори»
@@ -419,6 +430,9 @@ export type SettingsSection = 'look' | 'text' | 'motion' | 'styles' | 'features'
 /** «Повторить ещё раз»: какие карточки взять — повторённые сегодня, все начатые, слабые места или все подряд. */
 export type RepeatKind = 'today' | 'started' | 'weak' | 'all';
 
+/** «Что учить» в теме, предмете или папке: всё, только обычные карточки или только строки списков (термины, словари, даты, формулы). */
+export type StudySource = 'cards' | 'lists';
+
 export type Route =
   | { name: 'today' }
   | { name: 'knowledge' }
@@ -429,8 +443,8 @@ export type Route =
   | { name: 'plugin'; id: string }
   | { name: 'exam'; id: string } // экран подготовки к контрольной; id вида `topic:<id>` — контрольная из старой даты темы
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
-  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; folderId?: string; topicIds?: string[]; cardIds?: string[]; cram?: boolean; only?: RepeatKind; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean; extraNew?: number } // folderId — папка, из которой запущено (subjectIds — её предметы): после повторения вернёмся в неё; only — «Повторить ещё раз»: что именно брать (вместе с cram); topicIds — выбранные темы (только их карточки): тогда topicId/subjectId/folderId лишь говорят, куда вернуться
-  | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
+  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; folderId?: string; topicIds?: string[]; cardIds?: string[]; cram?: boolean; only?: RepeatKind; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean; extraNew?: number; back?: Route; source?: StudySource; listId?: string } // back — откуда запустили (вместе с вкладкой): туда возвращаемся после повторения; source/listId — что учить: только карточки, только списки или один список; folderId — папка, из которой запущено (subjectIds — её предметы): после повторения вернёмся в неё; only — «Повторить ещё раз»: что именно брать (вместе с cram); topicIds — выбранные темы (только их карточки): тогда topicId/subjectId/folderId лишь говорят, куда вернуться
+  | { name: 'test'; topicId: string; pretest?: boolean; examId?: string; back?: Route } // back — откуда запустили (вместе с вкладкой)
   | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'trash' }
   | { name: 'settings'; section?: SettingsSection }
