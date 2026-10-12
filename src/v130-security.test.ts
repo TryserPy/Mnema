@@ -1,7 +1,10 @@
 // 1.30: правки по итогам проверки безопасности (С1–С2, Н1–Н11).
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { zstdCompressSync } from 'node:zlib';
+import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
+import { ANKI_LIMITS, parseAnki, safeUnzip, zstd } from './anki';
 import { assertCloudEncrypted } from './cloud';
 import { KATEX_CLASSES, KATEX_POSITIONED, safeClassList } from './katexClasses';
 import { cleanColors, sanitizeCss, safeColor, safeStyleAttr } from './safeCss';
@@ -285,5 +288,59 @@ describe('Н4: syncGuard', () => {
   it('ipOf: «::ffff:» у IPv4 снимается', () => {
     expect(ipOf({ socket: { remoteAddress: '::ffff:192.168.1.7' } })).toBe('192.168.1.7');
     expect(ipOf({})).toBe('');
+  });
+});
+
+// ---------- Н5: .apkg без лимитов ----------
+describe('Н5: распаковка чужого .apkg', () => {
+  /** Zip из записей (без сжатия), в центральном каталоге у записи name заявлен размер declared. */
+  const zipWith = (files: Record<string, Uint8Array>, declared: Record<string, number> = {}): Uint8Array => {
+    const z = zipSync(Object.fromEntries(Object.entries(files).map(([n, b]) => [n, [b, { level: 0 }] as [Uint8Array, { level: 0 }]])));
+    const dv = new DataView(z.buffer, z.byteOffset, z.byteLength);
+    for (let i = 0; i + 46 < z.length; i++) {
+      if (dv.getUint32(i, true) !== 0x02014b50) continue;
+      const nameLen = dv.getUint16(i + 28, true);
+      const name = new TextDecoder().decode(z.subarray(i + 46, i + 46 + nameLen));
+      if (name in declared) dv.setUint32(i + 24, declared[name], true);
+    }
+    return z;
+  };
+  const MB = 1024 * 1024;
+
+  it('база коллекции с заявленным размером в гигабайты — понятная ошибка до распаковки', () => {
+    const z = zipWith({ 'collection.anki2': new Uint8Array(10) }, { 'collection.anki2': 3000 * MB });
+    expect(() => safeUnzip(z)).toThrow(/слишком большая/);
+  });
+  it('список медиа и сумма записей тоже ограничены', () => {
+    expect(() => safeUnzip(zipWith({ media: new Uint8Array(4) }, { media: ANKI_LIMITS.mediaList + 1 }))).toThrow(/слишком большая/);
+    // много номерных записей по 3 МБ (заявлено) — в сумме больше предела
+    const files: Record<string, Uint8Array> = {};
+    const declared: Record<string, number> = {};
+    const n = Math.ceil(ANKI_LIMITS.total / (3 * MB)) + 1;
+    for (let i = 0; i < n; i++) {
+      files[String(i)] = new Uint8Array(1);
+      declared[String(i)] = 3 * MB;
+    }
+    expect(() => safeUnzip(zipWith(files, declared))).toThrow(/слишком большая/);
+  });
+  it('запись крупнее картинки (звук, видео) пропускается без ошибки, обычная распаковывается', () => {
+    const z = zipWith({ '0': new Uint8Array([1, 2, 3]), '1': new Uint8Array(4), 'collection.anki2': new Uint8Array([9]) }, { '1': 50 * MB });
+    const out = safeUnzip(z);
+    expect(Object.keys(out).sort()).toEqual(['0', 'collection.anki2']);
+  });
+  it('слишком много записей — ошибка', () => {
+    const files: Record<string, Uint8Array> = {};
+    for (let i = 0; i < 6; i++) files['f' + i] = new Uint8Array(1);
+    expect(() => safeUnzip(zipSync(files), { entries: 5 })).toThrow(/слишком много файлов/);
+    expect(Object.keys(safeUnzip(zipSync(files), { entries: 6 }))).toHaveLength(6);
+  });
+  it('parseAnki отказывает на огромном заявленном размере (а не пытается распаковать)', () => {
+    const z = zipWith({ 'collection.anki21': new Uint8Array(10) }, { 'collection.anki21': 4000 * MB });
+    expect(() => parseAnki('bomb.apkg', z, {} as never, { progress: false, settings: { retention: 0.9 } })).toThrow(/слишком большая/);
+  });
+  it('zstd: предел по факту (заявленный в кадре размер не доверяем)', () => {
+    const packed = new Uint8Array(zstdCompressSync(Buffer.alloc(3 * MB)));
+    expect(() => zstd(packed, 1 * MB)).toThrow(/слишком большая/);
+    expect(zstd(packed, 4 * MB).length).toBe(3 * MB);
   });
 });
