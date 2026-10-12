@@ -72,8 +72,8 @@ export function textDirection(g: Gray): { dir: 'h' | 'v'; hScore: number; vScore
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) (rows[y] += hMask[y * w + x] / w), (cols[x] += vMask[y * w + x] / h);
   const hScore = lineScore(rows);
   const vScore = lineScore(cols);
-  // Уверенно «на боку» только при явном перевесе; сомнения решает чтение (линии Tesseract стоят вертикально или нет).
-  return { dir: vScore > hScore * 1.2 ? 'v' : 'h', hScore, vScore };
+  // «На боку» — если вертикальные полосы заметно сильнее горизонтальных И сами по себе выше обычного (у ровной страницы они 0.17–0.24; волнистые строки занижают горизонтальные, но не поднимают вертикальные); сомнения решает чтение (линии Tesseract стоят вертикально или нет).
+  return { dir: vScore > hScore * 1.2 && vScore > 0.27 ? 'v' : 'h', hScore, vScore };
 }
 
 // ---------- Повороты на 90° ----------

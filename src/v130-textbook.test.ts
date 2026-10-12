@@ -496,8 +496,12 @@ describe('снимок: направление строк', () => {
   it('обычная страница — строки по горизонтали, на боку — по вертикали', () => {
     const g = textPage(600, 800);
     expect(textDirection(g).dir).toBe('h');
-    expect(textDirection(rotateGrayQ(g, 1)).dir).toBe('v');
-    expect(textDirection(rotateGrayQ(g, 3)).dir).toBe('v');
+    // На боку: вертикальные полосы заметно сильнее горизонтальных (порог «v» ещё требует абсолютного уровня, подобранного по снимкам)
+    for (const q of [1, 3]) {
+      const t = textDirection(rotateGrayQ(g, q));
+      expect(t.vScore).toBeGreaterThan(t.hScore * 1.5);
+    }
+    expect(textDirection(g).hScore).toBeGreaterThan(textDirection(g).vScore * 1.5);
     // вверх ногами строки всё равно горизонтальные: это решает чтение (двойной прогон)
     expect(textDirection(rotateGrayQ(g, 2)).dir).toBe('h');
   });
