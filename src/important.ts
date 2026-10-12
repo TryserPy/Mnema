@@ -178,7 +178,11 @@ export function findImportant(note: string, hs: HighlightSettings): ImportantIte
     items.push({ id, type, text: t, sentence, page });
   };
   // Абзацы: пустая строка разделяет; цитата «>» — один блок.
-  const blocks = note.replace(/\r/g, '').split(/\n{2,}/);
+  // Пункты списка — каждый сам по себе (иначе определение склеится со следующим пунктом).
+  const blocks = note
+    .replace(/\r/g, '')
+    .split(/\n{2,}/)
+    .flatMap((raw) => (/^>/.test(raw.trim()) || !/^\s*(?:[-*]|\d+[.)])\s/m.test(raw) ? [raw] : raw.split('\n').filter((l) => l.trim())));
   for (const raw of blocks) {
     const lines = raw.split('\n');
     for (const line of lines) {

@@ -7,8 +7,9 @@ const os = require('os');
 const crypto = require('crypto');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { createGuard, ipOf, readBody } = require('./syncGuard.cjs');
 
-let server = null;
+let servers = []; // по одному серверу на каждый адрес локальной сети (и на петлю 127.0.0.1) — не на 0.0.0.0
 let session = null; // { token (код с экрана), port, hosts }
 let getWin = () => null;
 let stopTimer = null;
@@ -29,8 +30,11 @@ function lanAddresses() {
 
 function stop() {
   clearTimeout(stopTimer);
-  if (server) server.close();
-  server = null;
+  for (const srv of servers) {
+    srv.close();
+    srv.closeAllConnections?.();
+  }
+  servers = [];
   session = null;
   for (const p of pending.values()) p.reject(new Error('stopped'));
   pending.clear();
@@ -55,59 +59,122 @@ function askRenderer(data) {
 let cryptoPromise = null;
 const syncCrypto = () => (cryptoPromise ??= import(pathToFileURL(path.join(__dirname, '..', 'shared', 'syncCrypto.mjs')).href));
 
+/** Открыть слушатели на адресах: первый берёт свободный порт, остальные — тот же (в QR-коде один порт на все адреса). */
+async function listenOn(addresses, handler) {
+  const out = [];
+  let port = 0;
+  for (const addr of addresses) {
+    const srv = http.createServer(handler);
+    srv.headersTimeout = 20000; // медленные заголовки («slowloris») не держат соединение
+    srv.requestTimeout = 10 * 60 * 1000; // большая копия по Wi-Fi идёт долго, но не вечно
+    srv.maxConnections = 24;
+    try {
+      await new Promise((resolve, reject) => {
+        srv.once('error', reject);
+        srv.listen(port, addr, () => {
+          srv.removeListener('error', reject);
+          resolve();
+        });
+      });
+    } catch (e) {
+      if (!out.length) throw e; // не вышло на первом адресе — ошибка; на остальных (порт занят) просто без этого адреса
+      continue;
+    }
+    srv.on('error', () => {});
+    if (!port) port = srv.address().port;
+    out.push(srv);
+  }
+  return { servers: out, port };
+}
+
 async function start() {
   stop();
   // Код из 12 знаков (~60 бит) — его можно и ввести руками. Из кода получается ключ шифрования; сам код в сеть не уходит,
-  // поэтому подслушать или подменить обмен нельзя. Перебор по сети отсекаем: после 20 неверных попыток сервер закрывается.
+  // поэтому подслушать или подменить обмен нельзя. Перебор по сети отсекаем: после нескольких неверных попыток адрес источника
+  // блокируется (а не сервер закрывается — иначе чужой мог бы просто выключать синхронизацию). Тело до проверки кода — не больше 64 КБ:
+  // обмен данными принимается только с билетом, который выдаёт «hello» после проверки кода. Повторно присланный запрос (тот же nonce) отклоняется.
   const sc = await syncCrypto();
   const code = sc.newCode();
   const key = await sc.syncKey(code);
-  let bad = 0;
-  return new Promise((resolve, reject) => {
-    const srv = http.createServer((req, res) => {
-      const send = (status, body) => {
-        res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-        res.end(typeof body === 'string' ? body : JSON.stringify(body));
-      };
-      // Старая Refrain (код из 8 цифр в заголовке) — с ней обмен без шифрования не ведём.
-      if (req.headers['x-mnema-token'] !== undefined) return send(426, { error: 'Обнови Refrain на этом устройстве — синхронизация теперь зашифрована' });
-      const route = req.method === 'POST' && (req.url === '/mnema/hello' ? 'hello' : req.url === '/mnema/sync' ? 'sync' : null);
-      if (!route) return send(404, { error: 'Нет такого адреса' });
-      const chunks = [];
-      let size = 0;
-      req.on('data', (c) => {
-        size += c.length;
-        if (size > (route === 'hello' ? 64 * 1024 : 300 * 1024 * 1024)) req.destroy();
-        else chunks.push(c);
-      });
-      req.on('end', async () => {
-        let msg;
+  const guard = createGuard();
+  const handler = (req, res) => {
+    const ip = ipOf(req);
+    const send = (status, body) => {
+      res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', connection: 'close' });
+      res.end(typeof body === 'string' ? body : JSON.stringify(body));
+    };
+    // Отказ без чтения тела: лишнее закрывает соединение.
+    const refuse = (status, body) => {
+      send(status, body);
+      res.on('finish', () => req.destroy());
+    };
+    if (guard.blocked(ip)) return refuse(429, { error: 'Слишком много неверных попыток. Подожди или открой синхронизацию заново.' });
+    // Старая Refrain (код из 8 цифр в заголовке) — с ней обмен без шифрования не ведём.
+    if (req.headers['x-mnema-token'] !== undefined) return refuse(426, { error: 'Обнови Refrain на этом устройстве — синхронизация теперь зашифрована' });
+    const route = req.method === 'POST' && (req.url === '/mnema/hello' ? 'hello' : req.url === '/mnema/sync' ? 'sync' : null);
+    if (!route) return refuse(404, { error: 'Нет такого адреса' });
+    let slot = false;
+    if (route === 'sync') {
+      // Обмен — только с билетом, выданным после проверки кода: большое тело принимаем лишь от того, кто код знает.
+      const ticket = req.headers['x-mnema-session'];
+      if (ticket === undefined) return refuse(426, { error: 'Обнови Refrain на другом устройстве — синхронизация стала надёжнее' });
+      if (!guard.enterSync()) return refuse(429, { error: 'Компьютер сейчас занят другим обменом. Повтори через минуту.' });
+      if (!guard.useTicket(ticket)) {
+        guard.leaveSync();
+        guard.fail(ip);
+        return refuse(403, { error: 'Обмен не разрешён: начни синхронизацию заново', v: 2 });
+      }
+      slot = true;
+    }
+    readBody(req, route === 'sync' ? guard.limits.syncBody : guard.limits.preAuthBody).then(
+      async (text) => {
         try {
-          msg = await sc.open(key, route + '-req', Buffer.concat(chunks).toString('utf8'));
-        } catch {
-          if (++bad >= 20) setTimeout(stop, 10);
-          return send(403, { error: 'Неверный код синхронизации', v: 2 });
+          let msg;
+          try {
+            msg = await sc.open(key, route + '-req', text);
+          } catch {
+            guard.fail(ip);
+            return send(403, { error: 'Неверный код синхронизации', v: 2 });
+          }
+          guard.ok(ip);
+          if (guard.replayed(msg && msg.n)) {
+            guard.fail(ip);
+            return send(409, { error: 'Этот запрос уже был — начни синхронизацию заново' });
+          }
+          try {
+            if (route === 'hello') {
+              const t = guard.issueTicket();
+              if (!t) return send(429, { error: 'Слишком много одновременных обменов. Повтори через минуту.' });
+              return send(200, await sc.seal(key, 'hello-res', { n: msg.n, app: 'Mnema', name: os.hostname(), t }));
+            }
+            const r = await askRenderer(msg.data);
+            send(200, await sc.seal(key, 'sync-res', { n: msg.n, data: r.data, report: r.report, name: os.hostname() }));
+            getWin()?.webContents.send('sync:done', { device: String(msg.device || 'телефон').slice(0, 60), report: r.report });
+          } catch (e) {
+            send(500, { error: String(e.message || e) });
+          }
+        } finally {
+          if (slot) guard.leaveSync();
         }
-        try {
-          if (route === 'hello') return send(200, await sc.seal(key, 'hello-res', { n: msg.n, app: 'Mnema', name: os.hostname() }));
-          const r = await askRenderer(msg.data);
-          send(200, await sc.seal(key, 'sync-res', { n: msg.n, data: r.data, report: r.report, name: os.hostname() }));
-          getWin()?.webContents.send('sync:done', { device: String(msg.device || 'телефон').slice(0, 60), report: r.report });
-        } catch (e) {
-          send(500, { error: String(e.message || e) });
+      },
+      (e) => {
+        if (slot) guard.leaveSync();
+        if (e && e.code === 'TOO_BIG') {
+          guard.fail(ip);
+          return refuse(413, { error: 'Слишком большое сообщение' });
         }
-      });
-    });
-    srv.on('error', reject);
-    srv.listen(0, '0.0.0.0', () => {
-      server = srv;
-      const port = srv.address().port;
-      session = { token: code, port, hosts: lanAddresses() };
-      // Сервер живёт 15 минут — потом закрывается сам.
-      stopTimer = setTimeout(stop, 15 * 60 * 1000);
-      resolve(session);
-    });
-  });
+        req.destroy();
+      }
+    );
+  };
+  // Адреса локальной сети (их показывает QR-код) и петля 127.0.0.1 (запасной вход этого же компьютера и проверки); 0.0.0.0 не слушаем.
+  const hosts = lanAddresses();
+  const bound = await listenOn([...hosts, '127.0.0.1'], handler);
+  servers = bound.servers;
+  session = { token: code, port: bound.port, hosts };
+  // Сервер живёт 15 минут — потом закрывается сам.
+  stopTimer = setTimeout(stop, 15 * 60 * 1000);
+  return session;
 }
 
 function register(winGetter) {
@@ -150,4 +217,4 @@ function register(winGetter) {
   });
 }
 
-module.exports = { register, stop };
+module.exports = { register, stop, lanAddresses };

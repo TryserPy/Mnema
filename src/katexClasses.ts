@@ -145,10 +145,34 @@ export const KATEX_CLASSES: ReadonlySet<string> = new Set([
 /** Свои классы, которые Refrain сам кладёт в разметку конспекта. */
 export const MD_OWN_CLASSES: ReadonlySet<string> = new Set(['math-block', 'page-ref', 'mlink', 'md-video', 'md-drawing', 'drawing-img', 'md-check']);
 
-/** Оставить в значении class только разрешённое. */
-export function safeClassList(value: string): string {
+/**
+ * Классы KaTeX, которым katex.css даёт position:absolute (само окно формулы: katex-mathml, katex-inner внутри rlap/llap/clap, стрелки и скобки, номер формулы).
+ * Написанные руками в тексте, они рисовали бы поверх приложения поддельное окно, поэтому в «сыром» HTML из текста их нет никогда. Тест сверяет список с katex.css.
+ */
+export const KATEX_POSITIONED: ReadonlySet<string> = new Set([
+  'katex-mathml',
+  'katex-inner',
+  'llap',
+  'rlap',
+  'clap',
+  'halfarrow-left',
+  'halfarrow-right',
+  'brace-left',
+  'brace-center',
+  'brace-right',
+  'cd-label-left',
+  'cd-label-right',
+  'katex-tag'
+]);
+
+/**
+ * Оставить в значении class только разрешённое.
+ * trusted — разметка, которую сделал сам renderTex (помечена одноразовой меткой на время одной отрисовки): ей можно любые классы KaTeX.
+ * Всё, что написано в тексте руками, получает только свои классы Refrain: <span class="katex"> вручную ничего не рисует.
+ */
+export function safeClassList(value: string, trusted = false): string {
   return value
     .split(/\s+/)
-    .filter((c) => c && (MD_OWN_CLASSES.has(c) || KATEX_CLASSES.has(c) || /^language-[\w+#-]{1,24}$/.test(c)))
+    .filter((c) => c && (MD_OWN_CLASSES.has(c) || /^language-[\w+#-]{1,24}$/.test(c) || (trusted && KATEX_CLASSES.has(c))))
     .join(' ');
 }

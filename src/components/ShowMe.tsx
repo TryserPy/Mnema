@@ -2,7 +2,7 @@
 // Тот же вид, что у знакомства (кольцо + подсказка), но человек ничего не обязан делать: «Дальше» / «Понятно».
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Route } from '../types';
-import { byText, cardPlace, q } from './Tutorial';
+import { byText, cardPlace, isPhone, q } from './Tutorial';
 import { useDomTick, useRect } from './guideTarget';
 import { Icon } from './ui';
 import '../guide.css';
@@ -75,7 +75,7 @@ export function ShowMeHost({ go }: { go: (r: Route) => void }) {
   }, [step, el]);
   if (!steps || !step) return null;
   const last = i === steps.length - 1;
-  const phone = window.innerWidth < 720;
+  const phone = isPhone();
   return (
     <div className="tut show-me" aria-live="polite">
       {rect && <div className="tut-ring" style={{ left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12 }} />}

@@ -64,3 +64,32 @@
 .style-editor .seg { width: 100%; }
 .style-editor .seg button { font-size: 0.84rem; padding: 4px 5px; overflow-wrap: anywhere; }
 @media (max-width: 720px) { .se-foot .btn { flex: 1 1 auto; } .se-foot .grow { display: none; } .se-meta { display: none; } }
+
+/* Вкладки редактора и мелочи (1.30) */
+.se-tools { align-items: center; }
+.se-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.se-tab { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 0.88rem; font-weight: 500; }
+.se-tab:hover { background: var(--sunken); color: var(--ink); }
+.se-tab.on { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent-text, var(--accent)); font-weight: 600; }
+.se-saveas { padding: 8px 0 0; }
+.se-wish { min-height: 96px; resize: vertical; padding: 10px 12px; }
+.se-sub-h { margin-top: 4px; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.se-ok { margin: 0; color: var(--good-ink); }
+.se-row.bad { border-color: var(--again-ink); }
+.se-mode { min-width: 52px; }
+.se-hex { width: 104px; min-height: 30px; padding: 0 8px; font-family: var(--mono, ui-monospace, monospace); font-size: 0.8rem; }
+.se-hex.bad { border-color: var(--again-ink); }
+.se-color-mini { width: 22px; height: 18px; padding: 0; border: 0; border-radius: 4px; vertical-align: middle; background: transparent; cursor: pointer; }
+.ai-panel { z-index: 85; }
+.ai-result { display: flex; flex-direction: column; gap: 8px; }
+.ai-demo { height: 170px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.ai-notes { margin: 0; padding-left: 18px; }
+.se-slider { align-items: center; }
+/* Телефон: «Посмотреть» сворачивает окно до шапки и кнопок — видно настоящий интерфейс с правками */
+.se-peek { display: none; flex: none; }
+@media (max-width: 720px) {
+  .se-peek { display: inline-flex; }
+  .style-editor.peek { height: auto; }
+  .style-editor.peek .se-body, .style-editor.peek .se-tabs, .style-editor.peek .se-tools, .style-editor.peek .se-meta, .style-editor.peek .se-saveas, .style-editor.peek .se-sub { display: none; }
+  .style-editor.peek .se-head > .grow > .small { display: none; }
+}

@@ -12,6 +12,8 @@ export interface HighlightSettings {
 export interface TextbookSettings {
   mode: 'auto' | 'ai' | 'offline'; // auto — точно, если ИИ включён, иначе без интернета
   keepPhotos: boolean;
+  /** Что получить: конспект (по умолчанию), краткий конспект или весь текст дословно. */
+  style?: 'summary' | 'brief' | 'verbatim';
 }
 
 export interface PagePhoto {
@@ -226,6 +228,8 @@ export interface Mod {
   accent?: string;
   icon?: string; // значок в списке
   where?: string; // где видно изменение
+  /** Стиль рассчитан на широкий экран: на телефоне он мало что меняет (в галерее подписано «только для компьютера»). */
+  desktopOnly?: boolean;
   font?: string; // шрифт, который нужно подгрузить (id из FONTS)
   /** Переменные стиля: отдельно для светлой и тёмной темы. */
   vars?: { light?: Record<string, string>; dark?: Record<string, string> };
@@ -233,6 +237,35 @@ export interface Mod {
   attrs?: Record<string, string>;
   /** Настройки стиля, которые меняет человек. */
   settings?: StyleSetting[];
+  /** Стиль целиком (1.30): плотность, размер текста и свой фон — как в «Оформлении». Включаешь стиль — они применяются, выключаешь — возвращаются прежние. */
+  density?: Density;
+  fontScale?: number;
+  bg?: Partial<BgImage>;
+}
+
+/** Свой фон картинкой (1.30). Картинка лежит в настройках как data:image; всё остальное — числа и переключатели. */
+export interface BgImage {
+  v: 2;
+  src: string;
+  /** Как в 1.29: насколько картинку закрывает цвет темы. Больше не используется, но обновляется — чтобы старая версия Refrain показала то же самое. */
+  fade: number;
+  /** Точка фокуса, % от ширины и высоты картинки (50/50 — по центру). */
+  x: number;
+  y: number;
+  /** Как вписать: заполнить окно, вписать целиком, масштаб в % ширины окна, плиткой. */
+  size: 'cover' | 'contain' | 'zoom' | 'tile';
+  /** Масштаб в % (для «zoom» — от ширины окна, для «tile» — размер одной плитки). */
+  zoom: number;
+  /** Видимость картинки, 0…1: честная шкала (1 — как есть, 0 — не видно). */
+  opacity: number;
+  blur: number; // размытие, px (0…40)
+  dim: number; // сила цвета поверх картинки, 0…0,85
+  tint: string; // цвет поверх (#RRGGBB)
+  fixed: boolean; // стоит на месте (true) или прокручивается вместе с экраном
+  underSide: boolean; // видна ли картинка под боковой панелью
+  sideAlpha: number; // насколько панель закрывает картинку (0,3…1; 1 — как раньше, без просвета)
+  underBar: boolean; // то же для шапки на телефоне
+  barAlpha: number;
 }
 
 /** Сниппет «мой CSS» (как в Obsidian): маленький кусочек своего CSS, который включается и выключается отдельно. */
@@ -254,6 +287,7 @@ export interface PluginRec {
   enabled: boolean;
   fromCatalog?: boolean;
   icon?: string;
+  ai?: boolean; // разрешил ли ученик этому моду спрашивать ИИ (нет поля — ещё не решал: спросим при первом запросе)
 }
 
 export interface Look {
@@ -267,14 +301,25 @@ export interface Look {
   custom: { light?: Record<string, string>; dark?: Record<string, string> }; // свои цвета поверх темы
 }
 
+/** Для чего у ИИ можно задать свои указания: 'all' — для всех задач сразу. */
+export type AiNoteKey = 'all' | 'textbook' | 'cards' | 'explain' | 'style';
+export type AiNotes = Partial<Record<AiNoteKey, string>>;
+/** Задачи ИИ, для которых можно выбрать свой ИИ (из настроенных). */
+export type AiTask = Exclude<AiNoteKey, 'all'>;
+
 export interface Settings {
   look: Look;
-  styleBackup?: Record<string, { look: Look; accent: string }>; // оформление до включения стиля из файла — чтобы вернуть
+  aiNotes?: AiNotes; // свои указания для ИИ: общие и для каждой задачи (короткие, до 400 знаков)
+  aiTaskProvider?: Partial<Record<AiTask, string>>; // какой из настроенных ИИ брать для задачи ('anthropic' | 'gemini' | 'local' | 'custom:<id>'); нет — основной
+  aiAuto?: { cards?: boolean }; // подсказки с ИИ — выключены, пока ученик не включит; ИИ спрашивается только по нажатию
+  studyPick?: Record<string, string>; // что учить в теме/предмете/папке: ключ 't:<id>' | 's:<id>' | 'f:<id>' → 'all' | 'cards' | 'lists' | 'list:<id>'
+  styleBackup?: Record<string, { look: Look; accent: string; density?: Density; fontScale?: number; bgImage?: BgImage | null }>; // оформление до включения стиля — чтобы вернуть (плотность, размер текста и фон — только если стиль их меняет)
   homeworkRemind: { on: boolean; time: string; when: 'dayBefore' | 'sameDay' }; // напоминания о ДЗ по умолчанию
   lessonsRemind: { on: boolean; time: string }; // вечером: «завтра такие-то уроки — повтори»
   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
   appIcon?: string; // значок на рабочем столе телефона: 'default', 'theme' (под тему) или id темы (свой выбор)
-  bgImage?: { src: string; fade: number }; // свой фон картинкой (JPEG data:); fade 0.5–0.95 — насколько её прикрывает цвет темы
+  bgImage?: BgImage; // свой фон картинкой (data:image); до 1.30 было { src, fade }, переносится при загрузке (см. bgImage.ts)
+  myStyle?: Mod; // «Мой вид» (1.30): правки из «Настроить текущий» — переменные, раскладка, CSS; применяются последними, после включённых стилей
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды
   customMods: Mod[]; // моды из файлов
@@ -381,10 +426,14 @@ export interface AppData {
   deviceId?: string;
 }
 
+/** 'text', 'motion' и 'styles' — старые названия: в 1.30 всё это внутри «Оформления» ('look'). */
 export type SettingsSection = 'look' | 'text' | 'motion' | 'styles' | 'features' | 'study' | 'reminders' | 'ai' | 'keys' | 'data' | 'mods' | 'about';
 
 /** «Повторить ещё раз»: какие карточки взять — повторённые сегодня, все начатые, слабые места или все подряд. */
 export type RepeatKind = 'today' | 'started' | 'weak' | 'all';
+
+/** «Что учить» в теме, предмете или папке: всё, только обычные карточки или только строки списков (термины, словари, даты, формулы). */
+export type StudySource = 'cards' | 'lists';
 
 export type Route =
   | { name: 'today' }
@@ -396,8 +445,8 @@ export type Route =
   | { name: 'plugin'; id: string }
   | { name: 'exam'; id: string } // экран подготовки к контрольной; id вида `topic:<id>` — контрольная из старой даты темы
   | { name: 'topic'; id: string; tab?: string; page?: boolean } // 'note' | 'cards' | 'list:<id>'; page — правило страницей, а не окном
-  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; folderId?: string; topicIds?: string[]; cardIds?: string[]; cram?: boolean; only?: RepeatKind; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean; extraNew?: number } // folderId — папка, из которой запущено (subjectIds — её предметы): после повторения вернёмся в неё; only — «Повторить ещё раз»: что именно брать (вместе с cram); topicIds — выбранные темы (только их карточки): тогда topicId/subjectId/folderId лишь говорят, куда вернуться
-  | { name: 'test'; topicId: string; pretest?: boolean; examId?: string }
+  | { name: 'review'; topicId?: string; subjectId?: string; subjectIds?: string[]; folderId?: string; topicIds?: string[]; cardIds?: string[]; cram?: boolean; only?: RepeatKind; ahead?: boolean; session?: { minutes?: number; skip?: string[] }; focus?: boolean; run?: number; limit?: number; mini?: boolean; extraNew?: number; back?: Route; source?: StudySource; listId?: string } // back — откуда запустили (вместе с вкладкой): туда возвращаемся после повторения; source/listId — что учить: только карточки, только списки или один список; folderId — папка, из которой запущено (subjectIds — её предметы): после повторения вернёмся в неё; only — «Повторить ещё раз»: что именно брать (вместе с cram); topicIds — выбранные темы (только их карточки): тогда topicId/subjectId/folderId лишь говорят, куда вернуться
+  | { name: 'test'; topicId: string; pretest?: boolean; examId?: string; back?: Route } // back — откуда запустили (вместе с вкладкой)
   | { name: 'stats'; tab?: 'numbers' | 'map' }
   | { name: 'trash' }
   | { name: 'settings'; section?: SettingsSection }

@@ -26,8 +26,16 @@ cp "$ROOT"/ocr-data/*.traineddata.gz "$OUT/assets/www/ocr/"
 
 echo "▸ Ресурсы (aapt2)"
 aapt2 compile --dir res -o "$OUT/compiled/res.zip"
+# android:dataExtractionRules (правила копирования для Android 12+, res/xml/data_extraction_rules.xml) есть только в android.jar с API 31+.
+# С более старым jar (по умолчанию android-23) атрибут убираем из манифеста — на сборку это не влияет, а в CI (android-34) он остаётся.
+MANIFEST=AndroidManifest.xml
+API="$(basename "$(dirname "$PLATFORM")" | sed -n 's/^android-\([0-9][0-9]*\)$/\1/p')"
+if [ -n "$API" ] && [ "$API" -lt 31 ]; then
+  MANIFEST="$OUT/AndroidManifest.xml"
+  grep -v 'android:dataExtractionRules' AndroidManifest.xml > "$MANIFEST"
+fi
 aapt2 link -o "$OUT/unsigned.apk" -I "$PLATFORM" \
-  --manifest AndroidManifest.xml \
+  --manifest "$MANIFEST" \
   --min-sdk-version 24 --target-sdk-version 34 \
   --version-code "$CODE" --version-name "$VERSION" \
   -A "$OUT/assets" --java "$OUT/gen" --auto-add-overlay \

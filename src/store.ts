@@ -11,10 +11,14 @@ import { CATALOG_PLUGINS } from './plugins/catalog';
 import { gradeItem, itemKey, itemOrds } from './srs';
 import { noteEdit } from './noteText';
 import { cleanIconImg, cleanIconImgs } from './iconImage';
+import { cleanColors, FALLBACK_COLOR, safeColor } from './safeCss';
 import { applyImportPlan } from './mdApply';
 import type { ImportPlan } from './mdImport';
-import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
-import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
+import { cleanBg } from './bgImage';
+import { cleanCustomMods, cleanMyStyle, cleanSnippets, cleanStyleBackup, cleanStyleValues } from './styleSystem';
+import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
+import { cleanStudyPick } from './studyPick';
+import { cleanExam, cleanNoteHistory, cleanSchedule, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
@@ -54,6 +58,7 @@ export interface AiConfig {
 
 export interface AiRequest {
   system?: string;
+  provider?: string; // какой из настроенных ИИ взять вместо основного (если ключа нет — берётся основной)
   text: string;
   image?: { mime: string; data: string };
   maxTokens?: number;
@@ -82,6 +87,8 @@ declare global {
       aiSaveCustom?: (draft: CustomAiDraft) => Promise<{ ok: true; id: string; config: AiConfig } | { ok: false; error: string }>;
       aiDeleteCustom?: (id: string) => Promise<AiConfig>;
       aiProbe?: (q: { draft?: CustomAiDraft; provider?: AiProvider; kind?: 'models' | 'test'; checkVision?: boolean }) => Promise<{ ok: true; text?: string; models?: AiModelInfo[]; vision?: boolean; keyInfo?: string } | { ok: false; error: string }>;
+      /** Как хранятся ключи ИИ на компьютере: encrypted: false — не зашифрованы (Linux без хранилища паролей). */
+      aiKeyStorage?: () => Promise<{ encrypted: boolean; backend: string | null }>;
       aiAsk?: (req: AiRequest) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
       aiTranscribe?: (req: { data: string; mime: string; lang?: string }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
       speechStart?: (lang: string) => { ok: boolean; error?: string } | undefined;
@@ -205,13 +212,16 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
   const foreign: string[] = [];
   const plugins = (d.settings.plugins ?? []).map((p) => {
     const mine = own.get(p.id);
-    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog };
-    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true };
+    // Разрешение «спрашивать ИИ» тоже берём только у себя: из чужого файла оно не приходит.
+    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog, ai: mine.ai };
+    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true, ai: undefined };
     foreign.push(p.name);
-    return { ...p, enabled: false, fromCatalog: false };
+    return { ...p, enabled: false, fromCatalog: false, ai: undefined };
   });
   if (foreign.length) notes.push(`моды из копии выключены (${foreign.slice(0, 5).join(', ')}) — включай их сам, только если им доверяешь`);
-  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud } }, notes };
+  // Указания для ИИ и выбор ИИ для задач — тоже только свои: чужой файл не должен подсказывать ИИ, что отвечать.
+  const { aiNotes, aiTaskProvider } = local.settings;
+  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud, aiNotes, aiTaskProvider } }, notes };
 }
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
@@ -224,10 +234,10 @@ export function normalizeData(raw: unknown): AppData {
   const lk = migrateLook(r.settings?.look, r.settings?.accent);
   const out: AppData = {
     version: 1,
-    folders: Array.isArray(r.folders) ? cleanIconImgs(r.folders) : [],
+    folders: Array.isArray(r.folders) ? cleanColors(cleanIconImgs(r.folders)) : [],
     homework: Array.isArray(r.homework) ? r.homework : [],
     exams: Array.isArray(r.exams) ? r.exams.map(cleanExam).filter((e): e is Exam => e !== null) : [],
-    subjects: cleanIconImgs(r.subjects),
+    subjects: cleanColors(cleanIconImgs(r.subjects)),
     ...(Array.isArray(r.trash) && r.trash.length ? { trash: cleanTrash(r.trash) } : {}),
     topics: cleanTopics(r.topics),
     cards: r.cards,
@@ -240,7 +250,7 @@ export function normalizeData(raw: unknown): AppData {
       ...DEFAULT_SETTINGS,
       ...(r.settings ?? {}),
       features: { ...DEFAULT_SETTINGS.features, ...(r.settings?.features ?? {}) },
-      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins : [],
+      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins.map((p) => ({ ...p, ai: typeof p.ai === 'boolean' ? p.ai : undefined })) : [],
       pluginData: r.settings?.pluginData && typeof r.settings.pluginData === 'object' ? r.settings.pluginData : {},
       homeworkRemind: { ...DEFAULT_SETTINGS.homeworkRemind, ...(r.settings?.homeworkRemind ?? {}) },
       lessonsRemind: { ...DEFAULT_SETTINGS.lessonsRemind, ...(r.settings?.lessonsRemind ?? {}) },
@@ -254,12 +264,15 @@ export function normalizeData(raw: unknown): AppData {
       userCss: '',
       cssSnippets: cleanSnippets(r.settings?.cssSnippets, r.settings?.userCss),
       styleValues: cleanStyleValues(r.settings?.styleValues),
-      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
-      bgImage:
-        typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
-          ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
-          : undefined,
-      schedule: { ...(r.settings?.schedule ?? {}) },
+      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно); старый вид { src, fade } переносится (bgImage.ts).
+      bgImage: cleanBg(r.settings?.bgImage) ?? undefined,
+      myStyle: cleanMyStyle(r.settings?.myStyle),
+      styleBackup: cleanStyleBackup(r.settings?.styleBackup),
+      aiNotes: cleanAiNotes(r.settings?.aiNotes),
+      aiTaskProvider: cleanTaskProviders(r.settings?.aiTaskProvider),
+      aiAuto: r.settings?.aiAuto && typeof r.settings.aiAuto === 'object' && r.settings.aiAuto.cards === true ? { cards: true } : undefined,
+      studyPick: cleanStudyPick(r.settings?.studyPick),
+      schedule: cleanSchedule(r.settings?.schedule),
       keys: { ...(r.settings?.keys ?? {}) },
       treeOpen: Array.isArray(r.settings?.treeOpen) ? r.settings!.treeOpen : [],
       graph: { ...DEFAULT_SETTINGS.graph, ...(r.settings?.graph ?? {}) },
@@ -460,7 +473,7 @@ export function forSync(d: AppData): AppData {
   return d.trash || d.noteHistory ? { ...d, trash: undefined, noteHistory: undefined } : d;
 }
 
-function withTrash(d: AppData, removed: Removed, label: string): AppData {
+export function withTrash(d: AppData, removed: Removed, label: string): AppData {
   if (!removed.subjects.length && !removed.topics.length && !removed.cards.length) return d;
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
   const keep = (d.trash ?? []).filter((t) => Date.parse(t.at) >= cutoff);
@@ -1155,7 +1168,7 @@ export function importTopics(
       const existing = d.subjects.find((s) => s.name.trim().toLowerCase() === it.subjectName.trim().toLowerCase());
       if (existing) subjectId = existing.id;
       else {
-        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: it.subjectColor ?? '#3A3F4E', ...(it.subjectIcon ? { icon: it.subjectIcon } : {}), ...(cleanIconImg(it.subjectIconImg) ? { iconImg: it.subjectIconImg } : {}), createdAt: nowIso() };
+        const s: Subject = { id: uid(), name: it.subjectName.trim() || 'Без предмета', color: safeColor(it.subjectColor) ?? FALLBACK_COLOR, ...(it.subjectIcon ? { icon: it.subjectIcon } : {}), ...(cleanIconImg(it.subjectIconImg) ? { iconImg: it.subjectIconImg } : {}), createdAt: nowIso() };
         d = { ...d, subjects: [...d.subjects, s] };
         subjectId = s.id;
       }

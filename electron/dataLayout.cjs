@@ -112,12 +112,12 @@ function ensureLayout(layout) {
 let seq = 0;
 const tmpName = (file) => `${file}.tmp-${process.pid}-${++seq}`;
 
-/** Атомарная запись: сначала во временный файл, потом переименование. */
-function writeAtomic(file, content) {
+/** Атомарная запись: сначала во временный файл, потом переименование. mode — права нового файла (0o600 для ключей и секретов). */
+function writeAtomic(file, content, mode) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = tmpName(file);
   try {
-    fs.writeFileSync(tmp, content, typeof content === 'string' ? 'utf8' : undefined);
+    fs.writeFileSync(tmp, content, mode === undefined ? (typeof content === 'string' ? 'utf8' : undefined) : { encoding: typeof content === 'string' ? 'utf8' : undefined, mode });
     fs.renameSync(tmp, file);
   } catch (e) {
     try {

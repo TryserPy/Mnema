@@ -37,6 +37,8 @@ export interface Figure {
   box: Box; // доли 0..1 на странице
   caption: string;
   uri: string;
+  /** Ученик сказал «это не рисунок»: в конспект не попадает. */
+  hidden?: boolean;
 }
 export interface Doubt {
   id: string;
@@ -54,7 +56,14 @@ export interface PageResult {
   quality?: { words: number; unsure: number; conf: number };
   /** Пояснение для пользователя (например, «ИИ не справился — прочитано без интернета»). */
   note?: string;
+  /** Честные советы, если снимок плох: «темно», «размыто», «слишком мелко» (code — для тестов, text — для ученика). */
+  advice?: { code: string; text: string }[];
+  /** Страница была половиной разворота (две страницы на одном снимке). */
+  spread?: 'left' | 'right';
 }
+
+import { fixFormulas } from './textbookMath';
+import { fixTables } from './textbookTables';
 
 // ---------- Общие мелочи ----------
 
@@ -1083,7 +1092,7 @@ export function assemble(pages: PageResult[], fixes: Record<string, string>): st
     let md = p.markdown.replace(/⟦\?:(\w+)⟧/g, (_m, id: string) => fixes[`${p.n}:${id}`] ?? p.doubts.find((d) => d.id === id)?.text ?? '');
     md = md.replace(/⟦РИС:(\d+)⟧/g, (_m, i: string) => {
       const f = p.figures[Number(i)];
-      if (!f) return '';
+      if (!f || f.hidden) return '';
       const cap = f.caption.replace(/[[\]]/g, '').replace(/⟦\?:(\w+)⟧/g, (_x, id: string) => fixes[`${p.n}:${id}`] ?? p.doubts.find((d) => d.id === id)?.text ?? '');
       // Картинка и подпись — одним абзацем: картинка в отдельном абзаце в конце конспекта ломает редактор.
       return `![${cap || 'Рисунок'}](${f.uri})\n*${(cap || 'Рисунок').replace(/\*+/g, '')}*`;
@@ -1130,6 +1139,8 @@ export function sanitizeAiText(s: string): string {
   t = t.replace(/^\s*```(?:markdown|md|text)?[ \t]*\n/i, '').replace(/\n```\s*$/, '');
   // Блоки <script>/<style>/<iframe> уходят вместе с содержимым, остальные теги — только сами теги.
   t = t.replace(/<(script|style|iframe|object|embed|svg|math)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
+  // В строке таблицы перенос внутри ячейки не должен рвать строку.
+  t = t.split('\n').map((l) => (l.includes('|') ? l.replace(/<br\s*\/?>/gi, '; ') : l)).join('\n');
   t = t.replace(/<br\s*\/?>/gi, '\n');
   t = t.replace(/<\/?[a-zA-Z][^>\n]{0,200}>/g, '');
   // Картинки и ссылки модели не нужны: оставляем подпись/текст.
@@ -1175,6 +1186,9 @@ export function parseAiMarkdown(raw: string): AiParsed {
   md = md.replace(/\\\(([\s\S]+?)\\\)/g, (_m, t: string) => `$${t.trim()}$`).replace(/\\\[([\s\S]+?)\\\]/g, (_m, t: string) => `$$${t.trim()}$$`);
   md = normalizeAiBlocks(md);
   md = fixAiText(md);
+  // Таблицы — в ровный GFM, формулы — через KaTeX (неисправимое станет `кодом`).
+  md = fixTables(md);
+  md = fixFormulas(md).md;
   md = md.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   return { markdown: md, figures, detectedPage, empty: !md.replace(/⟦РИС:\d+⟧/g, '').trim() };
 }

@@ -4,6 +4,13 @@ import Image from '@tiptap/extension-image';
 import { parseVideo, VIDEO_ALT, type VideoInfo } from '../video';
 import { drawingBgOf, inlineDrawing } from './Drawing';
 
+/**
+ * Песочница окна плеера. Скрипты и свой источник (same-origin) нужны самому плееру (YouTube, Rutube, VK), показ на весь экран идёт через allow/allowfullscreen.
+ * Без allow-top-navigation и allow-forms: плеер не может увести всё окно Refrain на другой адрес и не отправляет формы;
+ * без allow-modals, allow-downloads, allow-pointer-lock — не показывает окна alert и не качает файлы.
+ */
+export const PLAYER_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox';
+
 export function videoPlayer(info: VideoInfo, opts: { onDelete?: () => void } = {}): HTMLElement {
   const box = document.createElement('span');
   box.className = 'video-embed ve-' + info.kind;
@@ -20,6 +27,7 @@ export function videoPlayer(info: VideoInfo, opts: { onDelete?: () => void } = {
       stage.appendChild(v);
     } else {
       const f = document.createElement('iframe');
+      f.setAttribute('sandbox', PLAYER_SANDBOX); // до src: первая загрузка уже в песочнице
       f.src = info.embed;
       f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
       f.allowFullscreen = true;

@@ -1,7 +1,7 @@
 {
   "name": "mnema",
   "productName": "Refrain",
-  "version": "1.29.1",
+  "version": "1.30.0",
   "description": "Refrain — приложение для запоминания учебного материала",
   "private": true,
   "main": "electron/main.cjs",
@@ -73,6 +73,11 @@
         "releaseType": "release"
       }
     ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false
+    },
     "directories": {
       "output": "release",
       "buildResources": "build"

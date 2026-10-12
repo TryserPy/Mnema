@@ -57,14 +57,14 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 1rem; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 1rem; line-height: var(--rf-body-lh, 1.45); -webkit-font-smoothing: antialiased; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: 0.5; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 h1, h2, h3 { margin: 0; }
 h3 { font-size: 1.05rem; font-weight: 600; }
-code, .mono { font-family: 'Cascadia Mono', Consolas, ui-monospace, monospace; font-size: 0.88em; }
+code, .mono { font-family: var(--mono, 'Cascadia Mono', Consolas, ui-monospace, monospace); font-size: 0.88em; }
 code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 
 /* ---------- Раскладка ---------- */
@@ -317,6 +317,9 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .compare-box .md { white-space: normal; }
 
 .md { line-height: 1.6; overflow-wrap: anywhere; }
+/* Всё, что нарисовано внутри текста (в том числе положенное position:absolute), не выходит за его рамку: поддельное окно поверх приложения не получится.
+   Небольшой запас по краям — чтобы не обрезались выносные части настоящих формул и рамка фокуса у ссылок. Для .inline-md (display:inline) не действует — там держит очистка class/style. */
+.md { contain: paint; overflow-clip-margin: 6px; }
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
 .md h1, .md h2, .md h3 { margin: 1em 0 0.35em; font-weight: 600; }
@@ -575,6 +578,7 @@ section.card h3 { margin-bottom: 2px; }
 .sidebar.rail .logo { border: none; cursor: pointer; transition: transform 0.2s; }
 .sidebar.rail .logo:hover { transform: scale(1.08); }
 .sidebar.rail .foot-btn { position: relative; }
+.sidebar.rail .rail-create { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text, var(--accent)); }
 .rail-badge { position: absolute; top: 0; right: -2px; background: var(--accent); color: var(--on-accent); font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 999px; }
 .rail-subjects { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; padding-top: 6px; border-top: 1px solid var(--line); width: 100%; align-items: center; }
 .rail-subj { border: none; background: transparent; padding: 3px; border-radius: 12px; }
@@ -787,6 +791,22 @@ input[type='range'] { accent-color: var(--accent); }
 .crop-h.ne { right: -9px; top: -9px; cursor: nesw-resize; }
 .crop-h.sw { left: -9px; bottom: -9px; cursor: nesw-resize; }
 .crop-h.se { right: -9px; bottom: -9px; cursor: nwse-resize; }
+.crop-h.n { left: calc(50% - 8px); top: -9px; cursor: ns-resize; }
+.crop-h.s { left: calc(50% - 8px); bottom: -9px; cursor: ns-resize; }
+.crop-h.w { top: calc(50% - 8px); left: -9px; cursor: ew-resize; }
+.crop-h.e { top: calc(50% - 8px); right: -9px; cursor: ew-resize; }
+/* На телефоне рамку тянут пальцем: ручки крупнее (невидимая зона нажатия шире самой ручки). */
+@media (pointer: coarse) {
+  .crop-h { width: 26px; height: 26px; border-radius: 8px; }
+  .crop-h.nw { left: -14px; top: -14px; }
+  .crop-h.ne { right: -14px; top: -14px; }
+  .crop-h.sw { left: -14px; bottom: -14px; }
+  .crop-h.se { right: -14px; bottom: -14px; }
+  .crop-h.n { left: calc(50% - 13px); top: -14px; }
+  .crop-h.s { left: calc(50% - 13px); bottom: -14px; }
+  .crop-h.w { top: calc(50% - 13px); left: -14px; }
+  .crop-h.e { top: calc(50% - 13px); right: -14px; }
+}
 
 /* Ссылки на страницы */
 .page-ref { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78em; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--sunken); color: var(--muted); border: 1px solid var(--line); cursor: pointer; white-space: nowrap; font-family: var(--body); vertical-align: 0.1em; transition: background 0.15s, color 0.15s; }
@@ -1378,11 +1398,11 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .safe-row { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); }
 .safe-row.on { border-color: color-mix(in srgb, var(--good-ink) 40%, var(--line)); }
 .mod.plugin { align-items: flex-start; }
-.code-area { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.86rem; min-height: 55vh; line-height: 1.5; tab-size: 2; white-space: pre; resize: vertical; }
+.code-area { font-family: var(--mono, ui-monospace, 'Cascadia Mono', Consolas, monospace); font-size: 0.86rem; min-height: 55vh; line-height: 1.5; tab-size: 2; white-space: pre; resize: vertical; }
 .plugin-settings { padding: 8px 0; }
 .plugin-view { min-height: 100%; }
 .link-btn.danger-text { color: var(--again-ink); }
-.code-sample { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.84rem; overflow-x: auto; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code-sample { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-family: var(--mono, ui-monospace, 'Cascadia Mono', Consolas, monospace); font-size: 0.84rem; overflow-x: auto; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .api-table { display: flex; flex-direction: column; }
 .api-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .api-row code { font-size: 0.8rem; overflow-wrap: anywhere; }

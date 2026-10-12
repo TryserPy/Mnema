@@ -77,3 +77,37 @@ export function accentText(accent: string, bg: string, min = 4.5): string {
   }
   return darkBg ? '#FFFFFF' : toHex(DARK);
 }
+
+/** Цвет из строки CSS: #rgb, #rrggbb, #rrggbbaa (прозрачность отбрасывается), rgb()/rgba(), hsl()/hsla(). Иначе null. */
+export function parseColor(v: string): RGB | null {
+  const s = v.trim();
+  if (s.startsWith('#')) {
+    const h = s.slice(1);
+    if (h.length === 4) return parseHex(h.slice(0, 3));
+    if (h.length === 8) return parseHex(h.slice(0, 6));
+    return parseHex(s);
+  }
+  const m = /^(rgb|hsl)a?\(\s*([\d.]+)(%?)\s*[, ]\s*([\d.]+)(%?)\s*[, ]\s*([\d.]+)(%?)/i.exec(s);
+  if (!m) return null;
+  const [a, b, c] = [Number(m[2]), Number(m[4]), Number(m[6])];
+  if (![a, b, c].every(Number.isFinite)) return null;
+  const clamp = (x: number) => Math.max(0, Math.min(255, Math.round(x)));
+  if (m[1].toLowerCase() === 'rgb') return [clamp(m[3] ? (a / 100) * 255 : a), clamp(m[5] ? (b / 100) * 255 : b), clamp(m[7] ? (c / 100) * 255 : c)];
+  const [r, g, bl] = fromHsl(((a % 360) + 360) % 360, Math.min(1, b / 100), Math.min(1, c / 100));
+  return [clamp(r), clamp(g), clamp(bl)];
+}
+
+/** Сдвинуть яркость цвета текста `fg`, пока он не станет читаться на фоне `bg` (контраст не меньше min). Оттенок сохраняется.
+ *  Если сдвигом не вышло — чисто белый или почти чёрный. Читаемый цвет возвращается как есть. */
+export function fixTextColor(fg: RGB, bg: RGB, min = 4.5): RGB {
+  if (contrast(fg, bg) >= min) return fg;
+  const [h, s, l0] = toHsl(fg);
+  const darkBg = luminance(bg) < 0.5;
+  for (let i = 1; i <= 100; i++) {
+    const l = darkBg ? Math.min(1, l0 + i * 0.01) : Math.max(0, l0 - i * 0.01);
+    const rgb = parseHex(toHex(fromHsl(h, s, l)))!; // проверяем округлённый цвет
+    if (contrast(rgb, bg) >= min) return rgb;
+    if (l === 0 || l === 1) break;
+  }
+  return darkBg ? [255, 255, 255] : DARK;
+}

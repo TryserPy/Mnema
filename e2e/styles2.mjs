@@ -26,7 +26,7 @@ for (const [lookName, settings] of Object.entries(looks)) for (const [w, h, phon
   if (phone) { await page.locator('.tab', { hasText: 'Профиль' }).click(); await page.waitForTimeout(400); await page.locator('.prof-links .create-item', { hasText: 'Настройки' }).click(); }
   else await page.getByRole('button', { name: 'Настройки' }).first().click();
   await page.waitForTimeout(400);
-  await page.locator('.set-nav-item', { hasText: 'Стили' }).click();
+  await page.locator('.set-nav-item', { hasText: 'Оформление' }).click();
   await page.waitForTimeout(900);
   const info = await page.evaluate(() => Array.from(document.querySelectorAll('.st-demo')).map((d) => {
     const scene = d.shadowRoot?.querySelector('.main');
@@ -49,7 +49,7 @@ for (const [lookName, settings] of Object.entries(looks)) for (const [w, h, phon
   await sticky.click();
   await page.waitForTimeout(400);
   check((await sticky.getAttribute('aria-pressed')) === 'true', `${tag}: «Стикеры» включились (aria-pressed)`);
-  check(await page.evaluate(() => Boolean(document.getElementById('mnema-mods')?.textContent?.includes('Стикеры'))), `${tag}: CSS «Стикеров» применён к приложению`);
+  check(await page.evaluate(() => Boolean(document.getElementById('refrain-styles')?.textContent?.includes('Стикеры'))), `${tag}: CSS «Стикеров» применён к приложению`);
   // Пример «Большие карточки» не стал жёлтым — стили других плиток его не трогают
   const bg = await page.evaluate(() => {
     const d = Array.from(document.querySelectorAll('.st-tile')).find((t) => t.textContent.includes('Большие карточки'))?.querySelector('.st-demo');
