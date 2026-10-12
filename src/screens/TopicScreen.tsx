@@ -361,7 +361,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       {current === 'note' && data.settings.aiAuto?.cards && topic.kind !== 'rule' && allCards.length === 0 && topic.note.trim().length >= 200 && aiAvailable(data) && !offerDismissed.has(id) && (
         <div className="hint row gap8 wrap ai-offer" role="status">
           <Icon name="bot" size={16} />
-          <span className="grow">В конспекте есть текст, а карточек пока нет. ИИ может предложить черновики — ты проверишь и выберешь нужные.</span>
+          <span style={{ flex: '1 1 220px' }}>В конспекте есть текст, а карточек пока нет. ИИ может предложить черновики — ты проверишь и выберешь нужные.</span>
           <button className="btn small primary" onClick={() => setAiCards(true)}>
             Предложить карточки
           </button>
