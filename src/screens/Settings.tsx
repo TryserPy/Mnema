@@ -3,10 +3,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Logo } from '../components/Logo';
 import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
-import { LookPane, MotionPane, TextPane } from '../components/LookSettings';
+import { LookPane } from '../components/LookSettings';
 import { FeaturesPane } from '../components/FeaturesPane';
 import { PluginsSettings } from '../components/PluginsSettings';
-import { StylesSettings } from '../components/ModsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
 import { MarkdownImport } from '../components/MarkdownImport';
@@ -49,12 +48,12 @@ const INDEX: IndexItem[] = [
   { label: 'Светлая или тёмная тема', section: 'look', anchor: 'theme', words: 'ночь темный светлый система' },
   { label: 'Цвета темы', section: 'look', anchor: 'theme', words: 'палитра воздух бумага графит' },
   { label: 'Главный цвет', section: 'look', anchor: 'accent', words: 'акцент кнопки' },
-  { label: 'Шрифт', section: 'text', anchor: 'font', words: 'буквы' },
-  { label: 'Размер текста', section: 'text', anchor: 'fontsize', words: 'крупнее мельче' },
-  { label: 'Углы и плотность', section: 'text', anchor: 'shape', words: 'скругление отступы' },
-  { label: 'Фон: точки, клетка, линейка', section: 'text', anchor: 'background', words: 'тетрадь' },
-  { label: 'Свои цвета', section: 'text', anchor: 'colors' },
-  { label: 'Анимации', section: 'motion', anchor: 'motion', words: 'движение плавно лагает медленно' },
+  { label: 'Шрифт', section: 'look', anchor: 'font', words: 'буквы' },
+  { label: 'Размер текста', section: 'look', anchor: 'fontsize', words: 'крупнее мельче' },
+  { label: 'Углы и плотность', section: 'look', anchor: 'shape', words: 'скругление отступы' },
+  { label: 'Фон: точки, клетка, линейка', section: 'look', anchor: 'background', words: 'тетрадь узор' },
+  { label: 'Свои цвета', section: 'look', anchor: 'current', words: 'светлая тёмная палитра токены редактор' },
+  { label: 'Анимации', section: 'look', anchor: 'motion', words: 'движение плавно лагает медленно' },
   { label: 'Новых карточек в день', section: 'study', anchor: 'newPerDay', words: 'лимит' },
   { label: 'Простые кнопки «Не помню / Помню»', section: 'study', anchor: 'simple', words: 'оценки две' },
   { label: 'Насколько надёжно запоминать', section: 'study', anchor: 'retention', words: 'fsrs интервалы' },
@@ -72,12 +71,20 @@ const INDEX: IndexItem[] = [
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
-  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'styles', words: 'css вид моды оформление' },
+  { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'look', anchor: 'style', words: 'css вид моды оформление галерея каталог' },
+  { label: 'Создать стиль с помощью ИИ', section: 'look', anchor: 'style', words: 'нейросеть описание словами свой стиль' },
+  { label: 'Своя картинка на фоне', section: 'look', anchor: 'bgimage', words: 'обои фото прозрачность боковая панель размытие расположение' },
+  { label: 'Мой CSS (сниппеты)', section: 'look', anchor: 'snippets', words: 'свой код стили obsidian' },
   { label: 'Обновления', section: 'about', anchor: 'update', words: 'новая версия github обновить' },
   { label: 'Версия и справка', section: 'about', words: 'о программе' }
 ];
 
-export function Settings({ go, section: initial }: { go: (r: Route) => void; section?: SettingsSection }) {
+/** Разделы «Текст и форма», «Анимации» и «Стили» (до 1.30) теперь внутри «Оформления». */
+const OLD_LOOK_SECTIONS = ['text', 'motion', 'styles'];
+const sectionId = (id?: string) => (id && OLD_LOOK_SECTIONS.includes(id) ? 'look' : id) as SettingsSection | undefined;
+
+export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; section?: SettingsSection }) {
+  const initial = sectionId(initialRaw);
   const data = useData();
   const s = data.settings;
   const android = window.mnemaApi?.platform === 'android';
@@ -85,9 +92,6 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
   const narrow = useNarrow();
   const sections: SectionInfo[] = [
     { id: 'look', title: 'Оформление', icon: 'palette' },
-    { id: 'text', title: 'Текст и форма', icon: 'edit' },
-    { id: 'motion', title: 'Анимации', icon: 'sparkle' },
-    { id: 'styles', title: 'Стили', icon: 'brush' },
     { id: 'features', title: 'Возможности', icon: 'grid' },
     { id: 'study', title: 'Учёба', icon: 'book' },
     { id: 'reminders', title: 'Напоминания', icon: 'bell' },
@@ -110,7 +114,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
 
   const open = (id: string, anchor?: string) => {
     setQuery('');
-    setSection(id as SettingsSection);
+    setSection(sectionId(id) ?? null);
     setFlash(anchor ?? null);
     (document.querySelector('.main') as HTMLElement | null)?.scrollTo({ top: 0 });
   };
@@ -172,10 +176,7 @@ export function Settings({ go, section: initial }: { go: (r: Route) => void; sec
   );
 
   let pane: ReactNode = null;
-  if (current === 'look') pane = <LookPane dark={dark} />;
-  else if (current === 'text') pane = <TextPane dark={dark} />;
-  else if (current === 'motion') pane = <MotionPane />;
-  else if (current === 'styles') pane = <StylesSettings />;
+  if (current === 'look') pane = <LookPane dark={dark} onGo={(id) => open(id)} />;
   else if (current === 'features') pane = <FeaturesPane openSection={open} />;
   else if (current === 'study') pane = <StudyPane />;
   else if (current === 'reminders') pane = <RemindersPane desktop={desktop} android={android} />;

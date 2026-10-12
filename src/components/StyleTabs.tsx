@@ -8,10 +8,10 @@ import { MotionGroups } from './MotionSettings';
 import { AttrRow, ColorTokenRow, useFilter, VarRow, type EditCtx } from './StyleControls';
 import { ColorPicker, Collapse, Segmented } from './ui';
 import { API_VARS, type ApiVar } from '../styleApi';
-import { getRadius, getShadow, getVar, MONO_CSS, setDensity, getDensity, setFont, setRadius, setShadow, setVar, type Density, type ShadowLevel } from '../styleBuilder';
+import { getRadius, getShadow, getVar, MONO_CSS, setDensity, getDensity, setFont, setRadius, setShadow, setVar, type ShadowLevel } from '../styleBuilder';
 import { contrastReport, effectiveColors, fixContrast } from '../styleContrast';
 import { BACKGROUNDS, FONTS, HEAD_FONTS, THEMES } from '../themes';
-import type { Look } from '../types';
+import type { Density, Look } from '../types';
 
 const varOf = (name: string): ApiVar => API_VARS.flatMap((g) => g.vars).find((v) => v.name === name) ?? { name, doc: '' };
 const labelOf = (name: string) => varOf(name).label ?? name;
@@ -272,7 +272,8 @@ export function ShapeTab({ ctx }: { ctx: EditCtx }) {
   const [more, setMore] = useState(false);
   const [sizes, setSizes] = useState(false);
   const radius = getRadius(m);
-  const dens: Density = m.density ?? getDensity(m);
+  const bd = getDensity(m);
+  const dens: Density = m.density ?? (bd === 'default' ? 'normal' : bd);
   return (
     <div className="se-pane">
       <H>Углы</H>
@@ -338,7 +339,7 @@ export function ShapeTab({ ctx }: { ctx: EditCtx }) {
         </div>
         <Segmented<Density>
           ariaLabel="Плотность"
-          value={dens === 'default' ? 'normal' : dens}
+          value={dens}
           options={[
             { value: 'compact', label: 'Плотно' },
             { value: 'normal', label: 'Обычно' },

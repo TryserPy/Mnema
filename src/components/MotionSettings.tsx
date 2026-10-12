@@ -29,7 +29,7 @@ export function MotionGroups() {
   return (
     <>
       <Group>
-        <div className="srow stack-row" data-set="motion">
+        <div className="srow stack-row">
           <div className="ctl-seg full">
             <Segmented
               ariaLabel="Анимации"

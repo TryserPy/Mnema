@@ -1,78 +1,31 @@
-// Настройки: «Оформление» (стиль, тема, цвет), «Текст и форма», «Анимации». «Стили» — свой раздел (ModsSettings).
-import { useRef, useState } from 'react';
+// Настройки → «Оформление»: ОДИН раздел. Стиль — это всё оформление сразу: галерея стилей сверху (встроенные виды, каталог, свои, «Создать с ИИ»),
+// ниже «Настроить текущий» (тема, цвета, шрифты, углы, плотность, фон-картинка, анимации, свой CSS). Старые разделы «Текст и форма»,
+// «Анимации» и «Стили» переехали сюда же. Все правки сразу видны на настоящем интерфейсе.
+import { useState } from 'react';
 import { updateSettings, useData } from '../store';
-import { BACKGROUNDS, DEFAULT_ACCENT, DEFAULT_LOOK, FONTS, HEAD_FONTS, presetFor, STYLES, THEMES, type Palette, type ThemePreset } from '../themes';
-import type { Look, MotionKind, MotionLevel } from '../types';
-import { Collapse, ColorPicker, Icon, Segmented, Switch, toast } from './ui';
+import { BACKGROUNDS, FONTS, HEAD_FONTS, presetFor, THEMES, type ThemePreset } from '../themes';
+import type { BgImage, Look, SettingsSection } from '../types';
+import { Icon, ColorPicker, Segmented } from './ui';
 import { Group, PaneHead, SRow } from './SettingsKit';
+import { ACCENTS, ThemeCard } from './ThemeCards';
+import { BgImageEditor } from './BgImageEditor';
+import { MotionGroups } from './MotionSettings';
+import { Snippets } from './Snippets';
+import { StylesGallery } from './ModsSettings';
+import { StyleEditor } from './StyleEditor';
 
-const ACCENTS = ['#4C5BD4', '#3F51D8', '#1F7A6B', '#B4452F', '#6B3FC4', '#2A5BB8', '#3A3F4E', '#C2417A', '#2F8F5B', '#A4591A', '#0E8FA3'];
-
-function ThemeCard({ t, on, onPick }: { t: ThemePreset; on: boolean; onPick: () => void }) {
-  const p = t.p;
-  return (
-    <button type="button" className={'theme-card' + (on ? ' on' : '')} aria-pressed={on} onClick={onPick} title={t.name}>
-      <span className="theme-prev" style={{ background: p.bg }}>
-        <span className="tp-side" style={{ background: p.side }}>
-          <i style={{ background: p.ink }} />
-          <i style={{ background: p.muted, width: '70%' }} />
-          <i style={{ background: p.muted, width: '80%' }} />
-        </span>
-        <span className="tp-main">
-          <span className="tp-card" style={{ background: p.surface, border: `1px solid ${p.line}` }}>
-            <i style={{ background: p.ink, width: '60%' }} />
-            <i style={{ background: p.muted, width: '85%' }} />
-          </span>
-          <span className="tp-btn" style={{ background: t.accent }} />
-        </span>
-      </span>
-      <span className="theme-name">{t.name}</span>
-    </button>
-  );
-}
-
-function StyleCard({ st, on, onPick, dark }: { st: (typeof STYLES)[number]; on: boolean; onPick: () => void; dark: boolean }) {
-  const t = presetFor({ ...DEFAULT_LOOK, ...st.look } as Look, dark);
-  const p = t.p;
-  return (
-    <button type="button" className={'style-card' + (on ? ' on' : '')} aria-pressed={on} onClick={onPick}>
-      <span className="style-prev" style={{ background: p.bg, color: p.ink }}>
-        <span className="sp-title" style={{ fontFamily: st.id === 'classic' ? "'Literata', Georgia, serif" : 'inherit' }}>
-          Сегодня
-        </span>
-        <span className="sp-hero" style={{ background: st.accent }}>
-          <b>12</b>
-        </span>
-        <span className="sp-card" style={{ background: p.surface, borderColor: st.id === 'classic' ? p.line : 'transparent', boxShadow: st.id === 'modern' ? '0 1px 3px rgba(16,24,40,0.10)' : 'none' }}>
-          <i style={{ background: p.ink }} />
-          <i style={{ background: p.muted }} />
-        </span>
-      </span>
-      <span className="stack gap2 style-text">
-        <strong>{st.name}</strong>
-        <span className="small muted">{st.text}</span>
-      </span>
-    </button>
-  );
-}
-
-export function LookPane({ dark }: { dark: boolean }) {
+export function LookPane({ dark, onGo }: { dark: boolean; onGo?: (section: SettingsSection) => void }) {
   const data = useData();
   const s = data.settings;
   const look = s.look;
   const [which, setWhich] = useState<'light' | 'dark'>(dark ? 'dark' : 'light');
+  const [editing, setEditing] = useState(false);
+  const setLook = (patch: Partial<Look>) => updateSettings({ look: { ...look, ...patch } });
   return (
     <div className="stack gap16">
-      <PaneHead title="Оформление" text="Как выглядит Refrain. Всё меняется сразу — можно пробовать." />
-      <Group title="Стиль" id="style">
-        <div className="style-grid">
-          {STYLES.map((st) => (
-            <StyleCard key={st.id} st={st} dark={dark} on={(look.style ?? 'modern') === st.id} onPick={() => updateSettings({ look: { ...look, ...st.look }, accent: st.accent })} />
-          ))}
-        </div>
-      </Group>
-      <Group title="Тема" id="theme">
-        <SRow label="Светлая или тёмная">
+      <PaneHead title="Оформление" text="Стиль — это всё оформление сразу: цвета, шрифты, углы, фон. Выбери готовый, сделай свой или попроси ИИ. Всё меняется сразу — можно пробовать." />
+      <Group title="Светлая или тёмная" id="theme">
+        <SRow label="Тема">
           <div className="ctl-seg">
             <Segmented
               ariaLabel="Тема оформления"
@@ -89,9 +42,23 @@ export function LookPane({ dark }: { dark: boolean }) {
             />
           </div>
         </SRow>
+      </Group>
+      <Group title="Стили" id="style" hint="Включённые стили можно сочетать: тот, что ниже в списке, перекрывает верхние. Настройки из «Настроить текущий» перекрывают все стили.">
         <div className="srow stack-row">
+          <StylesGallery onGo={onGo} />
+        </div>
+      </Group>
+      <Group title="Настроить текущий" id="current" hint="Это то, что стоит сейчас. В полном редакторе — все цвета (светлые и тёмные), шрифты, размеры, тени, рамки, анимации и свой CSS.">
+        <div className="srow stack-row">
+          <div className="row gap8 wrap">
+            <button type="button" className="btn small primary" onClick={() => setEditing(true)} data-set="edit-current">
+              <Icon name="sliders" size={16} /> Открыть полный редактор
+            </button>
+          </div>
+        </div>
+        <div className="srow stack-row" data-set="themecolors">
           <div className="row between gap8 wrap">
-            <span className="srow-label">Цвета</span>
+            <span className="srow-label">Цвета темы</span>
             {s.theme === 'system' && (
               <div className="ctl-seg small-seg">
                 <Segmented
@@ -107,7 +74,7 @@ export function LookPane({ dark }: { dark: boolean }) {
             )}
           </div>
           <div className="theme-grid" key={which}>
-            {THEMES.filter((t) => t.dark === (s.theme === 'system' ? which === 'dark' : dark)).map((t) => {
+            {THEMES.filter((t: ThemePreset) => t.dark === (s.theme === 'system' ? which === 'dark' : dark)).map((t) => {
               const isDark = t.dark;
               const on = (isDark ? look.dark : look.light) === t.id;
               return <ThemeCard key={t.id} t={t} on={on} onPick={() => updateSettings({ look: { ...look, [isDark ? 'dark' : 'light']: t.id }, ...(isDark === dark ? { accent: t.accent } : {}) })} />;
@@ -118,8 +85,81 @@ export function LookPane({ dark }: { dark: boolean }) {
           <span className="srow-label">Главный цвет</span>
           <ColorPicker value={s.accent} onChange={(c) => updateSettings({ accent: c })} colors={ACCENTS} />
         </div>
+        <div className="srow stack-row" data-set="font">
+          <span className="srow-label">Шрифт</span>
+          <div className="look-row">
+            {FONTS.map((f) => (
+              <button key={f.id} type="button" className={'look-chip' + (look.font === f.id ? ' on' : '')} style={{ fontFamily: f.css }} onClick={() => (f.load?.(), setLook({ font: f.id }))}>
+                {f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <SRow label="Заголовки" id="headfont">
+          <div className="ctl-seg">
+            <Segmented ariaLabel="Шрифт заголовков" value={look.headFont} onChange={(v) => setLook({ headFont: v })} options={HEAD_FONTS.map((f) => ({ value: f.id as Look['headFont'], label: f.id === 'literata' ? 'Книжный' : 'Как текст' }))} />
+          </div>
+        </SRow>
+        <SRow label="Размер текста" hint={`${Math.round(s.fontScale * 100)}%`} id="fontsize">
+          <input type="range" min={0.9} max={1.3} step={0.05} value={s.fontScale} onChange={(e) => updateSettings({ fontScale: Number(e.target.value) })} aria-label="Размер текста" />
+        </SRow>
+        <SRow label="Углы" id="shape">
+          <div className="ctl-seg">
+            <Segmented
+              ariaLabel="Углы"
+              value={look.radius}
+              onChange={(v) => setLook({ radius: v })}
+              options={[
+                { value: 'sharp', label: 'Острые' },
+                { value: 'normal', label: 'Обычные' },
+                { value: 'round', label: 'Круглые' }
+              ]}
+            />
+          </div>
+        </SRow>
+        <SRow label="Плотность" hint="Сколько воздуха между блоками" id="density">
+          <div className="ctl-seg">
+            <Segmented
+              ariaLabel="Плотность"
+              value={s.density}
+              onChange={(v) => updateSettings({ density: v })}
+              options={[
+                { value: 'compact', label: 'Плотно' },
+                { value: 'normal', label: 'Обычно' },
+                { value: 'comfy', label: 'Просторно' }
+              ]}
+            />
+          </div>
+        </SRow>
+        <div className="srow stack-row" data-set="background">
+          <span className="srow-label">Узор на фоне</span>
+          <div className="look-row">
+            {BACKGROUNDS.map((b) => (
+              <button key={b.id} type="button" className={'look-chip' + (look.background === b.id ? ' on' : '')} onClick={() => setLook({ background: b.id })}>
+                <span className={'bg-sample ' + b.id} />
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Group>
+      <Group title="Свой фон" id="bgimage" hint="Картинка встанет под всё окно. Можно выбрать место и размер, сделать бледнее или размытой и решить, видна ли она под боковой панелью.">
+        <div className="srow stack-row">
+          <BgImageEditor bg={s.bgImage} onChange={(bg) => updateSettings({ bgImage: bg as BgImage | undefined })} />
+        </div>
+      </Group>
+      <div className="stack gap8" data-set="motion">
+        <h3 className="sgroup-title">Анимации</h3>
+        <p className="sgroup-hint">Плавные движения помогают понять, что изменилось. Если отвлекают или компьютер медленный — выключи.</p>
+        <MotionGroups />
+      </div>
+      <Group id="snippets">
+        <div className="srow stack-row" data-set="snippets">
+          <Snippets />
+        </div>
       </Group>
       {window.mnemaApi?.setAppIcon && <AppIconGroup dark={dark} />}
+      {editing && <StyleEditor current onClose={() => setEditing(false)} />}
     </div>
   );
 }
@@ -156,244 +196,5 @@ function AppIconGroup({ dark }: { dark: boolean }) {
         </div>
       </div>
     </Group>
-  );
-}
-
-/** Свой фон картинкой: выбрать файл, сжать, настроить, насколько её видно. */
-function BgImageRow() {
-  const s = useData().settings;
-  const img = s.bgImage;
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  async function pick(f?: File) {
-    if (!f) return;
-    setBusy(true);
-    try {
-      // Старый WebView не знает imageOrientation — тогда без него.
-      const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(f));
-      const k = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
-      const c = document.createElement('canvas');
-      c.width = Math.round(bmp.width * k);
-      c.height = Math.round(bmp.height * k);
-      const g = c.getContext('2d')!;
-      // Прозрачные места PNG в JPEG стали бы чёрными — подкладываем белый.
-      g.fillStyle = '#fff';
-      g.fillRect(0, 0, c.width, c.height);
-      g.drawImage(bmp, 0, 0, c.width, c.height);
-      bmp.close();
-      updateSettings({ bgImage: { src: c.toDataURL('image/jpeg', 0.8), fade: img?.fade ?? 0.82 } });
-    } catch {
-      toast('Не получилось открыть картинку — попробуй другой файл (JPG или PNG)');
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="srow stack-row" data-set="bgimage">
-      <div className="row between gap8 wrap">
-        <span className="srow-label">Своя картинка</span>
-        <div className="row gap8 wrap">
-          <button type="button" className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
-            <Icon name="upload" size={16} /> {img ? 'Другая' : 'Выбрать файл'}
-          </button>
-          {img && (
-            <button type="button" className="btn small ghost" onClick={() => updateSettings({ bgImage: undefined })}>
-              Убрать
-            </button>
-          )}
-        </div>
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0])} />
-      </div>
-      {img && (
-        <label className="row gap12 bg-fade-row">
-          <span className="bg-thumb" style={{ backgroundImage: `url("${img.src}")` }} />
-          <span className="grow stack gap4">
-            <span className="small">Насколько видно картинку</span>
-            <input type="range" min={5} max={28} step={1} value={Math.min(28, Math.round((1 - img.fade) * 100))} onChange={(e) => updateSettings({ bgImage: { ...img, fade: 1 - Number(e.target.value) / 100 } })} aria-label="Насколько видно картинку" />
-          </span>
-        </label>
-      )}
-      <span className="small muted">Картинка встанет под всё окно, а сверху — полупрозрачный цвет темы, чтобы текст читался.</span>
-    </div>
-  );
-}
-
-const COLOR_LABELS: [keyof Palette, string][] = [
-  ['bg', 'Фон'],
-  ['side', 'Левая панель'],
-  ['surface', 'Карточки и окна'],
-  ['ink', 'Текст'],
-  ['muted', 'Серый текст'],
-  ['line', 'Линии']
-];
-
-export function TextPane({ dark }: { dark: boolean }) {
-  const data = useData();
-  const s = data.settings;
-  const look = s.look;
-  const [colorsOpen, setColorsOpen] = useState(false);
-  const [editDark, setEditDark] = useState(dark);
-  const setLook = (patch: Partial<Look>) => updateSettings({ look: { ...look, ...patch } });
-  const mode = editDark ? 'dark' : 'light';
-  const custom = look.custom[mode] ?? {};
-  const base = presetFor(look, editDark);
-  return (
-    <div className="stack gap16">
-      <PaneHead title="Текст и форма" text="Шрифт, размер, углы, фон и свои цвета." />
-      <Group title="Текст" id="font">
-        <div className="srow stack-row">
-          <span className="srow-label">Шрифт</span>
-          <div className="look-row">
-            {FONTS.map((f) => (
-              <button key={f.id} type="button" className={'look-chip' + (look.font === f.id ? ' on' : '')} style={{ fontFamily: f.css }} onClick={() => (f.load?.(), setLook({ font: f.id }))}>
-                {f.name}
-              </button>
-            ))}
-          </div>
-        </div>
-        <SRow label="Заголовки" id="headfont">
-          <div className="ctl-seg">
-            <Segmented ariaLabel="Шрифт заголовков" value={look.headFont} onChange={(v) => setLook({ headFont: v })} options={HEAD_FONTS.map((f) => ({ value: f.id as Look['headFont'], label: f.id === 'literata' ? 'Книжный' : 'Как текст' }))} />
-          </div>
-        </SRow>
-        <SRow label="Размер текста" hint={`${Math.round(s.fontScale * 100)}%`} id="fontsize">
-          <input type="range" min={0.9} max={1.3} step={0.05} value={s.fontScale} onChange={(e) => updateSettings({ fontScale: Number(e.target.value) })} aria-label="Размер текста" />
-        </SRow>
-      </Group>
-      <Group title="Форма" id="shape">
-        <SRow label="Углы">
-          <div className="ctl-seg">
-            <Segmented
-              ariaLabel="Углы"
-              value={look.radius}
-              onChange={(v) => setLook({ radius: v })}
-              options={[
-                { value: 'sharp', label: 'Острые' },
-                { value: 'normal', label: 'Обычные' },
-                { value: 'round', label: 'Круглые' }
-              ]}
-            />
-          </div>
-        </SRow>
-        <SRow label="Плотность" hint="Сколько воздуха между блоками" id="density">
-          <div className="ctl-seg">
-            <Segmented
-              ariaLabel="Плотность"
-              value={s.density}
-              onChange={(v) => updateSettings({ density: v })}
-              options={[
-                { value: 'compact', label: 'Плотно' },
-                { value: 'normal', label: 'Обычно' },
-                { value: 'comfy', label: 'Просторно' }
-              ]}
-            />
-          </div>
-        </SRow>
-        <div className="srow stack-row" data-set="background">
-          <span className="srow-label">Фон</span>
-          <div className="look-row">
-            {BACKGROUNDS.map((b) => (
-              <button key={b.id} type="button" className={'look-chip' + (look.background === b.id ? ' on' : '')} onClick={() => setLook({ background: b.id })}>
-                <span className={'bg-sample ' + b.id} />
-                {b.name}
-              </button>
-            ))}
-          </div>
-        </div>
-        <BgImageRow />
-      </Group>
-      <Group id="colors">
-        <button className="srow srow-btn" aria-expanded={colorsOpen} onClick={() => setColorsOpen(!colorsOpen)}>
-          <span className="srow-text">
-            <span className="srow-label">Свои цвета</span>
-            <span className="srow-hint">Фон, панель, текст — поверх выбранной темы</span>
-          </span>
-          <span className={'chev' + (colorsOpen ? ' open' : '')}>›</span>
-        </button>
-        <Collapse open={colorsOpen}>
-          <div className="srow stack-row">
-            <div className="ctl-seg small-seg">
-              <Segmented
-                ariaLabel="Для какой темы"
-                value={mode}
-                onChange={(v) => setEditDark(v === 'dark')}
-                options={[
-                  { value: 'light', label: 'Для светлой' },
-                  { value: 'dark', label: 'Для тёмной' }
-                ]}
-              />
-            </div>
-            <div className="color-inputs">
-              {COLOR_LABELS.map(([k, label]) => (
-                <label key={k}>
-                  <input type="color" value={custom[k] || base.p[k]} onChange={(e) => setLook({ custom: { ...look.custom, [mode]: { ...custom, [k]: e.target.value } } })} aria-label={label} />
-                  <span className={custom[k] ? '' : 'muted'}>{label}</span>
-                </label>
-              ))}
-            </div>
-            <div className="row gap8 wrap">
-              <button className="btn small" disabled={!Object.keys(custom).length} onClick={() => setLook({ custom: { ...look.custom, [mode]: {} } })}>
-                Вернуть цвета темы
-              </button>
-              <button className="btn small ghost" onClick={() => updateSettings({ look: { ...DEFAULT_LOOK, custom: {} }, accent: DEFAULT_ACCENT, density: 'normal', fontScale: 1 })}>
-                Сбросить всё оформление
-              </button>
-            </div>
-          </div>
-        </Collapse>
-      </Group>
-    </div>
-  );
-}
-
-const KIND_LABELS: [MotionKind, string, string][] = [
-  ['screens', 'Переходы между экранами', 'Экран плавно появляется'],
-  ['windows', 'Окна и меню', 'Появляются и исчезают плавно'],
-  ['expand', 'Раскрытие блоков', 'Списки и разделы раскрываются плавно'],
-  ['text', 'Смена текста и чисел', 'Числа докручиваются'],
-  ['review', 'Карточки при повторении', 'Карточка выезжает, ответ открывается'],
-  ['hover', 'Мелкие эффекты', 'Кнопки чуть приподнимаются, строки подсвечиваются'],
-  ['lists', 'Списки и плитки', 'Появляются по очереди, а не разом'],
-  ['press', 'Нажатия', 'Кнопки и вкладки слегка «вдавливаются»'],
-  ['guide', 'Картинки в справке', 'Рисунки в справке и знакомстве оживают']
-];
-
-export function MotionPane() {
-  const data = useData();
-  const s = data.settings;
-  const offNow: MotionKind[] = s.motion === 'off' ? KIND_LABELS.map((k) => k[0]) : s.motion === 'essential' ? ['screens', 'text', 'hover', 'lists', 'press', 'guide'] : s.motion === 'custom' ? s.motionOff : [];
-  const toggle = (k: MotionKind, on: boolean) => {
-    const next = on ? offNow.filter((x) => x !== k) : [...offNow, k];
-    const level: MotionLevel = next.length === 0 ? 'all' : next.length === KIND_LABELS.length ? 'off' : 'custom';
-    updateSettings({ motion: level, motionOff: next });
-  };
-  return (
-    <div className="stack gap16">
-      <PaneHead title="Анимации" text="Плавные движения помогают понять, что изменилось. Если отвлекают или компьютер медленный — выключи." />
-      <Group>
-        <div className="srow stack-row" data-set="motion">
-          <div className="ctl-seg full">
-            <Segmented
-              ariaLabel="Анимации"
-              value={s.motion}
-              onChange={(v) => updateSettings({ motion: v })}
-              options={[
-                { value: 'all', label: 'Все' },
-                { value: 'essential', label: 'Важные' },
-                { value: 'off', label: 'Нет' },
-                { value: 'custom', label: 'Свои' }
-              ]}
-            />
-          </div>
-        </div>
-      </Group>
-      <Group title="Какие именно">
-        {KIND_LABELS.map(([k, label, hint]) => (
-          <SRow key={k} label={label} hint={hint} id={'motion-' + k}>
-            <Switch label={label} checked={!offNow.includes(k)} onChange={(v) => toggle(k, v)} />
-          </SRow>
-        ))}
-      </Group>
-    </div>
   );
 }

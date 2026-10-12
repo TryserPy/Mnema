@@ -184,7 +184,7 @@ function parseObject(s: string): Record<string, unknown> | undefined {
   for (let k = pts.length; k >= 0; k--) {
     const v = tryParse(close(k === pts.length ? text : text.slice(0, pts[k])));
     if (v && Object.keys(v).length) return v;
-    if (pts.length - k > 400) break;
+    if (pts.length - k > 60) break;
   }
   return undefined;
 }
