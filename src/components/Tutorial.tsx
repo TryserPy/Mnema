@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { addCard, addSubject, addTopic, getData, updateSettings, updateTopic, useData } from '../store';
 import { noteWriter } from '../noteRegistry';
 import type { AppData, Route, Topic } from '../types';
-import { MAJORS, needsScroll, stepInfo, useDomTick, useRect, type Rect } from './guideTarget';
+import { lowSidePlace, MAJORS, needsScroll, stepInfo, useDomTick, useRect, type Rect } from './guideTarget';
 import { Icon, selHow, toast } from './ui';
 import '../guide.css';
 
@@ -190,6 +190,11 @@ const CARD_H = 190; // запасная высота плашки, пока на
 export function cardPlace(r: Rect | null, phone: boolean, cardH = CARD_H): React.CSSProperties {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  if (r && vh < 520) {
+    // Телефон на боку: у окна сверху заголовок и крестик, снизу кнопки — плашку кладём сбоку от окна, если там есть поле.
+    const side = lowSidePlace(r, vw);
+    if (side) return { left: side.left, top: side.top, width: side.width, bottom: 'auto', transform: 'none' };
+  }
   const bottomGap = phone ? 86 : 20; // на телефоне снизу нижняя панель
   const centerX = { left: '50%', transform: 'translateX(-50%)' };
   const atBottom = { ...centerX, top: 'auto', bottom: bottomGap };

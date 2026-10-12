@@ -75,10 +75,19 @@ async function ringState(page) {
     const card = document.querySelector('.tut-card')?.getBoundingClientRect();
     const vw = innerWidth, vh = innerHeight;
     const r = ring && { x: ring.left + 6, y: ring.top + 6, w: ring.width - 12, h: ring.height - 12 };
-    let hit = null, overlap = 0;
+    let hit = null, overlap = 0, off = null;
     if (r) {
       const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
       const el = document.elementFromPoint(Math.min(vw - 1, Math.max(0, cx)), Math.min(vh - 1, Math.max(0, cy)));
+      // Рамка должна лежать точно на каком-то элементе (допуск 2px): ищем среди самого элемента под серединой и его предков тот, чьё место совпало с рамкой.
+      // Смещённая рамка (не успела за окном, не учла прокрутку) такого элемента не даёт — берём ближайший и сообщаем, насколько промахнулись.
+      let best = Infinity;
+      for (let p = el; p && p !== document.documentElement; p = p.parentElement) {
+        const b = p.getBoundingClientRect();
+        const d = Math.max(Math.abs(b.left - r.x), Math.abs(b.top - r.y), Math.abs(b.width - r.w), Math.abs(b.height - r.h));
+        if (d < best) best = d;
+      }
+      off = Math.round(best * 10) / 10;
       hit = el ? (el.closest('button, a, [role="button"], input, textarea, .ProseMirror, .create-item, .topic-row, .tab, .nav-item, .tree-row, .modal') ? 'ok' : (el.className?.baseVal ?? el.className) || el.tagName) : 'none';
       if (card) {
         const ix = Math.max(0, Math.min(r.x + r.w, card.right) - Math.max(r.x, card.left));
@@ -86,10 +95,29 @@ async function ringState(page) {
         overlap = (ix * iy) / Math.max(1, r.w * r.h);
       }
     }
+    // Не закрыта ли плашкой кнопка или поле внутри подсвеченного (важно на низком экране, где плашка неизбежно закрывает часть большого окна).
+    const covered = [];
+    if (r && card) {
+      for (const e of document.querySelectorAll('button, input, select, textarea, [role="tab"]')) {
+        if (e.closest('.tut')) continue;
+        const b = e.getBoundingClientRect();
+        if (b.width < 4 || b.height < 4 || b.bottom < 0 || b.top > vh || getComputedStyle(e).visibility === 'hidden') continue;
+        if (b.right < r.x || b.left > r.x + r.w || b.bottom < r.y || b.top > r.y + r.h) continue;
+        // кнопка за затемнением окна (панель под ним) человеку недоступна — не считаем
+        const under = document.elementsFromPoint(Math.min(vw - 1, Math.max(0, (b.left + b.right) / 2)), Math.min(vh - 1, Math.max(0, (b.top + b.bottom) / 2))).find((x) => !x.closest('.tut'));
+        if (under && under !== e && !e.contains(under) && !under.contains(e)) continue;
+        const ix = Math.max(0, Math.min(b.right, card.right) - Math.max(b.left, card.left));
+        const iy = Math.max(0, Math.min(b.bottom, card.bottom) - Math.max(b.top, card.top));
+        if ((ix * iy) / (b.width * b.height) > 0.25) covered.push((e.getAttribute('aria-label') || e.textContent || e.placeholder || e.tagName).trim().slice(0, 24));
+      }
+    }
     return {
+      covered,
+      low: vh < 520,
       ring: r && { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) },
       cardOut: card ? card.left < -1 || card.right > vw + 1 || card.top < -1 || card.bottom > vh + 1 : false,
       overlap: Math.round(overlap * 100),
+      off,
       hit,
       cx: r ? Math.round(r.x + r.w / 2) : null,
       cy: r ? Math.round(r.y + r.h / 2) : null
@@ -138,8 +166,10 @@ async function run(dev, style) {
     if (!st.done && st.n > st.total) bad(`номер больше «М»: ${text}`);
     const needsRing = !/Сегодня повторять пока нечего/.test(title);
     if (needsRing && !rs.ring) bad(`нет рамки на шаге «${title}»`);
+    if (rs.off != null && rs.off > 2) bad(`рамка не совпадает с элементом (промах ${rs.off}px) на шаге «${title}»`);
     if (rs.cardOut) bad(`плашка вылезла за экран на шаге «${title}»`);
-    if (rs.overlap > 15) bad(`плашка закрывает ${rs.overlap}% подсвеченного на шаге «${title}»`);
+    if (rs.covered.length) bad(`плашка закрывает кнопку/поле «${rs.covered.join('», «')}» на шаге «${title}»`);
+    if (!rs.low && rs.overlap > 15) bad(`плашка закрывает ${rs.overlap}% подсвеченного на шаге «${title}»`);
     if (rs.ring && rs.hit && rs.hit !== 'ok') bad(`в середине рамки лежит не то (${rs.hit}) на шаге «${title}»`);
     await shot('s' + st.n);
     // что делать на этом шаге

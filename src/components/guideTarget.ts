@@ -49,6 +49,21 @@ export function needsScroll(r: Rect, view: Rect, top = 0, bottom = 0): boolean {
   return r.y < vTop - 0.5 || r.y + r.h > vBottom + 0.5;
 }
 
+/**
+ * Низкий экран (телефон на боку): сверху и снизу у окна заголовок, крестик и кнопки — плашка ложится сбоку от него, в свободное поле, если оно есть.
+ * Возвращает место (слева и сверху — от края экрана, ширина) или null, когда сбоку тесно (тогда плашка уходит наверх, как раньше).
+ * `cardH` — высота плашки при этой ширине неизвестна заранее, поэтому берём запасную: узкая плашка выше обычной.
+ */
+export function lowSidePlace(r: Rect, vw: number, gap = 12, minW = 130, maxW = 260): { left: number; top: number; width: number } | null {
+  const leftSpace = r.x - gap;
+  const rightSpace = vw - (r.x + r.w) - gap;
+  const best = Math.max(leftSpace, rightSpace);
+  if (best - 8 < minW || r.w < vw * 0.3) return null; // узкой цели (кнопка) и так найдётся место
+  const width = Math.min(maxW, best - 8);
+  const left = leftSpace >= rightSpace ? r.x - gap - width : r.x + r.w + gap;
+  return { left: Math.max(8, Math.min(vw - width - 8, left)), top: 8, width: Math.min(width, vw - 16) };
+}
+
 export interface Rect {
   x: number;
   y: number;

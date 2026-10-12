@@ -1,6 +1,6 @@
 // Знакомство-тренажёр: счёт действий («Шаг N из М») и расчёты рамки подсветки. Чистая логика из components/guideTarget.ts.
 import { describe, expect, it } from 'vitest';
-import { ACTIONS, actionNumber, MAJORS, needsScroll, sameRect, stepInfo, TOTAL_ACTIONS } from './components/guideTarget';
+import { ACTIONS, actionNumber, lowSidePlace, MAJORS, needsScroll, sameRect, stepInfo, TOTAL_ACTIONS } from './components/guideTarget';
 
 describe('счёт действий в знакомстве', () => {
   it('на каждый крупный шаг есть число действий, всего — их сумма', () => {
@@ -77,5 +77,23 @@ describe('рамка подсветки', () => {
     expect(needsScroll({ x: 10, y: 600, w: 300, h: 60 }, view, 56, 80)).toBe(false);
     // окно со своей прокруткой: видимая область — само окно
     expect(needsScroll({ x: 10, y: 560, w: 300, h: 60 }, { x: 0, y: 100, w: 390, h: 400 })).toBe(true);
+  });
+});
+
+describe('плашка на низком экране (телефон на боку)', () => {
+  it('окно посередине экрана 844×390: плашка уходит в поле сбоку и не заходит на окно', () => {
+    const modal = { x: 157, y: 8, w: 530, h: 374 };
+    const p = lowSidePlace(modal, 844);
+    expect(p).not.toBeNull();
+    expect(p!.width).toBeGreaterThanOrEqual(130);
+    const right = p!.left + p!.width;
+    expect(right <= modal.x || p!.left >= modal.x + modal.w).toBe(true); // не пересекает окно (ни слева, ни справа)
+    expect(p!.left).toBeGreaterThanOrEqual(8);
+    expect(p!.left + p!.width).toBeLessThanOrEqual(844 - 8);
+  });
+
+  it('сбоку тесно (окно почти на всю ширину) или цель узкая — null, плашка остаётся наверху', () => {
+    expect(lowSidePlace({ x: 20, y: 8, w: 640, h: 340 }, 667)).toBeNull();
+    expect(lowSidePlace({ x: 300, y: 8, w: 40, h: 40 }, 844)).toBeNull(); // кнопка: найдётся место и без боковой полосы
   });
 });

@@ -100,11 +100,13 @@ html[data-no-guide] .tut-ring, html[data-motion='off'] .tut-ring { animation: no
 .tut-card.at-top { bottom: auto; top: 20px; }
 .tut-card.phone { bottom: calc(var(--tabbar-h, 72px) + 14px); }
 .tut-card.phone.at-top { bottom: auto; top: 64px; }
-.tut-card.low { width: min(600px, calc(100vw - 24px)); padding: 8px 12px; gap: 4px; }
+.tut-card.low { width: min(600px, calc(100vw - 24px)); padding: 8px 12px; gap: 4px; max-height: calc(100vh - 16px); overflow-y: auto; }
+.tut-card.low .tut-btns { flex-wrap: wrap; }
+.tut-card.low .tut-text { font-size: 0.92rem; line-height: 1.3; }
 .tut-card.low .tut-hint, .tut-card.low .tut-flash { display: none; }
 .tut-card.low .tut-btns { margin-top: 0; }
 .tut-step { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.tut-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--sunken); overflow: hidden; }
+.tut-bar { flex: 1; min-width: 28px; height: 4px; border-radius: 2px; background: var(--sunken); overflow: hidden; }
 .tut-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.3s ease; }
 .tut-text { margin: 0; font-weight: 600; line-height: 1.4; }
 .tut-hint { margin: 0; }
