@@ -1,5 +1,6 @@
 // 1.30: правки по итогам проверки безопасности (С1–С2, Н1–Н11).
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { assertCloudEncrypted } from './cloud';
 import { KATEX_CLASSES, KATEX_POSITIONED, safeClassList } from './katexClasses';
@@ -229,5 +230,60 @@ describe('Н3: расписание с ключами __proto__ / constructor / 
     const remote = world(1);
     remote.settings.schedule = { '1': ['s1', 's1'], '2': ['s1'] };
     expect(mergeData(local, remote).data.settings.schedule).toEqual({ '1': ['s1', 's1'], '2': ['s1'] });
+  });
+});
+
+// ---------- Н4: защита сервера Wi-Fi синхронизации (electron/syncGuard.cjs) ----------
+describe('Н4: syncGuard', () => {
+  const { createGuard, ipOf } = createRequire(import.meta.url)('../electron/syncGuard.cjs') as {
+    createGuard: (o?: Record<string, unknown>) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    ipOf: (r: unknown) => string;
+  };
+  it('адрес блокируется после maxBad неудач и разблокируется по истечении срока; удача сбрасывает счёт', () => {
+    let now = 1000;
+    const g = createGuard({ maxBad: 3, blockMs: 500, now: () => now });
+    g.fail('1.1.1.1');
+    g.fail('1.1.1.1');
+    g.ok('1.1.1.1');
+    expect(g.fail('1.1.1.1')).toBe(false); // счёт начался заново
+    g.fail('1.1.1.1');
+    expect(g.fail('1.1.1.1')).toBe(true);
+    expect(g.blocked('1.1.1.1')).toBe(true);
+    expect(g.blocked('2.2.2.2')).toBe(false);
+    g.ok('1.1.1.1'); // блок не снимается удачей
+    expect(g.blocked('1.1.1.1')).toBe(true);
+    now += 501;
+    expect(g.blocked('1.1.1.1')).toBe(false);
+  });
+  it('билет одноразовый, живёт ограниченное время, выдаётся не больше maxTickets', () => {
+    let now = 0;
+    const g = createGuard({ ticketMs: 100, maxTickets: 2, now: () => now });
+    const a = g.issueTicket()!;
+    expect(g.useTicket(a)).toBe(true);
+    expect(g.useTicket(a)).toBe(false);
+    const b = g.issueTicket()!;
+    g.issueTicket();
+    expect(g.issueTicket()).toBeNull();
+    now += 101;
+    expect(g.useTicket(b)).toBe(false);
+    expect(g.issueTicket()).not.toBeNull();
+    expect(g.useTicket(undefined as unknown as string)).toBe(false);
+  });
+  it('одновременных обменов не больше maxSync', () => {
+    const g = createGuard({ maxSync: 2 });
+    expect([g.enterSync(), g.enterSync(), g.enterSync()]).toEqual([true, true, false]);
+    g.leaveSync();
+    expect(g.enterSync()).toBe(true);
+    expect(g.syncing).toBe(2);
+  });
+  it('nonce: повтор, пустое значение и не строка — «повтор»', () => {
+    const g = createGuard();
+    expect(g.replayed('abc')).toBe(false);
+    expect(g.replayed('abc')).toBe(true);
+    for (const bad of ['', undefined, 5, null, 'x'.repeat(200)]) expect(g.replayed(bad), String(bad)).toBe(true);
+  });
+  it('ipOf: «::ffff:» у IPv4 снимается', () => {
+    expect(ipOf({ socket: { remoteAddress: '::ffff:192.168.1.7' } })).toBe('192.168.1.7');
+    expect(ipOf({})).toBe('');
   });
 });
