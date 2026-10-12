@@ -787,6 +787,22 @@ input[type='range'] { accent-color: var(--accent); }
 .crop-h.ne { right: -9px; top: -9px; cursor: nesw-resize; }
 .crop-h.sw { left: -9px; bottom: -9px; cursor: nesw-resize; }
 .crop-h.se { right: -9px; bottom: -9px; cursor: nwse-resize; }
+.crop-h.n { left: calc(50% - 8px); top: -9px; cursor: ns-resize; }
+.crop-h.s { left: calc(50% - 8px); bottom: -9px; cursor: ns-resize; }
+.crop-h.w { top: calc(50% - 8px); left: -9px; cursor: ew-resize; }
+.crop-h.e { top: calc(50% - 8px); right: -9px; cursor: ew-resize; }
+/* На телефоне рамку тянут пальцем: ручки крупнее (невидимая зона нажатия шире самой ручки). */
+@media (pointer: coarse) {
+  .crop-h { width: 26px; height: 26px; border-radius: 8px; }
+  .crop-h.nw { left: -14px; top: -14px; }
+  .crop-h.ne { right: -14px; top: -14px; }
+  .crop-h.sw { left: -14px; bottom: -14px; }
+  .crop-h.se { right: -14px; bottom: -14px; }
+  .crop-h.n { left: calc(50% - 13px); top: -14px; }
+  .crop-h.s { left: calc(50% - 13px); bottom: -14px; }
+  .crop-h.w { top: calc(50% - 13px); left: -14px; }
+  .crop-h.e { top: calc(50% - 13px); right: -14px; }
+}
 
 /* Ссылки на страницы */
 .page-ref { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78em; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--sunken); color: var(--muted); border: 1px solid var(--line); cursor: pointer; white-space: nowrap; font-family: var(--body); vertical-align: 0.1em; transition: background 0.15s, color 0.15s; }

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEven
 import { aiAvailable } from '../ai';
 import { findImportant, IMPORTANT_TYPES } from '../important';
 import { updateSettings, useData } from '../store';
-import { readPages, recropFigure, type Box, type PageInput, type PageResult } from '../textbook';
+import { fitFigure, readPages, recropFigure, type Box, type PageInput, type PageResult } from '../textbook';
 import { finalNote, isNoteStyle, NOTE_STYLES, type NoteStyle } from '../textbookNote';
 import type { PagePhoto } from '../types';
 import { CameraCapture } from './CameraCapture';
@@ -444,6 +444,7 @@ export function TextbookImport({
         <CropModal
           title="Рамка рисунка"
           load={() => Promise.resolve(results[figEdit.page].photo)}
+          onFit={(bx) => fitFigure(results[figEdit.page].photo, bx)}
           box={results[figEdit.page].figures[figEdit.idx].box}
           onClose={() => setFigEdit(null)}
           onRemove={() => {
@@ -487,8 +488,9 @@ async function thumbsFull(p: PageInput): Promise<string> {
 }
 
 /** Окно с рамкой: двигать и тянуть за углы. */
-function CropModal({ load, box, title = 'Обрезать страницу', onClose, onSave, onRemove }: { load: () => Promise<string>; box?: Box; title?: string; onClose: () => void; onSave: (b: Box) => void; onRemove?: () => void }) {
+function CropModal({ load, box, title = 'Обрезать страницу', onClose, onSave, onRemove, onFit }: { load: () => Promise<string>; box?: Box; title?: string; onClose: () => void; onSave: (b: Box) => void; onRemove?: () => void; onFit?: (b: Box) => Promise<Box | null> }) {
   const [uri, setUri] = useState('');
+  const [fitMsg, setFitMsg] = useState('');
   const [b, setB] = useState<Box>(box ?? { x: 0.03, y: 0.03, w: 0.94, h: 0.94 });
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ kind: string; sx: number; sy: number; b: Box } | null>(null);
@@ -536,12 +538,25 @@ function CropModal({ load, box, title = 'Обрезать страницу', onC
         <div className="crop-area" ref={ref} onPointerMove={move} onPointerUp={() => (drag.current = null)}>
           {uri ? <img src={uri} alt="" draggable={false} /> : <div className="spinner" />}
           <div className="crop-box" style={{ left: b.x * 100 + '%', top: b.y * 100 + '%', width: b.w * 100 + '%', height: b.h * 100 + '%' }} onPointerDown={down('move')}>
-            {['nw', 'ne', 'sw', 'se'].map((k) => (
+            {['nw', 'ne', 'sw', 'se', 'n', 'e', 's', 'w'].map((k) => (
               <span key={k} className={'crop-h ' + k} onPointerDown={down(k)} />
             ))}
           </div>
         </div>
+        {fitMsg && <div className="small muted">{fitMsg}</div>}
         <div className="row end gap8 wrap">
+          {onFit && (
+            <button
+              className="btn ghost"
+              onClick={async () => {
+                const r = await onFit(b);
+                if (r) (setB(r), setFitMsg('Рамка подогнана по краям рисунка. Можно подвинуть вручную.'));
+                else setFitMsg('Внутри рамки почти ничего нет — подвинь её на рисунок.');
+              }}
+            >
+              Подогнать по рисунку
+            </button>
+          )}
           {onRemove && (
             <button className="btn ghost danger" onClick={onRemove}>
               Это не рисунок

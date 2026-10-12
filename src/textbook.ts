@@ -6,7 +6,7 @@ import { humanError } from './ai';
 import { aiRequest } from './aiTasks';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
 import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
-import { remapFigureMarks, tidyFigures } from './textbookFigures';
+import { refineFigureBox, remapFigureMarks, tidyFigures } from './textbookFigures';
 import { mergeInput, mergeSystem, pageSystem, parseMerged, READ_SYSTEM, type NoteStyle } from './textbookNote';
 import { analyzeRegions, strokeStat } from './textbookRegions';
 import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
@@ -646,4 +646,19 @@ export async function recropFigure(photo: string, box: Box): Promise<string> {
   c.height = img.naturalHeight;
   c.getContext('2d')!.drawImage(img, 0, 0);
   return cropUri(c, box);
+}
+
+/** «Подогнать по рисунку»: рамка, которую ученик поставил примерно, уточняется по пикселям. null — внутри пусто. */
+export async function fitFigure(photo: string, box: Box): Promise<Box | null> {
+  const img = new Image();
+  img.src = photo;
+  await img.decode();
+  const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * k);
+  c.height = Math.round(img.naturalHeight * k);
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const rgba = ctx.getImageData(0, 0, c.width, c.height).data as Uint8ClampedArray;
+  return refineFigureBox(rgba, c.width, c.height, box)?.box ?? null;
 }
