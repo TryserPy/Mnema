@@ -67,7 +67,7 @@ export const CATALOG: Mod[] = [
     name: 'Спокойный',
     where: 'на «Сегодня»',
     description: 'Без счётчиков и значков с числами — ничего не торопит.',
-    css: `.rail-badge, .nav-item .badge, .hero-sub, .hero-time { display: none !important; }`
+    css: `.rail-badge, .nav-item .badge, .tab-badge, .hero-sub, .hero-time { display: none !important; }`
   },
   {
     id: 'wide-note',
@@ -105,7 +105,7 @@ export const CATALOG: Mod[] = [
       { id: 'width', type: 'select', label: 'Ширина колонки', attr: 'content', default: 'narrow', options: [{ value: 'narrow', label: 'Узкая' }, { value: 'normal', label: 'Обычная' }, { value: 'wide', label: 'Широкая' }] },
       { id: 'rail', type: 'toggle', label: 'Узкая панель со значками', attr: 'sidebar', on: 'rail', off: 'left', default: true }
     ],
-    css: `.hero-sub2, .hero-time, .plan-why, .badge.soft, .rail-badge { display: none !important; } .note-doc { font-size: 1.12rem; line-height: 1.8; } .display { letter-spacing: -0.02em; }`
+    css: `.hero-sub2, .hero-time, .plan-why, .badge.soft, .rail-badge, .tab-badge { display: none !important; } .note-doc { font-size: 1.12rem; line-height: 1.8; } .display { letter-spacing: -0.02em; }`
   },
   {
     id: 'tiles',

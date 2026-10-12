@@ -1,5 +1,6 @@
 // Знакомство-тренажёр: счёт действий («Шаг N из М») и расчёты рамки подсветки. Чистая логика из components/guideTarget.ts.
 import { describe, expect, it } from 'vitest';
+import { CATALOG } from './mods';
 import { ACTIONS, actionNumber, lowSidePlace, MAJORS, needsScroll, sameRect, stepInfo, TOTAL_ACTIONS } from './components/guideTarget';
 
 describe('счёт действий в знакомстве', () => {
@@ -95,5 +96,19 @@ describe('плашка на низком экране (телефон на бо�
   it('сбоку тесно (окно почти на всю ширину) или цель узкая — null, плашка остаётся наверху', () => {
     expect(lowSidePlace({ x: 20, y: 8, w: 640, h: 340 }, 667)).toBeNull();
     expect(lowSidePlace({ x: 300, y: 8, w: 40, h: 40 }, 844)).toBeNull(); // кнопка: найдётся место и без боковой полосы
+  });
+});
+
+describe('каталог стилей на телефоне', () => {
+  it('стили, которые только двигают боковую панель (сверху / справа), помечены «только для компьютера»; «Фокус» с узкой панелью — нет, он работает и без неё', () => {
+    const moves = (id: string) => CATALOG.find((m) => m.id === id)!;
+    expect(moves('top-bar').desktopOnly).toBe(true);
+    expect(moves('right-panel').desktopOnly).toBe(true);
+    expect(moves('focus').desktopOnly).toBeFalsy();
+    for (const m of CATALOG) if (m.attrs && Object.keys(m.attrs).length === 1 && m.attrs.sidebar && m.attrs.sidebar !== 'rail') expect(m.desktopOnly, m.id).toBe(true);
+  });
+
+  it('«Спокойный» и «Фокус» (без счётчиков) прячут и число на вкладке «Учусь» — на телефоне это единственный счётчик внизу', () => {
+    for (const id of ['calm', 'focus']) expect(CATALOG.find((m) => m.id === id)!.css).toContain('.tab-badge');
   });
 });
