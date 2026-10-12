@@ -80,7 +80,7 @@ for (const [id, spec] of Object.entries(cases)) {
       const res = tb.recognizeOfflinePages ? await tb.recognizeOfflinePages(input, () => {}) : [await tb.recognizeOffline(input, () => {})];
       // «до»: страницы без номеров идут подряд; «после»: приложение само ставит найденные номера.
       const md = tb.assemble(res, {});
-      return { md, ms: Math.round(performance.now() - t), pages: res.length, advice: res.flatMap((x) => (x.advice || []).map((a) => a.code)), note: res.map((x) => x.note || '').filter(Boolean), conf: res.map((x) => x.quality && x.quality.conf), detected: res.map((x) => x.detectedPage), facts };
+      return { md, ms: Math.round(performance.now() - t), pages: res.length, advice: res.flatMap((x) => (x.advice || []).map((a) => a.code)), note: res.map((x) => x.note || '').filter(Boolean), conf: res.map((x) => x.quality && x.quality.conf), detected: res.map((x) => x.detectedPage), facts, notes: res.map((x) => x.note || '') };
     } catch (e) {
       return { error: String((e && e.message) || e), ms: Math.round(performance.now() - t) };
     }
@@ -96,6 +96,7 @@ for (const [id, spec] of Object.entries(cases)) {
   else if (recall < 80) verdict = warned || r.note.length ? 'ок: предупредили' : 'ПЛОХО: молчит';
   else verdict = warned ? 'лишнее предупреждение' : 'ок';
   if (args.includes('--facts')) console.log('   ', JSON.stringify((r.facts || []).map((f) => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v * 100) / 100 : v])))));
+  if (args.includes('--md') && r.md) console.log(r.md.slice(0, 1800) + '\n---');
   rows.push({ id, desc: spec.desc, recall, cer, order: sc ? Math.round(sc.orderOk * 100) : 0, pages: r.pages || 0, advice: r.advice || [], verdict, ms: r.ms, error: r.error, detected: r.detected });
   console.log(`${id.padEnd(14)} слов ${String(recall).padStart(3)}%  CER ${String(cer).padStart(3)}%  порядок ${String(rows.at(-1).order).padStart(3)}%  стр ${r.pages ?? '-'}  ${String(r.ms).padStart(6)}мс  ${verdict}${warned ? '  [' + r.advice.join(', ') + ']' : ''}${r.error ? '  ' + r.error.slice(0, 90) : ''}  (${((Date.now() - t0) / 1000).toFixed(0)}с)`);
 }
