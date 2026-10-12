@@ -317,6 +317,9 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 .compare-box .md { white-space: normal; }
 
 .md { line-height: 1.6; overflow-wrap: anywhere; }
+/* Всё, что нарисовано внутри текста (в том числе положенное position:absolute), не выходит за его рамку: поддельное окно поверх приложения не получится.
+   Небольшой запас по краям — чтобы не обрезались выносные части настоящих формул и рамка фокуса у ссылок. Для .inline-md (display:inline) не действует — там держит очистка class/style. */
+.md { contain: paint; overflow-clip-margin: 6px; }
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
 .md h1, .md h2, .md h3 { margin: 1em 0 0.35em; font-weight: 600; }

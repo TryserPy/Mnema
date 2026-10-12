@@ -139,7 +139,8 @@ describe('class из текста', () => {
   it('оставляет свои классы и классы KaTeX, остальное выбрасывает', () => {
     expect(safeClassList('modal-back modal')).toBe('');
     expect(safeClassList('photo-view')).toBe('');
-    expect(safeClassList('math-block katex-display evil')).toBe('math-block katex-display');
+    expect(safeClassList('math-block katex-display evil')).toBe('math-block'); // классы KaTeX — только у разметки самой формулы (см. v130-security.test.ts)
+    expect(safeClassList('math-block katex-display evil', true)).toBe('math-block katex-display');
     expect(safeClassList('language-js')).toBe('language-js');
   });
   it('список классов KaTeX совпадает с katex.min.css установленной версии', () => {

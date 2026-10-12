@@ -38,8 +38,10 @@ export function AiSettings() {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<CustomAi | 'new' | null>(null);
 
+  const [keysPlain, setKeysPlain] = useState(false);
   useEffect(() => {
     void api?.aiGetConfig?.().then(setCfg);
+    void api?.aiKeyStorage?.().then((k) => setKeysPlain(!k.encrypted));
   }, [api]);
 
   if (!api?.aiGetConfig) return <p className="small muted">ИИ-помощник работает в приложении для Windows и Linux.</p>;
@@ -86,6 +88,11 @@ export function AiSettings() {
 
   return (
     <div className="stack gap12">
+      {keysPlain && (
+        <div className="hint warn" role="note">
+          Ключи ИИ на этом компьютере хранятся не зашифрованными: в системе нет хранилища паролей (GNOME Keyring или KWallet). Их защищают только права на файл (доступ у одного тебя). Установи хранилище паролей и введи ключи заново — тогда они будут зашифрованы.
+        </div>
+      )}
       <div className="ai-list" role="radiogroup" aria-label="Какой ИИ">
         {providers.map((x) => (
           <div key={x.id} className={'ai-item' + (x.id === p ? ' on' : '')}>

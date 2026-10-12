@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('mnemaApi', {
   aiSaveCustom: (draft) => ipcRenderer.invoke('ai:saveCustom', draft),
   aiDeleteCustom: (id) => ipcRenderer.invoke('ai:deleteCustom', id),
   aiProbe: (q) => ipcRenderer.invoke('ai:probe', q),
+  aiKeyStorage: () => ipcRenderer.invoke('ai:keyStorage'),
   aiTranscribe: (req) => ipcRenderer.invoke('ai:transcribe', req),
   ocrRecognize: (bytes) => ipcRenderer.invoke('ocr:recognize', bytes),
   trayState: (state) => ipcRenderer.send('tray:state', state),

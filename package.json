@@ -73,6 +73,11 @@
         "releaseType": "release"
       }
     ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false
+    },
     "directories": {
       "output": "release",
       "buildResources": "build"

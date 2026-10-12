@@ -2,7 +2,8 @@
 // Скачиваем копию из облака, сливаем с данными на устройстве и кладём результат обратно.
 // По желанию шифруем паролем (AES-GCM, ключ из пароля через PBKDF2) — тогда облако видит только шифр.
 import { forSync, getData, normalizeData, replaceData, updateSettings } from './store';
-import { mergeData, type MergeReport } from './sync';
+import { mergeData, trashedText, type MergeReport } from './sync';
+import { toast } from './components/ui';
 import type { AppData } from './types';
 
 export const CLOUD_FILE = 'mnema-data.json';
@@ -80,6 +81,35 @@ export interface CloudResult {
   uploadedBytes: number;
 }
 
+/**
+ * Если шифрование включено, файл в облаке обязан быть зашифрован. Незашифрованный файл мог подложить кто угодно с доступом к папке —
+ * его не читаем и не сливаем, а синхронизацию останавливаем (свои данные не трогаем и поверх него ничего не загружаем).
+ */
+export function assertCloudEncrypted(text: string, encrypt: boolean): void {
+  if (!encrypt) return;
+  let ok = false;
+  try {
+    const o = JSON.parse(text) as { mnemaEncrypted?: unknown } | null;
+    ok = Boolean(o && typeof o === 'object' && o.mnemaEncrypted === 1);
+  } catch {
+    /* не JSON — ниже та же остановка */
+  }
+  if (!ok) throw new Error('Файл в облаке не зашифрован — синхронизация остановлена. Если файл подложили, удали его в облаке; если шифрование включено по ошибке, выключи его в настройках облака.');
+}
+
+/** Слить копию из облака с данными на устройстве. Если слияние убрало заметную часть данных — они лежат в корзине, об этом сообщаем. */
+function mergeRemote(remote: AppData): MergeReport {
+  const merged = mergeData(getData(), remote);
+  replaceData(merged.data);
+  warnTrashed(merged.report);
+  return merged.report;
+}
+
+/** Предупреждение, если слияние отправило в корзину заметную часть данных. */
+export function warnTrashed(r: MergeReport): void {
+  if (r.trashed) toast(trashedText(r));
+}
+
 /** Синхронизация с облаком: скачать → слить → загрузить. */
 export async function cloudSync(c: CloudSettings, pass: string, encPass: string, onStep?: (s: string) => void): Promise<CloudResult> {
   const http = window.mnemaApi?.http;
@@ -93,6 +123,7 @@ export async function cloudSync(c: CloudSettings, pass: string, encPass: string,
   let report: MergeReport | null = null;
   if (got.status === 200) {
     onStep?.('Объединяю с копией из облака…');
+    assertCloudEncrypted(got.text, c.encrypt);
     const text = await decryptText(got.text, encPass);
     let remote: AppData;
     try {
@@ -100,9 +131,7 @@ export async function cloudSync(c: CloudSettings, pass: string, encPass: string,
     } catch {
       throw new Error('Файл в облаке повреждён или это не данные Refrain.');
     }
-    const merged = mergeData(getData(), remote);
-    replaceData(merged.data);
-    report = merged.report;
+    report = mergeRemote(remote);
   } else if (got.status === 404) {
     onStep?.('Создаю папку в облаке…');
     if (c.folder.trim()) {

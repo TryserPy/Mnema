@@ -5,7 +5,8 @@
 // устройствах независимо, проигравший не пропадает, а остаётся копией темы.
 import { canonNote, noteHash, sameNote } from './noteText';
 import { breakTopicCycles } from './safeData';
-import type { AppData, Exam, Folder, Homework, ItemState, Subject, Topic } from './types';
+import { withTrash } from './store';
+import type { AppData, Exam, Folder, Homework, ItemState, Removed, Subject, Topic } from './types';
 
 const t = (s?: string) => (s ? Date.parse(s) || 0 : 0);
 
@@ -25,7 +26,15 @@ export interface MergeReport {
   updated: number;
   removed: number;
   conflicts?: number; // сколько копий тем сделано, потому что текст конспекта правили на двух устройствах независимо
+  trashed?: { subjects: number; topics: number; cards: number }; // слияние убрало заметную часть данных — она лежит в корзине
 }
+
+/** Запись об удалении с датой далеко в будущем — подделка или сбитые часы: она бы навсегда «побеждала» любую правку. */
+const FUTURE_DAYS = 1;
+/** «Заметная часть»: больше этой доли и больше этого числа штук (предметов, тем или карточек). */
+export const MASS_SHARE = 0.2;
+export const MASS_MIN = 5;
+const isMass = (gone: number, total: number) => gone > MASS_MIN && gone > total * MASS_SHARE;
 
 export const CONFLICT_SUFFIX = ' (копия с другого устройства)';
 
@@ -97,8 +106,13 @@ function conflictCopy(base: Topic, lose: Topic): Topic {
 
 /** Слить remote в local. Настройки остаются как на этом устройстве, кроме расписания уроков (берётся объединение). */
 export function mergeData(local: AppData, remote: AppData): { data: AppData; report: MergeReport } {
-  const deleted: Record<string, string> = { ...(remote.deleted ?? {}) };
-  for (const [k, v] of Object.entries(local.deleted ?? {})) if (!deleted[k] || t(v) > t(deleted[k])) deleted[k] = v;
+  const deleted: Record<string, string> = {};
+  const latest = Date.now() + FUTURE_DAYS * 86400000;
+  for (const src of [remote.deleted ?? {}, local.deleted ?? {}])
+    for (const [k, v] of Object.entries(src)) {
+      if (typeof v !== 'string' || t(v) > latest) continue; // дата из будущего — отбрасываем
+      if (!deleted[k] || t(v) > t(deleted[k])) deleted[k] = v;
+    }
   const report: MergeReport = { added: { subjects: 0, topics: 0, cards: 0, reviews: 0 }, updated: 0, removed: 0 };
 
   const mergeList = <T extends { id: string; updatedAt?: string; createdAt: string }>(a: T[], b: T[], prefix: string, key: 'subjects' | 'topics' | 'cards' | 'other', combine?: (mine: T, theirs: T) => T): T[] => {
@@ -170,10 +184,18 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   const testIds = new Set(local.tests.map((x) => x.id));
   const tests = [...local.tests, ...remote.tests.filter((x) => !testIds.has(x.id))];
 
-  const schedule: Record<string, string[]> = { ...local.settings.schedule };
+  // Расписание: только дни 0–6 со списком строк (Object.hasOwn + Array.isArray: ключи вроде «__proto__» и «toString» слияние не ломают).
+  const schedule: Record<string, string[]> = Object.create(null);
+  const own = (o: unknown, k: string): string[] | undefined => {
+    const v = o && typeof o === 'object' && Object.hasOwn(o, k) ? (o as Record<string, unknown>)[k] : undefined;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined;
+  };
+  for (const [d, ids] of Object.entries(local.settings?.schedule ?? {})) if (/^[0-6]$/.test(d) && Array.isArray(ids)) schedule[d] = ids.filter((x): x is string => typeof x === 'string');
   // Уроки дня: к своим добавляем с другого устройства те, которых у нас меньше (предмет может стоять дважды).
-  for (const [d, ids] of Object.entries(remote.settings?.schedule ?? {})) {
-    const out = [...(schedule[d] ?? [])];
+  for (const d of Object.keys(remote.settings?.schedule ?? {})) {
+    const ids = /^[0-6]$/.test(d) ? own(remote.settings.schedule, d) : undefined;
+    if (!ids) continue;
+    const out = [...(own(schedule, d) ?? [])];
     const count = (arr: string[], id: string) => arr.filter((x) => x === id).length;
     for (const id of ids) if (count(ids, id) > count(out, id)) out.push(id);
     schedule[d] = out.filter((id) => subjectIds.has(id));
@@ -183,10 +205,38 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   const cutoff = Date.now() - 180 * 86400000;
   for (const [k, v] of Object.entries(deleted)) if (t(v) < cutoff) delete deleted[k];
 
-  return {
-    data: { ...local, folders, homework, exams, subjects, topics, cards, states, logs: logs.filter((l) => cardIds.has(l.cardId)), tests, deleted, settings: { ...local.settings, schedule } },
-    report
-  };
+  let out: AppData = { ...local, folders, homework, exams, subjects, topics, cards, states, logs: logs.filter((l) => cardIds.has(l.cardId)), tests, deleted, settings: { ...local.settings, schedule: { ...schedule } } };
+
+  // Слияние убрало заметную часть предметов, тем или карточек (чужой файл с отметками об удалении или большое удаление на другом устройстве):
+  // убранное не пропадает насовсем, а ложится в корзину этого устройства — оттуда его можно вернуть.
+  const goneSubjects = local.subjects.filter((x) => !subjectIds.has(x.id));
+  const goneTopics = local.topics.filter((x) => !topicIds.has(x.id));
+  const goneCards = local.cards.filter((x) => !cardIds.has(x.id));
+  if (isMass(goneSubjects.length, local.subjects.length) || isMass(goneTopics.length, local.topics.length) || isMass(goneCards.length, local.cards.length)) {
+    const goneIds = new Set(goneCards.map((c) => c.id));
+    const goneStates: AppData['states'] = {};
+    for (const [k, v] of Object.entries(local.states)) if (goneIds.has(k.split(':')[0])) goneStates[k] = v;
+    const removed: Removed = {
+      subjects: goneSubjects,
+      topics: goneTopics,
+      cards: goneCards,
+      states: goneStates,
+      logs: local.logs.filter((l) => goneIds.has(l.cardId)),
+      marks: [...goneSubjects.map((x) => 'subj:' + x.id), ...goneTopics.map((x) => 'topic:' + x.id), ...goneCards.map((x) => 'card:' + x.id)]
+    };
+    const parts = [goneSubjects.length ? `предметов: ${goneSubjects.length}` : '', goneTopics.length ? `тем: ${goneTopics.length}` : '', goneCards.length ? `карточек: ${goneCards.length}` : ''].filter(Boolean);
+    out = withTrash(out, removed, `Убрано при синхронизации — ${parts.join(', ')}`);
+    report.trashed = { subjects: goneSubjects.length, topics: goneTopics.length, cards: goneCards.length };
+  }
+  return { data: out, report };
+}
+
+/** Что сказать, когда слияние отправило данные в корзину. */
+export function trashedText(r: MergeReport): string {
+  const x = r.trashed;
+  if (!x) return '';
+  const parts = [x.subjects ? `предметов: ${x.subjects}` : '', x.topics ? `тем: ${x.topics}` : '', x.cards ? `карточек: ${x.cards}` : ''].filter(Boolean);
+  return `Синхронизация убрала заметную часть данных (${parts.join(', ')}). Всё лежит в «Профиль → Корзина» 30 дней — если это не ты удалял, верни.`;
 }
 
 export function reportText(r: MergeReport): string {
@@ -198,5 +248,5 @@ export function reportText(r: MergeReport): string {
   if (a.reviews) parts.push(`повторений: ${a.reviews}`);
   const added = parts.length ? `Добавлено — ${parts.join(', ')}.` : 'Нового не было.';
   const more = [r.updated ? `обновлено: ${r.updated}` : '', r.removed ? `удалено: ${r.removed}` : '', r.conflicts ? `копий при конфликте: ${r.conflicts}` : ''].filter(Boolean).join(', ');
-  return added + (more ? ` Ещё ${more}.` : '');
+  return added + (more ? ` Ещё ${more}.` : '') + (r.trashed ? ' ' + trashedText(r) : '');
 }

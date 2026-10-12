@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCode, nonce, normCode, open, seal, syncKey } from '../../shared/syncCrypto.mjs';
 import { forSync, getData, normalizeData, replaceData } from '../store';
 import { mergeData, reportText, type MergeReport } from '../sync';
+import { warnTrashed } from '../cloud';
 import { Icon, Modal, Segmented } from './ui';
 
 interface Target {
@@ -33,15 +34,26 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
   if (!http) throw new Error('Синхронизация работает в приложении Refrain (Windows, Linux или Android).');
   const key = await syncKey(t.code);
   let base = '';
+  let ticket = ''; // билет на обмен: компьютер выдаёт его после проверки кода (без него обмен не принимается)
   for (const h of t.hosts) {
     onStep?.(`Ищу компьютер ${h}…`);
     const n = nonce();
     const r = await http({ url: `http://${h}:${t.port}/mnema/hello`, method: 'POST', headers: { 'content-type': 'application/json' }, body: await seal(key, 'hello-req', { n }), timeout: 4000 });
     if (r.status === 200) {
-      const hi = await open<{ n: string }>(key, 'hello-res', r.text).catch(() => null);
+      const hi = await open<{ n: string; t?: string }>(key, 'hello-res', r.text).catch(() => null);
       if (hi?.n !== n) throw new Error('Ответ компьютера не прошёл проверку. Возможно, в сети кто-то вмешивается — попробуй в другой сети.');
       base = `http://${h}:${t.port}`;
+      ticket = typeof hi.t === 'string' ? hi.t : '';
       break;
+    }
+    if (r.status === 429 || r.status === 409) {
+      let msg = '';
+      try {
+        msg = JSON.parse(r.text).error ?? '';
+      } catch {
+        /* текст не JSON */
+      }
+      throw new Error(msg || 'Компьютер сейчас не принимает обмен. Повтори через минуту.');
     }
     if (r.status === 403) {
       let v2 = false;
@@ -60,7 +72,7 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
   const res = await http({
     url: `${base}/mnema/sync`,
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(ticket ? { 'x-mnema-session': ticket } : {}) },
     body: await seal(key, 'sync-req', { n, device: window.mnemaApi?.platform === 'android' ? 'телефон' : 'компьютер', data: local }),
     timeout: 180000
   });
@@ -77,6 +89,7 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
   if (body?.n !== n) throw new Error('Ответ компьютера не прошёл проверку. Возможно, в сети кто-то вмешивается — попробуй в другой сети.');
   const merged = mergeData(getData(), normalizeData(body.data));
   replaceData(merged.data);
+  warnTrashed(merged.report);
   return merged.report;
 }
 
@@ -84,6 +97,7 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
 export function acceptIncoming(remote: unknown) {
   const merged = mergeData(getData(), normalizeData(remote));
   replaceData(merged.data);
+  warnTrashed(merged.report);
   return Promise.resolve({ data: forSync(merged.data), report: merged.report }); // корзина остаётся на этом устройстве
 }
 

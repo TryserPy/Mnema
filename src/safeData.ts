@@ -1,6 +1,7 @@
 // Защита от кривых данных: файл, облако и Wi-Fi-обмен могут принести что угодно, а одна плохая запись не должна вешать приложение.
 // Чистые функции без интерфейса.
 import { cleanIconImgs } from './iconImage';
+import { cleanColors } from './safeCss';
 import type { Exam, NoteVersion, Removed, Topic, TrashEntry } from './types';
 
 /** Контрольные дальше этого числа дней вперёд в планы не берём (годовой план бессмыслен, а считать его дорого). */
@@ -89,7 +90,7 @@ export function cleanTrash(raw: unknown): TrashEntry[] {
     if (!withId(r.subjects) || !withId(r.topics) || !withId(r.cards) || !Array.isArray(r.logs) || !Array.isArray(r.marks) || !isObj(r.states)) continue;
     if (!r.marks.every((m) => typeof m === 'string')) continue;
     const removed = r as unknown as Removed;
-    out.push({ id: e.id, at: e.at, label: e.label.slice(0, 200), removed: { ...removed, subjects: cleanIconImgs(removed.subjects) } });
+    out.push({ id: e.id, at: e.at, label: e.label.slice(0, 200), removed: { ...removed, subjects: cleanColors(cleanIconImgs(removed.subjects)) } });
     if (out.length >= 30) break;
   }
   return out;
@@ -105,4 +106,16 @@ export function cleanNoteHistory(raw: unknown, topicIds: Set<string>): Record<st
     if (ok.length) out[id] = ok.map((v) => ({ at: v.at, note: v.note }));
   }
   return Object.keys(out).length ? out : undefined;
+}
+
+/** Расписание уроков из файла: только дни «0»…«6» (день недели) со списком id предметов. Остальные ключи («__proto__», «constructor», «toString»…) и кривые значения отбрасываются. */
+export function cleanSchedule(raw: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!isObj(raw)) return out;
+  for (const day of Object.keys(raw)) {
+    const ids = (raw as Record<string, unknown>)[day];
+    if (!/^[0-6]$/.test(day) || !Array.isArray(ids)) continue;
+    out[day] = ids.filter((x): x is string => typeof x === 'string').slice(0, 40);
+  }
+  return out;
 }
