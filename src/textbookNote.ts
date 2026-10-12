@@ -5,7 +5,7 @@
 // Чистые функции без сети и canvas — их проверяют тесты (v130-textbook.test.ts).
 import { DEFAULT_HIGHLIGHT, definitionOf, findInText, plainInline, sentences } from './important';
 import { fixFormulas } from './textbookMath';
-import { fixTables } from './textbookTables';
+import { fixTables, tableTrouble } from './textbookTables';
 import { assemble, judgeAiAnswer, neutralizeHtml, type PageResult } from './textbookText';
 import type { HighlightSettings } from './types';
 
@@ -412,6 +412,13 @@ export function finalNote(pages: PageResult[], fixes: Record<string, string>, o:
     }
   }
   md = fixTables(md);
-  md = fixFormulas(md).md;
+  const math = fixFormulas(md);
+  md = math.md;
+  // Что не удалось починить — честно скажем, чтобы ученик сверил с фото.
+  const trouble = tableTrouble(md);
+  const warns: string[] = [];
+  if (trouble.broken) warns.push(trouble.broken === 1 ? 'Одна таблица распознана плохо' : `${trouble.broken} таблицы распознаны плохо`);
+  if (math.bad) warns.push(math.bad === 1 ? 'одна формула не разобралась и оставлена текстом' : `${math.bad} формулы не разобрались и оставлены текстом`);
+  if (warns.length) note = (note ? note + ' ' : '') + warns.join(', ').replace(/^./, (c) => c.toUpperCase()) + ' — сверь с фото страницы.';
   return { markdown: md, note };
 }

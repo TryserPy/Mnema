@@ -91,11 +91,18 @@ async function run(name, viewport, scenario) {
     };
   }, [READ_PHYS, READ_BIO, SUMMARY]);
   if (scenario.mergeFail) await page.evaluate(() => (window.__mergeReply = { ok: false, error: '500: boom' }));
-  await page.getByText('Физика').first().click();
-  await page.waitForTimeout(500);
-  await page.getByText('нет карточек').first().click();
-  await page.waitForTimeout(500);
-  await page.locator('button', { hasText: 'Из учебника' }).first().click();
+  // На телефоне боковая панель уезжает за край: нажимаем по DOM, а не по координатам.
+  const dom = async (t) => {
+    const ok = await page.evaluate((t) => { const b = [...document.querySelectorAll('button,a,[role=button],[role=menuitem]')].find((x) => x.innerText.includes(t)); b && b.click(); return !!b; }, t);
+    await page.waitForTimeout(600);
+    return ok;
+  };
+  await dom('Физика');
+  await dom('нет карточек');
+  if (!(await dom('Из учебника'))) {
+    await page.screenshot({ path: `${OUT}/${name}-0-nofound.png` });
+    throw new Error('нет кнопки «Из учебника»');
+  }
   await page.locator('.modal input[type=file]').setInputFiles(scenario.files);
   await page.locator('.tb-page img').first().waitFor();
   await page.waitForTimeout(500);
@@ -123,6 +130,17 @@ async function run(name, viewport, scenario) {
     chars: text.length,
     errors
   };
+  if (scenario.finish) {
+    await page.getByRole('button', { name: 'Добавить в конспект' }).click();
+    await page.waitForTimeout(2500);
+    info.editor = {
+      tables: await page.locator('.ProseMirror table').count(),
+      cells: await page.locator('.ProseMirror td, .ProseMirror th').count(),
+      katex: await page.locator('.ProseMirror .katex').count(),
+      imgs: await page.locator('.ProseMirror img').count()
+    };
+    await page.screenshot({ path: `${OUT}/${name}-4-editor.png` });
+  }
   console.log(JSON.stringify(info, null, 1));
   return { page, ctx, info };
 }
@@ -132,7 +150,7 @@ const PC = { width: 1280, height: 900 };
 const PH = { width: 390, height: 844 };
 const sizes = which === 'pc' ? [['pc', PC]] : which === 'phone' ? [['phone', PH]] : [['pc', PC], ['phone', PH]];
 for (const [sz, vp] of sizes) {
-  let r = await run(`${sz}-summary-ai`, vp, { files: [P1, P2], engine: 'ai', style: 'Конспект' });
+  let r = await run(`${sz}-summary-ai`, vp, { files: [P1, P2], engine: 'ai', style: 'Конспект', finish: true });
   out.push(r.info);
   // откат второго запроса
   await r.ctx.close();

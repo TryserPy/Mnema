@@ -302,6 +302,18 @@ describe('конспект без интернета (извлекающий)', 
   });
 });
 
+describe('итог: честное предупреждение о таблицах и формулах', () => {
+  it('рассыпавшаяся таблица и неисправимая формула попадают в note', () => {
+    const r = finalNote([page(1, '|  | B |  |\n| --- | --- | --- |\n|  | x |  |\n|  | y |  |\n\nИ $\\frac{a}{\\nonsense}$ тут.')], {}, { style: 'verbatim', engine: 'ai', summary: null });
+    expect(r.note).toMatch(/таблиц/i);
+    expect(r.note).toMatch(/формул/);
+    expect(r.note).toMatch(/сверь с фото/);
+  });
+  it('всё в порядке — note пустой', () => {
+    expect(finalNote([page(1, 'Просто текст.')], {}, { style: 'verbatim', engine: 'ai', summary: null }).note).toBe('');
+  });
+});
+
 describe('ответ ИИ: таблицы и формулы чинятся сразу', () => {
   it('parseAiMarkdown: кривая таблица и юникод в формуле', () => {
     const p = parseAiMarkdown('## Тема\n\nОрган | Функция\nСердце | Насос\n\nСила $F = m × a$ и \\(v ≤ c\\).');
