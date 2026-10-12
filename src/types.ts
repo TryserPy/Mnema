@@ -12,6 +12,8 @@ export interface HighlightSettings {
 export interface TextbookSettings {
   mode: 'auto' | 'ai' | 'offline'; // auto — точно, если ИИ включён, иначе без интернета
   keepPhotos: boolean;
+  /** Что получить: конспект (по умолчанию), краткий конспект или весь текст дословно. */
+  style?: 'summary' | 'brief' | 'verbatim';
 }
 
 export interface PagePhoto {

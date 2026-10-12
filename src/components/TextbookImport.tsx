@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEven
 import { aiAvailable } from '../ai';
 import { findImportant, IMPORTANT_TYPES } from '../important';
 import { updateSettings, useData } from '../store';
-import { assemble, friendlyOcrError, recognizeOffline, recognizeWithAi, recropFigure, type Box, type PageInput, type PageResult } from '../textbook';
+import { readPages, recropFigure, type Box, type PageInput, type PageResult } from '../textbook';
+import { finalNote, isNoteStyle, NOTE_STYLES, type NoteStyle } from '../textbookNote';
 import type { PagePhoto } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { Markdown } from './Markdown';
@@ -31,11 +32,15 @@ export function TextbookImport({
   const [pages, setPages] = useState<PageInput[]>([]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [step, setStep] = useState<Step>('pages');
+  const [style, setStyle] = useState<NoteStyle>(isNoteStyle(ts.style) ? ts.style : 'summary');
   const [mode, setMode] = useState<'ai' | 'offline'>(ts.mode === 'offline' || !ai ? 'offline' : ts.mode === 'ai' ? 'ai' : ai ? 'ai' : 'offline');
   const [progress, setProgress] = useState({ i: 0, text: '', frac: 0 });
   const [runError, setRunError] = useState('');
   const [results, setResults] = useState<PageResult[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [done, setDone] = useState<{ style: NoteStyle; engine: 'ai' | 'offline' }>({ style: 'summary', engine: 'offline' });
+  const [runNotes, setRunNotes] = useState<string[]>([]);
   const [fixes, setFixes] = useState<Record<string, string>>({});
   const [where, setWhere] = useState<'append' | 'replace'>('append');
   const [keep, setKeep] = useState(ts.keepPhotos);
@@ -92,35 +97,31 @@ export function TextbookImport({
     setStep('reading');
     setRunError('');
     cancelRef.current = false;
-    updateSettings({ textbook: { ...ts, mode: mode === 'ai' ? 'ai' : 'offline' } });
-    const out: PageResult[] = [];
-    const errs: string[] = [];
-    for (let i = 0; i < pages.length; i++) {
-      if (cancelRef.current) return;
-      const p = pages[i];
-      setProgress({ i, text: 'Готовлю фото…', frac: 0 });
-      try {
-        const onP = (text: string, frac?: number) => setProgress((cur) => ({ i, text, frac: frac ?? (cur.i === i ? cur.frac : 0) }));
-        const r = mode === 'ai' ? await recognizeWithAi(p, onP) : await recognizeOffline(p, onP);
-        if (cancelRef.current) return;
-        out.push(r);
-      } catch (e) {
-        errs.push(`Стр. ${p.n}: ${friendlyOcrError(e)}`);
+    updateSettings({ textbook: { ...ts, mode: mode === 'ai' ? 'ai' : 'offline', style } });
+    setProgress({ i: 0, text: 'Готовлю фото…', frac: 0 });
+    const out = await readPages(
+      pages,
+      { engine: mode, style },
+      {
+        progress: (i, text, frac) => setProgress((cur) => ({ i, text, frac: frac ?? (cur.i === i ? cur.frac : 0) })),
+        cancelled: () => cancelRef.current
       }
-    }
-    if (cancelRef.current) return;
-    if (!out.length) {
+    );
+    if (!out || cancelRef.current) return;
+    if (!out.results.length) {
       // Ни одна страница не прочиталась — возвращаем к фото с понятным объяснением, а не к пустому окну.
       setErrors([]);
-      setRunError(errs.join('\n'));
+      setRunError(out.errors.join('\n'));
       setStep('pages');
       return;
     }
-    // Если на фото виден другой номер страницы — предлагаем его (только когда все номера нашлись и идут подряд).
-    const detected = out.map((r) => r.detectedPage);
-    if (detected.every((d) => d !== undefined) && detected.every((d, i) => i === 0 || d === detected[i - 1]! + 1)) out.forEach((r, i) => (r.n = detected[i]!));
-    setResults(out);
-    setErrors(errs);
+    setResults(out.results);
+    setErrors(out.errors);
+    setSummary(out.summary);
+    setDone({ style, engine: mode });
+    setRunNotes(out.notes);
+    setFixes({});
+    setEditText(null);
     setView(0);
     setStep('review');
   }
@@ -130,10 +131,11 @@ export function TextbookImport({
     setStep('pages');
   }
 
-  const markdown = useMemo(() => (editText !== null ? editText : assemble(results, fixes)), [results, fixes, editText]);
+  const built = useMemo(() => finalNote(results, fixes, { style: done.style, engine: done.engine, summary }), [results, fixes, done, summary]);
+  const markdown = editText !== null ? editText : built.markdown;
   const important = useMemo(() => findImportant(markdown, data.settings.highlight), [markdown, data.settings.highlight]);
   const doubts = results.flatMap((r) => r.doubts.map((d) => ({ ...d, key: `${r.n}:${d.id}`, page: r.n })));
-  const figures = results.flatMap((r, pi) => r.figures.map((f, idx) => ({ f, pi, idx })));
+  const figures = results.flatMap((r, pi) => r.figures.map((f, idx) => ({ f, pi, idx })).filter((x) => !x.f.hidden));
   const cur = results[view];
 
   function finish() {
@@ -246,6 +248,17 @@ export function TextbookImport({
             }}
           />
           <div className="tb-mode">
+            <span className="label">Что получить</span>
+            <Segmented ariaLabel="Что получить" value={style} onChange={(v) => setStyle(v)} options={NOTE_STYLES.map((x) => ({ value: x.id, label: x.label }))} />
+            <span className="small muted">
+              {(() => {
+                const st = NOTE_STYLES.find((x) => x.id === style)!;
+                return mode === 'ai' ? st.hint : st.hintOffline;
+              })()}
+            </span>
+          </div>
+          <div className="tb-mode">
+            <span className="label">Как читать фото</span>
             <Segmented
               ariaLabel="Как распознавать"
               value={mode}
@@ -258,10 +271,10 @@ export function TextbookImport({
             <span className="small muted">
               {mode === 'ai'
                 ? ai
-                  ? 'ИИ восстановит заголовки, жирный, таблицы, формулы и вырежет рисунки. Фото уходит только выбранному ИИ.'
+                  ? 'ИИ восстановит заголовки, таблицы, формулы и вырежет рисунки. Фото уходит только выбранному ИИ.'
                   : 'Для точного режима включи «ИИ-помощник» в «Возможностях».'
                 : offlineOk
-                  ? 'Читает прямо на устройстве, без интернета: выпрямляет страницу, убирает тени, находит колонки, заголовки, жирный, рамки и рисунки. Сомнительные слова покажу для проверки.'
+                  ? 'Читает прямо на устройстве, без интернета: выпрямляет страницу, убирает тени, режет разворот по корешку, находит колонки, заголовки, жирный, рамки и рисунки. Сомнительные слова покажу для проверки.'
                   : 'Распознавание без интернета здесь недоступно.'}
             </span>
           </div>
@@ -270,7 +283,7 @@ export function TextbookImport({
               Отмена
             </button>
             <button className="btn primary" disabled={!pages.length || (mode === 'ai' ? !ai : !offlineOk)} onClick={() => void run()}>
-              Распознать {pages.length > 1 ? `${pages.length} ${plural(pages.length, 'страницу', 'страницы', 'страниц')}` : ''}
+              {style === 'verbatim' ? 'Распознать' : 'Сделать конспект'} {pages.length > 1 ? `из ${pages.length} ${plural(pages.length, 'страницы', 'страниц', 'страниц')}` : ''}
             </button>
           </div>
         </div>
@@ -289,7 +302,7 @@ export function TextbookImport({
           <div className="progress wide" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((progress.i + progress.frac) / pages.length) * 100)}>
             <span style={{ width: `${Math.max(3, ((progress.i + progress.frac) / pages.length) * 100)}%`, background: 'var(--accent)' }} />
           </div>
-          <span className="small muted">{mode === 'ai' ? 'Обычно до минуты на страницу.' : 'Читаю прямо на устройстве, обычно 5–15 секунд на страницу.'}</span>
+          <span className="small muted">{mode === 'ai' ? 'Обычно до минуты на страницу, плюс конспект по всем страницам.' : 'Читаю прямо на устройстве, обычно 5–15 секунд на страницу.'}</span>
           <button className="btn ghost" onClick={stopReading}>
             Отмена
           </button>
@@ -312,7 +325,7 @@ export function TextbookImport({
               <div className="tb-photo">
                 <div className="tb-photo-inner">
                 <img src={cur.photo} alt={`Страница ${cur.n}`} />
-                {cur.figures.map((f, idx) => (
+                {cur.figures.map((f, idx) => f.hidden ? null : (
                   <button
                     key={idx}
                     className="tb-figbox"
@@ -331,12 +344,22 @@ export function TextbookImport({
                 ))}
               </div>
             )}
+            {[...runNotes, ...(built.note ? [built.note] : [])].map((t, k) => (
+              <div key={'rn' + k} className="hint warn">
+                {t}
+              </div>
+            ))}
+            {results.filter((r) => r.advice?.length).map((r) => (
+              <div key={'a' + r.n} className="hint warn">
+                Стр. {r.n}: {r.advice!.map((a) => a.text).join(' ')}
+              </div>
+            ))}
             {results.filter((r) => r.note).map((r) => (
               <div key={'n' + r.n} className="hint warn">
                 Стр. {r.n}: {r.note}
               </div>
             ))}
-            {results.filter((r) => weak(r)).map((r) => (
+            {results.filter((r) => weak(r) && !r.advice?.length).map((r) => (
               <div key={'w' + r.n} className="hint">
                 Стр. {r.n} прочитана не очень уверенно ({r.quality?.conf}%). Проверь текст ниже — или сфотографируй страницу ещё раз: ровнее, ближе и при хорошем свете.
               </div>
@@ -424,7 +447,7 @@ export function TextbookImport({
           box={results[figEdit.page].figures[figEdit.idx].box}
           onClose={() => setFigEdit(null)}
           onRemove={() => {
-            setResults((rs) => rs.map((r, i) => (i !== figEdit.page ? r : { ...r, markdown: r.markdown.replace(`⟦РИС:${figEdit.idx}⟧`, ''), figures: r.figures })));
+            setResults((rs) => rs.map((r, i) => (i !== figEdit.page ? r : { ...r, markdown: r.markdown.replace(`⟦РИС:${figEdit.idx}⟧`, ''), figures: r.figures.map((f, j) => (j === figEdit.idx ? { ...f, hidden: true } : f)) })));
             setFigEdit(null);
           }}
           onSave={async (box) => {

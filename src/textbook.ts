@@ -3,8 +3,11 @@
 // а колонки, абзацы, заголовки, списки, жирный, рисунки, рамки «Запомните» и формулы Refrain восстанавливает сама.
 // Точный режим — ИИ с зрением; если он не справился, страница читается без интернета.
 import { humanError } from './ai';
+import { aiSystem } from './aiTasks';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
 import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
+import { remapFigureMarks, tidyFigures } from './textbookFigures';
+import { mergeInput, mergeSystem, pageSystem, parseMerged, READ_SYSTEM, type NoteStyle } from './textbookNote';
 import { analyzeRegions, strokeStat } from './textbookRegions';
 import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
 import type { Quad } from './textbookImage';
@@ -420,50 +423,183 @@ export async function recognizeOffline(p: PageInput, onProgress?: Progress): Pro
 
 // ---------- Точный режим: ИИ ----------
 
-export const AI_SYSTEM = `Ты переводишь фото страницы школьного учебника в Markdown для конспекта ученика. Верни ТОЛЬКО Markdown.
-Правила:
-- Текст переписывай дословно: ничего не пересказывай, не сокращай, не добавляй и не «исправляй» факты и даты. Слово, которое не разобрать, пропусти и поставь «…». Не выдумывай того, чего нет на фото.
-- Переносы слов в конце строк склей («раз-» + «витие» → «развитие»). Абзац — одной строкой без внутренних переносов, абзацы разделяй пустой строкой.
-- Колонки читай по порядку: сначала левую сверху вниз, потом правую.
-- Заголовок параграфа («§ 12. …», «Глава …») — «## », подзаголовки — «### ». Других заголовков не придумывай.
-- Жирный — **…**, курсив — *…* — только там, где в учебнике так набрано (термины, определения, даты). Сам ничего не выделяй.
-- Списки — «- » или «1. ». Таблицы — таблицами Markdown.
-- Формулы — LaTeX: внутри строки $…$, отдельной строкой $$…$$. Индексы и степени: $t_1$, $x^2$. Химические формулы тоже: $H_2O$, $CO_2$. Обычные числа и единицы (5 кг, 1861 г.) оставляй текстом.
-- Рамки «Запомните», «Это важно», «Вывод», «Определение» и подобные — цитатой: «> **Запомните:** текст». Если в рамке несколько абзацев, каждый со своим «> ».
-- Рисунки, схемы, графики, карты, фото НЕ описывай. Вместо каждого вставь отдельной строкой [[РИСУНОК x1 y1 x2 y2 | подпись]], где x1 y1 x2 y2 — рамка самого рисунка (без подписи) в тысячных долях ширины и высоты фото (0–1000: левый верхний угол, правый нижний), подпись — текст подписи под рисунком («Рис. 12. …»), если есть (отдельно её тогда не пиши). Текст внутри рисунка не переписывай.
-- Колонтитулы (повторяющаяся строка вверху или внизу) и номер страницы в текст не пиши. Если номер страницы виден, в самом конце добавь строку [[СТРАНИЦА N]].
-- HTML, ссылки, картинки и ваши пояснения не нужны. Не оборачивай ответ в \`\`\`.
-- Если текста не видно или это не страница учебника, верни [[ПУСТО]].`;
+/** Без предобработки (если она не удалась): страница как есть, не больше 1800 px. */
+async function plainPrepared(p: PageInput): Promise<Prepared> {
+  const c = await renderPage(p, 1800);
+  const rgba = c.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, c.width, c.height).data as Uint8ClampedArray;
+  return { color: c, rgba, gray: rgbaToGray(rgba, c.width, c.height), info: { quad: false, skew: 0, scale: 1, glyph: 0, noise: 0, w: c.width, h: c.height } };
+}
 
-export async function recognizeWithAi(p: PageInput, onProgress?: Progress): Promise<PageResult> {
+/** Что не так со снимком — для сообщения, когда ИИ ничего не прочитал. */
+function photoTrouble(prep: Prepared): string {
+  const f: PhotoFacts = { paper: 255, clipped: 0, inkDepth: 0, glyph: prep.info.glyph, foreshorten: 1, glareShare: 0, ...prep.info.facts, sharp: sharpnessOfText(prep.gray), moire: 0, conf: 0, unsureShare: 1, words: 0 };
+  const a = adviceFor(f).filter((x) => x.code !== 'generic');
+  return a.length ? ' ' + a.map((x) => x.text).join(' ') : ' Проверь, что страница видна целиком, резкая и хорошо освещена.';
+}
+
+async function askAi(system: string, text: string, photoUri: string | null, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  const api = window.mnemaApi;
+  if (!api?.aiAsk) return { ok: false, error: 'ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.' };
+  try {
+    const r = await api.aiAsk({ system: aiSystem('textbook', system), text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens });
+    if (!r.ok) return { ok: false, error: humanError(r.error) };
+    return { ok: true, text: r.text };
+  } catch (e) {
+    return { ok: false, error: humanError((e as Error).message || String(e)) };
+  }
+}
+
+export interface AiReadOptions {
+  style: NoteStyle;
+  /** Одна страница на всё: сразу конспект, без второго запроса. */
+  direct: boolean;
+}
+
+/**
+ * Страница (или разворот) → страницы, прочитанные ИИ. Фото предварительно выпрямляется и выравнивается по свету;
+ * разворот режется по корешку на две страницы (каждая половина читается крупнее, чем весь разворот целиком).
+ * Если ИИ не справился, страница читается без интернета.
+ */
+export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onProgress?: Progress): Promise<{ pages: PageResult[]; direct: boolean }> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
   onProgress?.('Готовлю фото…', 0.05);
-  const canvas = await renderPage(p, 1800);
-  const photo = canvasToJpeg(canvas, 0.85);
-  onProgress?.('ИИ читает страницу…', 0.2);
-  const fallback = async (why: string): Promise<PageResult> => {
-    if (!api.ocrRecognize) throw new Error(why);
-    onProgress?.('ИИ не справился — читаю без интернета…', 0.1);
-    const r = await recognizeOffline(p, onProgress);
-    return { ...r, note: `${why} Страница прочитана без интернета — проверь её внимательнее.` };
-  };
-  let text: string;
+  let prep: Prepared;
   try {
-    const r = await api.aiAsk({ system: AI_SYSTEM, text: `Страница учебника${p.n ? `, номер ${p.n}` : ''}. Переведи её в Markdown по правилам.`, image: { mime: 'image/jpeg', data: photo.split(',')[1] }, maxTokens: 6000 });
-    if (!r.ok) return await fallback(humanError(r.error));
-    text = r.text;
-  } catch (e) {
-    return fallback(humanError((e as Error).message || String(e)));
+    prep = await prepareOffline(p, onProgress);
+  } catch {
+    prep = await plainPrepared(p);
   }
-  const verdict = judgeAiAnswer(text);
-  if (!verdict.ok) {
-    if (verdict.empty) throw new Error('ИИ не нашёл на фото текста учебника. Проверь, что страница видна целиком и резко.');
-    return fallback(verdict.why);
+  const halves = p.crop ? null : splitSpread(prep);
+  const parts = halves ?? [prep];
+  const direct = o.direct && parts.length === 1 && o.style !== 'verbatim';
+  const pages: PageResult[] = [];
+  for (let j = 0; j < parts.length; j++) {
+    const span: [number, number] = [0.15 + (0.8 * j) / parts.length, 0.15 + (0.8 * (j + 1)) / parts.length];
+    const part = dewarpPrepared(parts[j]);
+    const n = p.n + j;
+    const canvas = part.color;
+    const photo = canvasToJpeg(scaleCanvas(canvas, 1800), 0.85);
+    onProgress?.(parts.length > 1 ? `ИИ читает ${j === 0 ? 'левую' : 'правую'} страницу разворота…` : direct ? 'ИИ делает конспект страницы…' : 'ИИ читает страницу…', span[0]);
+    const fallback = async (why: string): Promise<PageResult> => {
+      if (!api.ocrRecognize) throw new Error(why);
+      onProgress?.('ИИ не справился — читаю без интернета…', span[0]);
+      const r = await readUpright(p, part, onProgress, span);
+      return { ...r.page, n, note: `${why} Страница прочитана без интернета — проверь её внимательнее.` };
+    };
+    const ans = await askAi(direct ? pageSystem(o.style) : READ_SYSTEM, `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000);
+    if (!ans.ok) {
+      pages.push(await fallback(ans.error));
+      continue;
+    }
+    const verdict = judgeAiAnswer(ans.text);
+    if (!verdict.ok) {
+      if (verdict.empty) {
+        if (parts.length > 1) continue; // пустая половина разворота (форзац, чистая страница) — пропускаем
+        throw new Error('ИИ не нашёл на фото текста учебника.' + photoTrouble(part));
+      }
+      pages.push(await fallback(verdict.why));
+      continue;
+    }
+    const parsed = verdict.parsed;
+    // Рамки рисунков от ИИ уточняем по пикселям: поля, обрезанные края, мелочь и украшения.
+    const tidy = tidyFigures(part.rgba, part.info.w, part.info.h, parsed.figures);
+    const markdown = remapFigureMarks(parsed.markdown, tidy.map);
+    const figures: Figure[] = tidy.figures.map((f) => ({ box: f.box, caption: f.caption, uri: cropUri(canvas, f.box) }));
+    pages.push({ n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts: [], detectedPage: parsed.detectedPage, spread: parts.length > 1 ? (j === 0 ? 'left' : 'right') : undefined });
   }
-  const parsed = verdict.parsed;
-  const figures: Figure[] = parsed.figures.map((f) => ({ box: f.box, caption: f.caption, uri: cropUri(canvas, f.box) }));
-  return { n: p.n, photo: canvasToJpeg(await renderPage(p, 1600)), markdown: parsed.markdown, figures, doubts: [], detectedPage: parsed.detectedPage };
+  if (!pages.length) throw new Error('ИИ не нашёл на фото текста учебника.' + photoTrouble(prep));
+  if (parts.length > 1) pages[0].note = (pages[0].note ? pages[0].note + ' ' : '') + 'На снимке разворот — страницы прочитаны по очереди, слева направо.';
+  return { pages, direct };
+}
+
+/** Одна страница ИИ (для проверок): режим «Дословно». */
+export async function recognizeWithAi(p: PageInput, onProgress?: Progress): Promise<PageResult> {
+  const r = await recognizeWithAiPages(p, { style: 'verbatim', direct: false }, onProgress);
+  return r.pages[0];
+}
+
+// ---------- Все страницы: чтение + связный конспект ----------
+
+export interface RunOptions {
+  engine: 'ai' | 'offline';
+  style: NoteStyle;
+}
+export interface RunHooks {
+  /** i — номер фото, с которым работаем (с нуля). */
+  progress: (i: number, text: string, frac?: number) => void;
+  cancelled: () => boolean;
+}
+export interface RunOutput {
+  results: PageResult[];
+  errors: string[];
+  /** Связный конспект от ИИ по всем страницам (Markdown с метками рисунков); null — собираем из страниц. */
+  summary: string | null;
+  /** Что сказать ученику (откаты, пояснения). */
+  notes: string[];
+}
+
+/** Если на фото виден номер страницы — берём его (только когда все номера нашлись и идут подряд). */
+export function applyDetectedPages(out: PageResult[]): void {
+  const detected = out.map((r) => r.detectedPage);
+  if (out.length && detected.every((d) => d !== undefined) && detected.every((d, i) => i === 0 || d === detected[i - 1]! + 1)) out.forEach((r, i) => (r.n = detected[i]!));
+}
+
+/**
+ * Читает все фото и, если нужен конспект по нескольким страницам, вторым запросом к ИИ собирает один связный конспект
+ * (метки рисунков и [стр. N] сохраняются). Если второй запрос не удался, остаётся подробный текст страниц — с пояснением.
+ * null — ученик нажал «Отмена».
+ */
+export async function readPages(inputs: PageInput[], o: RunOptions, h: RunHooks): Promise<RunOutput | null> {
+  const results: PageResult[] = [];
+  const errors: string[] = [];
+  let lastDirect = false;
+  for (let i = 0; i < inputs.length; i++) {
+    if (h.cancelled()) return null;
+    const p = inputs[i];
+    h.progress(i, 'Готовлю фото…', 0);
+    const onP: Progress = (text, frac) => h.progress(i, text, frac);
+    try {
+      if (o.engine === 'ai') {
+        const r = await recognizeWithAiPages(p, { style: o.style, direct: inputs.length === 1 }, onP);
+        results.push(...r.pages);
+        lastDirect = r.direct;
+      } else {
+        results.push(...(await recognizeOfflinePages(p, onP)));
+      }
+    } catch (e) {
+      errors.push(`Стр. ${p.n}: ${friendlyOcrError(e)}`);
+    }
+  }
+  if (h.cancelled()) return null;
+  applyDetectedPages(results);
+  const notes: string[] = [];
+  let summary: string | null = null;
+  if (o.engine === 'ai' && o.style !== 'verbatim' && results.length && !(results.length === 1 && lastDirect)) {
+    h.progress(inputs.length - 1, results.length > 1 ? 'ИИ составляет один конспект по всем страницам…' : 'ИИ составляет конспект…', 0.5);
+    const why = await mergeWithAi(results, o.style, (t) => h.progress(inputs.length - 1, t, 0.7)).then(
+      (r) => (r.ok ? ((summary = r.markdown), '') : r.why),
+      (e: Error) => e.message
+    );
+    if (why) notes.push(`Не удалось составить конспект по всему параграфу (${why.replace(/\.$/, '')}). Показан подробный текст страниц — его можно сократить самому, или нажми «Назад» и попробуй ещё раз.`);
+  }
+  if (h.cancelled()) return null;
+  return { results, errors, summary, notes };
+}
+
+/** Второй запрос: подробный текст страниц → один конспект. Длинные параграфы сводятся кусками. */
+async function mergeWithAi(pages: PageResult[], style: Exclude<NoteStyle, 'verbatim'>, onStep: (t: string) => void): Promise<{ ok: true; markdown: string } | { ok: false; why: string }> {
+  const chunks = mergeInput(pages);
+  const parts: string[] = [];
+  for (let k = 0; k < chunks.length; k++) {
+    if (chunks.length > 1) onStep(`ИИ составляет конспект, часть ${k + 1} из ${chunks.length}…`);
+    const ans = await askAi(mergeSystem(style), chunks[k].text, null, 7000);
+    if (!ans.ok) return { ok: false, why: ans.error };
+    const v = parseMerged(ans.text, pages, chunks[k].chars);
+    if (!v.ok) return { ok: false, why: v.why };
+    parts.push(v.markdown);
+  }
+  return { ok: true, markdown: parts.join('\n\n') };
 }
 
 /** Ошибка распознавания — понятным текстом: что случилось и что сделать. */
