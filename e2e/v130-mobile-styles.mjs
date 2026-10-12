@@ -46,6 +46,7 @@ async function open(dev, setup) {
   });
   await page.goto(URL);
   await page.waitForTimeout(700);
+  await page.getByRole('button', { name: 'Понятно' }).click({ timeout: 1500 }).catch(() => {}); // веб-версия: «только для тестов»
   await page.getByRole('button', { name: 'Пропустить' }).click({ timeout: 2000 }).catch(() => {}); // знакомство при первом запуске
   // Данные: знакомый пример и «знакомство пройдено» — через модули приложения (работает только на dev-сервере).
   await page.evaluate(async () => {

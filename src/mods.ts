@@ -122,7 +122,8 @@ export const CATALOG: Mod[] = [
     name: 'Панель сверху',
     where: 'раскладка',
     description: 'Меню — полосой сверху, а не слева. Предметы — на экране «Знания». Экран шире.',
-    attrs: { sidebar: 'top', content: 'wide' }
+    attrs: { sidebar: 'top', content: 'wide' },
+    desktopOnly: true // на телефоне нет боковой панели (там нижние вкладки и шторка), переносить нечего
   },
   {
     id: 'right-panel',
@@ -130,7 +131,8 @@ export const CATALOG: Mod[] = [
     name: 'Панель справа',
     where: 'раскладка',
     description: 'Боковая панель переезжает на правую сторону.',
-    attrs: { sidebar: 'right' }
+    attrs: { sidebar: 'right' },
+    desktopOnly: true // на телефоне нет боковой панели, переносить нечего
   },
   {
     id: 'tablet',

@@ -159,6 +159,7 @@ async function run(dev, style) {
   if (errors.length) bad('ошибки в консоли: ' + errors.slice(0, 3).join(' | '));
   await ctx.close();
 
+  if (process.env.SKIP2) return; // SKIP2=1 — без второго прохода (быстрее)
   // Второй проход: только «Пропустить шаг» — не должно застревать и ломаться.
   const ctx2 = await browser.newContext(DEVICES[dev]);
   const p2 = await ctx2.newPage();

@@ -34,6 +34,8 @@ export const q = (sel: string): HTMLElement | null => document.querySelector<HTM
 const visible = (e: HTMLElement) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
 export const byText = (sel: string, text: string): HTMLElement | null => [...document.querySelectorAll<HTMLElement>(sel)].find((e) => visible(e) && (e.textContent ?? '').includes(text)) ?? null;
 /** Кнопка «Создать»: на телефоне — в верхней полосе, иначе в панели; берём ту, что сейчас видна (стиль мог спрятать одну из них). */
+/** Кнопка узкой панели (стиль «Фокус» или свёрнутая панель): подписей нет, есть только aria-label. */
+const railBtn = (label: string): HTMLElement | null => [...document.querySelectorAll<HTMLElement>('.sidebar.rail button')].find((e) => visible(e) && e.getAttribute('aria-label') === label) ?? null;
 export const createBtn = () => [...document.querySelectorAll<HTMLElement>('.mobile-bar .mobile-create, .sidebar .create-btn')].find(visible) ?? q('.mobile-bar .mobile-create') ?? q('.sidebar .create-btn');
 /** Телефонная раскладка — по тому же условию, что у приложения (useMobile в App.tsx и @media (max-width: 720px) в стилях). */
 export const isPhone = () => window.matchMedia('(max-width: 720px)').matches;
@@ -93,7 +95,7 @@ function openTopicTarget(c: Ctx, t: Topic): HTMLElement | null {
   return (
     byText('.main .topic-row, .main .know-found-row', t.name) ??
     byText('.sidebar .tree-row:not(.subject):not(.folder) .tree-label', t.name) ??
-    (subject ? (byText('.main .know-tile', subject.name) ?? byText('.sidebar .tree-row.subject .tree-label', subject.name)) : null) ??
+    (subject ? (byText('.main .know-tile', subject.name) ?? byText('.sidebar .tree-row.subject .tree-label', subject.name) ?? railBtn(subject.name)) : null) ??
     byText('.tab', 'Знания') ??
     byText('.sidebar .nav-item', 'Знания')
   );
@@ -141,7 +143,7 @@ function stageOf(c: Ctx): Stage {
       if (anyModal()) return { major, left: 3, text: 'Закрой это окно — и вернёмся к повторению.', target: q('.modal') };
       // Нажимать нечего (на сегодня ничего не назначено) — не оставляем человека с мёртвой кнопкой.
       if (c.route.name === 'today' && (q('.hero-btn') as HTMLButtonElement | null)?.disabled) return { major, left: 1, text: 'Сегодня повторять пока нечего — так бывает. Нажми «Пропустить шаг», чтобы закончить знакомство.', target: null };
-      return { major, left: c.route.name === 'today' ? 1 : 2, text: 'Теперь повторение. Вернись на «Сегодня» и нажми «Учиться».', target: c.route.name === 'today' ? q('.hero-btn') : (byText('.tab', 'Учусь') ?? byText('.sidebar .nav-item', 'Сегодня')) };
+      return { major, left: c.route.name === 'today' ? 1 : 2, text: 'Теперь повторение. Вернись на «Сегодня» и нажми «Учиться».', target: c.route.name === 'today' ? q('.hero-btn') : (byText('.tab', 'Учусь') ?? byText('.sidebar .nav-item', 'Сегодня') ?? railBtn('Сегодня')) };
     default:
       return { major: LAST, left: 1, text: 'Готово! Так выглядит повторение: сначала вспомни ответ сам, потом открой и честно оцени. Refrain сам решит, когда показать карточку снова.', target: null };
   }
