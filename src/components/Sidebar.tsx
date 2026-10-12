@@ -489,6 +489,10 @@ export function Sidebar({
           <Icon name="home" />
           {dueAll > 0 && <span className="rail-badge">{dueAll > 99 ? '99+' : dueAll}</span>}
         </button>
+        {/* Без этой кнопки в узкой панели (и в стиле «Фокус») нечем создать предмет или тему — а знакомство начинается именно с «Создать». */}
+        <button className="foot-btn create-btn rail-create" title="Создать: карточку, тему, предмет, контрольную…" aria-label="Создать" onClick={openCreate}>
+          <Icon name="plus" />
+        </button>
         <div className="rail-subjects">
           {subjects.map((sub) => (
             <button key={sub.id} className={'rail-subj' + (autoOpen.has(sub.id) ? ' on' : '')} title={sub.name} aria-label={sub.name} onClick={() => go({ name: 'subject', id: sub.id })}>

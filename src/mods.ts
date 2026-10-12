@@ -67,7 +67,7 @@ export const CATALOG: Mod[] = [
     name: 'Спокойный',
     where: 'на «Сегодня»',
     description: 'Без счётчиков и значков с числами — ничего не торопит.',
-    css: `.rail-badge, .nav-item .badge, .hero-sub, .hero-time { display: none !important; }`
+    css: `.rail-badge, .nav-item .badge, .tab-badge, .hero-sub, .hero-time { display: none !important; }`
   },
   {
     id: 'wide-note',
@@ -105,7 +105,7 @@ export const CATALOG: Mod[] = [
       { id: 'width', type: 'select', label: 'Ширина колонки', attr: 'content', default: 'narrow', options: [{ value: 'narrow', label: 'Узкая' }, { value: 'normal', label: 'Обычная' }, { value: 'wide', label: 'Широкая' }] },
       { id: 'rail', type: 'toggle', label: 'Узкая панель со значками', attr: 'sidebar', on: 'rail', off: 'left', default: true }
     ],
-    css: `.hero-sub2, .hero-time, .plan-why, .badge.soft, .rail-badge { display: none !important; } .note-doc { font-size: 1.12rem; line-height: 1.8; } .display { letter-spacing: -0.02em; }`
+    css: `.hero-sub2, .hero-time, .plan-why, .badge.soft, .rail-badge, .tab-badge { display: none !important; } .note-doc { font-size: 1.12rem; line-height: 1.8; } .display { letter-spacing: -0.02em; }`
   },
   {
     id: 'tiles',
@@ -122,7 +122,8 @@ export const CATALOG: Mod[] = [
     name: 'Панель сверху',
     where: 'раскладка',
     description: 'Меню — полосой сверху, а не слева. Предметы — на экране «Знания». Экран шире.',
-    attrs: { sidebar: 'top', content: 'wide' }
+    attrs: { sidebar: 'top', content: 'wide' },
+    desktopOnly: true // на телефоне нет боковой панели (там нижние вкладки и шторка), переносить нечего
   },
   {
     id: 'right-panel',
@@ -130,7 +131,8 @@ export const CATALOG: Mod[] = [
     name: 'Панель справа',
     where: 'раскладка',
     description: 'Боковая панель переезжает на правую сторону.',
-    attrs: { sidebar: 'right' }
+    attrs: { sidebar: 'right' },
+    desktopOnly: true // на телефоне нет боковой панели, переносить нечего
   },
   {
     id: 'tablet',

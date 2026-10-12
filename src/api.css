@@ -45,6 +45,9 @@
 :root[data-ui-topics='tiles'] .topic-row { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 12px; min-height: 120px; margin-left: 0 !important; }
 :root[data-ui-topics='tiles'] .topic-row > .progress { width: 100%; }
 :root[data-ui-topics='tiles'] .topic-row .badge { align-self: flex-start; }
+/* Телефон: плитка шириной 230px не помещается дважды в 390px, и «плитки» выглядели бы обычным списком — на телефоне ставим две колонки. */
+:root[data-ui-topics='tiles'] .app.mobile .topic-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+:root[data-ui-topics='tiles'] .app.mobile .topic-row { min-height: 108px; gap: 8px; padding: 12px 14px; overflow-wrap: anywhere; }
 
 /* ---------- Вкладки ---------- */
 :root[data-ui-tabs='pills'] .topic-tabs { border-bottom: 0; }
