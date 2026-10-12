@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AI_NOTE_EXAMPLES, AI_NOTE_KEYS, AI_NOTE_MAX, AI_NOTE_TITLES, AI_TASKS, cleanNote } from '../aiTasks';
 import { updateSettings, useData, type AiConfig } from '../store';
 import type { AiNoteKey, AiTask } from '../types';
-import { Icon } from './ui';
+import { Icon, Switch } from './ui';
 
 const TASK_TITLE: Record<AiTask, string> = { textbook: 'Страницы учебника', cards: 'Черновики карточек', explain: 'Объяснения («Объясни иначе»)', style: 'Стили оформления' };
 
@@ -106,6 +106,15 @@ export function AiNotes({ cfg }: { cfg: AiConfig }) {
           ))}
         </div>
       )}
+      <div className="stack gap8">
+        <h3>Подсказки с ИИ</h3>
+        <div className="row gap8">
+          <span className="grow small">
+            Когда в теме есть конспект, а карточек нет, предлагать черновики карточек. ИИ сам ничего не отправляет: запрос уйдёт, только если ты нажмёшь «Предложить карточки».
+          </span>
+          <Switch label="Предлагать черновики карточек" checked={Boolean(data.settings.aiAuto?.cards)} onChange={(v) => updateSettings({ aiAuto: v ? { cards: true } : undefined })} />
+        </div>
+      </div>
       {(choices.length > 0 || Object.keys(chosen).length > 0) && (
         <div className="stack gap8">
           <div className="stack gap4">

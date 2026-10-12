@@ -4,6 +4,7 @@ import { buildQueue, inSource, todayCounts } from './srs';
 import { buildRepeatQueue, repeatCounts } from './repeat';
 import { emptyData } from './store';
 import { backLabel, fillBack, reviewBack, testBack } from './studyBack';
+import { studyStatus } from './studyStatus';
 import { cleanStudyPick, listsLabel, parsePick, pickKeyOf, pickOptions, pickScope, validPick } from './studyPick';
 import type { AppData, Card, Route } from './types';
 
@@ -223,5 +224,17 @@ describe('выбор в настройках', () => {
     expect(cleanStudyPick({})).toBeUndefined();
     const big = Object.fromEntries(Array.from({ length: 500 }, (_, i) => ['t:' + i, 'cards']));
     expect(Object.keys(cleanStudyPick(big)!).length).toBe(300);
+  });
+});
+
+describe('главная кнопка учёбы идёт по выбранному', () => {
+  const now = new Date('2026-09-25T12:00:00');
+  it('studyStatus считает только выбранное: карточки, списки, один список', () => {
+    const d = sample();
+    expect(studyStatus(d, now, { topicId: 't1' })).toMatchObject({ kind: 'learn', due: 7 });
+    expect(studyStatus(d, now, { topicId: 't1', source: 'cards' })).toMatchObject({ kind: 'learn', due: 2 });
+    expect(studyStatus(d, now, { topicId: 't1', source: 'lists' })).toMatchObject({ kind: 'learn', due: 5 });
+    expect(studyStatus(d, now, { topicId: 't1', listId: 'l2' })).toMatchObject({ kind: 'learn', due: 2 });
+    expect(studyStatus(d, now, { topicId: 't2', source: 'lists' })).toEqual({ kind: 'empty' });
   });
 });

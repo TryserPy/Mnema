@@ -267,6 +267,7 @@ export function normalizeData(raw: unknown): AppData {
           : undefined,
       aiNotes: cleanAiNotes(r.settings?.aiNotes),
       aiTaskProvider: cleanTaskProviders(r.settings?.aiTaskProvider),
+      aiAuto: r.settings?.aiAuto && typeof r.settings.aiAuto === 'object' && r.settings.aiAuto.cards === true ? { cards: true } : undefined,
       studyPick: cleanStudyPick(r.settings?.studyPick),
       schedule: { ...(r.settings?.schedule ?? {}) },
       keys: { ...(r.settings?.keys ?? {}) },

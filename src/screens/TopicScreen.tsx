@@ -39,6 +39,9 @@ import { NoteHistoryDialog } from '../components/NoteHistory';
 import { AiCardDrafts } from '../components/AiCardDrafts';
 import { aiAvailable } from '../ai';
 
+/** Темы, где ученик нажал «Не сейчас» у подсказки про черновики карточек: до перезапуска не напоминаем. */
+const offerDismissed = new Set<string>();
+
 const TYPE_LABEL: Record<CardType, string> = {
   basic: 'Вопрос — ответ',
   reverse: 'В обе стороны',
@@ -64,6 +67,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const plugins = usePlugins();
   const [noteCards, setNoteCards] = useState(false);
   const [aiCards, setAiCards] = useState(false);
+  const [, setOfferTick] = useState(0);
   const [printOpen, setPrintOpen] = useState(false);
   if (!topic) return <div className="page">Тема не найдена.</div>;
   const subject = data.subjects.find((s) => s.id === topic.subjectId);
@@ -353,6 +357,25 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
           </button>
         )}
       </div>
+
+      {current === 'note' && data.settings.aiAuto?.cards && topic.kind !== 'rule' && allCards.length === 0 && topic.note.trim().length >= 200 && aiAvailable(data) && !offerDismissed.has(id) && (
+        <div className="hint row gap8 wrap ai-offer" role="status">
+          <Icon name="bot" size={16} />
+          <span className="grow">В конспекте есть текст, а карточек пока нет. ИИ может предложить черновики — ты проверишь и выберешь нужные.</span>
+          <button className="btn small primary" onClick={() => setAiCards(true)}>
+            Предложить карточки
+          </button>
+          <button
+            className="btn small ghost"
+            onClick={() => {
+              offerDismissed.add(id);
+              setOfferTick((n) => n + 1);
+            }}
+          >
+            Не сейчас
+          </button>
+        </div>
+      )}
 
       {poemTab ? (
         <PoemView key={poemTab.id + (tab?.endsWith(':whole') ? 'w' : '')} topicId={id} poem={poemTab} start={tab?.endsWith(':whole') ? 'whole' : undefined} go={go} />
