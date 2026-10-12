@@ -7,7 +7,7 @@ export default {
   base: '/',
   logLevel: 'warn',
   server: { port: Number(process.env.PORT || 5199), strictPort: true, fs: { strict: false } },
-  optimizeDeps: { noDiscovery: true, include: ['tesseract.js'] },
+  optimizeDeps: { noDiscovery: true, include: ['tesseract.js', 'react', 'react-dom', 'react/jsx-runtime'] },
   plugins: [
     {
       name: 'harness',

@@ -303,10 +303,27 @@ export function goodWordCount(lines: OcrLine[]): number {
   return n;
 }
 
+/** Доля строк, где слова идут справа налево по координатам: так бывает, когда Tesseract сам перевернул страницу вверх ногами. */
+export function reversedShare(lines: OcrLine[]): number {
+  let multi = 0;
+  let rev = 0;
+  for (const l of lines) {
+    const ws = l.words.filter((w) => w.text.trim());
+    if (ws.length < 3) continue;
+    multi++;
+    let dec = 0;
+    for (let i = 1; i < ws.length; i++) if (ws[i].bbox.x0 < ws[i - 1].bbox.x0) dec++;
+    if (dec > (ws.length - 1) * 0.6) rev++;
+  }
+  return multi >= 3 ? rev / multi : 0;
+}
+
 interface Read {
   page: PageResult;
   good: number;
   empty: boolean;
+  /** Строки прочитаны задом наперёд: страница лежит вверх ногами. */
+  rev: boolean;
 }
 
 /** Чтение уже подготовленной страницы: Tesseract → раскладка → рисунки и сомнительные слова. */
@@ -322,6 +339,7 @@ async function readPrepared(p: PageInput, prep: Prepared, onProgress?: Progress,
   await tickUi();
   const lines = (res.lines as OcrLine[]).filter((l) => l.words?.some((w) => w.text.trim()));
   const good = goodWordCount(lines);
+  const rev = reversedShare(lines) > 0.5;
   markBold(lines, gray);
   // Размер строки — для порогов; рисунки и рамки ищем там, где нет уверенного текста.
   const goodWords = lines.flatMap((l) => l.words.filter((w) => w.conf >= 30 && w.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2).map((w) => w.bbox));
@@ -366,9 +384,9 @@ async function readPrepared(p: PageInput, prep: Prepared, onProgress?: Progress,
   };
   facts.cover = inkCoverage(gray, goodWords, regions.figures);
   const advice: Advice[] = adviceFor(facts);
-  debugHook?.({ info: prep.info, lines, layout, regions, facts, advice });
+  debugHook?.({ info: prep.info, lines, layout, regions, facts: { ...facts, good, rev: rev ? 1 : 0 } as PhotoFacts, advice });
   const page: PageResult = { n: p.n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts, detectedPage: layout.detectedPage, quality: q, advice: advice.length ? advice : undefined };
-  return { page, good, empty: !markdown.trim() && !figures.length };
+  return { page, good, empty: !markdown.trim() && !figures.length, rev };
 }
 
 const NO_TEXT = 'на фото не нашлось текста. Проверь, что страница видна целиком, резкая и не повёрнута боком (кнопка «Повернуть»).';
@@ -376,6 +394,11 @@ const NO_TEXT = 'на фото не нашлось текста. Проверь,
 /** Страница читается; если текста почти нет — пробуем вверх ногами (снимок мог перевернуться). */
 async function readUpright(p: PageInput, prep: Prepared, onProgress?: Progress, span?: [number, number]): Promise<Read & { flipped: boolean }> {
   let r = await readPrepared(p, prep, onProgress, span);
+  if (r.rev) {
+    // Tesseract сам перевернул страницу: слова пришли справа налево. Поворачиваем снимок и читаем заново.
+    const alt = await readPrepared(p, rotatePrepared180(prep), onProgress, span);
+    if (!alt.rev && alt.good > r.good * 0.6) return { ...alt, flipped: true };
+  }
   if (r.good < 25 || r.page.quality!.conf < 50) {
     const alt = await readPrepared(p, rotatePrepared180(prep), onProgress, span);
     if (alt.good > r.good * 1.5 + 5) return { ...alt, flipped: true };

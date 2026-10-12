@@ -613,7 +613,25 @@ describe('снимок: резкость, свет, покрытие, совет
     const a = adviceFor({ ...ok, sharp: 1.45, cover: 0.25 });
     expect(a[0].code).toBe('tilt');
   });
+  it('расфокус и смаз: уверенность средняя, резкость низкая — предупреждаем; лёгкая нерезкость при хорошем чтении — нет', () => {
+    expect(adviceFor({ ...ok, sharp: 1.08, conf: 82, unsureShare: 0.15, cover: 0.78, words: 109 })[0].code).toBe('blur');
+    expect(adviceFor({ ...ok, sharp: 1.18, conf: 85, unsureShare: 0.1, cover: 0.84, words: 60, glyph: 6.3 }).map((a) => a.code)).toContain('blur');
+    expect(adviceFor({ ...ok, sharp: 1.15, conf: 91, unsureShare: 0.03, cover: 0.85 })).toEqual([]);
+  });
   it('не больше двух советов', () => {
     expect(adviceFor({ ...ok, conf: 40, unsureShare: 0.6, paper: 60, glyph: 8, sharp: 1.1, foreshorten: 1.8 }).length).toBeLessThanOrEqual(2);
+  });
+});
+
+import { reversedShare } from './textbook';
+describe('снимок вверх ногами: слова справа налево', () => {
+  const word = (t: string, x: number) => ({ text: t, bbox: { x0: x, y0: 0, x1: x + 40, y1: 20 }, conf: 90 });
+  const line = (xs: number[]) => ({ bbox: { x0: 0, y0: 0, x1: 500, y1: 20 }, para: 0, words: xs.map((x, i) => word('слово' + i, x)) });
+  it('обычные строки — 0, перевёрнутые — почти 1', () => {
+    const ok = [line([10, 80, 150, 220]), line([10, 90, 170]), line([20, 100, 180, 260]), line([10, 70, 130])];
+    expect(reversedShare(ok)).toBe(0);
+    const rev = ok.map((l) => ({ ...l, words: [...l.words].reverse() }));
+    expect(reversedShare(rev)).toBe(1);
+    expect(reversedShare([line([1, 2, 3])])).toBe(0); // мало строк — не решаем
   });
 });

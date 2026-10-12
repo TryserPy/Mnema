@@ -73,7 +73,7 @@ export function textDirection(g: Gray): { dir: 'h' | 'v'; hScore: number; vScore
   const hScore = lineScore(rows);
   const vScore = lineScore(cols);
   // Уверенно «на боку» только при явном перевесе; сомнения решает чтение (линии Tesseract стоят вертикально или нет).
-  return { dir: vScore > hScore * 1.5 ? 'v' : 'h', hScore, vScore };
+  return { dir: vScore > hScore * 1.2 ? 'v' : 'h', hScore, vScore };
 }
 
 // ---------- Повороты на 90° ----------
@@ -543,13 +543,15 @@ export interface PhotoFacts {
 export const COVER_WEAK = 0.62;
 /** Резкость ниже этого — снимок размытый (у чёткого текста 1.3–1.6, у расфокуса и смаза около 1.1–1.2). */
 export const BLUR_SHARP = 1.25;
+/** Явно размытый снимок: даже при «уверенном» чтении слов сомнительных больше обычного — предупреждаем. */
+export const BLUR_STRONG = 1.22;
 
 /**
  * Что посоветовать: только если чтение действительно слабое (иначе не пугаем — снимки со слабым светом Мнема читает хорошо).
  * Возвращает от нуля до двух советов, самая вероятная причина — первой.
  */
 export function adviceFor(f: PhotoFacts): Advice[] {
-  const weak = f.conf < 66 || f.unsureShare > 0.3 || (f.words < 12 && f.conf < 80) || (f.cover !== undefined && f.cover < COVER_WEAK);
+  const weak = f.conf < 66 || f.unsureShare > 0.3 || (f.words < 12 && f.conf < 80) || (f.cover !== undefined && f.cover < COVER_WEAK) || (f.sharp > 0 && f.sharp < BLUR_STRONG && (f.conf < 88 || f.unsureShare > 0.07));
   if (!weak) return [];
   const out: AdviceCode[] = [];
   if (f.moire > 0.5) out.push('moire');
