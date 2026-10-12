@@ -4,7 +4,7 @@
 // Точный режим — ИИ с зрением; если он не справился, страница читается без интернета.
 import { humanError } from './ai';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
-import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, lightStats, moireScore, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, unsharp, type Advice, type PhotoFacts } from './textbookPhoto';
+import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
 import { analyzeRegions, strokeStat } from './textbookRegions';
 import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
 import type { Quad } from './textbookImage';
