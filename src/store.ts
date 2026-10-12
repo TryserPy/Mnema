@@ -460,7 +460,7 @@ export function forSync(d: AppData): AppData {
   return d.trash || d.noteHistory ? { ...d, trash: undefined, noteHistory: undefined } : d;
 }
 
-function withTrash(d: AppData, removed: Removed, label: string): AppData {
+export function withTrash(d: AppData, removed: Removed, label: string): AppData {
   if (!removed.subjects.length && !removed.topics.length && !removed.cards.length) return d;
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
   const keep = (d.trash ?? []).filter((t) => Date.parse(t.at) >= cutoff);

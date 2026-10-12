@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCode, nonce, normCode, open, seal, syncKey } from '../../shared/syncCrypto.mjs';
 import { forSync, getData, normalizeData, replaceData } from '../store';
 import { mergeData, reportText, type MergeReport } from '../sync';
+import { warnTrashed } from '../cloud';
 import { Icon, Modal, Segmented } from './ui';
 
 interface Target {
@@ -77,6 +78,7 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
   if (body?.n !== n) throw new Error('Ответ компьютера не прошёл проверку. Возможно, в сети кто-то вмешивается — попробуй в другой сети.');
   const merged = mergeData(getData(), normalizeData(body.data));
   replaceData(merged.data);
+  warnTrashed(merged.report);
   return merged.report;
 }
 
@@ -84,6 +86,7 @@ export async function syncWith(t: Target, onStep?: (s: string) => void): Promise
 export function acceptIncoming(remote: unknown) {
   const merged = mergeData(getData(), normalizeData(remote));
   replaceData(merged.data);
+  warnTrashed(merged.report);
   return Promise.resolve({ data: forSync(merged.data), report: merged.report }); // корзина остаётся на этом устройстве
 }
 
