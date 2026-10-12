@@ -240,6 +240,10 @@ export interface QueueScope {
   subjectId?: string;
   subjectIds?: string[];
   cardIds?: string[];
+  /** Что учить: только обычные карточки или только строки списков (термины, словари, даты, формулы). Нет — всё. */
+  source?: 'cards' | 'lists';
+  /** Только строки одного списка (listId карточки). */
+  listId?: string;
   cram?: boolean; // «Повторить всю тему»: все карточки, расписание не меняется
   /** «Заранее»: уже начатые карточки из cardIds в том порядке, как их передали (слабые — первыми), без учёта срока; ответы пишутся в расписание как обычно. */
   ahead?: boolean;
@@ -278,6 +282,14 @@ export function cardsByTopic(data: AppData): Map<string, Card[]> {
   return m;
 }
 
+/** Подходит ли карточка под выбор «что учить»: обычные карточки, строки списков или один список. */
+export function inSource(c: Pick<Card, 'listId'>, scope: Pick<QueueScope, 'source' | 'listId'>): boolean {
+  if (scope.listId) return c.listId === scope.listId;
+  if (scope.source === 'cards') return !c.listId;
+  if (scope.source === 'lists') return Boolean(c.listId);
+  return true;
+}
+
 export function allItems(data: AppData, scope: QueueScope = {}): QueueItem[] {
   const subjectSet = scope.subjectIds ? new Set(scope.subjectIds) : scope.subjectId ? new Set([scope.subjectId]) : null;
   const topicIds = scope.topicId
@@ -300,6 +312,7 @@ export function allItems(data: AppData, scope: QueueScope = {}): QueueItem[] {
   for (const c of source) {
     if (topicIds && !topicIds.has(c.topicId)) continue;
     if (cardSet && !cardSet.has(c.id)) continue;
+    if (!inSource(c, scope)) continue;
     for (const ord of itemOrds(c)) {
       const key = itemKey(c.id, ord);
       out.push({ key, cardId: c.id, topicId: c.topicId, ord, isNew: !data.states[key] });

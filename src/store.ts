@@ -14,6 +14,8 @@ import { cleanIconImg, cleanIconImgs } from './iconImage';
 import { applyImportPlan } from './mdApply';
 import type { ImportPlan } from './mdImport';
 import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
+import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
+import { cleanStudyPick } from './studyPick';
 import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
@@ -54,6 +56,7 @@ export interface AiConfig {
 
 export interface AiRequest {
   system?: string;
+  provider?: string; // какой из настроенных ИИ взять вместо основного (если ключа нет — берётся основной)
   text: string;
   image?: { mime: string; data: string };
   maxTokens?: number;
@@ -205,13 +208,16 @@ export function neutralizeForeign(d: AppData, local: AppData): { data: AppData; 
   const foreign: string[] = [];
   const plugins = (d.settings.plugins ?? []).map((p) => {
     const mine = own.get(p.id);
-    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog };
-    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true };
+    // Разрешение «спрашивать ИИ» тоже берём только у себя: из чужого файла оно не приходит.
+    if (mine && mine.code === p.code) return { ...p, enabled: mine.enabled, fromCatalog: mine.fromCatalog, ai: mine.ai };
+    if (catalog.get(p.id) === p.code) return { ...p, enabled: false, fromCatalog: true, ai: undefined };
     foreign.push(p.name);
-    return { ...p, enabled: false, fromCatalog: false };
+    return { ...p, enabled: false, fromCatalog: false, ai: undefined };
   });
   if (foreign.length) notes.push(`моды из копии выключены (${foreign.slice(0, 5).join(', ')}) — включай их сам, только если им доверяешь`);
-  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud } }, notes };
+  // Указания для ИИ и выбор ИИ для задач — тоже только свои: чужой файл не должен подсказывать ИИ, что отвечать.
+  const { aiNotes, aiTaskProvider } = local.settings;
+  return { data: { ...d, settings: { ...d.settings, plugins, pluginsSafe: true, cloud: ownCloud, aiNotes, aiTaskProvider } }, notes };
 }
 
 /** Проверка и дополнение загруженных данных (старые файлы, импорт). */
@@ -240,7 +246,7 @@ export function normalizeData(raw: unknown): AppData {
       ...DEFAULT_SETTINGS,
       ...(r.settings ?? {}),
       features: { ...DEFAULT_SETTINGS.features, ...(r.settings?.features ?? {}) },
-      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins : [],
+      plugins: Array.isArray(r.settings?.plugins) ? r.settings!.plugins.map((p) => ({ ...p, ai: typeof p.ai === 'boolean' ? p.ai : undefined })) : [],
       pluginData: r.settings?.pluginData && typeof r.settings.pluginData === 'object' ? r.settings.pluginData : {},
       homeworkRemind: { ...DEFAULT_SETTINGS.homeworkRemind, ...(r.settings?.homeworkRemind ?? {}) },
       lessonsRemind: { ...DEFAULT_SETTINGS.lessonsRemind, ...(r.settings?.lessonsRemind ?? {}) },
@@ -259,6 +265,10 @@ export function normalizeData(raw: unknown): AppData {
         typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
           ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
           : undefined,
+      aiNotes: cleanAiNotes(r.settings?.aiNotes),
+      aiTaskProvider: cleanTaskProviders(r.settings?.aiTaskProvider),
+      aiAuto: r.settings?.aiAuto && typeof r.settings.aiAuto === 'object' && r.settings.aiAuto.cards === true ? { cards: true } : undefined,
+      studyPick: cleanStudyPick(r.settings?.studyPick),
       schedule: { ...(r.settings?.schedule ?? {}) },
       keys: { ...(r.settings?.keys ?? {}) },
       treeOpen: Array.isArray(r.settings?.treeOpen) ? r.settings!.treeOpen : [],
