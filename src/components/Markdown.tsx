@@ -13,6 +13,33 @@ export function renderTex(tex: string, display: boolean): string {
   return katexHtml(tex, { displayMode: display, output: 'htmlAndMathml', strict: false });
 }
 
+// Метка «эту разметку сделал renderTex». Классы и стили KaTeX (в том числе position:absolute у rlap/katex-inner) пропускаются только внутри метки:
+// иначе <span class="katex"><span class="rlap"><span class="katex-inner" style="top:…"> в тексте рисовал бы поверх приложения поддельное окно.
+// Метка у каждой отрисовки новая и случайная, в тексте её угадать нельзя; после очистки атрибут снимается.
+const MARK_ATTR = 'data-mk';
+let markNonce = '';
+const trustedNodes = new WeakSet<Node>();
+
+function newNonce(): string {
+  const b = new Uint8Array(16);
+  try {
+    globalThis.crypto.getRandomValues(b);
+  } catch {
+    for (let i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+/** Формула из renderTex, помеченная текущей меткой. */
+function marked(html: string): string {
+  return `<span ${MARK_ATTR}="${markNonce}">${html}</span>`;
+}
+
+function insideTrusted(node: Element): boolean {
+  for (let n: Element | null = node; n; n = n.parentElement) if (trustedNodes.has(n)) return true;
+  return false;
+}
+
 const blockMath: TokenizerAndRendererExtension = {
   name: 'blockMath',
   level: 'block',
@@ -22,7 +49,7 @@ const blockMath: TokenizerAndRendererExtension = {
     if (m) return { type: 'blockMath', raw: m[0], text: m[1].trim() };
     return undefined;
   },
-  renderer: (t) => `<div class="math-block">${renderTex(t.text as string, true)}</div>`
+  renderer: (t) => `<div class="math-block">${marked(renderTex(t.text as string, true))}</div>`
 };
 
 const inlineMath: TokenizerAndRendererExtension = {
@@ -34,7 +61,7 @@ const inlineMath: TokenizerAndRendererExtension = {
     if (m) return { type: 'inlineMath', raw: m[0], text: m[1] };
     return undefined;
   },
-  renderer: (t) => renderTex(t.text as string, false)
+  renderer: (t) => marked(renderTex(t.text as string, false))
 };
 
 const highlight: TokenizerAndRendererExtension = {
@@ -102,25 +129,33 @@ if (DOMPurify.isSupported) DOMPurify.addHook('afterSanitizeAttributes', (node) =
     if (v != null && !SAFE_URL.test(v.trim()) && !LOCAL_REL.test(v.trim())) node.removeAttribute(a);
   }
   node.removeAttribute('srcset');
+  // Метка формулы: принимаем только свою (текущую) и сразу снимаем атрибут; чужие значения вычищаем.
+  let trusted = false;
+  if (markdownPass && node.hasAttribute(MARK_ATTR)) {
+    if (markNonce && node.getAttribute(MARK_ATTR) === markNonce) trustedNodes.add(node);
+    node.removeAttribute(MARK_ATTR);
+  }
+  if (markdownPass) trusted = insideTrusted(node);
   // Свой class и id в тексте не нужны: класс .modal-back и подобные рисовали бы поверх приложения поддельное окно.
   if (markdownPass) {
     if (node.hasAttribute('class')) {
-      const cl = safeClassList(node.getAttribute('class') ?? '');
+      const cl = safeClassList(node.getAttribute('class') ?? '', trusted);
       if (cl) node.setAttribute('class', cl);
       else node.removeAttribute('class');
     }
     node.removeAttribute('id');
   }
-  // Свои стили в конспекте не нужны (поддельные кнопки поверх окна, скрытие частей окна), кроме формул KaTeX.
+  // Свои стили в конспекте не нужны (поддельные кнопки поверх окна, скрытие частей окна), кроме формул KaTeX, сделанных renderTex.
   if (markdownPass && node.hasAttribute('style')) {
-    // Внутри формулы оставляем только безопасное (размеры, сдвиги, цвет); класс math-block можно написать руками, поэтому position/z-index/inset/url не пропускаем никогда.
-    const st = node.closest('.katex, .math-block') ? safeStyleAttr(node.getAttribute('style') ?? '') : '';
+    // Внутри формулы оставляем только безопасное (размеры, сдвиги, цвет); position/z-index/inset/url не пропускаем никогда.
+    const st = trusted ? safeStyleAttr(node.getAttribute('style') ?? '') : '';
     if (st) node.setAttribute('style', st);
     else node.removeAttribute('style');
   }
 });
 
 export function renderMarkdown(src: string): string {
+  markNonce = newNonce();
   const html = (md.parse(src, { async: false }) as string)
     // Флажки списка задач — значками: поля ввода в конспекте запрещены.
     .replace(/<input (checked="" )?disabled="" type="checkbox">/g, (_m, on) => `<span class="md-check">${on ? '☑' : '☐'}</span>`);
@@ -132,6 +167,7 @@ export function renderMarkdown(src: string): string {
     });
   } finally {
     markdownPass = false;
+    markNonce = '';
   }
 }
 

@@ -28,7 +28,8 @@ const KATEX_PROPS = new Set([
   'border-right-width',
   'border-left-width',
   'color',
-  'background-color'
+  'background-color',
+  'border-color' // фон и рамка \fcolorbox
 ]);
 const SAFE_VALUE = /^(?:[-+]?[\d.]+(?:px|em|rem|ex|%)?|#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z-]+)$/i;
 
