@@ -83,6 +83,8 @@ declare global {
       aiSaveCustom?: (draft: CustomAiDraft) => Promise<{ ok: true; id: string; config: AiConfig } | { ok: false; error: string }>;
       aiDeleteCustom?: (id: string) => Promise<AiConfig>;
       aiProbe?: (q: { draft?: CustomAiDraft; provider?: AiProvider; kind?: 'models' | 'test'; checkVision?: boolean }) => Promise<{ ok: true; text?: string; models?: AiModelInfo[]; vision?: boolean; keyInfo?: string } | { ok: false; error: string }>;
+      /** Как хранятся ключи ИИ на компьютере: encrypted: false — не зашифрованы (Linux без хранилища паролей). */
+      aiKeyStorage?: () => Promise<{ encrypted: boolean; backend: string | null }>;
       aiAsk?: (req: AiRequest) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
       aiTranscribe?: (req: { data: string; mime: string; lang?: string }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
       speechStart?: (lang: string) => { ok: boolean; error?: string } | undefined;

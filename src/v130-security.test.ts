@@ -1,5 +1,7 @@
 // 1.30: правки по итогам проверки безопасности (С1–С2, Н1–Н11).
-import { readFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { zstdCompressSync } from 'node:zlib';
 import { zipSync } from 'fflate';
@@ -381,5 +383,92 @@ describe('Н7: android:allowBackup без ключей', () => {
     expect(build).toMatch(/aapt2 compile --dir res/);
     expect(build).toMatch(/\[ "\$API" -lt 31 \]/);
     expect(build).toMatch(/grep -v 'android:dataExtractionRules'/);
+  });
+});
+
+// ---------- Н8: Electron ----------
+describe('Н8: разрешения, права на файлы с ключами, хранилище ключей, fuses', () => {
+  const req = createRequire(import.meta.url);
+  const secure = req('../electron/secure.cjs') as {
+    isOwnPage: (u: string) => boolean;
+    permissionAllowed: (p: string, u?: string) => boolean;
+    writePrivate: (f: string, t: string) => void;
+    lockDown: (f: string) => void;
+    keyStorageInfo: (s: unknown, platform?: string) => { encrypted: boolean; backend: string | null };
+  };
+  const layout = req('../electron/dataLayout.cjs') as { writeAtomic: (f: string, c: string, mode?: number) => void };
+  const OWN = 'file:///opt/Refrain/resources/app/dist/index.html';
+
+  it('разрешения: только своя страница; плееру — полный экран; чужие и кривые адреса — нет', () => {
+    expect(secure.permissionAllowed('media', OWN)).toBe(true);
+    expect(secure.permissionAllowed('media', 'file:///C:/Program%20Files/Refrain/resources/app/dist/index.html')).toBe(true);
+    for (const bad of ['https://www.youtube.com/embed/x', 'https://mnema.app/', 'file://server/share/dist/index.html', 'file:///tmp/evil.html', '', undefined, 'не адрес']) {
+      expect(secure.permissionAllowed('media', bad), String(bad)).toBe(false);
+      expect(secure.permissionAllowed('geolocation', bad), String(bad)).toBe(false);
+    }
+    expect(secure.permissionAllowed('fullscreen', 'https://www.youtube.com/embed/x')).toBe(true);
+  });
+  it('main.cjs ставит и обработчик запроса, и обработчик проверки разрешений через одно правило', () => {
+    const main = readFileSync('electron/main.cjs', 'utf8');
+    expect(main).toMatch(/setPermissionRequestHandler\(.*permissionAllowed\(/);
+    expect(main).toMatch(/setPermissionCheckHandler\(.*permissionAllowed\(/);
+  });
+
+  const posix = process.platform !== 'win32';
+  it.runIf(posix)('writePrivate: новый файл 0600, существующий с широкими правами закрывается', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mn-sec-'));
+    try {
+      const fresh = join(dir, 'sub', 'ai.json');
+      secure.writePrivate(fresh, '{"k":1}');
+      expect(statSync(fresh).mode & 0o777).toBe(0o600);
+      const old = join(dir, 'secrets.json');
+      writeFileSync(old, 'x');
+      chmodSync(old, 0o644);
+      secure.writePrivate(old, '{"k":2}');
+      expect(statSync(old).mode & 0o777).toBe(0o600);
+      expect(readFileSync(old, 'utf8')).toBe('{"k":2}');
+      chmodSync(old, 0o666);
+      secure.lockDown(old);
+      expect(statSync(old).mode & 0o777).toBe(0o600);
+      expect(() => secure.lockDown(join(dir, 'нет-такого'))).not.toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it.runIf(posix)('writeAtomic с mode даёт 0600 (secrets.json); без mode работает как раньше', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mn-sec-'));
+    try {
+      const f = join(dir, 'secrets.json');
+      layout.writeAtomic(f, '{}', 0o600);
+      expect(statSync(f).mode & 0o777).toBe(0o600);
+      const g = join(dir, 'data.json');
+      layout.writeAtomic(g, '{}');
+      expect(readFileSync(g, 'utf8')).toBe('{}');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it('ai.cjs пишет ai.json через writePrivate, main.cjs секреты — с 0600', () => {
+    expect(readFileSync('electron/ai.cjs', 'utf8')).toMatch(/writePrivate\(CONFIG_FILE\(\)/);
+    expect(readFileSync('electron/main.cjs', 'utf8')).toMatch(/writeAtomic\(SECRETS\(\), JSON\.stringify\(all\), 0o600\)/);
+  });
+
+  it('keyStorageInfo: на Linux с basic_text ключи НЕ зашифрованы, с настоящим хранилищем и на Windows — зашифрованы', () => {
+    const st = (available: boolean, backend?: string) => ({ isEncryptionAvailable: () => available, ...(backend ? { getSelectedStorageBackend: () => backend } : {}) });
+    expect(secure.keyStorageInfo(st(true, 'basic_text'), 'linux')).toEqual({ encrypted: false, backend: 'basic_text' });
+    expect(secure.keyStorageInfo(st(true, 'unknown'), 'linux').encrypted).toBe(false);
+    expect(secure.keyStorageInfo(st(true, 'gnome_libsecret'), 'linux')).toEqual({ encrypted: true, backend: 'gnome_libsecret' });
+    expect(secure.keyStorageInfo(st(true, 'kwallet6'), 'linux').encrypted).toBe(true);
+    expect(secure.keyStorageInfo(st(false, 'gnome_libsecret'), 'linux').encrypted).toBe(false);
+    expect(secure.keyStorageInfo(st(true), 'win32')).toEqual({ encrypted: true, backend: null });
+    expect(secure.keyStorageInfo(st(false), 'win32').encrypted).toBe(false);
+    expect(secure.keyStorageInfo({ isEncryptionAvailable: () => { throw new Error('рано'); } }, 'win32').encrypted).toBe(false);
+  });
+
+  it('package.json: fuses runAsNode, NODE_OPTIONS и --inspect выключены; проверка целостности asar не включена', () => {
+    const f = JSON.parse(readFileSync('package.json', 'utf8')).build.electronFuses;
+    expect(f).toMatchObject({ runAsNode: false, enableNodeOptionsEnvironmentVariable: false, enableNodeCliInspectArguments: false });
+    expect(f.enableEmbeddedAsarIntegrityValidation).toBeUndefined();
+    expect(f.onlyLoadAppFromAsar).toBeUndefined();
   });
 });

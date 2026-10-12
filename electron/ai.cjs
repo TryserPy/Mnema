@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
+const { keyStorageInfo, writePrivate } = require('./secure.cjs');
 
 const CONFIG_FILE = () => path.join(app.getPath('userData'), 'ai.json');
 
@@ -17,8 +18,7 @@ const store = {
     }
   },
   write(c) {
-    fs.mkdirSync(path.dirname(CONFIG_FILE()), { recursive: true });
-    fs.writeFileSync(CONFIG_FILE(), JSON.stringify(c, null, 1), 'utf8');
+    writePrivate(CONFIG_FILE(), JSON.stringify(c, null, 1)); // 0600: в файле лежат ключи ИИ
   },
   encrypt(text) {
     if (safeStorage.isEncryptionAvailable()) return 'enc:' + safeStorage.encryptString(text).toString('base64');
@@ -67,6 +67,8 @@ function register() {
   h('ai:transcribe', (s, req) => s.transcribe(req));
   h('ai:probe', (s, q) => s.probe(q));
   h('ai:localModels', (s) => s.localModels());
+  // Честно о том, как хранятся ключи: на Linux без хранилища паролей (GNOME Keyring, KWallet) они почти не защищены.
+  ipcMain.handle('ai:keyStorage', () => keyStorageInfo(safeStorage));
 }
 
 module.exports = { register };

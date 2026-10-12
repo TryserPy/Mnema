@@ -33,6 +33,7 @@ const ocr = require('./ocr.cjs');
 const sync = require('./sync.cjs');
 const openFiles = require('./openFiles.cjs');
 const linux = require('./linux.cjs');
+const { permissionAllowed, lockDown } = require('./secure.cjs');
 linux.applyEarlyFlags(app); // Linux: Wayland/X11 по умолчанию и портал горячих клавиш — до запуска окна
 
 let mainWin = null;
@@ -203,7 +204,7 @@ ipcMain.handle('secret:set', (_e, name, value) => {
   const all = readSecrets();
   if (!value) delete all[String(name)];
   else all[String(name)] = safeStorage.isEncryptionAvailable() ? 'enc:' + safeStorage.encryptString(String(value)).toString('base64') : 'raw:' + Buffer.from(String(value)).toString('base64');
-  L.writeAtomic(SECRETS(), JSON.stringify(all));
+  L.writeAtomic(SECRETS(), JSON.stringify(all), 0o600);
   return true;
 });
 
@@ -308,16 +309,12 @@ if (!single) {
     session.defaultSession.webRequest.onBeforeRequest((d, cb) => cb({ cancel: /^file:\/\/[^/]/i.test(d.url) }));
     // Electron по умолчанию выдаёт любые разрешения (камера, микрофон, место…) любому фрейму. Даём их только самой Refrain
     // (камера для фото учебника, микрофон для ответов голосом); встроенным плеерам — лишь полный экран.
-    session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => {
-      let own = false;
-      try {
-        const u = new URL(details.requestingUrl || '');
-        own = u.protocol === 'file:' && !u.host && u.pathname.endsWith('/dist/index.html');
-      } catch {
-        /* не адрес — чужой */
-      }
-      cb(own || permission === 'fullscreen');
-    });
+    // Те же правила и для запроса, и для проверки разрешения (setPermissionCheckHandler иначе отвечал бы «да» любому фрейму).
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => cb(permissionAllowed(permission, details && details.requestingUrl)));
+    session.defaultSession.setPermissionCheckHandler((_wc, permission, requestingOrigin, details) => permissionAllowed(permission, (details && details.requestingUrl) || requestingOrigin));
+    // Файлы с ключами и секретами, записанные прежними версиями, были доступны всем пользователям компьютера (Linux) — закрываем.
+    lockDown(path.join(app.getPath('userData'), 'ai.json'));
+    lockDown(SECRETS());
     try {
       L.dailyBackup(layout);
     } catch (err) {
