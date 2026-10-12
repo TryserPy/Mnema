@@ -54,27 +54,27 @@ for (const { w, h, phone } of SIZES) {
   console.log(`${w} возможности: плиток ${tiles}; группы: ${heads.join(' | ')}`);
   if (tiles !== 14 && tiles !== 13) problems.push(`${w}: плиток возможностей ${tiles} (ждём 14, на телефоне без «Значок у часов» — 13)`);
   await shot('4-features');
-  // Настройки → «Стили» (с 1.16 снова свой раздел)
+  // Настройки → «Оформление» (стили внутри раздела, с 1.30)
   await openNav();
   await foot('Настройки');
   await page.waitForTimeout(400);
   const navItems = await page.locator('.set-nav-item').allInnerTexts();
-  const stylesItem = page.locator('.set-nav-item', { hasText: 'Стили' });
+  const stylesItem = page.locator('.set-nav-item', { hasText: 'Оформление' });
   if (await stylesItem.count()) { await stylesItem.click(); await page.waitForTimeout(300); }
   console.log(`${w} настройки, разделы: ${navItems.map((x) => x.trim()).join(' | ')}`);
-  if (!navItems.some((x) => /Стили/.test(x))) problems.push(`${w}: в разделах настроек нет раздела «Стили»`);
+  if (!navItems.some((x) => /Оформление/.test(x))) problems.push(`${w}: в разделах настроек нет раздела «Оформление»`);
   await shot('5-look-styles');
   const sticky = page.locator('.st-tile', { hasText: 'Стикеры' });
   if (await sticky.count()) {
     await sticky.click();
     await page.waitForTimeout(300);
-    const on = await page.evaluate(() => Boolean(document.getElementById('mnema-mods')?.textContent?.includes('Стикеры')));
+    const on = await page.evaluate(() => Boolean(document.getElementById('refrain-styles')?.textContent?.includes('Стикеры')));
     console.log(`${w} стикеры включились: ${on}`);
     if (!on) problems.push(`${w}: стиль «Стикеры» не применился`);
     await shot('6-look-styles-on');
     await sticky.click();
     await page.waitForTimeout(200);
-    const off = await page.evaluate(() => !document.getElementById('mnema-mods')?.textContent?.includes('Стикеры'));
+    const off = await page.evaluate(() => !document.getElementById('refrain-styles')?.textContent?.includes('Стикеры'));
     if (!off) problems.push(`${w}: стиль «Стикеры» не выключился`);
   } else problems.push(`${w}: нет переключателя «Стикеры»`);
   // «Выключить все» должно выключить все включённые стили, а не один
@@ -82,7 +82,7 @@ for (const { w, h, phone } of SIZES) {
   await page.waitForTimeout(200);
   await page.getByRole('button', { name: 'Выключить все' }).click();
   await page.waitForTimeout(300);
-  const left = await page.evaluate(() => document.getElementById('mnema-mods')?.textContent?.trim() ?? '');
+  const left = await page.evaluate(() => document.getElementById('refrain-styles')?.textContent?.trim() ?? '');
   console.log(`${w} после «Выключить все» стилей осталось: ${left ? 'да' : 'нет'}`);
   if (left) problems.push(`${w}: «Выключить все» оставило стили: ${left.slice(0, 60)}`);
   await ctx.close();

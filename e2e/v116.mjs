@@ -50,17 +50,14 @@ for (const [w, h, phone] of [[1280, 800, false], [900, 800, false], [390, 844, t
   await page.getByRole('textbox', { name: 'Найти настройку' }).fill('');
   await page.waitForTimeout(200);
 
-  // ---------- 2. «Стили» — отдельный раздел ----------
+  // ---------- 2. «Стили» — внутри «Оформления» (с 1.30 отдельного раздела нет) ----------
   const navItems = (await page.locator('.set-nav-item').allInnerTexts()).map((x) => x.trim());
-  check(navItems.includes('Стили'), `${tag}: в Настройках есть раздел «Стили» (${navItems.join(' · ')})`);
+  check(navItems.includes('Оформление'), `${tag}: в Настройках есть раздел «Оформление» (${navItems.join(' · ')})`);
+  check(!navItems.includes('Стили'), `${tag}: отдельного раздела «Стили» больше нет (1.30)`);
   check(!navItems.includes('Моды'), `${tag}: раздел «Моды» скрыт (1.23.0: моды пока отключены, код сохранён)`);
   await page.locator('.set-nav-item', { hasText: 'Оформление' }).click();
-  await page.waitForTimeout(300);
-  check((await page.locator('[data-set="styles"]').count()) === 0 && (await page.locator('.st-tile', { hasText: 'Стикеры' }).count()) === 0, `${tag}: в «Оформлении» стилей больше нет`);
-  if (await page.locator('.set-back').count()) { await page.locator('.set-back').click(); await page.waitForTimeout(300); }
-  await page.locator('.set-nav-item', { hasText: 'Стили' }).click();
   await page.waitForTimeout(400);
-  check((await page.locator('.st-tile', { hasText: 'Стикеры' }).count()) === 1, `${tag}: в разделе «Стили» есть переключатель «Стикеры»`);
+  check((await page.locator('.st-tile', { hasText: 'Стикеры' }).count()) === 1, `${tag}: в «Оформлении» есть переключатель «Стикеры»`);
   await page.screenshot({ path: `${OUT}/v116-styles-${tag}.png` });
 
   // ---------- 3. Справка: две вкладки, без «Клавиш» и «Модов» ----------

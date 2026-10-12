@@ -72,7 +72,7 @@ await win.getByRole('button', { name: 'Настройки', exact: true }).click
 await sect('Оформление');
 await win.locator('.st-tile', { hasText: 'Стикеры' }).click();
 await win.getByRole('switch', { name: 'Крупные кнопки' }).click();
-step('mods css: ' + (await win.evaluate(() => document.getElementById('mnema-mods').textContent.length)));
+step('mods css: ' + (await win.evaluate(() => document.getElementById('refrain-styles').textContent.length)));
 await win.locator('.style-list').first().scrollIntoViewIfNeeded();
 await shot('f5-mods');
 
