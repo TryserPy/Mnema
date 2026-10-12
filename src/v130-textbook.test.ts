@@ -647,3 +647,14 @@ describe('снимок вверх ногами: слова справа нале
     expect(reversedShare([line([1, 2, 3])])).toBe(0); // мало строк — не решаем
   });
 });
+
+import { findImportant, DEFAULT_HIGHLIGHT } from './important';
+describe('конспект пунктами и «Важное»', () => {
+  it('определение из пункта списка не склеивается со следующим пунктом', () => {
+    const items = findImportant('- **Теплопроводность** — перенос энергии без перемещения вещества.\n- Количество теплоты: $Q = c m t$.', DEFAULT_HIGHLIGHT);
+    const def = items.find((i) => i.type === 'definition');
+    expect(def).toBeTruthy();
+    expect(def!.sentence).not.toContain('Количество');
+    expect(def!.sentence).not.toContain('- ');
+  });
+});
