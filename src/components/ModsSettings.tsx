@@ -1,94 +1,71 @@
-// «Стили»: готовые и свои наборы внешнего вида. Включил — сразу видно; несколько стилей сразу, порядок сверху вниз;
-// у стиля могут быть свои настройки (цвета, ползунки, переключатели). Свои стили делаются в редакторе — на основе любого или с нуля.
+// Галерея стилей в «Оформлении»: встроенные виды, каталог и свои. Включил — сразу видно; несколько стилей сразу, порядок сверху вниз;
+// у стиля могут быть свои настройки (цвета, ползунки, переключатели). Свои стили делаются в редакторе — на основе любого, с нуля или с ИИ.
 import { useEffect, useRef, useState } from 'react';
+import { currentAsMod } from '../appearance';
 import { allMods, CATALOG } from '../mods';
 import { downloadFile } from '../share';
 import { getData, updateSettings, useData } from '../store';
 import { moveStyle, setStyleValue, toggleStyle } from '../styleActions';
-import { cleanMod, OLD_STYLE_EXT, parseStyleFile, STYLE_EXT, styleToFile } from '../styleSystem';
-import { FONTS } from '../themes';
-import type { CssSnippet, Mod } from '../types';
-import { Collapse, Icon, toast } from './ui';
-import { PaneHead } from './SettingsKit';
+import { cleanMod, OLD_STYLE_EXT, parseStyleFile, STYLE_EXT, newStyleId, styleToFile } from '../styleSystem';
+import { DEFAULT_LOOK, FONTS, PALETTE_VARS, presetFor, STYLES } from '../themes';
+import type { Mod, SettingsSection } from '../types';
+import { Collapse, Icon, Segmented, toast } from './ui';
 import { StyleTile, type TileAction } from './StyleGallery';
-import { blankStyle, cloneStyle, newStyleId, StyleEditor } from './StyleEditor';
+import { StyleAiPanel } from './StyleAiPanel';
+import { blankStyle, cloneStyle, StyleEditor } from './StyleEditor';
 import { StyleSettingsPanel } from './StyleSettingsPanel';
+import type { Palette } from '../themes';
 
-/** Сниппеты «мой CSS»: короткие кусочки своего CSS, каждый включается отдельно (как в Obsidian). Изменения видны сразу. */
-function Snippets() {
-  const data = useData();
-  const list = data.settings.cssSnippets;
-  const [open, setOpen] = useState<string | null>(null);
-  const upd = (id: string, patch: Partial<CssSnippet>) => updateSettings({ cssSnippets: getData().settings.cssSnippets.map((x) => (x.id === id ? { ...x, ...patch } : x)) });
-  return (
-    <div className="stack gap8">
-      <span className="sgroup-title">Мой CSS — сниппеты</span>
-      <span className="small muted">Кусочки своего CSS. Каждый включается отдельно и применяется после стилей. Переменные и классы — в справке редактора стилей. Ссылки на интернет не работают.</span>
-      {list.length > 0 && (
-        <div className="st-snips">
-          {list.map((sn) => (
-            <div key={sn.id} className="st-snip">
-              <div className="row gap8">
-                <button type="button" role="switch" aria-checked={sn.on} aria-label={`Сниппет «${sn.name}»`} className={'switch' + (sn.on ? ' on' : '')} onClick={() => upd(sn.id, { on: !sn.on })}>
-                  <span />
-                </button>
-                <input className="input grow" aria-label="Название сниппета" value={sn.name} maxLength={40} onChange={(e) => upd(sn.id, { name: e.target.value })} />
-                <button className={'btn small' + (open === sn.id ? ' on' : '')} aria-expanded={open === sn.id} onClick={() => setOpen(open === sn.id ? null : sn.id)}>
-                  <Icon name="code" size={15} /> CSS
-                </button>
-                <button className="icon-btn small" aria-label={`Удалить сниппет «${sn.name}»`} onClick={() => updateSettings({ cssSnippets: getData().settings.cssSnippets.filter((x) => x.id !== sn.id) })}>
-                  <Icon name="trash" size={16} />
-                </button>
-              </div>
-              <Collapse open={open === sn.id}>
-                <textarea className="input css-area" spellCheck={false} aria-label={`CSS сниппета «${sn.name}»`} value={sn.css} onChange={(e) => upd(sn.id, { css: e.target.value })} placeholder={'.hero { background: linear-gradient(135deg, var(--accent), #C2417A); }'} />
-              </Collapse>
-            </div>
-          ))}
-        </div>
-      )}
-      <div>
-        <button
-          className="btn small"
-          onClick={() => {
-            const id = newStyleId();
-            updateSettings({ cssSnippets: [...getData().settings.cssSnippets, { id, name: 'Сниппет ' + (list.length + 1), css: '', on: true }] });
-            setOpen(id);
-          }}
-        >
-          <Icon name="plus" size={16} /> Добавить сниппет
-        </button>
-      </div>
-    </div>
-  );
+/** Встроенные виды («Современный», «Классический») как плитки галереи: цвета в плитке — из их тем, а выбор ставит основу оформления. */
+function baseTile(id: 'modern' | 'classic'): Mod {
+  const st = STYLES.find((x) => x.id === id)!;
+  const vars = (dark: boolean) => {
+    const p = presetFor({ ...DEFAULT_LOOK, ...st.look } as never, dark).p;
+    return Object.fromEntries((Object.keys(PALETTE_VARS) as (keyof Palette)[]).map((k) => [PALETTE_VARS[k], p[k]]));
+  };
+  return {
+    id: 'base-' + id,
+    name: st.name,
+    description: st.text,
+    icon: id === 'modern' ? '🪟' : '📜',
+    where: 'встроенный вид',
+    accent: st.accent,
+    vars: { light: { ...vars(false), ...(id === 'classic' ? { '--display': "'Literata', Georgia, serif" } : {}) }, dark: { ...vars(true), ...(id === 'classic' ? { '--display': "'Literata', Georgia, serif" } : {}) } }
+  };
 }
+const BASE_TILES = [baseTile('modern'), baseTile('classic')];
 
-/** Наборы стилей — свой раздел Настроек. */
-export function StylesSettings() {
+type Filter = 'all' | 'base' | 'catalog' | 'mine';
+
+/** Галерея стилей, список включённых, «Создать»/«Из файла»/«Создать с ИИ». */
+export function StylesGallery({ onGo }: { onGo?: (section: SettingsSection) => void }) {
   const data = useData();
   const s = data.settings;
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState<{ mod: Mod; isNew: boolean } | null>(null);
+  const [aiFor, setAiFor] = useState<{ mod?: Mod } | null>(null);
   const [openSettings, setOpenSettings] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>('all');
 
   async function importFiles(files: File[]) {
     setErr('');
     for (const f of files) {
       try {
-        const m = parseStyleFile(await f.text(), 'm-' + Math.random().toString(36).slice(2, 9));
+        const m = parseStyleFile(await f.text(), newStyleId());
         updateSettings({ customMods: [...getData().settings.customMods, m] });
-        toast(`Стиль «${m.name}» добавлен — включи его переключателем`);
+        toast(`Стиль «${m.name}» добавлен — включи его, нажав на плитку`);
       } catch (e) {
         setErr(`${f.name}: ${(e as Error).message}`);
       }
     }
   }
 
+  /** Всё оформление, как оно стоит сейчас (тема, цвета, шрифты, фон, «Мой вид», включённые сниппеты), — в файл стиля. */
   function exportMine() {
-    const look = s.look;
-    const css = s.cssSnippets.filter((x) => x.on).map((x) => x.css).join('\n\n');
-    const mod = cleanMod({ name: 'Мой вид', description: 'Оформление из Refrain', look: { style: look.style, light: look.light, dark: look.dark, font: look.font, headFont: look.headFont, radius: look.radius, background: look.background }, accent: s.accent, css: css || undefined }, 'mine');
+    const cur = currentAsMod(s);
+    const css = [cur.css ?? '', ...s.cssSnippets.filter((x) => x.on).map((x) => x.css)].filter((x) => x.trim()).join('\n\n');
+    const mod = cleanMod({ ...cur, name: 'Мой вид', description: 'Оформление из Refrain', css }, 'mine');
     if (mod) downloadFile('Мой вид' + STYLE_EXT, styleToFile(mod));
   }
 
@@ -107,21 +84,34 @@ export function StylesSettings() {
   }, [list.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const byId = new Map(list.map((m) => [m.id, m]));
   const active = s.modsOn.map((id) => byId.get(id)).filter((m): m is Mod => Boolean(m));
-  const offAll =
-    active.length > 0 ? (
-      <button className="btn small ghost" onClick={() => active.forEach((m) => toggleStyle(m, false))}>
-        Выключить все
-      </button>
-    ) : null;
   // Тема для примеров: правила стилей «для тёмной темы» должны срабатывать и в плитках.
   const theme = document.documentElement.dataset.theme ?? 'light';
   const isMine = (m: Mod) => !CATALOG.some((c) => c.id === m.id);
 
+  const tiles: { mod: Mod; kind: Filter }[] = [...BASE_TILES.map((mod) => ({ mod, kind: 'base' as const })), ...list.map((mod) => ({ mod, kind: isMine(mod) ? ('mine' as const) : ('catalog' as const) }))];
+  const shown = tiles.filter((t) => filter === 'all' || t.kind === filter);
+
   return (
-    <div className="stack gap16">
-      <PaneHead title="Стили" text="Стиль меняет сам вид и раскладку Refrain: панель, плотность, карточки, шрифты, цвета. Нажми на плитку — стиль включится. Можно несколько сразу: нижний в списке перекрывает верхние.">
-        {offAll}
-      </PaneHead>
+    <div className="stack gap12">
+      <div className="row gap8 wrap">
+        <button className="btn small primary" onClick={() => setAiFor({})} data-set="ai-style">
+          <Icon name="sparkle" size={16} /> Создать с ИИ
+        </button>
+        <button className="btn small" onClick={() => setEditing({ mod: blankStyle(), isNew: true })}>
+          <Icon name="plus" size={16} /> Создать стиль
+        </button>
+        <button className="btn small" onClick={() => fileRef.current?.click()} title={`Файл ${STYLE_EXT} (или старый ${OLD_STYLE_EXT}) от друга`}>
+          <Icon name="folder" size={16} /> Стиль из файла
+        </button>
+        <button className="btn small" onClick={exportMine} title="Сохранит всё, что сейчас стоит (тема, цвета, шрифт, фон, правки и включённые сниппеты), в файл">
+          <Icon name="share" size={16} /> Сохранить мой вид
+        </button>
+        {active.length > 0 && (
+          <button className="btn small ghost" onClick={() => active.forEach((m) => toggleStyle(m, false))}>
+            Выключить все стили
+          </button>
+        )}
+      </div>
 
       {active.length > 0 && (
         <div className="stack gap8">
@@ -166,36 +156,38 @@ export function StylesSettings() {
         </div>
       )}
 
+      <div className="ctl-seg small-seg">
+        <Segmented<Filter>
+          ariaLabel="Какие стили показать"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all', label: 'Все' },
+            { value: 'base', label: 'Виды' },
+            { value: 'catalog', label: 'Каталог' },
+            { value: 'mine', label: 'Мои' }
+          ]}
+        />
+      </div>
       <div className="st-grid">
-        {list.map((m, i) => {
+        {shown.map(({ mod: m, kind }, i) => {
+          if (kind === 'base') {
+            const st = STYLES.find((x) => 'base-' + x.id === m.id)!;
+            const on = (s.look.style ?? 'modern') === st.id;
+            return <StyleTile key={m.id} mod={m} on={on} theme={theme} delay={Math.min(i, 10) * 25} onToggle={() => updateSettings({ look: { ...s.look, ...st.look }, accent: st.accent })} />;
+          }
           const on = s.modsOn.includes(m.id);
           const actions: TileAction[] = [
             { icon: 'copy', label: 'Создать на основе', run: () => setEditing({ mod: cloneStyle(m), isNew: true }) },
-            ...(isMine(m) ? [{ icon: 'edit', label: 'Изменить', run: () => setEditing({ mod: m, isNew: false }) }] : []),
+            ...(kind === 'mine' ? [{ icon: 'edit', label: 'Изменить', run: () => setEditing({ mod: m, isNew: false }) }, { icon: 'sparkle', label: 'Изменить с ИИ', run: () => setAiFor({ mod: m }) }] : []),
             { icon: 'share', label: 'Сохранить в файл', run: () => downloadFile(m.name + STYLE_EXT, styleToFile(m)) },
-            ...(isMine(m) ? [{ icon: 'trash', label: 'Удалить', run: () => remove(m) }] : [])
+            ...(kind === 'mine' ? [{ icon: 'trash', label: 'Удалить', run: () => remove(m) }] : [])
           ];
           return <StyleTile key={m.id} mod={m} on={on} theme={theme} delay={Math.min(i, 10) * 25} onToggle={() => toggleStyle(m, !on)} actions={actions} />;
         })}
       </div>
-
-      <div className="st-own">
-        <span className="sgroup-title">Свои стили</span>
-        <div className="row gap8 wrap">
-          <button className="btn small primary" onClick={() => setEditing({ mod: blankStyle(), isNew: true })}>
-            <Icon name="plus" size={16} /> Создать стиль
-          </button>
-          <button className="btn small" onClick={() => fileRef.current?.click()} title={`Файл ${STYLE_EXT} (или старый ${OLD_STYLE_EXT}) от друга`}>
-            <Icon name="folder" size={16} /> Стиль из файла
-          </button>
-          <button className="btn small" onClick={exportMine} title="Сохранит тему, цвета и включённые сниппеты в файл">
-            <Icon name="share" size={16} /> Сохранить мой вид
-          </button>
-        </div>
-        <span className="small muted">В плитках наведи на стиль — появятся «Создать на основе», «Изменить», «Сохранить в файл».</span>
-      </div>
-
-      <Snippets />
+      {filter === 'mine' && !shown.length && <span className="small muted">Своих стилей пока нет. Нажми «Создать с ИИ» или «Создать стиль».</span>}
+      <span className="small muted">Наведи на плитку — появятся «Создать на основе», «Изменить», «Изменить с ИИ», «Сохранить в файл».</span>
 
       {err && <div className="hint warn">{err}</div>}
       <input
@@ -211,6 +203,7 @@ export function StylesSettings() {
         }}
       />
       {editing && <StyleEditor key={editing.mod.id} initial={editing.mod} isNew={editing.isNew} onClose={() => setEditing(null)} />}
+      {aiFor && <StyleAiPanel current={aiFor.mod} replaceId={aiFor.mod?.id} onClose={() => setAiFor(null)} onGo={onGo} />}
     </div>
   );
 }

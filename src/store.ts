@@ -14,7 +14,8 @@ import { cleanIconImg, cleanIconImgs } from './iconImage';
 import { cleanColors, FALLBACK_COLOR, safeColor } from './safeCss';
 import { applyImportPlan } from './mdApply';
 import type { ImportPlan } from './mdImport';
-import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
+import { cleanBg } from './bgImage';
+import { cleanCustomMods, cleanMyStyle, cleanSnippets, cleanStyleBackup, cleanStyleValues } from './styleSystem';
 import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
 import { cleanStudyPick } from './studyPick';
 import { cleanExam, cleanNoteHistory, cleanSchedule, cleanTopics, cleanTrash, validExamDate } from './safeData';
@@ -263,11 +264,10 @@ export function normalizeData(raw: unknown): AppData {
       userCss: '',
       cssSnippets: cleanSnippets(r.settings?.cssSnippets, r.settings?.userCss),
       styleValues: cleanStyleValues(r.settings?.styleValues),
-      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно).
-      bgImage:
-        typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
-          ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
-          : undefined,
+      // Свой фон — только картинка внутри данных и не больше 4 МБ (из чужой копии может прийти что угодно); старый вид { src, fade } переносится (bgImage.ts).
+      bgImage: cleanBg(r.settings?.bgImage) ?? undefined,
+      myStyle: cleanMyStyle(r.settings?.myStyle),
+      styleBackup: cleanStyleBackup(r.settings?.styleBackup),
       aiNotes: cleanAiNotes(r.settings?.aiNotes),
       aiTaskProvider: cleanTaskProviders(r.settings?.aiTaskProvider),
       aiAuto: r.settings?.aiAuto && typeof r.settings.aiAuto === 'object' && r.settings.aiAuto.cards === true ? { cards: true } : undefined,

@@ -485,7 +485,9 @@ describe('1.8: старые файлы данных открываются', () 
   });
 
   it('фон: своя картинка сохраняется, чужое и битое отбрасывается', () => {
-    expect(normalizeData(old180({ bgImage: { src: PNG_1PX, fade: 0.5 } })).settings.bgImage).toEqual({ src: PNG_1PX, fade: 0.5 });
+    // 1.30: { src, fade } переносится на новый вид (подробные проверки — v130-styles.test.ts); fade 0,5 и раньше показывался как 0,72.
+    expect(normalizeData(old180({ bgImage: { src: PNG_1PX, fade: 0.8 } })).settings.bgImage).toMatchObject({ v: 2, src: PNG_1PX, fade: 0.8, opacity: 0.2 });
+    expect(normalizeData(old180({ bgImage: { src: PNG_1PX, fade: 0.5 } })).settings.bgImage).toMatchObject({ src: PNG_1PX, fade: 0.72, opacity: 0.28 });
     expect(normalizeData(old180({ bgImage: { src: PNG_1PX } })).settings.bgImage?.fade).toBe(0.78);
     expect(normalizeData(old180({ bgImage: { src: PNG_1PX, fade: NaN } })).settings.bgImage?.fade).toBe(0.78);
     for (const src of [5, null, 'https://evil.example/x.png', 'javascript:alert(1)', 'data:text/html;base64,PGI+', 'data:image/png;base64,AAA")}body{display:none', 'data:image/svg+xml;base64,PHN2Zz4=']) {
@@ -509,7 +511,7 @@ describe('1.8: фон картинкой в окне', () => {
   };
   const withBg = (bg: unknown): AppData['settings'] => ({ ...emptyData().settings, bgImage: bg as never });
 
-  it('«насколько видно» ограничено 0,72–0,95 (как ползунок в настройках), флаг фона ставится и снимается', () => {
+  it('старый вид { src, fade }: «насколько закрыто» ограничено 0,72–0,95 (как в 1.29), флаг фона ставится и снимается', () => {
     const a = fakeRoot();
     applyLook(a.root, withBg({ src: PNG_1PX, fade: 2 }), false);
     expect(a.props.get('--bg-fade')).toBe('0.95');
@@ -527,7 +529,7 @@ describe('1.8: фон картинкой в окне', () => {
     applyLook(a.root, withBg({ src: 'https://evil.example/x.png', fade: 0.5 }), false);
     expect(a.props.has('--bg-img')).toBe(false);
     applyLook(a.root, withBg({ src: PNG_1PX, fade: 'много' }), false);
-    expect(a.props.get('--bg-fade')).toBe('0.82');
+    expect(a.props.get('--bg-fade')).toBe('0.78');
   });
 });
 

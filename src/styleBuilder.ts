@@ -107,3 +107,38 @@ export function summary(m: Mod): string[] {
   if (m.settings?.length) out.push(`настроек: ${m.settings.length}`);
   return out;
 }
+
+// ---------- Тени ----------
+
+export type ShadowLevel = 'none' | 'soft' | 'default' | 'strong';
+
+const SHADOW_VARS = ['--shadow', '--shadow-pop', '--rf-card-shadow'];
+// «Обычные» — это то, что в приложении и так есть, поэтому для них переменные убираются, а не пишутся.
+const SHADOWS: Record<Exclude<ShadowLevel, 'default'>, Record<Mode, Record<string, string>>> = {
+  none: { light: { '--shadow': 'none', '--rf-card-shadow': 'none' }, dark: { '--shadow': 'none', '--rf-card-shadow': 'none' } },
+  soft: {
+    light: { '--shadow': '0 1px 2px rgba(16, 24, 40, 0.06)', '--rf-card-shadow': '0 0 0 1px rgba(16, 24, 40, 0.06)' },
+    dark: { '--shadow': '0 1px 2px rgba(0, 0, 0, 0.3)', '--rf-card-shadow': '0 0 0 1px rgba(255, 255, 255, 0.07)' }
+  },
+  strong: {
+    light: { '--shadow': '0 10px 30px rgba(16, 24, 40, 0.18)', '--shadow-pop': '0 20px 50px rgba(16, 24, 40, 0.3)', '--rf-card-shadow': '0 0 0 1px rgba(16, 24, 40, 0.08), 0 8px 24px rgba(16, 24, 40, 0.16)' },
+    dark: { '--shadow': '0 10px 30px rgba(0, 0, 0, 0.55)', '--shadow-pop': '0 20px 50px rgba(0, 0, 0, 0.7)', '--rf-card-shadow': '0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.5)' }
+  }
+};
+
+/** Тени карточек и окон: нет / мягкие / обычные (как в приложении) / сильные — сразу для светлой и тёмной темы. */
+export function setShadow(m: Mod, level: ShadowLevel): Mod {
+  let out = m;
+  for (const mode of ['light', 'dark'] as const) {
+    for (const n of SHADOW_VARS) out = setVar(out, mode, n, level === 'default' ? undefined : SHADOWS[level][mode][n]);
+  }
+  return out;
+}
+
+export function getShadow(m: Mod): ShadowLevel {
+  const v = getVar(m, 'light', '--shadow');
+  const c = getVar(m, 'light', '--rf-card-shadow');
+  if (v === undefined && c === undefined) return 'default';
+  for (const lvl of ['none', 'soft', 'strong'] as const) if (SHADOWS[lvl].light['--shadow'] === v && SHADOWS[lvl].light['--rf-card-shadow'] === c) return lvl;
+  return 'default';
+}
