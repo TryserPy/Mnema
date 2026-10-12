@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Резервное копирование Android 6–11 (android:fullBackupContent). Данные Refrain (mnema-data.json и автокопии в files/) копируются,
+     а настройки с ключами и паролями (ключ ИИ, пароль облака — shared_prefs/mnema.xml) в облако Google и на другой телефон не уходят. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="mnema.xml" />
+</full-backup-content>

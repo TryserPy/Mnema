@@ -357,3 +357,29 @@ describe('Н6: AppActivity.java — внешние ссылки', () => {
     expect(java).toMatch(/if \(u == null \|\| !externalScheme\(u\.getScheme\(\)\)\) return false;/);
   });
 });
+
+// ---------- Н7: резервная копия Android ----------
+describe('Н7: android:allowBackup без ключей', () => {
+  const manifest = readFileSync('android/AndroidManifest.xml', 'utf8');
+  const build = readFileSync('android/build.sh', 'utf8');
+  it('манифест ссылается на правила для Android 6–11 и 12+; cleartext остаётся (нужен Wi-Fi синхронизации)', () => {
+    expect(manifest).toMatch(/android:fullBackupContent="@xml\/backup_rules"/);
+    expect(manifest).toMatch(/android:dataExtractionRules="@xml\/data_extraction_rules"/);
+    expect(manifest).toMatch(/android:usesCleartextTraffic="true"/);
+  });
+  it('оба файла правил исключают shared_prefs/mnema.xml (ключ ИИ и пароли облака), и облачную копию, и перенос на телефон', () => {
+    const full = readFileSync('android/res/xml/backup_rules.xml', 'utf8');
+    expect(full).toMatch(/<full-backup-content>[\s\S]*<exclude domain="sharedpref" path="mnema\.xml" \/>/);
+    const ext = readFileSync('android/res/xml/data_extraction_rules.xml', 'utf8');
+    expect(ext).toMatch(/<cloud-backup>\s*<exclude domain="sharedpref" path="mnema\.xml" \/>\s*<\/cloud-backup>/);
+    expect(ext).toMatch(/<device-transfer>\s*<exclude domain="sharedpref" path="mnema\.xml" \/>\s*<\/device-transfer>/);
+  });
+  it('имя файла в правилах — то, под которым Bridge.java хранит настройки', () => {
+    expect(readFileSync('android/src/app/mnema/study/Bridge.java', 'utf8')).toMatch(/getSharedPreferences\("mnema", Context\.MODE_PRIVATE\)/);
+  });
+  it('build.sh собирает res/xml (aapt2 compile --dir res) и убирает dataExtractionRules только для android.jar старше API 31', () => {
+    expect(build).toMatch(/aapt2 compile --dir res/);
+    expect(build).toMatch(/\[ "\$API" -lt 31 \]/);
+    expect(build).toMatch(/grep -v 'android:dataExtractionRules'/);
+  });
+});
