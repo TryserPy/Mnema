@@ -325,6 +325,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
   const [tab, setTab] = useState<Tab>('colors');
   const [asking, setAsking] = useState(false);
   const [ai, setAi] = useState(false);
+  const [peek, setPeek] = useState(false); // на телефоне «Посмотреть»: окно сворачивается до шапки и кнопок, видно настоящий интерфейс
   const [pk, setPk] = useState(0); // «обновить предпросмотр»: окно ИИ тоже показывает свой стиль и, закрываясь, стирает наш
   const [withImage, setWithImage] = useState(false);
   const [saveAs, setSaveAs] = useState<string | null>(null);
@@ -447,7 +448,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
   );
 
   return createPortal(
-    <aside className="style-editor" role="dialog" aria-label={current ? 'Настроить текущее оформление' : 'Редактор стиля'}>
+    <aside className={'style-editor' + (peek ? ' peek' : '')} role="dialog" aria-label={current ? 'Настроить текущее оформление' : 'Редактор стиля'}>
       <header className="se-head">
         <span className="se-icon">{m.icon ?? '🎨'}</span>
         {current ? (
@@ -461,6 +462,9 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
             <input className="se-sub" aria-label="Описание" placeholder="Коротко: что меняет" value={m.description} maxLength={240} onChange={(e) => set({ ...m, description: e.target.value })} />
           </div>
         )}
+        <button className="btn small se-peek" aria-pressed={peek} onClick={() => setPeek(!peek)}>
+          {peek ? 'Вернуться' : 'Посмотреть'}
+        </button>
         <button className="icon-btn" aria-label="Закрыть редактор" onClick={close}>
           <Icon name="x" />
         </button>

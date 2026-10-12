@@ -333,6 +333,7 @@ export function cleanMod(raw: unknown, id: string, where?: string): Mod | null {
   if (attrs) m.attrs = attrs;
   const settings = cleanSettings(r.settings);
   if (settings) m.settings = settings;
+  if (r.desktopOnly === true) m.desktopOnly = true;
   if (where) m.where = where;
   else if (typeof r.where === 'string') m.where = label(r.where, 30);
   return m;

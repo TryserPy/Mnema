@@ -226,6 +226,8 @@ export interface Mod {
   accent?: string;
   icon?: string; // значок в списке
   where?: string; // где видно изменение
+  /** Стиль рассчитан на широкий экран: на телефоне он мало что меняет (в галерее подписано «только для компьютера»). */
+  desktopOnly?: boolean;
   font?: string; // шрифт, который нужно подгрузить (id из FONTS)
   /** Переменные стиля: отдельно для светлой и тёмной темы. */
   vars?: { light?: Record<string, string>; dark?: Record<string, string> };

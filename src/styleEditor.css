@@ -85,3 +85,11 @@
 .ai-demo { height: 170px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .ai-notes { margin: 0; padding-left: 18px; }
 .se-slider { align-items: center; }
+/* Телефон: «Посмотреть» сворачивает окно до шапки и кнопок — видно настоящий интерфейс с правками */
+.se-peek { display: none; flex: none; }
+@media (max-width: 720px) {
+  .se-peek { display: inline-flex; }
+  .style-editor.peek { height: auto; }
+  .style-editor.peek .se-body, .style-editor.peek .se-tabs, .style-editor.peek .se-tools, .style-editor.peek .se-meta, .style-editor.peek .se-saveas, .style-editor.peek .se-sub { display: none; }
+  .style-editor.peek .se-head > .grow > .small { display: none; }
+}

@@ -35,6 +35,7 @@ export function StyleAiPanel({ current, onClose, onUse, replaceId, onGo }: { cur
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [ready, setReady] = useState<AiReady | null>(null);
+  const [peek, setPeek] = useState(false); // на телефоне окно закрывает почти весь экран: «Посмотреть» убирает всё, кроме шапки и кнопок
   const [result, setResult] = useState<AiStyleResult | null>(null);
   const id = useRef(replaceId ?? newStyleId());
   const ticket = useRef(0);
@@ -101,13 +102,18 @@ export function StyleAiPanel({ current, onClose, onUse, replaceId, onGo }: { cur
   const stop = ready && !ready.ok ? ready : null;
   const theme = document.documentElement.dataset.theme ?? 'light';
   return createPortal(
-    <aside className="style-editor ai-panel" role="dialog" aria-label={current ? 'Изменить стиль с помощью ИИ' : 'Создать стиль с помощью ИИ'}>
+    <aside className={'style-editor ai-panel' + (peek ? ' peek' : '')} role="dialog" aria-label={current ? 'Изменить стиль с помощью ИИ' : 'Создать стиль с помощью ИИ'}>
       <header className="se-head">
         <span className="se-icon">✨</span>
         <div className="grow stack gap4">
           <span className="se-title static">{current ? `Изменить с ИИ` : 'Создать с ИИ'}</span>
           <span className="small muted">{current ? `«${current.name}»: скажи, что поправить.` : 'Опиши словами, как должно выглядеть Refrain, — ИИ соберёт стиль.'}</span>
         </div>
+        {result && (
+          <button className="btn small se-peek" aria-pressed={peek} onClick={() => setPeek(!peek)}>
+            {peek ? 'Вернуться' : 'Посмотреть'}
+          </button>
+        )}
         <button className="icon-btn" aria-label="Закрыть" onClick={onClose}>
           <Icon name="x" />
         </button>
@@ -179,7 +185,7 @@ export function StyleAiPanel({ current, onClose, onUse, replaceId, onGo }: { cur
                     {result.mod.icon} {result.mod.name}
                   </strong>
                   {result.mod.description && <span className="small muted">{result.mod.description}</span>}
-                  <span className="small muted">Стиль уже показан на всём приложении слева. Не нравится — «Доработать» или закрой окно, всё вернётся.</span>
+                  <span className="small muted">Стиль уже показан на всём приложении (на телефоне — кнопка «Посмотреть»). Не нравится — «Доработать» или закрой окно, всё вернётся.</span>
                 </div>
               </div>
               {result.fixes.length > 0 && (
