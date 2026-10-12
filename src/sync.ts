@@ -184,10 +184,18 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   const testIds = new Set(local.tests.map((x) => x.id));
   const tests = [...local.tests, ...remote.tests.filter((x) => !testIds.has(x.id))];
 
-  const schedule: Record<string, string[]> = { ...local.settings.schedule };
+  // Расписание: только дни 0–6 со списком строк (Object.hasOwn + Array.isArray: ключи вроде «__proto__» и «toString» слияние не ломают).
+  const schedule: Record<string, string[]> = Object.create(null);
+  const own = (o: unknown, k: string): string[] | undefined => {
+    const v = o && typeof o === 'object' && Object.hasOwn(o, k) ? (o as Record<string, unknown>)[k] : undefined;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined;
+  };
+  for (const [d, ids] of Object.entries(local.settings?.schedule ?? {})) if (/^[0-6]$/.test(d) && Array.isArray(ids)) schedule[d] = ids.filter((x): x is string => typeof x === 'string');
   // Уроки дня: к своим добавляем с другого устройства те, которых у нас меньше (предмет может стоять дважды).
-  for (const [d, ids] of Object.entries(remote.settings?.schedule ?? {})) {
-    const out = [...(schedule[d] ?? [])];
+  for (const d of Object.keys(remote.settings?.schedule ?? {})) {
+    const ids = /^[0-6]$/.test(d) ? own(remote.settings.schedule, d) : undefined;
+    if (!ids) continue;
+    const out = [...(own(schedule, d) ?? [])];
     const count = (arr: string[], id: string) => arr.filter((x) => x === id).length;
     for (const id of ids) if (count(ids, id) > count(out, id)) out.push(id);
     schedule[d] = out.filter((id) => subjectIds.has(id));
@@ -197,7 +205,7 @@ export function mergeData(local: AppData, remote: AppData): { data: AppData; rep
   const cutoff = Date.now() - 180 * 86400000;
   for (const [k, v] of Object.entries(deleted)) if (t(v) < cutoff) delete deleted[k];
 
-  let out: AppData = { ...local, folders, homework, exams, subjects, topics, cards, states, logs: logs.filter((l) => cardIds.has(l.cardId)), tests, deleted, settings: { ...local.settings, schedule } };
+  let out: AppData = { ...local, folders, homework, exams, subjects, topics, cards, states, logs: logs.filter((l) => cardIds.has(l.cardId)), tests, deleted, settings: { ...local.settings, schedule: { ...schedule } } };
 
   // Слияние убрало заметную часть предметов, тем или карточек (чужой файл с отметками об удалении или большое удаление на другом устройстве):
   // убранное не пропадает насовсем, а ложится в корзину этого устройства — оттуда его можно вернуть.

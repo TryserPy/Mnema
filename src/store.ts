@@ -15,7 +15,7 @@ import { cleanColors, FALLBACK_COLOR, safeColor } from './safeCss';
 import { applyImportPlan } from './mdApply';
 import type { ImportPlan } from './mdImport';
 import { cleanCustomMods, cleanSnippets, cleanStyleValues } from './styleSystem';
-import { cleanExam, cleanNoteHistory, cleanTopics, cleanTrash, validExamDate } from './safeData';
+import { cleanExam, cleanNoteHistory, cleanSchedule, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
 
 export type AiProvider = 'anthropic' | 'gemini' | 'local' | `custom:${string}`;
@@ -260,7 +260,7 @@ export function normalizeData(raw: unknown): AppData {
         typeof r.settings?.bgImage?.src === 'string' && r.settings.bgImage.src.length < 4_000_000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.settings.bgImage.src)
           ? { src: r.settings.bgImage.src, fade: Number.isFinite(r.settings.bgImage.fade) ? r.settings.bgImage.fade : 0.78 }
           : undefined,
-      schedule: { ...(r.settings?.schedule ?? {}) },
+      schedule: cleanSchedule(r.settings?.schedule),
       keys: { ...(r.settings?.keys ?? {}) },
       treeOpen: Array.isArray(r.settings?.treeOpen) ? r.settings!.treeOpen : [],
       graph: { ...DEFAULT_SETTINGS.graph, ...(r.settings?.graph ?? {}) },

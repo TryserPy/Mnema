@@ -107,3 +107,15 @@ export function cleanNoteHistory(raw: unknown, topicIds: Set<string>): Record<st
   }
   return Object.keys(out).length ? out : undefined;
 }
+
+/** Расписание уроков из файла: только дни «0»…«6» (день недели) со списком id предметов. Остальные ключи («__proto__», «constructor», «toString»…) и кривые значения отбрасываются. */
+export function cleanSchedule(raw: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!isObj(raw)) return out;
+  for (const day of Object.keys(raw)) {
+    const ids = (raw as Record<string, unknown>)[day];
+    if (!/^[0-6]$/.test(day) || !Array.isArray(ids)) continue;
+    out[day] = ids.filter((x): x is string => typeof x === 'string').slice(0, 40);
+  }
+  return out;
+}

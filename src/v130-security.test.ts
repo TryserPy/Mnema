@@ -194,3 +194,40 @@ describe('Н2: цвет из файла', () => {
     expect(getData().subjects.find((s) => s.name === 'Хороший')!.color).toBe('#2F8F5B');
   });
 });
+
+// ---------- Н3: ключи расписания ----------
+describe('Н3: расписание с ключами __proto__ / constructor / toString', () => {
+  const evil = () => JSON.parse('{"__proto__":["s1"],"constructor":["s1"],"toString":"x","hasOwnProperty":5,"1":["s1","s1"],"2":"не список","9":["s1"],"3":[1,null,"s1"]}');
+  it('normalizeData оставляет только дни 0–6 со списком строк', () => {
+    const d = emptyData();
+    d.subjects = [mkSubj('s1')];
+    const raw = JSON.parse(JSON.stringify(d));
+    raw.settings.schedule = evil();
+    const n = normalizeData(raw);
+    expect(Object.keys(n.settings.schedule).sort()).toEqual(['1', '3']);
+    expect(n.settings.schedule['1']).toEqual(['s1', 's1']);
+    expect(n.settings.schedule['3']).toEqual(['s1']);
+    expect(Object.getPrototypeOf(n.settings.schedule)).toBe(Object.prototype);
+  });
+  it('mergeData не падает и не портит прототип, даже если кривое расписание не прошло normalizeData', () => {
+    const local = world(1);
+    local.settings.schedule = { '1': ['s1'] };
+    const remote = world(1);
+    remote.settings.schedule = evil();
+    const { data } = mergeData(local, remote);
+    expect(Object.keys(data.settings.schedule).sort()).toEqual(['1', '3']);
+    expect(data.settings.schedule['1']).toEqual(['s1', 's1']);
+    expect(({} as Record<string, unknown>).toString).toBeTypeOf('function');
+    expect(Array.isArray((Object.prototype as unknown as Record<string, unknown>)['constructor'])).toBe(false);
+    // и с кривым расписанием у себя
+    local.settings.schedule = evil();
+    expect(() => mergeData(local, world(1))).not.toThrow();
+  });
+  it('обычное слияние расписания работает как раньше', () => {
+    const local = world(1);
+    local.settings.schedule = { '1': ['s1'] };
+    const remote = world(1);
+    remote.settings.schedule = { '1': ['s1', 's1'], '2': ['s1'] };
+    expect(mergeData(local, remote).data.settings.schedule).toEqual({ '1': ['s1', 's1'], '2': ['s1'] });
+  });
+});
