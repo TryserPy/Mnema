@@ -78,12 +78,12 @@ export interface Refined {
 /**
  * Уточняет рамку рисунка по пикселям. null — внутри рамки почти ничего нет (ИИ ошибся адресом).
  * 1) срезаем пустые поля со всех сторон; 2) если рисунок упирается в край рамки (обрезан) — расширяем, пока он продолжается
- * (до первой пустой строки или столбца, не дальше 18% размера рамки); 3) оставляем небольшой запас.
+ * (до первой пустой строки или столбца, не дальше 25% размера рамки); 3) оставляем небольшой запас.
  */
 export function refineFigureBox(rgba: Uint8ClampedArray, W: number, H: number, box: Box): Refined | null {
   const px = { x0: box.x * W, y0: box.y * H, x1: (box.x + box.w) * W, y1: (box.y + box.h) * H };
-  const growX = (px.x1 - px.x0) * 0.18;
-  const growY = (px.y1 - px.y0) * 0.18;
+  const growX = (px.x1 - px.x0) * 0.25;
+  const growY = (px.y1 - px.y0) * 0.25;
   const region = { x0: clamp(px.x0 - growX, 0, W), y0: clamp(px.y0 - growY, 0, H), x1: clamp(px.x1 + growX, 0, W), y1: clamp(px.y1 + growY, 0, H) };
   const m = inkMap(rgba, W, H, region);
   const s = m.step;
@@ -98,6 +98,20 @@ export function refineFigureBox(rgba: Uint8ClampedArray, W: number, H: number, b
   const colF = (x: number) => inkIn(m, x, y0, x + 1, y1) / Math.max(1, y1 - y0);
   const origW = x1 - x0;
   const origH = y1 - y0;
+  // Рамка рисунка вокруг запрошенного места: длинная сплошная линия сверху и снизу (или слева и справа) — рисунок до неё.
+  const rowLine = (y: number) => inkIn(m, x0, y, x1, y + 1) / Math.max(1, x1 - x0) >= 0.85;
+  const colLine = (x: number) => inkIn(m, x, y0, x + 1, y1) / Math.max(1, y1 - y0) >= 0.85;
+  const inset = (n: number) => Math.round(n * 0.25);
+  let top = -1;
+  let bot = -1;
+  for (let y = y0 - 1; y >= Math.max(R.y0, y0 - inset(origH) - 1); y--) if (rowLine(y)) top = y;
+  for (let y = y1; y < Math.min(R.y1, y1 + inset(origH) + 1); y++) if (rowLine(y)) bot = y + 1;
+  if (top >= 0 && bot >= 0) (y0 = top), (y1 = bot);
+  let lef = -1;
+  let rig = -1;
+  for (let x = x0 - 1; x >= Math.max(R.x0, x0 - inset(origW) - 1); x--) if (colLine(x)) lef = x;
+  for (let x = x1; x < Math.min(R.x1, x1 + inset(origW) + 1); x++) if (colLine(x)) rig = x + 1;
+  if (lef >= 0 && rig >= 0) (x0 = lef), (x1 = rig);
   for (let pass = 0; pass < 2; pass++) {
     // 1. срезаем пустое
     while (y1 - y0 > 2 && rowF(y0) < EMPTY) y0++;
@@ -106,8 +120,8 @@ export function refineFigureBox(rgba: Uint8ClampedArray, W: number, H: number, b
     while (x1 - x0 > 2 && colF(x1 - 1) < EMPTY) x1--;
     // 2. рисунок упирается в край — продолжаем (тонкий запас: 2 клетки у края)
     const touch = (a: number, b: number, c: number, d: number) => inkIn(m, a, b, c, d) / Math.max(1, (c - a) * (d - b)) > 0.012;
-    const maxY = Math.max(4, Math.round(origH * 0.18));
-    const maxX = Math.max(4, Math.round(origW * 0.18));
+    const maxY = Math.max(4, Math.round(origH * 0.25));
+    const maxX = Math.max(4, Math.round(origW * 0.25));
     let g = 0;
     if (touch(x0, y0, x1, Math.min(y1, y0 + 2))) while (g++ < maxY && y0 > R.y0 && rowF(y0 - 1) >= EMPTY) y0--;
     g = 0;
@@ -159,8 +173,9 @@ export function normalizeCaption(raw: string): string {
   // «Рис 12 название», «рис.12 - название», «12. Название» → «Рис. 12. Название»
   const m = /^(рис(?:унок)?|табл(?:ица)?|схема|график|карта|фото)\.?\s*(\d+(?:\.\d+)?)?\s*[.:–—-]?\s*(.*)$/i.exec(c);
   if (m) {
-    const kind = /^рис/i.test(m[1]) ? 'Рис.' : /^табл/i.test(m[1]) ? 'Табл.' : m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase() + '.';
-    c = [kind, m[2] ? m[2] + '.' : '', m[3]].filter(Boolean).join(' ').replace(/\.\s*\.$/, '.');
+    const kind = /^рис/i.test(m[1]) ? 'Рис' : /^табл/i.test(m[1]) ? 'Табл' : m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+    const head = /^(Рис|Табл)$/.test(kind) ? kind + '.' : kind;
+    c = [m[2] ? `${head} ${m[2]}.` : head, m[3]].filter(Boolean).join(' ');
     // «Рис. 12.» без названия — оставляем как есть
   }
   return c.length > 160 ? c.slice(0, 157).trimEnd() + '…' : c;
