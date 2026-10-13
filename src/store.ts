@@ -2,6 +2,7 @@
 import { splitDoneHomework } from './homework';
 import { copyCard, copyFolder, copySubject, copyTopic, type CopyResult } from './copy';
 import { useSyncExternalStore } from 'react';
+import type { ErrorCode, Quota, TaskRequest } from '../shared/refrain/api.mjs';
 import { bridgeKey } from './platform/bridgeKey';
 import type { Grade } from 'ts-fsrs';
 import { DEFAULT_HIGHLIGHT } from './important';
@@ -62,7 +63,15 @@ export interface AiRequest {
   text: string;
   image?: { mime: string; data: string };
   maxTokens?: number;
+  /**
+   * Refrain ИИ (1.31): та же задача для сервера — без промта, только данные (shared/refrain/api.mjs). «Свои указания» добавит aiRequest.
+   * Без этого поля запрос идёт мимо Refrain ИИ — к своему ключу или без интернета: так моды и прочие «свободные» запросы не тратят ключ Refrain.
+   */
+  refrain?: Omit<TaskRequest, 'wishes'>;
 }
+
+/** Ответ aiAsk (1.31): кто ответил и, для Refrain ИИ, остаток лимита; при ошибке Refrain ИИ — её код (экраны лимита, паузы, блока). */
+export type AiAnswer = { ok: true; text: string; via?: 'refrain' | 'key' | 'local'; quota?: Quota } | { ok: false; error: string; code?: ErrorCode; quota?: Quota };
 
 export interface Vault {
   root: string;
@@ -89,7 +98,7 @@ declare global {
       aiProbe?: (q: { draft?: CustomAiDraft; provider?: AiProvider; kind?: 'models' | 'test'; checkVision?: boolean }) => Promise<{ ok: true; text?: string; models?: AiModelInfo[]; vision?: boolean; keyInfo?: string } | { ok: false; error: string }>;
       /** Как хранятся ключи ИИ на компьютере: encrypted: false — не зашифрованы (Linux без хранилища паролей). */
       aiKeyStorage?: () => Promise<{ encrypted: boolean; backend: string | null }>;
-      aiAsk?: (req: AiRequest) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
+      aiAsk?: (req: AiRequest) => Promise<AiAnswer>;
       aiTranscribe?: (req: { data: string; mime: string; lang?: string }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
       speechStart?: (lang: string) => { ok: boolean; error?: string } | undefined;
       speechStop?: () => void;

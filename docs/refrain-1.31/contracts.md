@@ -89,6 +89,8 @@ REFRAIN-SIG-1
 
 ### Порядок поставщиков в приложении
 
+В приложении запрос к ИИ — `AiRequest` (`src/store.ts`). Для Refrain ИИ к нему добавляется `refrain: { task, image?, text?, subject?, topic?, page? }` — те же данные без промта; «Свои указания» дописывает `aiRequest()` (поле `wishes`). **Запрос без `refrain` идёт мимо Refrain ИИ** (к своему ключу или без интернета): так моды и прочие свободные запросы не тратят ключ Refrain. Ответ `aiAsk` — `AiAnswer`: `via` (кто ответил), `quota`; при ошибке Refrain ИИ — `code` и `quota`.
+
 `Refrain ИИ → свой ключ → без интернета` (настраивается). Следующий берётся при `limit_*`, `paused`, `access_closed`, `blocked`, `upstream`, нет сети. Ответы кэшируются на устройстве 7 дней по `sha256(фото или текст) + task + promptVersion`.
 
 ---
