@@ -8,9 +8,11 @@ import { MARKS } from '../shared/prompts/markup';
 import { lunaSystem, lunaUser } from '../shared/prompts/luna';
 import { TASK_SPECS } from '../shared/prompts/tasks';
 import { FIELD_LIMITS } from '../shared/refrain/api.mjs';
+import { cardDraft, DEFAULT_HIGHLIGHT, findImportant } from './important';
 import type { AiRequest } from './store';
 import { fixFormulas } from './textbookMath';
 import { normalizeAiBlocks, sanitizeAiText } from './textbookText';
+import type { CardType } from './types';
 
 // ---------- Разворот ----------
 
@@ -251,4 +253,31 @@ export function asInNotebook(md: string): string {
 /** Есть ли что сворачивать — чтобы не показывать кнопку, которая ничего не меняет. */
 export function hasAbbreviations(md: string): boolean {
   return asInNotebook(md) !== md;
+}
+
+// ---------- Черновики карточек ----------
+
+export interface CardDraft {
+  type: CardType;
+  front: string;
+  back: string;
+}
+
+/** Сколько черновиков на тему: больше — долг повторений на недели, лучше начать с малого. */
+export const DRAFTS_PER_TOPIC = 12;
+
+/** «Черновики карточек» без ИИ: определения, даты и рамки «Запомните» из текста — ученик выберет, какие оставить. */
+export function cardDrafts(md: string, limit = DRAFTS_PER_TOPIC): CardDraft[] {
+  const out: CardDraft[] = [];
+  const seen = new Set<string>();
+  for (const item of findImportant(acceptUnsure(md), DEFAULT_HIGHLIGHT)) {
+    if (item.type !== 'definition' && item.type !== 'date' && item.type !== 'box') continue;
+    const d = cardDraft(item);
+    const key = d.front.toLowerCase();
+    if (!d.front.trim() || seen.has(key)) continue;
+    seen.add(key);
+    out.push(d);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
