@@ -80,11 +80,11 @@ export interface GuardConfig {
 
 export const DEFAULT_GUARD: GuardConfig = {
   rules: {
-    sig_invalid: { weight: 40, subjects: ['device', 'ip'], enabled: true },
+    sig_invalid: { weight: 40, subjects: ['ip'], enabled: true },
     token_unknown: { weight: 15, subjects: ['account', 'ip'], enabled: true },
     device_unknown: { weight: 15, subjects: ['ip'], enabled: true },
     nonce_replay: { weight: 60, subjects: ['account', 'device', 'ip'], enabled: true },
-    time_skew: { weight: 5, subjects: ['device'], enabled: true },
+    time_skew: { weight: 5, subjects: ['ip'], enabled: true },
     refresh_reuse: { weight: 100, subjects: ['account', 'ip'], instantLevel2: true, enabled: true },
     impossible_travel: { weight: 100, subjects: ['account'], params: { maxKmh: 900, minKm: 500 }, enabled: true },
     account_many_ips: { weight: 30, subjects: ['account'], params: { ips: 6, windowMin: 30 }, enabled: true },

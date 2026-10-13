@@ -65,6 +65,12 @@ export async function verifySigned(req: Request, env: Env, raw: Uint8Array, info
   const group = await effectiveGroup(env, account);
   const ctx = { account, group, device };
 
+  // Пока подпись не проверена, заголовки ничего не доказывают: баллы — только IP (иначе чужое устройство «выбивается» по его id).
+  const url = new URL(req.url);
+  const message = canonicalString({ method: req.method, path: url.pathname + url.search, bodySha256Hex: await sha256hex(raw), time, nonce, deviceId });
+  if (!(await verifyDevice(device.public_key, sig, message))) return bad(['sig_invalid']);
+  if (Math.abs(t - time) > SIGNATURE_WINDOW_MS) return bad(['time_skew']);
+
   let sessionId: string | null = null;
   if (mode === 'access') {
     const auth = h(H.auth);
@@ -75,10 +81,6 @@ export async function verifySigned(req: Request, env: Env, raw: Uint8Array, info
     if (!sess || sess.revoked) fail('session_revoked');
     sessionId = claims.s;
   }
-  if (Math.abs(t - time) > SIGNATURE_WINDOW_MS) return bad(['time_skew'], ctx);
-  const url = new URL(req.url);
-  const message = canonicalString({ method: req.method, path: url.pathname + url.search, bodySha256Hex: await sha256hex(raw), time, nonce, deviceId });
-  if (!(await verifyDevice(device.public_key, sig, message))) return bad(['sig_invalid'], ctx);
   if (!(await student(env, account.id).nonce(deviceId, nonce, t))) return bad(['nonce_replay'], ctx);
   if (t - device.last_seen > 60000) await env.DB.prepare('UPDATE devices SET last_seen = ?2 WHERE id = ?1').bind(deviceId, t).run();
   return { account, group, device, sessionId, clientRules: clientRules(info.app, env.APP_VERSIONS.split(',').map((v) => v.trim())) };

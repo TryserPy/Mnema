@@ -28,5 +28,6 @@ export default defineConfig({
       }
     }))
   ],
-  test: { setupFiles: ['./test/setup.ts'] }
+  // Сценарии атак гоняют десятки запросов через настоящие D1 и DO: на загруженной машине 5 секунд по умолчанию мало.
+  test: { setupFiles: ['./test/setup.ts'], testTimeout: 30000 }
 });

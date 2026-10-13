@@ -51,8 +51,19 @@ describe('повтор и подделка запроса', () => {
     const req = await d.signedRequest('POST', '/v1/task', summaryTask());
     const forged = new Request(req, { body: JSON.stringify(summaryTask({ topic: 'другая' })) });
     expect(((await (await h.fetch(forged)).json()) as any).error.code).toBe('device_unknown');
-    const rules = await h.env.DB.prepare("SELECT score FROM scores WHERE kind = 'device'").first<{ score: number }>();
-    expect(Math.round(rules!.score)).toBe(45); // time_skew 5 + sig_invalid 40
+    const ip = await h.env.DB.prepare("SELECT score FROM scores WHERE kind = 'ip'").first<{ score: number }>();
+    expect(Math.round(ip!.score)).toBe(45); // time_skew 5 + sig_invalid 40 — всё на IP
+    expect(await count(h, "SELECT COUNT(*) AS n FROM scores WHERE kind IN ('device', 'account')")).toBe(0);
+  });
+
+  it('чужое устройство нельзя «выбить» по его id: мусорные подписи не трогают аккаунт и устройство', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const victim = await h.login('victim@example.com');
+    const attacker = await h.login('attacker@example.com', { ip: '192.0.2.200' });
+    for (let i = 0; i < 6; i++) await attacker.call('GET', '/v1/me', undefined, { deviceId: victim.id, token: victim.access, where: { ip: '192.0.2.200' } });
+    expect((await victim.call('GET', '/v1/me')).status).toBe(200);
+    expect(await count(h, "SELECT COUNT(*) AS n FROM blocks WHERE kind IN ('account', 'device')")).toBe(0);
   });
 
   it('чужой токен: токен устройства A с ключом устройства B', async () => {

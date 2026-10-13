@@ -77,12 +77,22 @@ export interface ClientInfo {
   ua: string | null;
 }
 
+/** Первые 4 группы IPv6 (сеть /64), с раскрытым «::». */
+export function ipv6Prefix64(ip: string): string {
+  const [head, tail = ''] = ip.split('::');
+  const h = head ? head.split(':') : [];
+  const t = ip.includes('::') ? (tail ? tail.split(':') : []) : [];
+  const full = ip.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h;
+  return full.slice(0, 4).map((g) => (parseInt(g || '0', 16) || 0).toString(16)).join(':') + '::/64';
+}
+
 export async function clientInfo(req: Request, env: Env): Promise<ClientInfo> {
   const ip = req.headers.get('cf-connecting-ip') || '0.0.0.0';
   const cf = (req as Request & { cf?: IncomingRequestCfProperties }).cf;
   const num = (v: unknown) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 10) / 10);
   return {
-    ipHash: await tagged(env.TOKEN_SECRET, 'ip', ip),
+    // У IPv6 клиенту обычно выдают целую сеть /64: лимиты и блоки по одному адресу обходились бы сменой адреса.
+    ipHash: await tagged(env.TOKEN_SECRET, 'ip', ip.includes(':') ? ipv6Prefix64(ip) : ip),
     ipMask: ip.includes(':') ? ip.split(':').slice(0, 3).join(':') + ':…' : ip.replace(/\.\d+$/, '.x'),
     asn: typeof cf?.asn === 'number' ? cf.asn : null,
     country: typeof cf?.country === 'string' ? cf.country : null,

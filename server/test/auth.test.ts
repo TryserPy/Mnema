@@ -87,3 +87,27 @@ describe('токены', () => {
     expect((await d.call('GET', '/v1/me')).body.error.code).toBe('token_expired');
   });
 });
+
+describe('перебор и псевдонимы', () => {
+  it('пачка параллельных догадок получает не больше 5 попыток', async () => {
+    const h = new Harness();
+    const code = await h.codeFor('brute@example.com');
+    const guesses = Array.from({ length: 40 }, (_, i) => String((Number(code) + 1 + i) % 1000000).padStart(6, '0'));
+    const all = await Promise.all(guesses.map((g) => h.json('POST', '/v1/auth/verify', { email: 'brute@example.com', code: g })));
+    expect(all.filter((r) => r.body?.error?.code === 'code_invalid' && r.body.error.attemptsLeft > 0).length).toBeLessThanOrEqual(4);
+    const row = await h.env.DB.prepare('SELECT attempts FROM login_codes WHERE email = ?1').bind('brute@example.com').first<{ attempts: number }>();
+    expect(row!.attempts).toBe(5);
+    // Верный код уже не помогает: попытки кончились (или раньше сработал лимит проверок с IP — 30 в час).
+    expect(['code_locked', 'too_fast']).toContain((await h.json('POST', '/v1/auth/verify', { email: 'brute@example.com', code })).body.error.code);
+  });
+
+  it('name+1@ и точки в Gmail — тот же аккаунт и те же лимиты; письмо уходит на введённый адрес', async () => {
+    const h = new Harness();
+    await h.login('anna.k@gmail.com');
+    await h.login('annak+school@gmail.com');
+    expect(await count(h, 'SELECT COUNT(*) AS n FROM accounts')).toBe(1);
+    expect(h.mails().some((m) => m.to === 'annak+school@gmail.com')).toBe(true);
+    await h.codeFor('a.n.n.a.k@googlemail.com');
+    expect((await h.json('POST', '/v1/auth/start', { email: 'annak+x@gmail.com', pow: await h.solvePow() })).body.error.code).toBe('too_fast');
+  });
+});

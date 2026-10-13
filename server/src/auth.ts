@@ -57,17 +57,19 @@ export async function checkPow(env: Env, pow: unknown, purpose: 'login' | 'bug')
 
 const codeHash = (env: Env, email: string, code: string) => tagged(env.TOKEN_SECRET, 'code', `${email}:${code}`);
 
-function cleanEmail(raw: unknown): string {
-  const email = typeof raw === 'string' ? normEmail(raw) : '';
-  if (email.length > 254 || !EMAIL_RE.test(email)) fail('email_rejected');
-  if (DISPOSABLE.has(email.split('@')[1])) fail('email_rejected');
-  return email;
+/** Проверить почту. typed — как ввёл ученик (туда уходит письмо), email — каноническая (ключ аккаунта и лимитов). */
+function cleanEmail(raw: unknown): { email: string; typed: string } {
+  const typed = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (typed.length > 254 || !EMAIL_RE.test(typed)) fail('email_rejected');
+  const email = normEmail(typed);
+  if (DISPOSABLE.has(email.split('@')[1]) || !EMAIL_RE.test(email)) fail('email_rejected');
+  return { email, typed };
 }
 
 export async function authStart(req: Request, env: Env, info: ClientInfo): Promise<Response> {
   const { body } = await readJson(req, 4096);
   const b = body as { email?: unknown; pow?: unknown };
-  const email = cleanEmail(b.email);
+  const { email, typed } = cleanEmail(b.email);
   await ipGate(env, info, await loadSettings(env));
   await checkPow(env, b.pow, 'login');
   // Лимиты: 3 кода в час на почту, 10 на IP. Отказ одинаковый для существующих и новых почт.
@@ -79,7 +81,7 @@ export async function authStart(req: Request, env: Env, info: ClientInfo): Promi
   await env.DB.prepare('INSERT INTO login_codes (email, code_hash, expires_at, attempts, locked_until) VALUES (?1, ?2, ?3, 0, NULL) ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, locked_until = NULL')
     .bind(email, await codeHash(env, email, code), t + CODE_TTL)
     .run();
-  const sent = await sendMail(env, email, `Код для входа в Refrain: ${code}`, `Твой код для входа в Refrain ИИ: ${code}\n\nОн действует 10 минут. Если ты не просил код, просто удали это письмо.`);
+  const sent = await sendMail(env, typed, `Код для входа в Refrain: ${code}`, `Твой код для входа в Refrain ИИ: ${code}\n\nОн действует 10 минут. Если ты не просил код, просто удали это письмо.`);
   if (!sent) fail('internal');
   return Response.json({ ok: true });
 }
@@ -87,21 +89,26 @@ export async function authStart(req: Request, env: Env, info: ClientInfo): Promi
 export async function authVerify(req: Request, env: Env, info: ClientInfo): Promise<Response> {
   const { body } = await readJson(req, 4096);
   const b = body as Partial<AuthVerify>;
-  const email = cleanEmail(b.email);
+  const { email } = cleanEmail(b.email);
   await ipGate(env, info, await loadSettings(env));
   const t = now(env);
-  const row = await env.DB.prepare('SELECT * FROM login_codes WHERE email = ?1').bind(email).first<{ code_hash: string; expires_at: number; attempts: number; locked_until: number | null }>();
-  if (row?.locked_until && row.locked_until > t) fail('code_locked', { retryAfter: Math.ceil((row.locked_until - t) / 1000) });
-  if (!row || row.expires_at < t) fail('code_invalid', { attemptsLeft: 0 });
+  if ((await bump(env, `verify:ip:${info.ipHash}`, 3600000)) > 30) fail('too_fast', { retryAfter: 3600 });
+  // Попытка тратится атомарно ДО сравнения кода: пачка параллельных догадок не получит больше 5 попыток.
+  const row = await env.DB.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE email = ?1 AND attempts < ?2 AND expires_at >= ?3 AND (locked_until IS NULL OR locked_until <= ?3) RETURNING code_hash, attempts')
+    .bind(email, CODE_ATTEMPTS, t)
+    .first<{ code_hash: string; attempts: number }>();
+  if (!row) {
+    const st = await env.DB.prepare('SELECT locked_until FROM login_codes WHERE email = ?1').bind(email).first<{ locked_until: number | null }>();
+    if (st?.locked_until && st.locked_until > t) fail('code_locked', { retryAfter: Math.ceil((st.locked_until - t) / 1000) });
+    fail('code_invalid', { attemptsLeft: 0 });
+  }
   if (typeof b.code !== 'string' || !/^\d{6}$/.test(b.code) || !safeEqual(await codeHash(env, email, b.code), row!.code_hash)) {
-    const attempts = row!.attempts + 1;
-    if (attempts >= CODE_ATTEMPTS) {
-      await env.DB.prepare('UPDATE login_codes SET attempts = ?2, locked_until = ?3 WHERE email = ?1').bind(email, attempts, t + CODE_LOCK).run();
-      await recordEvent(env, 'auth_fail', info);
+    await recordEvent(env, 'auth_fail', info);
+    if (row!.attempts >= CODE_ATTEMPTS) {
+      await env.DB.prepare('UPDATE login_codes SET locked_until = ?2 WHERE email = ?1').bind(email, t + CODE_LOCK).run();
       fail('code_locked', { retryAfter: CODE_LOCK / 1000 });
     }
-    await env.DB.prepare('UPDATE login_codes SET attempts = ?2 WHERE email = ?1').bind(email, attempts).run();
-    fail('code_invalid', { attemptsLeft: CODE_ATTEMPTS - attempts });
+    fail('code_invalid', { attemptsLeft: CODE_ATTEMPTS - row!.attempts });
   }
   const dev = b.device;
   if (!dev || typeof dev !== 'object' || !(await validDeviceKey(dev.publicKey)) || !['windows', 'linux', 'android'].includes(dev.platform) || typeof dev.name !== 'string') fail('bad_request');
@@ -126,7 +133,9 @@ export async function authVerify(req: Request, env: Env, info: ClientInfo): Prom
     } else if (devices.length >= Math.max(1, lim.devices)) fail('device_limit', { devices });
   }
 
-  await env.DB.prepare('DELETE FROM login_codes WHERE email = ?1').bind(email).run();
+  // Код тратится один раз: из параллельных verify с верным кодом пройдёт только один (лимит устройств не обойти).
+  const used = await env.DB.prepare('DELETE FROM login_codes WHERE email = ?1 AND code_hash = ?2 RETURNING email').bind(email, row!.code_hash).first();
+  if (!used) fail('code_invalid', { attemptsLeft: 0 });
   if (isNew) {
     await env.DB.prepare('INSERT INTO accounts (id, email, grp, created_at) VALUES (?1, ?2, ?3, ?4)').bind(account.id, email, account.grp, t).run();
     await recordEvent(env, 'signup', info, { accountId: account.id });

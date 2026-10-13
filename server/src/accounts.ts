@@ -28,7 +28,17 @@ export interface Device {
 
 export const FOREVER = 9e15;
 
-export const normEmail = (e: string): string => e.trim().toLowerCase();
+/**
+ * Каноническая почта — ключ аккаунта и лимитов: без «+метки» и, у Gmail, без точек. Так name+1@… и n.ame@gmail.com — один аккаунт,
+ * а не бесконечный запас «Новичков» с одного ящика. Письмо с кодом уходит на адрес, который ввёл ученик.
+ */
+export function normEmail(e: string): string {
+  const [user = '', domain = ''] = e.trim().toLowerCase().split('@');
+  const d = domain === 'googlemail.com' ? 'gmail.com' : domain;
+  let u = user.split('+')[0];
+  if (d === 'gmail.com') u = u.replace(/\./g, '');
+  return `${u}@${d}`;
+}
 export const isOwner = (env: Env, email: string): boolean => Boolean(env.OWNER_EMAIL) && normEmail(email) === normEmail(env.OWNER_EMAIL);
 
 export async function accountById(env: Env, id: string): Promise<Account | null> {
