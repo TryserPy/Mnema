@@ -103,6 +103,8 @@ export interface AuthVerify {
   code: string; // 6 цифр
   device: { publicKey: string; name: string; platform: Platform };
   invite?: string; // RFN-XXXX-XXXX
+  /** Повтор после device_limit: какое из устройств отвязать (код остаётся действительным, пока не истёк). */
+  replaceDevice?: string;
 }
 export interface AuthTokens {
   ok: true;

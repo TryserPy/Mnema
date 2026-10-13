@@ -1,0 +1,45 @@
+# Сервер Refrain ИИ (1.31). Выкладка — только вручную (workflow «Сервер Refrain ИИ», запуск по кнопке).
+# Секреты задаются командой `wrangler secret put <ИМЯ>` и в репозиторий не попадают (список — docs/refrain-1.31/launch.md).
+name = "refrain-ai"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+OPENAI_MODEL = "gpt-6-luna"
+# Сайт, с которого открываются панель и мини-приложение (CORS только для /v1/admin/*).
+ADMIN_ORIGIN = "https://tryserpy.github.io"
+ADMIN_URL = "https://tryserpy.github.io/Mnema-site/admin/"
+TG_APP_URL = "https://tryserpy.github.io/Mnema-site/tg/"
+# Выпуски приложения, которые бывают на самом деле (правило «версия не существует»). Дополняется при выпуске.
+APP_VERSIONS = "1.31.0"
+POW_DIFFICULTY = "20"
+MAIL_FROM_NAME = "Refrain"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "refrain"
+# id появится после `wrangler d1 create refrain` (см. docs/refrain-1.31/launch.md)
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[durable_objects.bindings]]
+name = "STUDENT"
+class_name = "StudentCounter"
+
+[[durable_objects.bindings]]
+name = "BUDGET"
+class_name = "BudgetCounter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StudentCounter", "BudgetCounter"]
+
+[triggers]
+# Тревоги (повторы), сверка с OpenAI, скачок расхода, чистка старых записей.
+crons = ["*/5 * * * *"]
+
+[observability]
+enabled = true
+# В журнал Worker не пишутся тела запросов и ответов: только коды ошибок (см. src/http.ts).
