@@ -16,6 +16,7 @@ const LINKS: Record<'anthropic' | 'gemini', { name: string; url: string }> = {
 export const AI_PRESETS: { name: string; format: AiFormat; baseUrl: string; auth: AiAuth; vision: boolean; note?: string }[] = [
   { name: 'OpenAI (ChatGPT)', format: 'openai', baseUrl: 'https://api.openai.com/v1', auth: 'bearer', vision: true },
   { name: 'OpenRouter', format: 'openai', baseUrl: 'https://openrouter.ai/api/v1', auth: 'bearer', vision: true, note: 'Сотни моделей по одному ключу, есть бесплатные (с «:free»). Бесплатные бывают перегружены — тогда Refrain сам возьмёт другую бесплатную. «openrouter/free» — любая свободная бесплатная модель.' },
+  { name: 'Polza.ai', format: 'openai', baseUrl: 'https://polza.ai/api/v1', auth: 'bearer', vision: true, note: 'Claude, Gemini, GPT и другие модели по одному ключу (polza.ai → личный кабинет → API-ключи). Модель пишется как «провайдер/модель», например anthropic/claude-haiku-4.5 — выбери её кнопкой «Найти модели».' },
   { name: 'DeepSeek', format: 'openai', baseUrl: 'https://api.deepseek.com/v1', auth: 'bearer', vision: false, note: 'Картинки не понимает — для фото выбери другой ИИ.' },
   { name: 'Mistral', format: 'openai', baseUrl: 'https://api.mistral.ai/v1', auth: 'bearer', vision: true },
   { name: 'Groq', format: 'openai', baseUrl: 'https://api.groq.com/openai/v1', auth: 'bearer', vision: false },
