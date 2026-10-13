@@ -39,3 +39,10 @@ Mnema-site: сборки и тестов нет (статический сайт
 - `src/components/PromptsSettings.tsx` (C) → раздел «ИИ» в `Settings.tsx` / `AiSettings.tsx` (D).
 - Промты «Объяснить иначе» и «Формула» из `src/ai.ts` → шаблоны C (C не трогает `ai.ts`).
 - «Из тетради» (F) для своего ключа: `lunaSystem('notebook.read')` → шаблоны C.
+
+## Сигнал «90» (лимит владельца)
+
+- Потокам велено закоммитить незавершённое (WIP) и записать `docs/refrain-1.31/progress-<поток>.md` в своих ветках worktree (`worktree-agent-*` в `.claude/worktrees/`), E — `progress-E.md` в Mnema-site.
+- Mnema-site: коммиты потока E запушены в `claude/wizardly-volta-879gpb`.
+- Ветки worktree A, B, C, D, F живут только в этом контейнере. Если сессия оборвётся до слияния — их работа пропадёт; перезапуск потоков — по `streams.md`.
+- Ревьюер безопасности пишет находки в `docs/refrain-1.31/security-review.md`.
