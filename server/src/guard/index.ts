@@ -6,10 +6,13 @@ import type { AlertButton, AlertKind, Level, ReactionKind, RuleId, SubjectKind }
 import { FOREVER, revokeSessions, unbindDevice } from '../accounts';
 import { raiseAlert } from '../alerts';
 import { now, type Env } from '../env';
-import { maskEmail, type ClientInfo } from '../http';
+import { fail, maskEmail, type ClientInfo } from '../http';
 import { journal } from '../journal';
 import { loadSettings, saveSetting, type Settings } from '../settings';
 import { CONTRACT_RULES, FORGERY_RULES, TRAVEL_RULES } from './rules';
+
+/** Правила про сам адрес: им IP отвечает полностью, даже когда аккаунт известен. */
+const IP_RULES = new Set<RuleId>(['ip_many_accounts', 'signup_wave_ip', 'ua_missing']);
 
 export interface Subjects {
   account?: { id: string; email: string; group: GroupId };
@@ -63,6 +66,14 @@ export async function gate(env: Env, s: Subjects, cfg: Settings): Promise<GateRe
   return { blocked: blocks.length ? { until } : null, slowdown: results.some((r) => r.level === 1) ? cfg.guard.slowdownFactor : 1 };
 }
 
+/** Вход и баги без аккаунта: действует ли блок IP или ASN. */
+export async function ipGate(env: Env, info: ClientInfo, cfg: Settings): Promise<void> {
+  const g = await gate(env, { info }, cfg);
+  if (g.blocked) {
+    fail('blocked', { until: g.blocked.until ? new Date(g.blocked.until).toISOString() : null });
+  }
+}
+
 export interface SignalResult {
   level: Level;
   reactions: ReactionKind[];
@@ -85,7 +96,8 @@ export async function signal(env: Env, rules: RuleId[], s: Subjects, cfgIn?: Set
   for (const kind of ['account', 'device', 'ip', 'asn'] as SubjectKind[]) {
     const id = subjectId(kind, s);
     if (!id) continue;
-    const w = active.filter((r) => g.rules[r].subjects.includes(kind)).reduce((a, r) => a + g.rules[r].weight, 0);
+    let w = active.filter((r) => g.rules[r].subjects.includes(kind)).reduce((a, r) => a + g.rules[r].weight, 0);
+    if ((kind === 'ip' || kind === 'asn') && s.account && !active.every((r) => IP_RULES.has(r))) w *= g.ipShareKnown ?? 0.25;
     if (!w) continue;
     scores[kind] = await addScore(env, kind, id, w, g.halfLifeMin);
   }
@@ -139,14 +151,15 @@ export async function signal(env: Env, rules: RuleId[], s: Subjects, cfgIn?: Set
     reactions.push('unbind_device');
     level = 2;
   }
-  if (ipLevel >= 1 && !owner) level = Math.max(level, ipLevel) as Level;
-  if (ipLevel === 2 && !owner) {
+  const trusted = owner || s.account?.group === 'tester';
+  if (ipLevel >= 1 && !trusted) level = Math.max(level, ipLevel) as Level;
+  if (ipLevel === 2 && !trusted) {
     if (await addBlock(env, s, 'ip', 2, active, g.blockIpMin, false)) reactions.push('block_ip');
     if (s.info.asn !== null) {
       const sameAsn = await env.DB.prepare("SELECT COUNT(DISTINCT subject) AS n FROM blocks WHERE kind = 'ip' AND asn = ?1 AND level = 2 AND lifted_at IS NULL AND until > ?2").bind(s.info.asn, now(env)).first<{ n: number }>();
       if ((sameAsn?.n ?? 0) >= 3 && (await addBlock(env, s, 'asn', 2, active, g.blockAsnMin, false))) reactions.push('block_asn');
     }
-  } else if (ipLevel === 1 && !owner && !s.account) {
+  } else if (ipLevel === 1 && !trusted && !s.account) {
     if (await addBlock(env, s, 'ip', 1, active, g.slowdownMin, false)) reactions.push('slowdown');
   }
 
@@ -162,16 +175,17 @@ export async function signal(env: Env, rules: RuleId[], s: Subjects, cfgIn?: Set
     });
   }
   if (level === 2 || (owner && accScore >= g.level2)) {
+    const kind: AlertKind = owner || reactions.includes('pending_block') ? 'pending_block' : alertKind(active, reactions);
     await raiseAlert(env, {
       level: 'warn',
-      kind: owner || reactions.includes('pending_block') ? 'pending_block' : alertKind(active, reactions),
+      kind,
       title: owner ? 'Защита сработала на твоём аккаунте' : reactions.includes('pending_block') ? 'Подозрительно: ждёт твоего решения' : titleFor(active, reactions),
       text: owner ? 'Тебя сервер не блокирует. Если это не ты — смени устройства и проверь почту.' : reactions.includes('pending_block') ? 'Это тестировщик: блок применится только по твоему подтверждению.' : 'Сработала автоматическая защита.',
       rules: active,
       who: who(s),
       done: reactions,
       buttons: buttonsFor(reactions),
-      groupKey: `guard:${alertKind(active, reactions)}`,
+      groupKey: `guard:${kind}${owner ? ':owner' : ''}`,
       target: s.account?.id
     }).then((a) => a.deliver);
     if (!owner) await checkMass(env, cfg);
@@ -253,9 +267,15 @@ export async function liftBlock(env: Env, id: number, actor: 'owner:tg' | 'owner
   if (b.kind === 'account') {
     await env.DB.prepare("UPDATE accounts SET blocked_until = NULL, block_reason = NULL WHERE id = ?1 AND (block_reason = 'guard' OR block_reason IS NULL)").bind(b.subject).run();
     await env.DB.prepare("DELETE FROM scores WHERE kind = 'account' AND subject = ?1").bind(b.subject).run();
+    await forgetHistory(env, b.subject);
   } else await env.DB.prepare('DELETE FROM scores WHERE kind = ?1 AND subject = ?2').bind(b.kind, b.subject).run();
   await journal(env, { actor, action: 'block.lift', target: { kind: b.kind as SubjectKind, id: b.subject }, before: { level: b.level, pending: b.pending } });
   return true;
+}
+
+/** После снятия блока окна детектора начинаются заново: старая история (например, прежний город) не должна сразу блокировать снова. */
+export async function forgetHistory(env: Env, accountId: string): Promise<void> {
+  await env.DB.prepare('DELETE FROM events WHERE account_id = ?1').bind(accountId).run();
 }
 
 /** Подтвердить ожидающий блок (тестировщик): блок применяется. */

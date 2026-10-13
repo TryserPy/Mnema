@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 0. Разведка | готово | — |
 | 1. Контракты | готово, ждёт утверждения пользователем | после «да» — запуск потоков A–F |
-| 2. Сервер и защита (`server/`) | в работе (ведущий) | см. ниже |
+| 2. Сервер и защита (`server/`) | готово: 56 тестов (`cd server && npm ci && npx vitest run`) | security-review в фазе 4 |
 | 3. Потоки A–F | не начаты (ждут утверждения контрактов) | |
 | 4. Интеграция и проверка | не начата | |
 
@@ -24,9 +24,11 @@
 ## Проверки репозитория
 
 Mnema: `npx tsc --noEmit`, `npx vitest run`, `npx vite build`, `npx vite build --mode web` (как в `.github/workflows/ci.yml`; линтера в репозитории нет).
+Сервер: `cd server && npm ci && npx tsc --noEmit && npx vitest run` (workflow `server.yml`; выкладка только вручную).
 Mnema-site: сборки и тестов нет (статический сайт).
 
 ## Журнал
 
 - Фаза 0: базовые проверки зелёные (tsc ok, 60 файлов / 963 теста). Ссылки документа на код совпадают.
 - Фаза 1: контракты в `shared/refrain/*`, `shared/prompts/{markup,tasks}.ts`, `src/styleModel.ts`; тест `src/contracts131.test.ts`.
+- Фаза 2: `server/` — Worker + D1 + DO; модуль защиты `server/src/guard/`; тесты `server/test/*` (правила, вход, задачи, атаки, тревоги). Дополнения контракта: `replaceDevice`, `ipShareKnown`, `token_unknown` → аккаунт и IP.

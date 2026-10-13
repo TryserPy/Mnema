@@ -10,7 +10,7 @@ import { bugToGithub } from './bugs';
 import { checkPin, randomDigits, randomToken, safeEqual, tagged } from './crypto';
 import { now, type Env } from './env';
 import { fail, maskEmail, readJson } from './http';
-import { confirmBlock, liftBlock, scoreOf } from './guard';
+import { confirmBlock, forgetHistory, liftBlock, scoreOf } from './guard';
 import { journal, journalList } from './journal';
 import { sendMail } from './mail';
 import { loadSettings, saveSetting, type Settings } from './settings';
@@ -167,6 +167,7 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
     await env.DB.prepare('UPDATE accounts SET blocked_until = NULL, block_reason = NULL WHERE id = ?1').bind(seg[1]).run();
     await env.DB.prepare("UPDATE blocks SET lifted_at = ?2 WHERE kind = 'account' AND subject = ?1 AND lifted_at IS NULL").bind(seg[1], t).run();
     await env.DB.prepare("DELETE FROM scores WHERE kind = 'account' AND subject = ?1").bind(seg[1]).run();
+    await forgetHistory(env, seg[1]);
     await journal(env, { actor, action: 'account.unblock', target: { kind: 'account', id: seg[1] } });
     return Response.json({ ok: true });
   }
@@ -337,6 +338,7 @@ function cleanGuard(g: GuardConfig): GuardConfig {
   return {
     rules,
     halfLifeMin: num(g?.halfLifeMin, 1, 1440, d.halfLifeMin),
+    ipShareKnown: num(g?.ipShareKnown, 0, 1, d.ipShareKnown),
     level1: num(g?.level1, 1, 10000, d.level1),
     level2: Math.max(num(g?.level2, 1, 10000, d.level2), num(g?.level1, 1, 10000, d.level1) + 1),
     slowdownFactor: num(g?.slowdownFactor, 1, 100, d.slowdownFactor),

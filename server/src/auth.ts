@@ -6,7 +6,7 @@ import { accountByEmail, devicesOf, effectiveGroup, groupLimits, normEmail, quot
 import { randomDigits, randomId, randomToken, safeEqual, sha256, tagged, validDeviceKey } from './crypto';
 import { now, type Env } from './env';
 import { fail, maskEmail, readJson, type ClientInfo } from './http';
-import { signal } from './guard';
+import { ipGate, signal } from './guard';
 import { recordEvent, signupsFromIp } from './guard/windows';
 import { journal } from './journal';
 import { sendMail } from './mail';
@@ -68,6 +68,7 @@ export async function authStart(req: Request, env: Env, info: ClientInfo): Promi
   const { body } = await readJson(req, 4096);
   const b = body as { email?: unknown; pow?: unknown };
   const email = cleanEmail(b.email);
+  await ipGate(env, info, await loadSettings(env));
   await checkPow(env, b.pow, 'login');
   // Лимиты: 3 кода в час на почту, 10 на IP. Отказ одинаковый для существующих и новых почт.
   if ((await bump(env, `code:mail:${email}`, 3600000)) > 3 || (await bump(env, `code:ip:${info.ipHash}`, 3600000)) > 10) fail('too_fast', { retryAfter: 3600 });
@@ -87,6 +88,7 @@ export async function authVerify(req: Request, env: Env, info: ClientInfo): Prom
   const { body } = await readJson(req, 4096);
   const b = body as Partial<AuthVerify>;
   const email = cleanEmail(b.email);
+  await ipGate(env, info, await loadSettings(env));
   const t = now(env);
   const row = await env.DB.prepare('SELECT * FROM login_codes WHERE email = ?1').bind(email).first<{ code_hash: string; expires_at: number; attempts: number; locked_until: number | null }>();
   if (row?.locked_until && row.locked_until > t) fail('code_locked', { retryAfter: Math.ceil((row.locked_until - t) / 1000) });

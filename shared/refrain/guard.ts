@@ -48,6 +48,8 @@ export interface GuardConfig {
   rules: Record<RuleId, RuleConfig>;
   /** Баллы затухают вдвое за это время. */
   halfLifeMin: number;
+  /** Доля баллов, которая идёт IP за нарушения опознанного аккаунта: один ученик не должен блокировать школьный NAT. */
+  ipShareKnown: number;
   /** Пороги суммы баллов субъекта. Для групп умножаются на guardFactor из policy.ts. */
   level1: number;
   level2: number;
@@ -79,7 +81,7 @@ export interface GuardConfig {
 export const DEFAULT_GUARD: GuardConfig = {
   rules: {
     sig_invalid: { weight: 40, subjects: ['device', 'ip'], enabled: true },
-    token_unknown: { weight: 15, subjects: ['ip'], enabled: true },
+    token_unknown: { weight: 15, subjects: ['account', 'ip'], enabled: true },
     device_unknown: { weight: 15, subjects: ['ip'], enabled: true },
     nonce_replay: { weight: 60, subjects: ['account', 'device', 'ip'], enabled: true },
     time_skew: { weight: 5, subjects: ['device'], enabled: true },
@@ -100,6 +102,7 @@ export const DEFAULT_GUARD: GuardConfig = {
     signup_wave_ip: { weight: 40, subjects: ['ip'], params: { accounts: 5, windowMin: 60 }, enabled: true }
   },
   halfLifeMin: 30,
+  ipShareKnown: 0.25,
   level1: 40,
   level2: 100,
   slowdownFactor: 3,

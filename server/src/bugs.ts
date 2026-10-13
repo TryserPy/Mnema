@@ -6,6 +6,8 @@ import { fromB64 } from './crypto';
 import { now, outbound, type Env } from './env';
 import { fail, readJson, type ClientInfo } from './http';
 import { raiseAlert } from './alerts';
+import { ipGate } from './guard';
+import { loadSettings } from './settings';
 
 const CATEGORIES = ['note', 'textbook', 'cards', 'styles', 'ai', 'other'];
 const CAT_RU: Record<string, string> = { note: 'Конспект', textbook: 'Из учебника', cards: 'Карточки', styles: 'Стили', ai: 'ИИ', other: 'Другое' };
@@ -22,6 +24,7 @@ export function scrub(s: string): string {
 export async function handleBug(req: Request, env: Env, info: ClientInfo): Promise<Response> {
   const { body } = await readJson(req, 2 * 1024 * 1024);
   const b = body as Partial<BugReport>;
+  await ipGate(env, info, await loadSettings(env));
   await checkPow(env, b.pow, 'bug');
   if ((await bump(env, `bug:ip:${info.ipHash}`, 3600000)) > 20) fail('too_fast', { retryAfter: 3600 });
   if (typeof b.text !== 'string' || !b.text.trim() || b.text.length > 2000 || !CATEGORIES.includes(String(b.category))) fail('bad_request');
