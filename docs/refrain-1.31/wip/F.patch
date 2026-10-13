@@ -1,0 +1,507 @@
+From 03726ac91c780341e7a6bce7c97b471bd439af60 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 13 Oct 2026 17:51:36 +0000
+Subject: [PATCH 1/3] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20F:=20?=
+ =?UTF-8?q?=D0=B7=D0=B0=D0=BC=D0=B5=D1=82=D0=BA=D0=B0=20=D0=BE=20=D1=85?=
+ =?UTF-8?q?=D0=BE=D0=B4=D0=B5=20=D1=80=D0=B0=D0=B1=D0=BE=D1=82=D1=8B=20(WI?=
+ =?UTF-8?q?P)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ docs/refrain-1.31/progress-F.md | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+ create mode 100644 docs/refrain-1.31/progress-F.md
+
+diff --git a/docs/refrain-1.31/progress-F.md b/docs/refrain-1.31/progress-F.md
+new file mode 100644
+index 0000000..86c5bb1
+--- /dev/null
++++ b/docs/refrain-1.31/progress-F.md
+@@ -0,0 +1,23 @@
++# Поток F «Тетрадь и файлы» — ход работы
++
++Ветка: `worktree-agent-a4aad8ef4673abf44` (перемотана fast-forward на 7f40db1 — контракты 1.31).
++
++## План (файлы)
++- `src/notebook.ts` — чистые функции: разворот → две половины, «отбелить» клетку, метки `{?слово?}`, «Как в тетради», запрос `notebook.read`, разбор ответа.
++- `src/notebookPhoto.ts` — canvas: загрузка фото, деление разворота, уменьшение до 1600 px, запрос к ИИ.
++- `src/fileImport.ts` — .docx (fflate), Markdown/Notion (через `mdImport.ts`), разделы, «похоже на ДЗ», совпадение с темами.
++- `src/fileImportPdf.ts` — PDF с текстом без новой зависимости (FlateDecode через fflate, ToUnicode), скан → ветка «Фото».
++- `src/components/NotebookImport.tsx`, `src/components/FileImport.tsx`, `src/notebook.css`, пункт в `CreateMenu.tsx`.
++- `src/v131-notebook.test.ts`, `e2e/v131-notebook.mjs`, `test-fixtures/notebook/*.docx`.
++
++## Готово
++- (пока ничего; зависимости поставлены, документы прочитаны)
++
++## В работе
++- `src/notebook.ts`
++
++## Осталось
++- всё из плана выше
++
++## Проверки
++- ещё не запускались
+-- 
+2.43.0
+
+
+From e2c4e641a4ec64da8cf59256c3878e74c4b3f204 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 13 Oct 2026 17:53:37 +0000
+Subject: [PATCH 2/3] =?UTF-8?q?=D0=98=D0=B7=20=D1=82=D0=B5=D1=82=D1=80?=
+ =?UTF-8?q?=D0=B0=D0=B4=D0=B8:=20=D1=80=D0=B0=D0=B7=D0=B2=D0=BE=D1=80?=
+ =?UTF-8?q?=D0=BE=D1=82,=20=D0=BA=D0=BB=D0=B5=D1=82=D0=BA=D0=B0,=20=D0=B7?=
+ =?UTF-8?q?=D0=B0=D0=BF=D1=80=D0=BE=D1=81=20notebook.read,=20=D0=BC=D0=B5?=
+ =?UTF-8?q?=D1=82=D0=BA=D0=B8=20{=3F=D1=81=D0=BB=D0=BE=D0=B2=D0=BE=3F}=20?=
+ =?UTF-8?q?=D0=B8=20=C2=AB=D0=9A=D0=B0=D0=BA=20=D0=B2=20=D1=82=D0=B5=D1=82?=
+ =?UTF-8?q?=D1=80=D0=B0=D0=B4=D0=B8=C2=BB=20(=D1=87=D0=B8=D1=81=D1=82?=
+ =?UTF-8?q?=D1=8B=D0=B5=20=D1=84=D1=83=D0=BD=D0=BA=D1=86=D0=B8=D0=B8=20?=
+ =?UTF-8?q?=D0=B8=20=D1=82=D0=B5=D1=81=D1=82=D1=8B)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ src/notebook.ts           | 254 ++++++++++++++++++++++++++++++++++++++
+ src/v131-notebook.test.ts |  96 ++++++++++++++
+ 2 files changed, 350 insertions(+)
+ create mode 100644 src/notebook.ts
+ create mode 100644 src/v131-notebook.test.ts
+
+diff --git a/src/notebook.ts b/src/notebook.ts
+new file mode 100644
+index 0000000..4199325
+--- /dev/null
++++ b/src/notebook.ts
+@@ -0,0 +1,254 @@
++// «Из тетради → Фото»: почерк ученика читает ИИ со зрением (задача notebook.read).
++// Здесь чистые функции без сети и canvas — их проверяют тесты (v131-notebook.test.ts):
++//  • разворот тетради → две страницы, светлая клетка и поля → белая бумага;
++//  • запрос notebook.read (Refrain ИИ и свой ключ) и разбор ответа;
++//  • неуверенные слова {?слово?}: найти, поправить, снять метки;
++//  • «Как в тетради» — обратно к сокращениям ученика.
++import { MARKS } from '../shared/prompts/markup';
++import { lunaSystem, lunaUser } from '../shared/prompts/luna';
++import { TASK_SPECS } from '../shared/prompts/tasks';
++import { FIELD_LIMITS } from '../shared/refrain/api.mjs';
++import type { AiRequest } from './store';
++import { fixFormulas } from './textbookMath';
++import { normalizeAiBlocks, sanitizeAiText } from './textbookText';
++
++// ---------- Разворот ----------
++
++export interface Cut {
++  x: number;
++  y: number;
++  w: number;
++  h: number;
++}
++
++/** Снимок похож на разворот: заметно шире, чем выше (одна страница тетради — «стоячая»). */
++export function isSpreadShape(w: number, h: number): boolean {
++  return h > 0 && w / h >= 1.2;
++}
++
++/**
++ * Разворот → левая и правая страницы (в пикселях снимка). spine — где корешок, если его нашли по картинке
++ * (левая страница — [0, a), правая — [b, w)); иначе режем ровно посередине: у тетради корешок почти всегда в центре кадра.
++ */
++export function spreadCuts(w: number, h: number, spine?: { a: number; b: number } | null): [Cut, Cut] {
++  let a = Math.round(w / 2);
++  let b = a;
++  if (spine && spine.a > w * 0.3 && spine.b < w * 0.7 && spine.b >= spine.a) {
++    a = Math.round(spine.a);
++    b = Math.round(spine.b);
++  }
++  return [
++    { x: 0, y: 0, w: a, h },
++    { x: b, y: 0, w: w - b, h }
++  ];
++}
++
++/**
++ * Клетка, линейка и поля — светлые цветные линии, а ручка и карандаш темнее. После выравнивания света всё светлее порога
++ * становится белым: на фото остаются только записи. RGBA меняется на месте.
++ */
++export function whitenPaper(rgba: Uint8ClampedArray, threshold = 175): Uint8ClampedArray {
++  for (let i = 0; i < rgba.length; i += 4) {
++    const r = rgba[i];
++    const g = rgba[i + 1];
++    const b = rgba[i + 2];
++    // Синяя клетка (170,190,220) светлая в среднем. Красные поля (220,120,120) темнее, но это яркий цвет без тёмного канала,
++    // а у ручки (40,60,150; 200,40,40) один канал всегда тёмный. Серый карандаш (160,160,160) не яркий — остаётся.
++    const avg = (r + g + b) / 3;
++    const min = Math.min(r, g, b);
++    const max = Math.max(r, g, b);
++    if (avg >= threshold || (max >= 200 && min >= threshold - 70)) rgba[i] = rgba[i + 1] = rgba[i + 2] = 255;
++  }
++  return rgba;
++}
++
++// ---------- Запрос к ИИ ----------
++
++/** Для своего ключа потолок ответа выше, чем у Luna: у чужих моделей рассуждение тоже съедает ответ. */
++const OWN_KEY_TOKENS = 4000;
++
++export interface NotebookContext {
++  subject?: string;
++  topic?: string;
++  page?: number;
++}
++
++function clip(s: string | undefined, max: number): string | undefined {
++  const t = (s ?? '').replace(/\s+/g, ' ').trim();
++  return t ? t.slice(0, max) : undefined;
++}
++
++/**
++ * Запрос «прочитать страницу тетради»: для Refrain ИИ — только данные (поле refrain), для своего ключа — тот же промт Luna.
++ * Свои указания ученика и выбранный ИИ добавит aiRequest() у вызывающего.
++ */
++export function notebookRequest(image: { mime: 'image/jpeg'; data: string }, ctx: NotebookContext): AiRequest {
++  const subject = clip(ctx.subject, FIELD_LIMITS.subject);
++  const topic = clip(ctx.topic, FIELD_LIMITS.topic);
++  const page = ctx.page && Number.isInteger(ctx.page) && ctx.page >= 1 && ctx.page <= FIELD_LIMITS.page ? ctx.page : undefined;
++  return {
++    // TODO(поток C): заменить на шаблон для других ИИ, когда он будет готов.
++    system: lunaSystem('notebook.read'),
++    text: lunaUser('notebook.read', { subject, topic, page }),
++    image,
++    maxTokens: OWN_KEY_TOKENS,
++    refrain: { task: 'notebook.read', image, ...(subject ? { subject } : {}), ...(topic ? { topic } : {}), ...(page ? { page } : {}) }
++  };
++}
++
++/** «Конспектом»: прочитанный текст тетради сводится в опрятный конспект той же задачей, что «Свести параграф». */
++export function tidyRequest(text: string, ctx: NotebookContext): AiRequest {
++  const subject = clip(ctx.subject, FIELD_LIMITS.subject);
++  const topic = clip(ctx.topic, FIELD_LIMITS.topic);
++  const body = text.slice(0, TASK_SPECS['textbook.merge'].textMax);
++  return {
++    system: lunaSystem('textbook.merge'),
++    text: lunaUser('textbook.merge', { subject, topic, text: body }),
++    maxTokens: OWN_KEY_TOKENS,
++    refrain: { task: 'textbook.merge', text: body, ...(subject ? { subject } : {}), ...(topic ? { topic } : {}) }
++  };
++}
++
++export interface NotebookPage {
++  markdown: string;
++  /** Номер страницы, если ИИ его увидел ([[СТРАНИЦА N]]). */
++  page?: number;
++  /** На фото нет записей ([[ПУСТО]]). */
++  empty: boolean;
++}
++
++/** Ответ ИИ → Markdown страницы. Метки {?слово?} сохраняются, всё служебное ([[…]], HTML, ```) убирается. */
++export function parseNotebookAnswer(raw: string): NotebookPage {
++  let md = sanitizeAiText(String(raw ?? '')).trim();
++  if (MARKS.empty.test(md) || (/\[\[ПУСТО\]\]/.test(md) && md.replace(/\[\[ПУСТО\]\]/g, '').trim().length < 20)) return { markdown: '', empty: true };
++  let page: number | undefined;
++  md = md.replace(/\[\[\s*СТРАНИЦА\s*[:№#]?\s*(\d{1,4})\s*\]\]/gi, (_m, n: string) => {
++    page = Number(n);
++    return '';
++  });
++  md = md.replace(/\[\[[^\]\n]{0,80}\]\]/g, '');
++  md = md.replace(/\\\(([\s\S]+?)\\\)/g, (_m, t: string) => `$${t.trim()}$`).replace(/\\\[([\s\S]+?)\\\]/g, (_m, t: string) => `$$${t.trim()}$$`);
++  md = normalizeAiBlocks(md);
++  md = fixFormulas(md).md;
++  md = md.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
++  return { markdown: md, page, empty: !md };
++}
++
++// ---------- Неуверенные слова ----------
++
++export type Piece = { text: string } | { unsure: string; i: number };
++
++/** Текст на куски: обычный текст и неуверенные слова по порядку (i — номер метки в тексте). */
++export function unsurePieces(md: string): Piece[] {
++  const out: Piece[] = [];
++  let last = 0;
++  let i = 0;
++  for (const m of md.matchAll(new RegExp(MARKS.unsure.source, 'g'))) {
++    if (m.index! > last) out.push({ text: md.slice(last, m.index) });
++    out.push({ unsure: m[1], i: i++ });
++    last = m.index! + m[0].length;
++  }
++  if (last < md.length) out.push({ text: md.slice(last) });
++  return out;
++}
++
++export function unsureCount(md: string): number {
++  return (md.match(new RegExp(MARKS.unsure.source, 'g')) ?? []).length;
++}
++
++/** Поправить i-е неуверенное слово: метка снимается, слово становится обычным текстом. Пустая правка — слово как было. */
++export function fixUnsure(md: string, i: number, word: string): string {
++  let k = 0;
++  return md.replace(new RegExp(MARKS.unsure.source, 'g'), (all, w: string) => (k++ === i ? word.trim() || w : all));
++}
++
++/** Все метки снимаются (ученик согласен с прочитанным): в конспект {?…?} как текст не попадает. */
++export function acceptUnsure(md: string): string {
++  return md.replace(new RegExp(MARKS.unsure.source, 'g'), '$1');
++}
++
++// ---------- «Как в тетради» ----------
++
++/**
++ * Привычные школьные сокращения: ИИ их раскрывает («в-в» → «веществ»), «Как в тетради» сворачивает обратно.
++ * Только устойчивые сокращения: свои словечки ученика по тексту не восстановить, их видно на фото рядом.
++ */
++const ABBREVIATIONS: [string, string][] = [
++  ['так как', 'т.к.'],
++  ['то есть', 'т.е.'],
++  ['и так далее', 'и т.д.'],
++  ['и тому подобное', 'и т.п.'],
++  ['так называемый', 'т.н.'],
++  ['так называемая', 'т.н.'],
++  ['так называемые', 'т.н.'],
++  ['например', 'напр.'],
++  ['смотри', 'см.'],
++  ['вещество', 'в-во'],
++  ['вещества', 'в-ва'],
++  ['веществ', 'в-в'],
++  ['веществами', 'в-вами'],
++  ['веществом', 'в-вом'],
++  ['количество', 'кол-во'],
++  ['количества', 'кол-ва'],
++  ['уравнение', 'ур-е'],
++  ['уравнения', 'ур-я'],
++  ['уравнений', 'ур-й'],
++  ['реакция', 'р-ция'],
++  ['реакции', 'р-ции'],
++  ['раствор', 'р-р'],
++  ['раствора', 'р-ра'],
++  ['растворы', 'р-ры'],
++  ['формула', 'ф-ла'],
++  ['формулы', 'ф-лы'],
++  ['определение', 'опр.'],
++  ['правило', 'пр.'],
++  ['рисунок', 'рис.'],
++  ['страница', 'стр.'],
++  ['упражнение', 'упр.'],
++  ['тысяч', 'тыс.'],
++  ['миллионов', 'млн'],
++  ['миллиона', 'млн'],
++  ['миллион', 'млн'],
++  ['миллиардов', 'млрд'],
++  ['миллиард', 'млрд'],
++  ['человек', 'чел.'],
++  ['век', 'в.'],
++  ['века', 'в.'],
++  ['веке', 'в.'],
++  ['годы', 'гг.'],
++  ['годах', 'гг.'],
++  ['году', 'г.'],
++  ['года', 'г.'],
++  ['год', 'г.']
++];
++/** Слова, которые сворачиваются только после числа: «1861 год» → «1861 г.», «XIX век» → «XIX в.», а «каждый год» остаётся. */
++const AFTER_NUMBER = new Set(['век', 'века', 'веке', 'годы', 'годах', 'году', 'года', 'год', 'тысяч', 'миллионов', 'миллиона', 'миллион', 'миллиардов', 'миллиард', 'человек']);
++
++function sameCase(src: string, abbr: string): string {
++  return src[0] && src[0] !== src[0].toLowerCase() ? abbr[0].toUpperCase() + abbr.slice(1) : abbr;
++}
++
++/** Обратно к сокращениям. Формулы ($…$) и код не трогаются, метки {?…?} остаются на месте. */
++export function asInNotebook(md: string): string {
++  const parts = md.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$|`[^`\n]+`)/g);
++  const sorted = [...ABBREVIATIONS].sort((a, b) => b[0].length - a[0].length);
++  return parts
++    .map((part, k) => {
++      if (k % 2 === 1) return part;
++      let t = part;
++      for (const [full, abbr] of sorted) {
++        const words = full.split(' ').join('\\s+');
++        const num = AFTER_NUMBER.has(full);
++        // Точка конца предложения после сокращения с точкой не удваивается: «в XIX веке.» → «в XIX в.».
++        const re = new RegExp(`${num ? '(?<=(?:\\d|\\b[IVXLC]+)\\s)' : '(?<![\\p{L}\\d-])'}(${words})(?![\\p{L}\\d-])(\\.?)`, 'giu');
++        t = t.replace(re, (_m: string, w: string, dot: string) => sameCase(w, abbr) + (abbr.endsWith('.') ? '' : dot));
++      }
++      return t;
++    })
++    .join('');
++}
++
++/** Есть ли что сворачивать — чтобы не показывать кнопку, которая ничего не меняет. */
++export function hasAbbreviations(md: string): boolean {
++  return asInNotebook(md) !== md;
++}
+diff --git a/src/v131-notebook.test.ts b/src/v131-notebook.test.ts
+new file mode 100644
+index 0000000..7e2d76b
+--- /dev/null
++++ b/src/v131-notebook.test.ts
+@@ -0,0 +1,96 @@
++// 1.31, поток F: «Из тетради» — фото (разворот, клетка, {?слово?}, «Как в тетради», запрос notebook.read) и файлы (.docx, PDF, Markdown/Notion, ДЗ).
++import { describe, expect, it } from 'vitest';
++import { acceptUnsure, asInNotebook, fixUnsure, hasAbbreviations, isSpreadShape, notebookRequest, parseNotebookAnswer, spreadCuts, tidyRequest, unsureCount, unsurePieces, whitenPaper } from './notebook';
++
++describe('тетрадь: разворот', () => {
++  it('широкий снимок — разворот, «стоячий» — одна страница', () => {
++    expect(isSpreadShape(4000, 3000)).toBe(true);
++    expect(isSpreadShape(3000, 4000)).toBe(false);
++    expect(isSpreadShape(1100, 1000)).toBe(false);
++  });
++  it('без корешка режем посередине: две половины, вместе — весь снимок', () => {
++    const [l, r] = spreadCuts(4000, 3000);
++    expect(l).toEqual({ x: 0, y: 0, w: 2000, h: 3000 });
++    expect(r).toEqual({ x: 2000, y: 0, w: 2000, h: 3000 });
++  });
++  it('найденный корешок: полоса у сгиба выбрасывается', () => {
++    const [l, r] = spreadCuts(4000, 3000, { a: 1900, b: 2050 });
++    expect(l.w).toBe(1900);
++    expect(r.x).toBe(2050);
++    expect(r.w).toBe(1950);
++  });
++  it('корешок у края кадра — не корешок, режем посередине', () => {
++    const [l] = spreadCuts(4000, 3000, { a: 300, b: 350 });
++    expect(l.w).toBe(2000);
++  });
++  it('клетка и поля белеют, ручка и карандаш остаются', () => {
++    const px = (c: number[]) => Array.from(whitenPaper(new Uint8ClampedArray([...c, 255])).slice(0, 3));
++    expect(px([170, 190, 220])).toEqual([255, 255, 255]); // клетка
++    expect(px([220, 120, 120])).toEqual([255, 255, 255]); // поля
++    expect(px([40, 60, 150])).toEqual([40, 60, 150]); // синяя ручка
++    expect(px([200, 40, 40])).toEqual([200, 40, 40]); // красная ручка
++    expect(px([150, 150, 150])).toEqual([150, 150, 150]); // карандаш
++  });
++});
++
++describe('тетрадь: запрос и ответ ИИ', () => {
++  const img = { mime: 'image/jpeg' as const, data: 'AAAA' };
++  it('Refrain ИИ получает задачу notebook.read и только данные, свой ключ — промт тетради', () => {
++    const r = notebookRequest(img, { subject: 'Биология', topic: '  Фотосинтез ', page: 3 });
++    expect(r.refrain).toEqual({ task: 'notebook.read', image: img, subject: 'Биология', topic: 'Фотосинтез', page: 3 });
++    expect(r.system).toMatch(/тетради/);
++    expect(r.system).toMatch(/\{\?слово\?\}/);
++    expect(r.text).toMatch(/Предмет: Биология\. Тема: Фотосинтез\. Страница 3\./);
++    expect(r.image).toBe(img);
++  });
++  it('лишнего в refrain нет: пустые поля и кривой номер страницы не уходят', () => {
++    const r = notebookRequest(img, { subject: ' ', page: 0 });
++    expect(Object.keys(r.refrain!).sort()).toEqual(['image', 'task']);
++    expect(notebookRequest(img, { topic: 'x'.repeat(500) }).refrain!.topic!.length).toBe(160);
++  });
++  it('«Конспектом» — задача textbook.merge с текстом, без фото', () => {
++    const r = tidyRequest('Фотосинтез — образование веществ', { subject: 'Биология' });
++    expect(r.refrain).toEqual({ task: 'textbook.merge', text: 'Фотосинтез — образование веществ', subject: 'Биология' });
++    expect(r.image).toBeUndefined();
++  });
++  it('ответ: метки {?…?} целы, служебное убрано, номер страницы найден', () => {
++    const p = parseNotebookAnswer('```markdown\n## Фотосинтез\n\nИдёт в {?хлоропластах?} (зелёные).\n\n<b>x</b>\n[[СТРАНИЦА 12]]\n```');
++    expect(p.empty).toBe(false);
++    expect(p.page).toBe(12);
++    expect(p.markdown).toBe('## Фотосинтез\n\nИдёт в {?хлоропластах?} (зелёные).\n\nx');
++  });
++  it('[[ПУСТО]] — пустая страница', () => {
++    expect(parseNotebookAnswer('[[ПУСТО]]')).toEqual({ markdown: '', empty: true });
++  });
++});
++
++describe('тетрадь: неуверенные слова', () => {
++  const md = 'Идёт в {?хлоропластах?} (зелёные).\n{?Световая?} фаза → АТФ.';
++  it('подсветка: куски текста и слова по порядку', () => {
++    expect(unsureCount(md)).toBe(2);
++    expect(unsurePieces(md)).toEqual([{ text: 'Идёт в ' }, { unsure: 'хлоропластах', i: 0 }, { text: ' (зелёные).\n' }, { unsure: 'Световая', i: 1 }, { text: ' фаза → АТФ.' }]);
++  });
++  it('правка нажатием: снимает метку только с этого слова', () => {
++    const fixed = fixUnsure(md, 1, 'Темновая');
++    expect(fixed).toBe('Идёт в {?хлоропластах?} (зелёные).\nТемновая фаза → АТФ.');
++    expect(fixUnsure(md, 0, '  ')).toBe('Идёт в хлоропластах (зелёные).\n{?Световая?} фаза → АТФ.');
++  });
++  it('в конспект метки не попадают', () => {
++    expect(acceptUnsure(md)).toBe('Идёт в хлоропластах (зелёные).\nСветовая фаза → АТФ.');
++  });
++});
++
++describe('тетрадь: «Как в тетради»', () => {
++  it('сворачивает привычные сокращения обратно', () => {
++    expect(asInNotebook('Фотосинтез — образование органических веществ, так как на свету.')).toBe('Фотосинтез — образование органических в-в, т.к. на свету.');
++    expect(asInNotebook('Количество вещества, например, 2 моль.')).toBe('Кол-во в-ва, напр., 2 моль.');
++  });
++  it('«год» и «век» — только после числа', () => {
++    expect(asInNotebook('Отмена в 1861 году, в XIX веке. Каждый год.')).toBe('Отмена в 1861 г., в XIX в. Каждый год.');
++  });
++  it('формулы и метки не трогает; без сокращений текст тот же', () => {
++    expect(asInNotebook('$\\text{вещество}$ и {?раствор?}')).toBe('$\\text{вещество}$ и {?р-р?}');
++    expect(hasAbbreviations('Клетка делится.')).toBe(false);
++    expect(hasAbbreviations('то есть')).toBe(true);
++  });
++});
+-- 
+2.43.0
+
+
+From 0f0a6b03dfc6461ee1b005bdd9c1d9e1352138b1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 13 Oct 2026 17:55:03 +0000
+Subject: [PATCH 3/3] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20F:?=
+ =?UTF-8?q?=20=D1=81=D0=BE=D1=85=D1=80=D0=B0=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5?=
+ =?UTF-8?q?=20=D0=BF=D0=BE=20=D1=81=D0=B8=D0=B3=D0=BD=D0=B0=D0=BB=D1=83=20?=
+ =?UTF-8?q?=C2=AB95=C2=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ src/notebook.ts | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/src/notebook.ts b/src/notebook.ts
+index 4199325..c24d8f6 100644
+--- a/src/notebook.ts
++++ b/src/notebook.ts
+@@ -8,9 +8,11 @@ import { MARKS } from '../shared/prompts/markup';
+ import { lunaSystem, lunaUser } from '../shared/prompts/luna';
+ import { TASK_SPECS } from '../shared/prompts/tasks';
+ import { FIELD_LIMITS } from '../shared/refrain/api.mjs';
++import { cardDraft, DEFAULT_HIGHLIGHT, findImportant } from './important';
+ import type { AiRequest } from './store';
+ import { fixFormulas } from './textbookMath';
+ import { normalizeAiBlocks, sanitizeAiText } from './textbookText';
++import type { CardType } from './types';
+ 
+ // ---------- Разворот ----------
+ 
+@@ -252,3 +254,30 @@ export function asInNotebook(md: string): string {
+ export function hasAbbreviations(md: string): boolean {
+   return asInNotebook(md) !== md;
+ }
++
++// ---------- Черновики карточек ----------
++
++export interface CardDraft {
++  type: CardType;
++  front: string;
++  back: string;
++}
++
++/** Сколько черновиков на тему: больше — долг повторений на недели, лучше начать с малого. */
++export const DRAFTS_PER_TOPIC = 12;
++
++/** «Черновики карточек» без ИИ: определения, даты и рамки «Запомните» из текста — ученик выберет, какие оставить. */
++export function cardDrafts(md: string, limit = DRAFTS_PER_TOPIC): CardDraft[] {
++  const out: CardDraft[] = [];
++  const seen = new Set<string>();
++  for (const item of findImportant(acceptUnsure(md), DEFAULT_HIGHLIGHT)) {
++    if (item.type !== 'definition' && item.type !== 'date' && item.type !== 'box') continue;
++    const d = cardDraft(item);
++    const key = d.front.toLowerCase();
++    if (!d.front.trim() || seen.has(key)) continue;
++    seen.add(key);
++    out.push(d);
++    if (out.length >= limit) break;
++  }
++  return out;
++}
+-- 
+2.43.0
+

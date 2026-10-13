@@ -1,0 +1,308 @@
+From 604c4910b05d2fc92b2adff328e6161a6a027538 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 13 Oct 2026 17:51:12 +0000
+Subject: [PATCH 1/2] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+ =?UTF-8?q?=20WIP=20=E2=80=94=20=D0=BF=D0=BB=D0=B0=D0=BD=20=D0=B8=20=D1=81?=
+ =?UTF-8?q?=D0=BE=D1=81=D1=82=D0=BE=D1=8F=D0=BD=D0=B8=D0=B5=20=D1=80=D0=B0?=
+ =?UTF-8?q?=D0=B1=D0=BE=D1=82=20(progress-A.md)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ docs/refrain-1.31/progress-A.md | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+ create mode 100644 docs/refrain-1.31/progress-A.md
+
+diff --git a/docs/refrain-1.31/progress-A.md b/docs/refrain-1.31/progress-A.md
+new file mode 100644
+index 0000000..080ea82
+--- /dev/null
++++ b/docs/refrain-1.31/progress-A.md
+@@ -0,0 +1,28 @@
++# Поток A «Оформление» — состояние
++
++Ветка: `worktree-agent-a166d10aab02b35d5` (worktree `.claude/worktrees/agent-a166d10aab02b35d5`).
++Ветка переведена fast-forward на `7f40db1` (контракты 1.31 из `claude/wizardly-volta-879gpb`): worktree был создан от `main` без них.
++
++## Готово
++
++- Прочитаны задание (`streams.md`, раздел A), контракты (`contracts.md`, `src/styleModel.ts`), спецификация (разделы 1–2).
++- Разведка кода: `mods.ts`, `themes.ts`, `appearance.ts`, `styleApply.ts`, `styleSystem.ts`, `styleActions.ts`, `styleAi.ts`, `styleApi.ts`, `safeCss.ts`, `LookSettings.tsx`, `ModsSettings.tsx`, `StyleGallery.tsx`, `StyleEditor.tsx`, `StyleTabs.tsx`, `StyleAiPanel.tsx`, `Settings.tsx` (раздел look и поиск).
++
++Кода пока не менялось.
++
++## План (решения)
++
++- `App.tsx` (не мой файл) применяет оформление по прежним полям (`look`, `accent`, `density`, `fontScale`, `bgImage`, `modsOn`, `myStyle`…). Поэтому `settings.appearance` — источник правды, а прежние поля — его «проекция»: каждое действие пишет и `appearance`, и проекцию. Заодно это и есть откат на 1.30.
++- Порядок CSS по контракту: стиль → дополнения → кусочки CSS → мои правки (сейчас «Мой вид» идёт до сниппетов — поправить в `styleApply.ts`).
++- Встроенные стили: «Современный», «Классический», схемы `scheme:<id>` (парами светлая/тёмная), «Стекло»; остальной каталог — дополнения.
++- Перенос (`src/styleMigrate.ts`): по `Migration130`, идемпотентный; палитра/шрифт/углы/акцент, отличные от стиля, → `edits`.
++- `fonts` в стиле: `@font-face` собирает приложение, в CSS стиля вырезается явно.
++- Галерея: фильтр «Все · Встроенные · Мои», подпись из `origin`; убрать `BASE_TILES` и «Виды»; `design.css:92` — ширина `small-seg`.
++- Редактор: дерево частей экрана + «Выбрать на экране»; часть «Конспект → Выноски» (`--co-*`).
++- «Инструкция для ИИ»: копировать / .md / вставить ответ → `parseAiStyle` → до/после → применить, список выброшенного.
++- `shared/prompts/styleReference.ts` + тест на совпадение со свежей генерацией.
++- e2e `e2e/v131-overflow.mjs`.
++
++## Осталось
++
++Всё из плана выше. Проверки ещё не запускались.
+-- 
+2.43.0
+
+
+From 4ce5993ff3c0e722e63885cd4545086050090bd6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 13 Oct 2026 17:55:03 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+ =?UTF-8?q?=20=D1=81=D0=BE=D1=85=D1=80=D0=B0=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5?=
+ =?UTF-8?q?=20=D0=BF=D0=BE=20=D1=81=D0=B8=D0=B3=D0=BD=D0=B0=D0=BB=D1=83=20?=
+ =?UTF-8?q?=C2=AB95=C2=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ src/mods.ts        | 10 +++--
+ src/safeCss.ts     |  2 +
+ src/styleSystem.ts | 98 +++++++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 93 insertions(+), 17 deletions(-)
+
+diff --git a/src/mods.ts b/src/mods.ts
+index 9e36e19..9453af9 100644
+--- a/src/mods.ts
++++ b/src/mods.ts
+@@ -1,12 +1,13 @@
+ // Моды: наборы стилей, которые меняют вид Refrain. Только оформление (CSS и настройки вида),
+ // никаких программ — поэтому моды из файлов от друзей безопасны.
+ import { cleanModName, sanitizeCss } from './safeCss';
++import type { Mod131 } from './styleModel';
+ import type { Mod } from './types';
+ 
+ /** Прежнее расширение файлов стилей (читается по-прежнему); новые стили сохраняются как .refrainstyle (см. styleSystem.ts). */
+ export const MOD_EXT = '.mnemamod';
+ 
+-export const CATALOG: Mod[] = [
++export const CATALOG: Mod131[] = [
+   {
+     id: 'notebook',
+     icon: '📓',
+@@ -147,8 +148,9 @@ export const CATALOG: Mod[] = [
+   },
+   {
+     id: 'glass',
+-    icon: '🪟',
++    icon: '🫧',
+     name: 'Стекло',
++    role: 'style', // задаёт вид целиком (фон, панели, карточки) — в 1.31 это стиль, остальное в каталоге — дополнения
+     where: 'везде',
+     description: 'Полупрозрачные панели, карточки и окна с размытием поверх мягкого цветного фона.',
+     settings: [
+@@ -163,6 +165,8 @@ export const CATALOG: Mod[] = [
+ for (const m of CATALOG) {
+   m.author ??= 'Refrain';
+   m.version ??= '1.0';
++  m.role ??= 'addon';
++  m.origin = 'builtin';
+ }
+ 
+ export function isMod(x: unknown): x is Mod & { kind: 'mnema-mod' } {
+@@ -172,7 +176,7 @@ export function isMod(x: unknown): x is Mod & { kind: 'mnema-mod' } {
+ 
+ export { sanitizeCss };
+ 
+-export function allMods(custom: Mod[]): Mod[] {
++export function allMods(custom: Mod[]): Mod131[] {
+   return [...CATALOG, ...custom];
+ }
+ 
+diff --git a/src/safeCss.ts b/src/safeCss.ts
+index 56faa84..a2ae474 100644
+--- a/src/safeCss.ts
++++ b/src/safeCss.ts
+@@ -109,6 +109,8 @@ export function sanitizeCss(css: string): string {
+   const once = (t: string) =>
+     t
+       .replace(/@\s*(?:-[a-z]+-)?(?:import|namespace|charset|document)\b[^;{]*(?:;|(?=\{)|$)/gi, '')
++      // @font-face в CSS стиля запрещён: свои шрифты лежат в поле fonts стиля, @font-face из них собирает приложение (styleSystem.ts).
++      .replace(/@\s*(?:-[a-z]+-)?font-face\b[^{};]*(?:\{[^}]*\}?|;|$)/gi, '')
+       .replace(/url\s*\(\s*[^)]*\)/gi, (m) => (DATA_IMG.test(m.replace(/^url\s*\(/i, 'url(')) ? m : 'none'))
+       // Незакрытый url( (после него до конца листа нет «)»): браузер дочитает адрес до конца листа и загрузит его — вырезаем до конца объявления.
+       .replace(/url\s*\((?![^)]*\))[^;}]*/gi, 'none')
+diff --git a/src/styleSystem.ts b/src/styleSystem.ts
+index f478068..7308cec 100644
+--- a/src/styleSystem.ts
++++ b/src/styleSystem.ts
+@@ -3,14 +3,17 @@
+ // Чистые функции, без интерфейса — их проверяют тесты.
+ import { cleanBg, cleanBgParams, MAX_BG_SRC_FILE } from './bgImage';
+ import { cleanModName, MAX_CSS, safeColor, safeCssValue, safeFontFamily, safeVarName, sanitizeCss } from './safeCss';
++import { STYLE_FORMAT_131, type Mod131, type StyleFont, type StyleRole } from './styleModel';
+ import { DEFAULT_ACCENT, migrateLook } from './themes';
+ import type { CssSnippet, Density, Look, Mod, Settings, StyleSetting, StyleSettingType, StyleValue } from './types';
+ 
+ export const STYLE_EXT = '.refrainstyle';
+ export const OLD_STYLE_EXT = '.mnemamod';
+ export const STYLE_KIND = 'refrain-style';
+-/** Версия формата файла. 2 (1.30): плотность, размер текста и фон в самом стиле, больше переменных. Файлы версии 1 открываются как раньше. */
++/** Версия формата файла 1.30: плотность, размер текста и фон в самом стиле, больше переменных. Файлы версии 1 открываются как раньше. */
+ export const STYLE_FORMAT = 2;
++/** 1.31 пишет версию 3 (роль, шрифты, откуда стиль) и читает 1–3. */
++export { STYLE_FORMAT_131 };
+ 
+ // ---------- Атрибуты оформления («раскладка») ----------
+ 
+@@ -303,13 +306,72 @@ export function cleanLook(raw: unknown): Partial<Look> | undefined {
+   return Object.keys(out).length ? out : undefined;
+ }
+ 
++// ---------- Свои шрифты внутри стиля (1.31) ----------
++
++const FONT_FAMILY = /^[\p{L}\p{N} -]{1,40}$/u;
++const FONT_SRC = /^data:font\/(woff2|ttf);base64,([A-Za-z0-9+/]+={0,2})$/;
++const FONT_WEIGHTS = ['400', '500', '600', '700', '400 700'];
++/** Пределы из контракта: 400 КБ на шрифт и 1 МБ на стиль (считаем настоящие байты, а не длину base64). */
++export const MAX_FONT_BYTES = 400 * 1024;
++export const MAX_STYLE_FONT_BYTES = 1024 * 1024;
++
++const b64Bytes = (b64: string) => Math.floor((b64.length * 3) / 4) - (b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0);
++
++/** Шрифты стиля: только data:font/woff2 или ttf внутри файла, имя без кавычек и скобок; лишнее и большое выбрасывается. */
++export function cleanFonts(raw: unknown): StyleFont[] | undefined {
++  if (!Array.isArray(raw)) return undefined;
++  const out: StyleFont[] = [];
++  let total = 0;
++  for (const x of raw.slice(0, 8)) {
++    const r = x as Record<string, unknown> | null;
++    if (!r || typeof r !== 'object' || typeof r.family !== 'string' || typeof r.src !== 'string') continue;
++    const family = r.family.trim().replace(/\s+/g, ' ');
++    const m = FONT_SRC.exec(r.src);
++    if (!FONT_FAMILY.test(family) || !m) continue;
++    const bytes = b64Bytes(m[2]);
++    if (bytes > MAX_FONT_BYTES || total + bytes > MAX_STYLE_FONT_BYTES) continue;
++    total += bytes;
++    const f: StyleFont = { family, src: r.src };
++    if (FONT_WEIGHTS.includes(r.weight as string)) f.weight = r.weight as StyleFont['weight'];
++    if (r.style === 'normal' || r.style === 'italic') f.style = r.style;
++    out.push(f);
++  }
++  return out.length ? out : undefined;
++}
++
++/** Имя семейства, под которым шрифт стиля виден в CSS: со своим id стиля, чтобы не пересечься с системными и чужими. */
++export const fontFamilyName = (styleId: string, family: string) => `Refrain ${styleId.replace(/[^\w-]/g, '')} ${family}`;
++
++/** @font-face для шрифтов стиля. Собирается здесь, а не берётся из CSS стиля: src — только проверенный data:font. */
++export function fontFaceCss(m: Pick<Mod131, 'id' | 'fonts'>): string {
++  return (m.fonts ?? [])
++    .map((f) => {
++      const fmt = f.src.startsWith('data:font/woff2') ? 'woff2' : 'truetype';
++      return `@font-face { font-family: '${fontFamilyName(m.id, f.family)}'; src: url(${f.src}) format('${fmt}'); font-weight: ${f.weight ?? '400'}; font-style: ${f.style ?? 'normal'}; font-display: swap; }`;
++    })
++    .join('\n');
++}
++
++/** В CSS и переменных стиля его шрифт пишут по имени в кавычках ('Мой шрифт') — подставляем имя со своим id стиля. */
++export function withFontNames(text: string, m: Pick<Mod131, 'id' | 'fonts'>): string {
++  let out = text;
++  for (const f of m.fonts ?? []) {
++    const esc = f.family.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
++    out = out.replace(new RegExp(`(['"])${esc}\\1`, 'g'), `'${fontFamilyName(m.id, f.family)}'`);
++  }
++  return out;
++}
++
++const ROLES: StyleRole[] = ['style', 'addon'];
++const ORIGINS = ['builtin', 'file', 'ai', 'mine'] as const;
++
+ /** Привести что угодно к безопасному стилю. null — это не стиль. `id` и `where` задаёт приложение, а не файл. */
+-export function cleanMod(raw: unknown, id: string, where?: string): Mod | null {
++export function cleanMod(raw: unknown, id: string, where?: string): Mod131 | null {
+   const r = raw as Record<string, unknown> | null;
+   if (!r || typeof r !== 'object' || typeof r.name !== 'string' || !r.name.trim()) return null;
+   const icon = typeof r.icon === 'string' ? [...r.icon.trim()].slice(0, 4).join('') : '';
+   const accent = typeof r.accent === 'string' ? safeColor(r.accent) : null;
+-  const m: Mod = {
++  const m: Mod131 = {
+     id,
+     name: label(r.name, 50) || 'Стиль',
+     description: label(r.description, 240),
+@@ -334,6 +396,10 @@ export function cleanMod(raw: unknown, id: string, where?: string): Mod | null {
+   const settings = cleanSettings(r.settings);
+   if (settings) m.settings = settings;
+   if (r.desktopOnly === true) m.desktopOnly = true;
++  if (ROLES.includes(r.role as StyleRole)) m.role = r.role as StyleRole;
++  if (ORIGINS.includes(r.origin as (typeof ORIGINS)[number])) m.origin = r.origin as Mod131['origin'];
++  const fonts = cleanFonts(r.fonts);
++  if (fonts) m.fonts = fonts;
+   if (where) m.where = where;
+   else if (typeof r.where === 'string') m.where = label(r.where, 30);
+   return m;
+@@ -342,11 +408,11 @@ export function cleanMod(raw: unknown, id: string, where?: string): Mod | null {
+ /** Это файл стиля (новый .refrainstyle или старый .mnemamod)? */
+ export function isStyleFile(x: unknown): boolean {
+   const m = x as Record<string, unknown> | null;
+-  return Boolean(m && typeof m === 'object' && (m.kind === STYLE_KIND || m.kind === 'mnema-mod') && typeof m.name === 'string' && (typeof m.css === 'string' || typeof m.look === 'object' || typeof m.settings === 'object' || typeof m.attrs === 'object' || typeof m.vars === 'object' || typeof m.bg === 'object' || typeof m.density === 'string' || typeof m.fontScale === 'number'));
++  return Boolean(m && typeof m === 'object' && (m.kind === STYLE_KIND || m.kind === 'mnema-mod') && typeof m.name === 'string' && (typeof m.css === 'string' || typeof m.look === 'object' || typeof m.settings === 'object' || typeof m.attrs === 'object' || typeof m.vars === 'object' || typeof m.bg === 'object' || typeof m.density === 'string' || typeof m.fontScale === 'number' || Array.isArray(m.fonts)));
+ }
+ 
+ /** Разобрать текст файла стиля. Бросает понятную ошибку по-русски. */
+-export function parseStyleFile(text: string, id: string): Mod {
++export function parseStyleFile(text: string, id: string): Mod131 {
+   let raw: unknown;
+   try {
+     raw = JSON.parse(text);
+@@ -355,16 +421,18 @@ export function parseStyleFile(text: string, id: string): Mod {
+   }
+   if (!isStyleFile(raw)) throw new Error('Это не стиль Refrain.');
+   const f = raw as Record<string, unknown>;
+-  if (f.kind === STYLE_KIND && typeof f.formatVersion === 'number' && f.formatVersion > STYLE_FORMAT) throw new Error('Стиль сделан в более новой версии Refrain — обнови приложение.');
+-  const m = cleanMod(raw, id, 'из файла');
++  if (f.kind === STYLE_KIND && typeof f.formatVersion === 'number' && f.formatVersion > STYLE_FORMAT_131) throw new Error('Стиль сделан в более новой версии Refrain — обнови приложение.');
++  // «Откуда» и «где видно» задаёт приложение: в 1.30 сюда писалось «из файла», и подпись в галерее путала одно с другим.
++  const { where: _w, origin: _o, ...rest } = f;
++  const m = cleanMod({ ...rest, origin: 'file' }, id);
+   if (!m) throw new Error('В файле нет названия стиля.');
+   return m;
+ }
+ 
+ /** Содержимое файла `.refrainstyle` для стиля. Картинка фона кладётся в файл только по просьбе (`image`) и если она небольшая: файлом делятся. */
+-export function styleToFile(m: Mod, opts: { image?: boolean } = {}): string {
+-  const { id: _id, where: _where, bg, ...rest } = m;
+-  const out: Record<string, unknown> = { kind: STYLE_KIND, formatVersion: STYLE_FORMAT, ...rest };
++export function styleToFile(m: Mod131, opts: { image?: boolean } = {}): string {
++  const { id: _id, where: _where, origin: _origin, bg, ...rest } = m;
++  const out: Record<string, unknown> = { kind: STYLE_KIND, formatVersion: STYLE_FORMAT_131, ...rest };
+   if (bg) {
+     const { src, ...params } = bg;
+     const withImage = opts.image && src && src.length < MAX_BG_SRC_FILE;
+@@ -389,7 +457,7 @@ const decl = (vars: Record<string, string>) =>
+     .join(' ');
+ 
+ /** Сборка одного стиля: переменные (светлая и тёмная тема), значения настроек, сам CSS. */
+-export function compileOne(m: Mod, values: Record<string, StyleValue> | undefined, out: Compiled) {
++export function compileOne(m: Mod131, values: Record<string, StyleValue> | undefined, out: Compiled) {
+   const light: Record<string, string> = { ...(m.vars?.light ?? {}) };
+   const dark: Record<string, string> = { ...(m.vars?.dark ?? {}) };
+   for (const [k, v] of Object.entries(m.attrs ?? {})) if (validAttr(k, v)) out.attrs[k] = v;
+@@ -403,9 +471,11 @@ export function compileOne(m: Mod, values: Record<string, StyleValue> | undefine
+     if (e.attr) out.attrs[e.attr[0]] = e.attr[1];
+   }
+   const parts: string[] = [`/* стиль: ${cleanModName(m.name)} */`];
+-  if (Object.keys(light).length) parts.push(`:root { ${decl(light)} }`);
+-  if (Object.keys(dark).length) parts.push(`:root[data-theme='dark'] { ${decl(dark)} }`);
+-  if (m.css) parts.push(sanitizeCss(m.css));
++  const fonts = m.fonts?.length ? (t: string) => withFontNames(t, m) : (t: string) => t;
++  if (m.fonts?.length) parts.push(fontFaceCss(m));
++  if (Object.keys(light).length) parts.push(fonts(`:root { ${decl(light)} }`));
++  if (Object.keys(dark).length) parts.push(fonts(`:root[data-theme='dark'] { ${decl(dark)} }`));
++  if (m.css) parts.push(fonts(sanitizeCss(m.css)));
+   out.css += (out.css ? '\n\n' : '') + parts.join('\n');
+ }
+ 
+-- 
+2.43.0
+
