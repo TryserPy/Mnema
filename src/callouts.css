@@ -1,0 +1,95 @@
+/* Выноски «> [!def] Термин» в конспекте (просмотр .md и редактор .note-doc). Цвет задаёт стиль — переменные --co-* (редактор стиля:
+   «Конспект → Выноски»); здесь только запасные значения. Текст заголовка смешивается с --ink, поэтому читается и в светлой, и в тёмной теме. */
+:is(.md, .note-doc) [data-callout] {
+  --co: var(--co-other, var(--muted));
+  margin: 0.7em 0;
+  padding: 9px 14px 10px;
+  border: 1px solid color-mix(in srgb, var(--co) 38%, transparent);
+  border-left: 4px solid var(--co);
+  border-radius: 6px 12px 12px 6px;
+  background: color-mix(in srgb, var(--co) 8%, var(--surface));
+  min-width: 0;
+}
+:is(.md, .note-doc) [data-callout='def'] { --co: var(--co-def, #3d6fd1); }
+:is(.md, .note-doc) [data-callout='rule'] { --co: var(--co-rule, #2f8f5b); }
+:is(.md, .note-doc) [data-callout='tip'] { --co: var(--co-tip, var(--accent)); }
+:is(.md, .note-doc) [data-callout='ex'] { --co: var(--co-ex, #7a6a58); }
+:is(.md, .note-doc) [data-callout='warn'] { --co: var(--co-warn, #c8553d); }
+
+:is(.md, .note-doc) [data-callout-title] {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--co) 72%, var(--ink));
+  overflow-wrap: anywhere;
+}
+.md summary[data-callout-title] { cursor: pointer; list-style: none; }
+.md summary[data-callout-title]::-webkit-details-marker { display: none; }
+.md summary[data-callout-title]::after { content: '›'; margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+.md details[open] > summary[data-callout-title]::after { transform: rotate(90deg); }
+:is(.md, .note-doc) [data-callout-icon] { flex: none; font-weight: 400; }
+:is(.md, .note-doc) [data-callout-body] { margin-top: 3px; color: var(--ink); }
+:is(.md, .note-doc) [data-callout-body] > :first-child { margin-top: 0; }
+:is(.md, .note-doc) [data-callout-body] > :last-child { margin-bottom: 0; }
+
+/* Редактор: шапка выноски — значок, тип, заголовок (поле), «убрать выноску». */
+.note-doc [data-callout] .callout-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; min-width: 0; flex-wrap: wrap; user-select: none; }
+.note-doc .callout-head .callout-kind {
+  font: inherit;
+  font-size: 0.82em;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--co) 72%, var(--ink));
+  background: color-mix(in srgb, var(--co) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--co) 35%, transparent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  max-width: 100%;
+  cursor: pointer;
+}
+.note-doc .callout-head .callout-title {
+  flex: 1 1 120px;
+  min-width: 0;
+  font: inherit;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--co) 72%, var(--ink));
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  padding: 1px 2px;
+  outline: none;
+}
+.note-doc .callout-head .callout-title::placeholder { color: color-mix(in srgb, var(--co) 55%, var(--muted)); opacity: 1; }
+.note-doc .callout-head .callout-title:focus { border-bottom-color: color-mix(in srgb, var(--co) 60%, transparent); }
+.note-doc .callout-head .callout-off { font: inherit; font-size: 0.85em; line-height: 1; color: var(--muted); background: none; border: 0; border-radius: 6px; padding: 3px 6px; cursor: pointer; }
+.note-doc .callout-head .callout-off:hover { color: var(--ink); background: color-mix(in srgb, var(--co) 14%, transparent); }
+.note-doc .callout-head :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.note-doc [data-callout] .callout-body > :first-child { margin-top: 0; }
+.note-doc [data-callout] .callout-body > :last-child { margin-bottom: 0; }
+
+/* Неуверенно прочитанное слово «Тетради»: {?слово?} */
+.md [data-unsure],
+.note-doc .unsure-word {
+  background: color-mix(in srgb, #e5c063 28%, transparent);
+  border-bottom: 2px dotted #c9a227;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* «В выноску» в панели выделения: выбор типа. */
+.sel-callouts { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px 6px 34px; }
+.sel-callouts button {
+  font: inherit;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sel-callouts button.on { border-color: var(--accent); color: var(--accent); }
