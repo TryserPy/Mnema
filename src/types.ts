@@ -307,10 +307,26 @@ export type AiNotes = Partial<Record<AiNoteKey, string>>;
 /** Задачи ИИ, для которых можно выбрать свой ИИ (из настроенных). */
 export type AiTask = Exclude<AiNoteKey, 'all'>;
 
+/** Свой шаблон промта (Настройки → ИИ → Промты): для своего ключа и ИИ без интернета. «Формат ответа» приложение дописывает само. */
+export interface MyPromptTemplate {
+  id: string;
+  name: string;
+  /** Задача из shared/prompts/templates.ts (TEMPLATE_TASKS). */
+  task: string;
+  text: string;
+}
+
+/** Шаблоны промтов: выбор для задачи ('auto' или нет — по имени модели; 'gpt' | 'claude' | … — встроенный; 'my:<id>' — свой) и свои шаблоны. */
+export interface PromptTemplates {
+  pick?: Record<string, string>;
+  mine?: MyPromptTemplate[];
+}
+
 export interface Settings {
   look: Look;
   aiNotes?: AiNotes; // свои указания для ИИ: общие и для каждой задачи (короткие, до 400 знаков)
   aiTaskProvider?: Partial<Record<AiTask, string>>; // какой из настроенных ИИ брать для задачи ('anthropic' | 'gemini' | 'local' | 'custom:<id>'); нет — основной
+  promptTemplates?: PromptTemplates; // шаблоны промтов для своего ключа и ИИ без интернета (1.31); Refrain ИИ их не использует
   aiAuto?: { cards?: boolean }; // подсказки с ИИ — выключены, пока ученик не включит; ИИ спрашивается только по нажатию
   studyPick?: Record<string, string>; // что учить в теме/предмете/папке: ключ 't:<id>' | 's:<id>' | 'f:<id>' → 'all' | 'cards' | 'lists' | 'list:<id>'
   styleBackup?: Record<string, { look: Look; accent: string; density?: Density; fontScale?: number; bgImage?: BgImage | null }>; // оформление до включения стиля — чтобы вернуть (плотность, размер текста и фон — только если стиль их меняет)
