@@ -1,7 +1,7 @@
 From 03726ac91c780341e7a6bce7c97b471bd439af60 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:51:36 +0000
-Subject: [PATCH 1/5] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20F:=20?=
+Subject: [PATCH 1/6] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20F:=20?=
  =?UTF-8?q?=D0=B7=D0=B0=D0=BC=D0=B5=D1=82=D0=BA=D0=B0=20=D0=BE=20=D1=85?=
  =?UTF-8?q?=D0=BE=D0=B4=D0=B5=20=D1=80=D0=B0=D0=B1=D0=BE=D1=82=D1=8B=20(WI?=
  =?UTF-8?q?P)?=
@@ -52,7 +52,7 @@ index 0000000..86c5bb1
 From e2c4e641a4ec64da8cf59256c3878e74c4b3f204 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:53:37 +0000
-Subject: [PATCH 2/5] =?UTF-8?q?=D0=98=D0=B7=20=D1=82=D0=B5=D1=82=D1=80?=
+Subject: [PATCH 2/6] =?UTF-8?q?=D0=98=D0=B7=20=D1=82=D0=B5=D1=82=D1=80?=
  =?UTF-8?q?=D0=B0=D0=B4=D0=B8:=20=D1=80=D0=B0=D0=B7=D0=B2=D0=BE=D1=80?=
  =?UTF-8?q?=D0=BE=D1=82,=20=D0=BA=D0=BB=D0=B5=D1=82=D0=BA=D0=B0,=20=D0=B7?=
  =?UTF-8?q?=D0=B0=D0=BF=D1=80=D0=BE=D1=81=20notebook.read,=20=D0=BC=D0=B5?=
@@ -443,7 +443,7 @@ index 0000000..7e2d76b
 From 0f0a6b03dfc6461ee1b005bdd9c1d9e1352138b1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:55:03 +0000
-Subject: [PATCH 3/5] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20F:?=
+Subject: [PATCH 3/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20F:?=
  =?UTF-8?q?=20=D1=81=D0=BE=D1=85=D1=80=D0=B0=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5?=
  =?UTF-8?q?=20=D0=BF=D0=BE=20=D1=81=D0=B8=D0=B3=D0=BD=D0=B0=D0=BB=D1=83=20?=
  =?UTF-8?q?=C2=AB95=C2=BB?=
@@ -509,7 +509,7 @@ index 4199325..c24d8f6 100644
 From 97a374933bd8c42bb3c0df735652bca7c85312cd Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:08:21 +0000
-Subject: [PATCH 4/5] =?UTF-8?q?=D0=98=D0=B7=20=D1=82=D0=B5=D1=82=D1=80?=
+Subject: [PATCH 4/6] =?UTF-8?q?=D0=98=D0=B7=20=D1=82=D0=B5=D1=82=D1=80?=
  =?UTF-8?q?=D0=B0=D0=B4=D0=B8:=20=D1=87=D0=B5=D1=80=D0=BD=D0=BE=D0=B2?=
  =?UTF-8?q?=D0=B8=D0=BA=D0=B8=20=D0=BA=D0=B0=D1=80=D1=82=D0=BE=D1=87=D0=B5?=
  =?UTF-8?q?=D0=BA=20=D0=B1=D0=B5=D0=B7=20=D0=98=D0=98=20(=D0=B2=D1=8B?=
@@ -621,7 +621,7 @@ index 7e2d76b..02020ec 100644
 From 126ffc694dacfbd714f4053e61ce6b2f41d5db5b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:13:42 +0000
-Subject: [PATCH 5/5] =?UTF-8?q?=D0=98=D0=B7=20=D1=82=D0=B5=D1=82=D1=80?=
+Subject: [PATCH 5/6] =?UTF-8?q?=D0=98=D0=B7=20=D1=82=D0=B5=D1=82=D1=80?=
  =?UTF-8?q?=D0=B0=D0=B4=D0=B8=20=E2=86=92=20=D0=A4=D0=B0=D0=B9=D0=BB:=20?=
  =?UTF-8?q?=D1=80=D0=B0=D0=B7=D0=B1=D0=BE=D1=80=20.docx,=20Markdown/Notion?=
  =?UTF-8?q?,=20=D1=80=D0=B0=D0=B7=D0=B4=D0=B5=D0=BB=D1=8B,=20=C2=AB=D0=BF?=
@@ -1658,6 +1658,1621 @@ index 0000000..204bf53
 +  writeFileSync(new URL('./biology.docx', import.meta.url), biologyDocx());
 +  console.log('biology.docx готов');
 +}
+-- 
+2.43.0
+
+
+From ed5bf11a89ef06be6dcce9fc5c2860227c6a5848 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 15 Oct 2026 12:18:21 +0000
+Subject: [PATCH 6/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20F:?=
+ =?UTF-8?q?=20=D1=87=D1=82=D0=B5=D0=BD=D0=B8=D0=B5=20PDF=20=D0=B1=D0=B5?=
+ =?UTF-8?q?=D0=B7=20=D0=B7=D0=B0=D0=B2=D0=B8=D1=81=D0=B8=D0=BC=D0=BE=D1=81?=
+ =?UTF-8?q?=D1=82=D0=B5=D0=B9,=20PDF-=D1=84=D0=B8=D0=BA=D1=81=D1=82=D1=83?=
+ =?UTF-8?q?=D1=80=D1=8B,=20=D0=B7=D0=B0=D0=BC=D0=B5=D1=82=D0=BA=D0=B0=20?=
+ =?UTF-8?q?=D0=BE=20=D1=85=D0=BE=D0=B4=D0=B5=20=D1=80=D0=B0=D0=B1=D0=BE?=
+ =?UTF-8?q?=D1=82=D1=8B?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ docs/refrain-1.31/progress-F.md    |  31 +-
+ src/fileImport.ts                  |   4 +-
+ src/fileImportPdf.ts               | 851 +++++++++++++++++++++++++++++
+ src/v131-notebook.test.ts          |  76 ++-
+ test-fixtures/notebook/biology.pdf | Bin 0 -> 21373 bytes
+ test-fixtures/notebook/scan.pdf    | Bin 0 -> 20367 bytes
+ 6 files changed, 948 insertions(+), 14 deletions(-)
+ create mode 100644 src/fileImportPdf.ts
+ create mode 100644 test-fixtures/notebook/biology.pdf
+ create mode 100644 test-fixtures/notebook/scan.pdf
+
+diff --git a/docs/refrain-1.31/progress-F.md b/docs/refrain-1.31/progress-F.md
+index 86c5bb1..c6cebf4 100644
+--- a/docs/refrain-1.31/progress-F.md
++++ b/docs/refrain-1.31/progress-F.md
+@@ -1,23 +1,32 @@
+ # Поток F «Тетрадь и файлы» — ход работы
+ 
+-Ветка: `worktree-agent-a4aad8ef4673abf44` (перемотана fast-forward на 7f40db1 — контракты 1.31).
++Ветка: `worktree-agent-a4aad8ef4673abf44` (от 7f40db1 — контракты 1.31).
+ 
+ ## План (файлы)
+-- `src/notebook.ts` — чистые функции: разворот → две половины, «отбелить» клетку, метки `{?слово?}`, «Как в тетради», запрос `notebook.read`, разбор ответа.
+-- `src/notebookPhoto.ts` — canvas: загрузка фото, деление разворота, уменьшение до 1600 px, запрос к ИИ.
+-- `src/fileImport.ts` — .docx (fflate), Markdown/Notion (через `mdImport.ts`), разделы, «похоже на ДЗ», совпадение с темами.
+-- `src/fileImportPdf.ts` — PDF с текстом без новой зависимости (FlateDecode через fflate, ToUnicode), скан → ветка «Фото».
++- `src/notebook.ts` — чистые функции: разворот → две половины, «отбелить» клетку, метки `{?слово?}`, «Как в тетради», запрос `notebook.read`, разбор ответа, черновики карточек без ИИ.
++- `src/notebookPhoto.ts` — canvas: загрузка фото, деление разворота (findSpine), уменьшение до 1600 px, JPEG для ИИ.
++- `src/fileImport.ts` — .docx (fflate + свой разбор XML), Markdown/Notion (через `mdImport.ts`), разделы, «похоже на ДЗ», совпадение с темами, разбивка ИИ.
++- `src/fileImportPdf.ts` — PDF с текстом без новой зависимости (объекты, ObjStm, Flate/AHx/A85, ToUnicode, Differences/cp1251), скан → картинки для «Фото».
+ - `src/components/NotebookImport.tsx`, `src/components/FileImport.tsx`, `src/notebook.css`, пункт в `CreateMenu.tsx`.
+-- `src/v131-notebook.test.ts`, `e2e/v131-notebook.mjs`, `test-fixtures/notebook/*.docx`.
++- `src/v131-notebook.test.ts`, `e2e/v131-notebook.mjs`, `test-fixtures/notebook/{biology.docx,make-docx.mjs,biology.pdf,scan.pdf}`.
+ 
+-## Готово
+-- (пока ничего; зависимости поставлены, документы прочитаны)
++## Готово (закоммичено)
++- `src/notebook.ts` + тесты (разворот, клетка, запрос, ответ, {?…?}, «Как в тетради», черновики карточек).
++- `src/fileImport.ts` + тесты (.docx-фикстура, без стилей, экранирование, XML-безопасность, разделы, ИИ-разбивка, ДЗ и сроки, совпадение тем, Markdown, Notion-архив в архиве).
++- `src/fileImportPdf.ts` — работает на фикстурах Chrome (текст и скан); тесты рукописных PDF (WIP).
+ 
+ ## В работе
+-- `src/notebook.ts`
++- `fileImportPdf.ts`: 3 теста на самодельных PDF падают (ToUnicode bfrange, Differences/cp1251, ObjStm+ASCIIHex) — разбираюсь (вероятно, в тестовом построителе PDF или в /Contents без Length).
+ 
+ ## Осталось
+-- всё из плана выше
++- `notebookPhoto.ts`, компоненты `NotebookImport.tsx`/`FileImport.tsx`, `notebook.css`, пункт «Из тетради» в `CreateMenu.tsx`.
++- e2e `e2e/v131-notebook.mjs` (фото с заглушкой ИИ, .docx-фикстура).
++- Полный прогон tsc / vitest / vite build / build --mode web.
++
++## Решения и вопросы ведущему
++- «Разбить по темам с ИИ»: в реестре задач нет подходящей задачи → запрос идёт БЕЗ поля `refrain` (свой ключ / без интернета), промт `SPLIT_SYSTEM` в `fileImport.ts`. Вопрос: добавить задачу (напр. `file.split`) в контракт?
++- «Конспектом» из тетради — задача `textbook.merge` с текстом (tidyRequest).
++- PDF читается без новой зависимости; зашифрованные PDF — понятная ошибка с советом.
+ 
+ ## Проверки
+-- ещё не запускались
++- `npx vitest run src/v131-notebook.test.ts`: 36 из 39 (3 PDF-теста WIP). tsc — зелёный до добавления PDF.
+diff --git a/src/fileImport.ts b/src/fileImport.ts
+index 2e325c7..bdf8c4d 100644
+--- a/src/fileImport.ts
++++ b/src/fileImport.ts
+@@ -106,11 +106,11 @@ function flag(n: XNode | undefined): boolean {
+ // ---------- Markdown: экранирование ----------
+ 
+ /** Знаки, которые в тексте из Word иначе станут разметкой: * и _ (жирный), $ (формула), ` (код), == (выделение), [ (ссылка). */
+-function escInline(s: string): string {
++export function escInline(s: string): string {
+   return s.replace(/([\\*_`$[\]])/g, '\\$1').replace(/==/g, '=\\=');
+ }
+ /** Начало строки: «# », «> », «- », «1. » из Word — это текст, а не разметка. */
+-function escLineStart(s: string): string {
++export function escLineStart(s: string): string {
+   return s.replace(/^(\s*)(#{1,6}\s|>|[-+]\s|\d+[.)]\s)/, (_m, sp: string, t: string) => sp + '\\' + t);
+ }
+ 
+diff --git a/src/fileImportPdf.ts b/src/fileImportPdf.ts
+new file mode 100644
+index 0000000..6094cf0
+--- /dev/null
++++ b/src/fileImportPdf.ts
+@@ -0,0 +1,851 @@
++// «Из тетради → Файл»: PDF с текстом без сторонней библиотеки. Хватает того, что уже есть: fflate для FlateDecode.
++// Что умеет: объекты и потоки объектов (ObjStm), фильтры Flate/ASCIIHex/ASCII85 (+ PNG-предиктор), дерево страниц,
++// шрифты с ToUnicode (так пишут Word, Chrome, LibreOffice), простые шрифты с Differences и cp1251, формы (Form XObject).
++// Строки собираются по положению на странице, крупный шрифт — заголовок. PDF без текста (скан) — картинки страниц для ветки «Фото».
++// Чего не умеет: зашифрованные PDF (даже с пустым паролем) и шрифты без ToUnicode с CID — тогда честно говорим, что делать.
++import { inflateSync, unzlibSync } from 'fflate';
++import { escInline, escLineStart, type FileStats } from './fileImport';
++import { joinLines } from './textbookText';
++
++const MAX_BYTES = 80 * 1024 * 1024;
++const MAX_PAGES = 400;
++const MAX_STREAM = 40 * 1024 * 1024;
++
++// ---------- Значения PDF ----------
++
++type PdfVal = number | boolean | null | string | PdfName | PdfRef | PdfVal[] | PdfDict | PdfStr;
++class PdfName {
++  constructor(public n: string) {}
++}
++class PdfRef {
++  constructor(public num: number, public gen: number) {}
++}
++class PdfStr {
++  constructor(public bytes: Uint8Array) {}
++}
++type PdfDict = Map<string, PdfVal>;
++interface PdfObj {
++  dict?: PdfDict;
++  val: PdfVal;
++  stream?: Uint8Array;
++}
++
++const isDict = (v: unknown): v is PdfDict => v instanceof Map;
++const nameOf = (v: PdfVal | undefined) => (v instanceof PdfName ? v.n : undefined);
++const numOf = (v: PdfVal | undefined) => (typeof v === 'number' ? v : undefined);
++
++const WS = new Set([0, 9, 10, 12, 13, 32]);
++const DELIM = new Set('()<>[]{}/%'.split('').map((c) => c.charCodeAt(0)));
++
++/** Разбор значений PDF из байтов (словари, массивы, строки, имена, ссылки «n g R», числа). */
++class Lexer {
++  pos: number;
++  constructor(public b: Uint8Array, pos = 0, public end = b.length) {
++    this.pos = pos;
++  }
++  skip() {
++    const b = this.b;
++    while (this.pos < this.end) {
++      const c = b[this.pos];
++      if (WS.has(c)) this.pos++;
++      else if (c === 37 /* % */) {
++        while (this.pos < this.end && b[this.pos] !== 10 && b[this.pos] !== 13) this.pos++;
++      } else break;
++    }
++  }
++  /** Следующее значение или оператор (как строка-слово). undefined — конец. */
++  next(): PdfVal | { op: string } | undefined {
++    this.skip();
++    if (this.pos >= this.end) return undefined;
++    const b = this.b;
++    const c = b[this.pos];
++    if (c === 47 /* / */) {
++      let s = '';
++      this.pos++;
++      while (this.pos < this.end && !WS.has(b[this.pos]) && !DELIM.has(b[this.pos])) {
++        if (b[this.pos] === 35 /* # */ && this.pos + 2 < this.end) {
++          s += String.fromCharCode(parseInt(String.fromCharCode(b[this.pos + 1], b[this.pos + 2]), 16));
++          this.pos += 3;
++        } else s += String.fromCharCode(b[this.pos++]);
++      }
++      return new PdfName(s);
++    }
++    if (c === 40 /* ( */) return this.literal();
++    if (c === 60 /* < */) {
++      if (b[this.pos + 1] === 60) {
++        this.pos += 2;
++        return this.dict();
++      }
++      return this.hex();
++    }
++    if (c === 91 /* [ */) {
++      this.pos++;
++      const arr: PdfVal[] = [];
++      for (;;) {
++        this.skip();
++        if (this.pos >= this.end) return arr;
++        if (b[this.pos] === 93) {
++          this.pos++;
++          return arr;
++        }
++        const v = this.value();
++        if (v === undefined) return arr;
++        arr.push(v);
++      }
++    }
++    if (c === 93 || c === 62 || c === 41 || c === 123 || c === 125) {
++      this.pos++;
++      return { op: String.fromCharCode(c) };
++    }
++    let s = '';
++    while (this.pos < this.end && !WS.has(b[this.pos]) && !DELIM.has(b[this.pos])) s += String.fromCharCode(b[this.pos++]);
++    if (/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) return Number(s);
++    if (s === 'true') return true;
++    if (s === 'false') return false;
++    if (s === 'null') return null;
++    if (!s) {
++      this.pos++;
++      return { op: '' };
++    }
++    return { op: s };
++  }
++  /** Значение с учётом ссылок «n g R». */
++  value(): PdfVal | undefined {
++    const v = this.next();
++    if (v === undefined || (typeof v === 'object' && v !== null && 'op' in v)) return undefined;
++    if (typeof v === 'number' && Number.isInteger(v)) {
++      const save = this.pos;
++      const g = this.next();
++      if (typeof g === 'number' && Number.isInteger(g)) {
++        const r = this.next();
++        if (r && typeof r === 'object' && 'op' in r && r.op === 'R') return new PdfRef(v, g);
++      }
++      this.pos = save;
++    }
++    return v as PdfVal;
++  }
++  dict(): PdfDict {
++    const d: PdfDict = new Map();
++    for (;;) {
++      this.skip();
++      if (this.pos >= this.end) return d;
++      if (this.b[this.pos] === 62 && this.b[this.pos + 1] === 62) {
++        this.pos += 2;
++        return d;
++      }
++      const k = this.next();
++      if (!(k instanceof PdfName)) {
++        if (k === undefined) return d;
++        continue;
++      }
++      const v = this.value();
++      if (v !== undefined) d.set(k.n, v);
++    }
++  }
++  literal(): PdfStr {
++    const b = this.b;
++    const out: number[] = [];
++    let depth = 1;
++    this.pos++;
++    while (this.pos < this.end) {
++      const c = b[this.pos++];
++      if (c === 92 /* \ */) {
++        const e = b[this.pos++];
++        const map: Record<number, number> = { 110: 10, 114: 13, 116: 9, 98: 8, 102: 12, 40: 40, 41: 41, 92: 92 };
++        if (e in map) out.push(map[e]);
++        else if (e >= 48 && e <= 55) {
++          let n = e - 48;
++          for (let k = 0; k < 2 && b[this.pos] >= 48 && b[this.pos] <= 55; k++) n = n * 8 + (b[this.pos++] - 48);
++          out.push(n & 255);
++        } else if (e === 13) {
++          if (b[this.pos] === 10) this.pos++;
++        } else if (e !== 10) out.push(e);
++      } else if (c === 40) {
++        depth++;
++        out.push(c);
++      } else if (c === 41) {
++        if (--depth === 0) break;
++        out.push(c);
++      } else out.push(c);
++    }
++    return new PdfStr(Uint8Array.from(out));
++  }
++  hex(): PdfStr {
++    this.pos++;
++    let s = '';
++    while (this.pos < this.end && this.b[this.pos] !== 62) {
++      const ch = String.fromCharCode(this.b[this.pos++]);
++      if (/[0-9a-f]/i.test(ch)) s += ch;
++    }
++    this.pos++;
++    if (s.length % 2) s += '0';
++    const out = new Uint8Array(s.length / 2);
++    for (let i = 0; i < out.length; i++) out[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16);
++    return new PdfStr(out);
++  }
++}
++
++// ---------- Фильтры ----------
++
++function inflate(data: Uint8Array): Uint8Array {
++  try {
++    return unzlibSync(data);
++  } catch {
++    // Бывает поток без заголовка zlib или с битой контрольной суммой — читаем как «голый» deflate.
++    try {
++      return inflateSync(data.subarray(2));
++    } catch {
++      return inflateSync(data);
++    }
++  }
++}
++
++function asciiHex(data: Uint8Array): Uint8Array {
++  const s = new TextDecoder('latin1').decode(data).replace(/>[\s\S]*$/, '').replace(/[^0-9a-f]/gi, '');
++  const out = new Uint8Array(Math.ceil(s.length / 2));
++  for (let i = 0; i < out.length; i++) out[i] = parseInt((s.slice(i * 2, i * 2 + 2) + '0').slice(0, 2), 16);
++  return out;
++}
++
++function ascii85(data: Uint8Array): Uint8Array {
++  const s = new TextDecoder('latin1').decode(data).replace(/^<~/, '').replace(/~>[\s\S]*$/, '').replace(/\s+/g, '');
++  const out: number[] = [];
++  let group: number[] = [];
++  const flush = (n: number) => {
++    while (group.length < 5) group.push(84);
++    let v = 0;
++    for (const g of group) v = v * 85 + g;
++    const bytes = [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255];
++    out.push(...bytes.slice(0, n));
++    group = [];
++  };
++  for (const ch of s) {
++    if (ch === 'z' && !group.length) {
++      out.push(0, 0, 0, 0);
++      continue;
++    }
++    group.push(ch.charCodeAt(0) - 33);
++    if (group.length === 5) flush(4);
++  }
++  if (group.length) flush(group.length - 1);
++  return Uint8Array.from(out);
++}
++
++/** PNG-предиктор (Predictor ≥ 10): у каждой строки свой фильтр. */
++function unpredict(data: Uint8Array, parms: PdfDict | undefined): Uint8Array {
++  const pred = numOf(parms?.get('Predictor')) ?? 1;
++  if (pred < 10) return data;
++  const colors = numOf(parms?.get('Colors')) ?? 1;
++  const bpc = numOf(parms?.get('BitsPerComponent')) ?? 8;
++  const cols = numOf(parms?.get('Columns')) ?? 1;
++  const bpp = Math.max(1, Math.ceil((colors * bpc) / 8));
++  const row = Math.ceil((colors * bpc * cols) / 8);
++  const rows = Math.floor(data.length / (row + 1));
++  const out = new Uint8Array(rows * row);
++  for (let y = 0; y < rows; y++) {
++    const f = data[y * (row + 1)];
++    const src = data.subarray(y * (row + 1) + 1, (y + 1) * (row + 1));
++    const o = y * row;
++    for (let x = 0; x < row; x++) {
++      const a = x >= bpp ? out[o + x - bpp] : 0;
++      const up = y ? out[o - row + x] : 0;
++      const c = y && x >= bpp ? out[o - row + x - bpp] : 0;
++      let v = src[x];
++      if (f === 1) v += a;
++      else if (f === 2) v += up;
++      else if (f === 3) v += (a + up) >> 1;
++      else if (f === 4) {
++        const p = a + up - c;
++        const pa = Math.abs(p - a);
++        const pb = Math.abs(p - up);
++        const pc = Math.abs(p - c);
++        v += pa <= pb && pa <= pc ? a : pb <= pc ? up : c;
++      }
++      out[o + x] = v & 255;
++    }
++  }
++  return out;
++}
++
++// ---------- Документ ----------
++
++class Doc {
++  objs = new Map<number, PdfObj>();
++  raw: Uint8Array;
++  trailer: PdfDict = new Map();
++  constructor(bytes: Uint8Array) {
++    this.raw = bytes;
++    this.scan();
++  }
++
++  private scan() {
++    const b = this.raw;
++    const text = new TextDecoder('latin1').decode(b);
++    const re = /(\d+)\s+(\d+)\s+obj\b/g;
++    const pending: { num: number; obj: PdfObj }[] = [];
++    for (let m = re.exec(text); m; m = re.exec(text)) {
++      const num = Number(m[1]);
++      const lx = new Lexer(b, m.index + m[0].length);
++      const val = lx.value();
++      if (val === undefined) continue;
++      const obj: PdfObj = { val, ...(isDict(val) ? { dict: val } : {}) };
++      lx.skip();
++      if (isDict(val) && text.startsWith('stream', lx.pos)) {
++        let start = lx.pos + 6;
++        if (b[start] === 13) start++;
++        if (b[start] === 10) start++;
++        const lenV = val.get('Length');
++        let len = typeof lenV === 'number' ? lenV : -1;
++        if (len < 0 || start + len > b.length || !/^\s*endstream/.test(text.slice(start + len, start + len + 20))) {
++          const e = text.indexOf('endstream', start);
++          len = e < 0 ? b.length - start : e - start;
++          while (len > 0 && (b[start + len - 1] === 10 || b[start + len - 1] === 13)) len--;
++        }
++        obj.stream = b.subarray(start, start + Math.min(len, MAX_STREAM));
++        re.lastIndex = start + len;
++      }
++      pending.push({ num, obj });
++      if (/\/Type\s*\/XRef\b/.test(text.slice(m.index, m.index + 400)) && isDict(val)) for (const [k, v] of val) if (k === 'Root' || k === 'Encrypt' || k === 'Info') this.trailer.set(k, v);
++    }
++    for (const p of pending) this.objs.set(p.num, p.obj);
++    for (const m of text.matchAll(/trailer\s*<</g)) {
++      const lx = new Lexer(b, m.index! + m[0].length);
++      for (const [k, v] of lx.dict()) this.trailer.set(k, v);
++    }
++    // Потоки объектов: объекты внутри сжатого потока (так пишут почти все современные PDF).
++    for (const p of pending) {
++      if (nameOf(p.obj.dict?.get('Type')) !== 'ObjStm' || !p.obj.stream) continue;
++      const data = this.decode(p.obj);
++      if (!data) continue;
++      const n = numOf(p.obj.dict!.get('N')) ?? 0;
++      const first = numOf(p.obj.dict!.get('First')) ?? 0;
++      const head = new Lexer(data, 0, first);
++      const pairs: [number, number][] = [];
++      for (let i = 0; i < n; i++) {
++        const a = head.next();
++        const o = head.next();
++        if (typeof a !== 'number' || typeof o !== 'number') break;
++        pairs.push([a, o]);
++      }
++      for (const [num, off] of pairs) {
++        if (this.objs.has(num)) continue;
++        const val = new Lexer(data, first + off).value();
++        if (val !== undefined) this.objs.set(num, { val, ...(isDict(val) ? { dict: val } : {}) });
++      }
++    }
++  }
++
++  get(v: PdfVal | undefined, depth = 0): PdfVal | undefined {
++    if (v instanceof PdfRef) return depth > 8 ? undefined : this.get(this.objs.get(v.num)?.val, depth + 1);
++    return v;
++  }
++  dict(v: PdfVal | undefined): PdfDict | undefined {
++    const r = this.get(v);
++    return isDict(r) ? r : undefined;
++  }
++  obj(v: PdfVal | undefined): PdfObj | undefined {
++    return v instanceof PdfRef ? this.objs.get(v.num) : undefined;
++  }
++
++  /** Раскодированный поток. null — фильтр не поддерживается (картинки DCT/JPX отдаются как есть в imageOf). */
++  decode(o: PdfObj): Uint8Array | null {
++    let data = o.stream;
++    if (!data || !o.dict) return data ?? null;
++    const f = this.get(o.dict.get('Filter'));
++    const filters = (Array.isArray(f) ? f : f ? [f] : []).map((x) => nameOf(this.get(x as PdfVal)) ?? '');
++    const p = this.get(o.dict.get('DecodeParms'));
++    const parms = (Array.isArray(p) ? p : [p]).map((x) => this.dict(x as PdfVal));
++    for (let i = 0; i < filters.length; i++) {
++      const name = filters[i];
++      try {
++        if (name === 'FlateDecode' || name === 'Fl') data = unpredict(inflate(data), parms[i]);
++        else if (name === 'ASCIIHexDecode' || name === 'AHx') data = asciiHex(data);
++        else if (name === 'ASCII85Decode' || name === 'A85') data = ascii85(data);
++        else return null;
++      } catch {
++        return null;
++      }
++      if (data.length > MAX_STREAM) return null;
++    }
++    return data;
++  }
++
++  /** Страницы по дереву /Pages (с наследованием Resources); если дерево битое — все объекты /Page по номерам. */
++  pages(): { dict: PdfDict; res: PdfDict | undefined }[] {
++    const out: { dict: PdfDict; res: PdfDict | undefined }[] = [];
++    const seen = new Set<PdfDict>();
++    const walk = (node: PdfDict | undefined, res: PdfDict | undefined, depth: number) => {
++      if (!node || seen.has(node) || depth > 30 || out.length >= MAX_PAGES) return;
++      seen.add(node);
++      const r = this.dict(node.get('Resources')) ?? res;
++      const kidsV = this.get(node.get('Kids'));
++      if (Array.isArray(kidsV)) for (const k of kidsV) walk(this.dict(k), r, depth + 1);
++      else if (nameOf(node.get('Type')) === 'Page' || node.has('Contents')) out.push({ dict: node, res: r });
++    };
++    const root = this.dict(this.trailer.get('Root')) ?? [...this.objs.values()].find((o) => nameOf(o.dict?.get('Type')) === 'Catalog')?.dict;
++    walk(this.dict(root?.get('Pages')), undefined, 0);
++    if (!out.length)
++      for (const [, o] of [...this.objs].sort((a, b) => a[0] - b[0])) if (o.dict && nameOf(o.dict.get('Type')) === 'Page') out.push({ dict: o.dict, res: this.dict(o.dict.get('Resources')) });
++    return out.slice(0, MAX_PAGES);
++  }
++}
++
++// ---------- Шрифты: коды → Unicode ----------
++
++/** Имена глифов, которые встречаются в Differences: кириллица (afii10017…), цифры, знаки. Остальное — uniXXXX или одна буква. */
++const GLYPHS: Record<string, string> = {
++  space: ' ', period: '.', comma: ',', colon: ':', semicolon: ';', hyphen: '-', endash: '–', emdash: '—', parenleft: '(', parenright: ')', exclam: '!', question: '?', quotedbl: '"', quotesingle: "'",
++  quoteleft: '‘', quoteright: '’', quotedblleft: '“', quotedblright: '”', guillemotleft: '«', guillemotright: '»', slash: '/', percent: '%', plus: '+', equal: '=', minus: '−', numbersign: '#', bullet: '•',
++  zero: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', degree: '°', multiply: '×', afii61352: '№', afii10023: 'Ё', afii10071: 'ё'
++};
++const CYR = 'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ';
++function glyphChar(name: string): string | undefined {
++  if (GLYPHS[name]) return GLYPHS[name];
++  let m = /^uni([0-9A-F]{4})/i.exec(name) ?? /^u([0-9A-F]{4,6})$/i.exec(name);
++  if (m) return String.fromCodePoint(parseInt(m[1], 16));
++  m = /^afii(\d{5})$/.exec(name);
++  if (m) {
++    const n = Number(m[1]);
++    if (n >= 10017 && n <= 10048) return CYR[n - 10017];
++    if (n >= 10065 && n <= 10096) return CYR[n - 10065].toLowerCase();
++  }
++  if (/^[A-Za-z]$/.test(name)) return name;
++  return undefined;
++}
++
++const CP1251 = 'ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏђ‘’“”•–—\u0098™љ›њќћџ ЎўЈ¤Ґ¦§Ё©Є«¬­®Ї°±Ііґµ¶·ё№є»јЅѕїАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя';
++
++interface Font {
++  /** Сколько байт на код: 1 или 2 (Type0 Identity-H). */
++  two: boolean;
++  map: Map<number, string>;
++  /** Ширины глифов в тысячных долях кегля (Widths у простых шрифтов, W у составных) — по ним видно пробелы между кусками строки. */
++  widths: Map<number, number>;
++  dw: number;
++  /** Без ToUnicode у составного шрифта текст не прочитать. */
++  unreadable: boolean;
++  /** Простой шрифт без карты: байты как cp1251 (старые русские PDF) или latin1. */
++  cyr: boolean;
++  bold: boolean;
++}
++
++function utf16(bytes: Uint8Array): string {
++  let s = '';
++  for (let i = 0; i + 1 < bytes.length; i += 2) s += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
++  return s;
++}
++const codeOf = (b: Uint8Array) => b.reduce((n, x) => n * 256 + x, 0);
++
++/** ToUnicode CMap: bfchar и bfrange (обе формы). */
++export function parseToUnicode(data: Uint8Array): { map: Map<number, string>; two: boolean } {
++  const map = new Map<number, string>();
++  const lx = new Lexer(data);
++  let two = false;
++  const vals: PdfVal[] = [];
++  for (let t = lx.next(); t !== undefined; t = lx.next()) {
++    if (typeof t === 'object' && t !== null && 'op' in t) {
++      if (t.op === 'endcodespacerange') {
++        for (const v of vals) if (v instanceof PdfStr && v.bytes.length >= 2) two = true;
++      } else if (t.op === 'endbfchar') {
++        for (let i = 0; i + 1 < vals.length; i += 2) {
++          const s = vals[i];
++          const d = vals[i + 1];
++          if (s instanceof PdfStr && d instanceof PdfStr) map.set(codeOf(s.bytes), utf16(d.bytes));
++        }
++      } else if (t.op === 'endbfrange') {
++        for (let i = 0; i + 2 < vals.length; i += 3) {
++          const lo = vals[i];
++          const hi = vals[i + 1];
++          const d = vals[i + 2];
++          if (!(lo instanceof PdfStr) || !(hi instanceof PdfStr)) continue;
++          const a = codeOf(lo.bytes);
++          const z = Math.min(codeOf(hi.bytes), a + 65535);
++          if (d instanceof PdfStr) {
++            const base = utf16(d.bytes);
++            const last = base.charCodeAt(base.length - 1);
++            for (let c = a; c <= z; c++) map.set(c, base.slice(0, -1) + String.fromCharCode(last + (c - a)));
++          } else if (Array.isArray(d)) d.forEach((x, k) => x instanceof PdfStr && a + k <= z && map.set(a + k, utf16(x.bytes)));
++        }
++      }
++      vals.length = 0;
++    } else if (t !== undefined) vals.push(t);
++  }
++  return { map, two };
++}
++
++function loadFont(doc: Doc, ref: PdfVal | undefined, cache: Map<PdfVal, Font>): Font {
++  const hit = ref !== undefined ? cache.get(ref) : undefined;
++  if (hit) return hit;
++  const d = doc.dict(ref);
++  const sub = nameOf(d?.get('Subtype'));
++  const baseName = nameOf(d?.get('BaseFont')) ?? '';
++  const font: Font = { two: sub === 'Type0', map: new Map(), widths: new Map(), dw: 500, unreadable: false, cyr: false, bold: /bold|black|heavy|semibold|demi/i.test(baseName) };
++  if (sub === 'Type0') {
++    const descV = doc.get(d?.get('DescendantFonts'));
++    const desc = doc.dict(Array.isArray(descV) ? descV[0] : undefined);
++    font.dw = numOf(doc.get(desc?.get('DW'))) ?? 1000;
++    const w = doc.get(desc?.get('W'));
++    if (Array.isArray(w))
++      for (let i = 0; i < w.length; ) {
++        const a = numOf(doc.get(w[i]));
++        const next = doc.get(w[i + 1]);
++        if (a === undefined) break;
++        if (Array.isArray(next)) {
++          next.forEach((x, k) => font.widths.set(a + k, numOf(doc.get(x)) ?? font.dw));
++          i += 2;
++        } else {
++          const z = numOf(next) ?? a;
++          const v = numOf(doc.get(w[i + 2])) ?? font.dw;
++          for (let c = a; c <= Math.min(z, a + 65535); c++) font.widths.set(c, v);
++          i += 3;
++        }
++      }
++  } else {
++    const first = numOf(doc.get(d?.get('FirstChar'))) ?? 0;
++    const ws = doc.get(d?.get('Widths'));
++    if (Array.isArray(ws)) ws.forEach((x, k) => font.widths.set(first + k, numOf(doc.get(x)) ?? 0));
++  }
++  const tu = doc.obj(d?.get('ToUnicode'));
++  const data = tu ? doc.decode(tu) : null;
++  if (data) {
++    const r = parseToUnicode(data);
++    font.map = r.map;
++
++  } else if (sub === 'Type0') font.unreadable = true;
++  else {
++    const enc = doc.get(d?.get('Encoding'));
++    const diffs = isDict(enc) ? doc.get(enc.get('Differences')) : undefined;
++    if (Array.isArray(diffs)) {
++      let code = 0;
++      for (const x of diffs) {
++        if (typeof x === 'number') code = x;
++        else if (x instanceof PdfName) {
++          const ch = glyphChar(x.n);
++          if (ch) font.map.set(code, ch);
++          code++;
++        }
++      }
++    }
++    // Старые русские PDF: TrueType без ToUnicode и без своей кодировки, байты — cp1251.
++    font.cyr = !nameOf(enc) || nameOf(enc) === 'WinAnsiEncoding' ? /cyr|rus|1251/i.test(baseName) || !nameOf(enc) : false;
++  }
++  if (ref !== undefined) cache.set(ref, font);
++  return font;
++}
++
++/** Байты строки → текст и продвижение (в долях кегля). */
++function decodeText(font: Font | undefined, bytes: Uint8Array): { text: string; adv: number } {
++  if (!font) return { text: new TextDecoder('latin1').decode(bytes), adv: bytes.length * 0.5 };
++  let s = '';
++  let adv = 0;
++  const w = (code: number) => (font.widths.get(code) ?? font.dw) / 1000;
++  if (font.two) {
++    for (let i = 0; i + 1 < bytes.length; i += 2) {
++      const code = (bytes[i] << 8) | bytes[i + 1];
++      if (!font.unreadable) s += font.map.get(code) ?? '';
++      adv += w(code);
++    }
++    return { text: s, adv };
++  }
++  for (const c of bytes) {
++    const m = font.map.get(c);
++    if (m !== undefined) s += m;
++    else if (c >= 128 && font.cyr) s += CP1251[c - 128];
++    else if (c >= 32) s += String.fromCharCode(c);
++    adv += w(c);
++  }
++  return { text: s, adv };
++}
++
++// ---------- Текст страницы ----------
++
++interface Item {
++  x: number;
++  y: number;
++  size: number;
++  text: string;
++  bold: boolean;
++  /** Примерная ширина — для пробела между кусками одной строки. */
++  w: number;
++}
++
++type M = [number, number, number, number, number, number];
++const mul = (a: M, b: M): M => [a[0] * b[0] + a[1] * b[2], a[0] * b[1] + a[1] * b[3], a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3], a[4] * b[0] + a[5] * b[2] + b[4], a[4] * b[1] + a[5] * b[3] + b[5]];
++
++interface PageOut {
++  items: Item[];
++  images: PdfImage[];
++  unreadable: boolean;
++}
++
++export type PdfImage = { kind: 'jpeg'; bytes: Uint8Array; w: number; h: number } | { kind: 'raw'; data: Uint8Array; w: number; h: number; comps: 1 | 3 };
++
++function imageOf(doc: Doc, o: PdfObj): PdfImage | null {
++  const d = o.dict!;
++  const w = numOf(doc.get(d.get('Width'))) ?? 0;
++  const h = numOf(doc.get(d.get('Height'))) ?? 0;
++  if (w < 50 || h < 50 || !o.stream) return null;
++  const f = doc.get(d.get('Filter'));
++  const filters = (Array.isArray(f) ? f : f ? [f] : []).map((x) => nameOf(doc.get(x as PdfVal)));
++  if (filters[filters.length - 1] === 'DCTDecode') {
++    if (filters.length === 1) return { kind: 'jpeg', bytes: o.stream, w, h };
++    return null;
++  }
++  const cs = doc.get(d.get('ColorSpace'));
++  const iccN = Array.isArray(cs) && nameOf(cs[0]) === 'ICCBased' ? (numOf(doc.obj(cs[1])?.dict?.get('N')) ?? 3) : 0;
++  const csName = nameOf(cs) ?? (iccN === 1 ? 'DeviceGray' : iccN === 3 ? 'DeviceRGB' : undefined);
++  const comps = csName === 'DeviceGray' ? 1 : csName === 'DeviceRGB' ? 3 : 0;
++  if (!comps || (numOf(doc.get(d.get('BitsPerComponent'))) ?? 8) !== 8) return null;
++  const data = doc.decode(o);
++  if (!data || data.length < w * h * comps) return null;
++  return { kind: 'raw', data: data.subarray(0, w * h * comps), w, h, comps: comps as 1 | 3 };
++}
++
++function runContent(doc: Doc, content: Uint8Array, res: PdfDict | undefined, ctm0: M, out: PageOut, fonts: Map<PdfVal, Font>, depth: number) {
++  const lx = new Lexer(content);
++  const stack: PdfVal[] = [];
++  let ctm: M = ctm0;
++  const saved: M[] = [];
++  let tm: M = [1, 0, 0, 1, 0, 0];
++  let tlm: M = [1, 0, 0, 1, 0, 0];
++  let leading = 0;
++  let font: Font | undefined;
++  let size = 12;
++  const fontRes = doc.dict(res?.get('Font'));
++  const xobj = doc.dict(res?.get('XObject'));
++  const show = (s: string, adv: number) => {
++    const m = mul(tm, ctm);
++    const scale = Math.hypot(m[2], m[3]) || 1;
++    const eff = size * scale;
++    if (s.trim()) out.items.push({ x: m[4], y: m[5], size: eff, text: s, bold: font?.bold ?? false, w: adv * eff });
++    tm = [tm[0], tm[1], tm[2], tm[3], tm[4] + adv * size * tm[0], tm[5] + adv * size * tm[1]];
++  };
++  const showStr = (v: PdfVal) => {
++    if (!(v instanceof PdfStr)) return;
++    const t = decodeText(font, v.bytes);
++    if (font?.unreadable && v.bytes.length) out.unreadable = true;
++    show(t.text, t.adv);
++  };
++  for (let t = lx.next(); t !== undefined; t = lx.next()) {
++    if (!(typeof t === 'object' && t !== null && 'op' in t)) {
++      if (stack.length > 64) stack.shift();
++      stack.push(t as PdfVal);
++      // «n g R» в потоке не бывает, ссылки не разбираем.
++      continue;
++    }
++    const n = (i: number) => numOf(stack[stack.length - i]) ?? 0;
++    switch (t.op) {
++      case 'q':
++        saved.push(ctm);
++        break;
++      case 'Q':
++        ctm = saved.pop() ?? ctm;
++        break;
++      case 'cm':
++        ctm = mul([n(6), n(5), n(4), n(3), n(2), n(1)], ctm);
++        break;
++      case 'BT':
++        tm = tlm = [1, 0, 0, 1, 0, 0];
++        break;
++      case 'Tf': {
++        const fname = nameOf(stack[stack.length - 2]);
++        size = n(1) || size;
++        const ref = fname ? fontRes?.get(fname) : undefined;
++        font = ref !== undefined ? loadFont(doc, ref, fonts) : undefined;
++        break;
++      }
++      case 'TL':
++        leading = n(1);
++        break;
++      case 'Tm':
++        tm = tlm = [n(6), n(5), n(4), n(3), n(2), n(1)];
++        break;
++      case 'Td':
++      case 'TD':
++        if (t.op === 'TD') leading = -n(1);
++        tm = tlm = mul([1, 0, 0, 1, n(2), n(1)], tlm);
++        break;
++      case 'T*':
++        tm = tlm = mul([1, 0, 0, 1, 0, -leading], tlm);
++        break;
++      case 'Tj':
++        showStr(stack[stack.length - 1]);
++        break;
++      case "'":
++      case '"':
++        tm = tlm = mul([1, 0, 0, 1, 0, -leading], tlm);
++        showStr(stack[stack.length - 1]);
++        break;
++      case 'TJ': {
++        const arr = stack[stack.length - 1];
++        if (!Array.isArray(arr)) break;
++        let buf = '';
++        let adv = 0;
++        for (const x of arr) {
++          if (x instanceof PdfStr) {
++            const s = decodeText(font, x.bytes);
++            if (font?.unreadable && x.bytes.length) out.unreadable = true;
++            buf += s.text;
++            adv += s.adv;
++          } else if (typeof x === 'number') {
++            // Сдвиг больше четверти кегля — это пробел между словами (так набирают выключку по ширине).
++            if (x < -250 && buf && !buf.endsWith(' ')) buf += ' ';
++            adv -= x / 1000;
++          }
++        }
++        show(buf, adv);
++        break;
++      }
++      case 'Do': {
++        const name = nameOf(stack[stack.length - 1]);
++        const ref = name ? xobj?.get(name) : undefined;
++        const o = doc.obj(ref);
++        const sub = nameOf(o?.dict?.get('Subtype'));
++        if (o && sub === 'Image') {
++          const m = ctm;
++          // Картинка на всю страницу или большая — кандидат «скан страницы».
++          const img = Math.abs(m[0] * m[3]) > 40000 ? imageOf(doc, o) : null;
++          if (img) out.images.push(img);
++        } else if (o && sub === 'Form' && depth < 4) {
++          const data = doc.decode(o);
++          const fm = doc.get(o.dict!.get('Matrix'));
++          const mat: M = Array.isArray(fm) && fm.length === 6 ? (fm.map((v) => numOf(v) ?? 0) as M) : [1, 0, 0, 1, 0, 0];
++          if (data) runContent(doc, data, doc.dict(o.dict!.get('Resources')) ?? res, mul(mat, ctm), out, fonts, depth + 1);
++        }
++        break;
++      }
++    }
++    stack.length = 0;
++  }
++}
++
++/** Куски текста → строки (сверху вниз, слева направо) с размером и «жирностью». */
++function toLines(items: Item[]): { text: string; size: number; y: number; bold: boolean }[] {
++  const lines: { items: Item[]; y: number; size: number }[] = [];
++  for (const it of items) {
++    // Тот же базовый уровень (с допуском) — та же строка; иначе ищем подходящую среди прежних (колонки, сноски).
++    const line = lines.find((l) => Math.abs(l.y - it.y) < Math.max(2, Math.min(l.size, it.size) * 0.45));
++    if (line) {
++      line.items.push(it);
++      line.size = Math.max(line.size, it.size);
++    } else lines.push({ items: [it], y: it.y, size: it.size });
++  }
++  lines.sort((a, b) => b.y - a.y);
++  return lines.map((l) => {
++    l.items.sort((a, b) => a.x - b.x);
++    let text = '';
++    let end = -Infinity;
++    for (const it of l.items) {
++      if (text && !text.endsWith(' ') && !it.text.startsWith(' ') && it.x - end > it.size * 0.15) text += ' ';
++      text += it.text;
++      end = it.x + it.w;
++    }
++    const letters = l.items.reduce((n, it) => n + it.text.trim().length, 0);
++    const boldLetters = l.items.filter((it) => it.bold).reduce((n, it) => n + it.text.trim().length, 0);
++    return { text: text.replace(/\s+/g, ' ').trim(), size: l.size, y: l.y, bold: letters > 0 && boldLetters / letters > 0.8 };
++  });
++}
++
++function median(a: number[]): number {
++  if (!a.length) return 0;
++  const s = [...a].sort((x, y) => x - y);
++  return s[Math.floor(s.length / 2)];
++}
++
++/** Строки всех страниц → Markdown: крупные строки — заголовки, большие промежутки — абзацы, переносы склеиваются. */
++function linesToMarkdown(pages: { text: string; size: number; y: number; bold: boolean }[][]): string {
++  const all = pages.flat().filter((l) => l.text);
++  // Основной кегль — по числу знаков, а не строк: заголовков мало, но строк у них столько же.
++  const weighted: number[] = [];
++  for (const l of all) for (let i = 0; i < Math.min(200, l.text.length); i += 10) weighted.push(Math.round(l.size * 10) / 10);
++  const body = median(weighted) || 12;
++  // Размеры заголовков от крупного к мелкому: самый крупный — «#», следующий — «##», остальные — «###».
++  const heads = [...new Set(all.filter((l) => l.size >= body * 1.15 && l.text.length <= 100).map((l) => Math.round(l.size * 2) / 2))].sort((a, b) => b - a);
++  const out: string[] = [];
++  let para: string[] = [];
++  const flush = () => {
++    if (para.length) out.push(escLineStart(escInline(joinLines(para))));
++    para = [];
++  };
++  for (const lines of pages) {
++    let prevY: number | undefined;
++    // Обычный шаг строк — самый маленький промежуток (не больше 1,3 кегля: если на странице одни однострочные абзацы).
++    const gaps = lines.slice(1).map((l, i) => lines[i].y - l.y).filter((g) => g > body * 0.8);
++    const step = Math.min(gaps.length ? Math.min(...gaps) : Infinity, body * 1.3);
++    for (const l of lines) {
++      if (!l.text) continue;
++      const short = l.text.length <= 100 && !/[.,;:]$/.test(l.text);
++      const big = short && l.size >= body * 1.15 ? heads.findIndex((h) => Math.abs(h - l.size) < 0.6) : -1;
++      const level = big >= 0 ? Math.min(3, big + 1) : short && l.bold && l.text.length <= 80 ? 3 : 0;
++      // Номер страницы внизу (одна цифра в строке) — не текст конспекта.
++      if (/^\d{1,4}$/.test(l.text)) continue;
++      if (level) {
++        flush();
++        out.push('#'.repeat(level) + ' ' + escInline(l.text));
++      } else {
++        if (prevY !== undefined && prevY - l.y > step * 1.45) flush();
++        if (/^[•●▪■◦–-]\s/.test(l.text)) {
++          flush();
++          para.push('- ' + l.text.replace(/^[•●▪■◦–-]\s+/, ''));
++          out.push(escInline(para.join(' ')));
++          para = [];
++        } else para.push(l.text);
++      }
++      prevY = l.y;
++    }
++    flush();
++  }
++  return out.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
++}
++
++export interface PdfResult {
++  markdown: string;
++  stats: FileStats;
++  warnings: string[];
++  /** PDF без текста (скан): картинки страниц для ветки «Фото». */
++  scans: PdfImage[];
++}
++
++/** PDF → Markdown или (если это скан) картинки страниц. Бросает понятную ошибку, если PDF не прочитать. */
++export function pdfToMarkdown(bytes: Uint8Array): PdfResult {
++  if (bytes.length > MAX_BYTES) throw new Error('PDF больше 80 МБ — раздели его на части.');
++  if (!/^%PDF-/.test(new TextDecoder('latin1').decode(bytes.subarray(0, 1024)).trimStart()) && !new TextDecoder('latin1').decode(bytes.subarray(0, 1024)).includes('%PDF-'))
++    throw new Error('Файл не похож на PDF.');
++  const doc = new Doc(bytes);
++  if (doc.trailer.has('Encrypt')) throw new Error('PDF защищён (зашифрован). Открой его и сохрани заново как PDF без защиты — или «Печать → Сохранить как PDF».');
++  const pages = doc.pages();
++  if (!pages.length) throw new Error('В PDF не нашлось страниц.');
++  const fonts = new Map<PdfVal, Font>();
++  const perPage: { text: string; size: number; y: number; bold: boolean }[][] = [];
++  const scans: PdfImage[] = [];
++  let unreadable = false;
++  let images = 0;
++  for (const p of pages) {
++    const out: PageOut = { items: [], images: [], unreadable: false };
++    const c = doc.get(p.dict.get('Contents'));
++    const parts = (Array.isArray(c) ? c : [p.dict.get('Contents')]).map((x) => doc.obj(x as PdfVal)).filter((o): o is PdfObj => Boolean(o));
++    const chunks = parts.map((o) => doc.decode(o)).filter((x): x is Uint8Array => Boolean(x));
++    const total = chunks.reduce((n, x) => n + x.length + 1, 0);
++    const content = new Uint8Array(total);
++    let off = 0;
++    for (const ch of chunks) {
++      content.set(ch, off);
++      content[off + ch.length] = 10;
++      off += ch.length + 1;
++    }
++    runContent(doc, content, p.res, [1, 0, 0, 1, 0, 0], out, fonts, 0);
++    unreadable ||= out.unreadable;
++    images += out.images.length;
++    perPage.push(toLines(out.items));
++    // Самая большая картинка страницы — её снимок (если это скан).
++    const big = out.images.sort((a, b) => b.w * b.h - a.w * a.h)[0];
++    if (big) scans.push(big);
++  }
++  const markdown = linesToMarkdown(perPage);
++  const letters = markdown.replace(/[^\p{L}\p{N}]/gu, '').length;
++  const warnings: string[] = [];
++  const isScan = letters < pages.length * 40;
++  if (isScan && unreadable && !scans.length) throw new Error('Текст в этом PDF набран шрифтом без таблицы символов — прочитать его нельзя. Открой PDF и сохрани как .docx (Word умеет) или «Печать → Сохранить как PDF».');
++  if (!isScan && unreadable) warnings.push('Часть текста набрана шрифтом без таблицы символов и пропущена.');
++  return { markdown: isScan ? '' : markdown, stats: { tables: 0, images, pages: pages.length }, warnings, scans: isScan ? scans : [] };
++}
+diff --git a/src/v131-notebook.test.ts b/src/v131-notebook.test.ts
+index 59537de..de8e302 100644
+--- a/src/v131-notebook.test.ts
++++ b/src/v131-notebook.test.ts
+@@ -1,10 +1,11 @@
+ // 1.31, поток F: «Из тетради» — фото (разворот, клетка, {?слово?}, «Как в тетради», запрос notebook.read) и файлы (.docx, PDF, Markdown/Notion, ДЗ).
+-import { strToU8, zipSync } from 'fflate';
++import { strToU8, zipSync, zlibSync } from 'fflate';
+ import { readFileSync } from 'node:fs';
+ import { describe, expect, it } from 'vitest';
+ // @ts-expect-error — генератор фикстуры на JS без типов
+ import { makeDocx, p, t } from '../test-fixtures/notebook/make-docx.mjs';
+ import { docSections, docxToMarkdown, dueDate, fileKindOf, homeworkOf, homeworkText, markdownDoc, matchTopic, notionTitle, parseSplitAnswer, parseXml, sectionNote, sectionsByStarts, splitOutline, splitSections, type XNode } from './fileImport';
++import { pdfToMarkdown } from './fileImportPdf';
+ import { acceptUnsure, asInNotebook, cardDrafts, fixUnsure, hasAbbreviations, isSpreadShape, notebookRequest, parseNotebookAnswer, spreadCuts, tidyRequest, unsureCount, unsurePieces, whitenPaper } from './notebook';
+ 
+ describe('тетрадь: разворот', () => {
+@@ -238,3 +239,76 @@ describe('файл: Markdown и Notion', () => {
+     expect(['a.docx', 'b.PDF', 'c.md', 'd.zip', 'e.txt', 'f.jpg', 'g.doc'].map(fileKindOf)).toEqual(['docx', 'pdf', 'md', 'md', 'md', null, null]);
+   });
+ });
++
++describe('файл: PDF без сторонних библиотек', () => {
++  /** Маленький PDF из объектов: строки как есть, потоки — { dict, data } (data сжимается, если flate). */
++  const pdf = (objs: (string | { dict: string; data: Uint8Array | string; flate?: boolean })[], trailer = '/Root 1 0 R') => {
++    const parts: (string | Uint8Array)[] = ['%PDF-1.7\n'];
++    objs.forEach((o, i) => {
++      if (typeof o === 'string') parts.push(`${i + 1} 0 obj\n${o}\nendobj\n`);
++      else {
++        const raw = typeof o.data === 'string' ? strToU8(o.data, true) : o.data;
++        const data = o.flate ? zlibSync(raw) : raw;
++        parts.push(`${i + 1} 0 obj\n<< ${o.dict}${o.flate ? ' /Filter /FlateDecode' : ''} /Length ${data.length} >>\nstream\n`, data, '\nendstream\nendobj\n');
++      }
++    });
++    parts.push(`trailer\n<< ${trailer} >>\n%%EOF`);
++    const bytes = parts.map((x) => (typeof x === 'string' ? strToU8(x, true) : x));
++    const out = new Uint8Array(bytes.reduce((n, b) => n + b.length, 0));
++    let off = 0;
++    for (const b of bytes) (out.set(b, off), (off += b.length));
++    return out;
++  };
++  const page = (font: string, content: { dict: string; data: Uint8Array | string; flate?: boolean }, extra: string[] = []) =>
++    pdf(['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>', content, font, ...extra]);
++
++  it('фикстура из Chrome: шрифты с ToUnicode, заголовки по кеглю, абзацы', () => {
++    const r = pdfToMarkdown(new Uint8Array(readFileSync('test-fixtures/notebook/biology.pdf')));
++    expect(r.scans).toEqual([]);
++    expect(r.stats.pages).toBe(1);
++    expect(r.markdown).toBe(
++      '# § 12. Фотосинтез\n\nФотосинтез — это образование органических веществ из углекислого газа и воды на свету. Он идёт в хлоропластах клеток листа и даёт кислород, которым мы дышим каждый день.\n\nСветовая фаза — образуется АТФ.\n\n## Где идёт\n\nВ хлоропластах (зелёные пластиды).\n\n# § 13. Дыхание растений\n\nДыхание — окисление органических веществ с выделением энергии. Цена 5 \\$.'
++    );
++    expect(splitSections(r.markdown, 'Биология').map((s) => s.title)).toEqual(['§ 12. Фотосинтез', '§ 13. Дыхание растений']);
++  });
++  it('скан без текста: картинка страницы (JPEG) для ветки «Фото»', () => {
++    const r = pdfToMarkdown(new Uint8Array(readFileSync('test-fixtures/notebook/scan.pdf')));
++    expect(r.markdown).toBe('');
++    expect(r.scans).toHaveLength(1);
++    expect(r.scans[0]).toMatchObject({ kind: 'jpeg', w: 600, h: 800 });
++    const jpeg = (r.scans[0] as { bytes: Uint8Array }).bytes;
++    expect([jpeg[0], jpeg[1], jpeg[2]]).toEqual([0xff, 0xd8, 0xff]);
++  });
++  it('ToUnicode с bfrange (обе формы), двухбайтные коды, перенос слова, TJ с пробелом', () => {
++    const cmap = '/CIDInit /ProcSet findresource begin 12 dict begin begincmap 1 begincodespacerange <0000> <FFFF> endcodespacerange 2 beginbfrange <0001> <0003> <0444> <0010> <0011> [<043E> <0442>] endbfrange 1 beginbfchar <0020> <0020> endbfchar endcmap end end';
++    // ф ф х — о т: «фф» + перенос «х-» и пробел через TJ
++    const text = 'BT /F1 12 Tf 72 700 Td [<00010002> -400 <0010>] TJ 0 -14 Td <00110003> Tj ET';
++    const r = pdfToMarkdown(page('<< /Type /Font /Subtype /Type0 /BaseFont /X /Encoding /Identity-H /ToUnicode 6 0 R /DescendantFonts [7 0 R] >>', { dict: '', data: text, flate: true }, [`<< /Length ${cmap.length} >>\nstream\n${cmap}\nendstream`, '<< /Type /Font /Subtype /CIDFontType2 /DW 500 >>']));
++    expect(r.markdown).toBe('фх о\n\nтц'.replace('\n\n', ' '));
++  });
++  it('простой шрифт: Differences с именами кириллицы и старый cp1251 без кодировки', () => {
++    const diff = pdfToMarkdown(page('<< /Type /Font /Subtype /Type1 /BaseFont /Times /Encoding << /Differences [65 /afii10017 /afii10066 /space /uni0436] >> >>', { dict: '', data: 'BT /F1 12 Tf 10 10 Td (ABCD) Tj ET' }));
++    expect(diff.markdown).toBe('Аб ж');
++    const cp = pdfToMarkdown(page('<< /Type /Font /Subtype /TrueType /BaseFont /ArialCyr >>', { dict: '', data: strToU8('BT /F1 12 Tf 10 10 Td (\xcf\xf0\xe8\xe2\xe5\xf2) Tj ET', true) }));
++    expect(cp.markdown).toBe('Привет');
++  });
++  it('потоки объектов (ObjStm) и ASCIIHex', () => {
++    const inner = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
++    const objstm = `5 0 ${inner}`;
++    const hex = Array.from(strToU8('BT /F1 12 Tf 10 10 Td (Hello world) Tj ET'), (b) => b.toString(16).padStart(2, '0')).join('') + '>';
++    const r = pdf([
++      '<< /Type /Catalog /Pages 2 0 R >>',
++      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
++      '<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
++      { dict: '/Filter /ASCIIHexDecode', data: hex },
++      'null',
++      { dict: `/Type /ObjStm /N 1 /First ${'5 0 '.length}`, data: objstm, flate: true }
++    ]);
++    expect(pdfToMarkdown(r).markdown).toBe('Hello world');
++  });
++  it('зашифрованный PDF и не PDF — понятные ошибки', () => {
++    const enc = pdf(['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [] /Count 0 >>'], '/Root 1 0 R /Encrypt << /Filter /Standard >>');
++    expect(() => pdfToMarkdown(enc)).toThrow(/защищён/);
++    expect(() => pdfToMarkdown(strToU8('<html></html>'))).toThrow(/не похож на PDF/);
++  });
++});
+diff --git a/test-fixtures/notebook/biology.pdf b/test-fixtures/notebook/biology.pdf
+new file mode 100644
+index 0000000000000000000000000000000000000000..014de5836aee5df533eb978f062a9ba55aa4e53f
+GIT binary patch
+literal 21373
+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
+Q7>ESpx#i`xjrMW>2PLf6*Z=?k
+
+literal 0
+HcmV?d00001
+
+diff --git a/test-fixtures/notebook/scan.pdf b/test-fixtures/notebook/scan.pdf
+new file mode 100644
+index 0000000000000000000000000000000000000000..10226a83eec3cab3d480ab8dde7def86bbe3e77d
+GIT binary patch
+literal 20367
+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
+
+literal 0
+HcmV?d00001
+
 -- 
 2.43.0
 

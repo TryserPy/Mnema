@@ -1,7 +1,7 @@
 From 604c4910b05d2fc92b2adff328e6161a6a027538 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:51:12 +0000
-Subject: [PATCH 1/3] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+Subject: [PATCH 1/4] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
  =?UTF-8?q?=20WIP=20=E2=80=94=20=D0=BF=D0=BB=D0=B0=D0=BD=20=D0=B8=20=D1=81?=
  =?UTF-8?q?=D0=BE=D1=81=D1=82=D0=BE=D1=8F=D0=BD=D0=B8=D0=B5=20=D1=80=D0=B0?=
  =?UTF-8?q?=D0=B1=D0=BE=D1=82=20(progress-A.md)?=
@@ -57,7 +57,7 @@ index 0000000..080ea82
 From 4ce5993ff3c0e722e63885cd4545086050090bd6 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:55:03 +0000
-Subject: [PATCH 2/3] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+Subject: [PATCH 2/4] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
  =?UTF-8?q?=20=D1=81=D0=BE=D1=85=D1=80=D0=B0=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5?=
  =?UTF-8?q?=20=D0=BF=D0=BE=20=D1=81=D0=B8=D0=B3=D0=BD=D0=B0=D0=BB=D1=83=20?=
  =?UTF-8?q?=C2=AB95=C2=BB?=
@@ -310,7 +310,7 @@ index f478068..7308cec 100644
 From be2ff537f1e5171872f523463eee458e0bd6e13e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:16:23 +0000
-Subject: [PATCH 3/3] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+Subject: [PATCH 3/4] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
  =?UTF-8?q?=20=D0=BC=D0=BE=D0=B4=D0=B5=D0=BB=D1=8C=20=C2=AB=D1=81=D1=82?=
  =?UTF-8?q?=D0=B8=D0=BB=D1=8C=20+=20=D0=B4=D0=BE=D0=BF=D0=BE=D0=BB=D0=BD?=
  =?UTF-8?q?=D0=B5=D0=BD=D0=B8=D1=8F=20+=20=D0=BC=D0=BE=D0=B8=20=D0=BF?=
@@ -1059,6 +1059,250 @@ index 0000000..86762de
 +    expect(css).not.toContain('evil');
 +  });
 +});
+-- 
+2.43.0
+
+
+From bef2495e2efba848a7dfac6d338de346b7a6862d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 15 Oct 2026 12:18:13 +0000
+Subject: [PATCH 4/4] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+ =?UTF-8?q?=20=D0=B4=D0=B5=D0=B9=D1=81=D1=82=D0=B2=D0=B8=D1=8F=20=D0=BE?=
+ =?UTF-8?q?=D1=84=D0=BE=D1=80=D0=BC=D0=BB=D0=B5=D0=BD=D0=B8=D1=8F=20(?=
+ =?UTF-8?q?=D1=81=D1=82=D0=B8=D0=BB=D1=8C,=20=D0=B4=D0=BE=D0=BF=D0=BE?=
+ =?UTF-8?q?=D0=BB=D0=BD=D0=B5=D0=BD=D0=B8=D1=8F,=20=D0=BF=D1=80=D0=B0?=
+ =?UTF-8?q?=D0=B2=D0=BA=D0=B8),=20=D0=B7=D0=B0=D0=BC=D0=B5=D1=82=D0=BA?=
+ =?UTF-8?q?=D0=B0=20=D0=BE=20=D1=85=D0=BE=D0=B4=D0=B5=20=D1=80=D0=B0=D0=B1?=
+ =?UTF-8?q?=D0=BE=D1=82=D1=8B?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ docs/refrain-1.31/progress-A.md |  37 ++++----
+ src/styleActions.ts             | 156 +++++++++++++++++++++++++++++++-
+ 2 files changed, 171 insertions(+), 22 deletions(-)
+
+diff --git a/docs/refrain-1.31/progress-A.md b/docs/refrain-1.31/progress-A.md
+index 080ea82..61f0a9f 100644
+--- a/docs/refrain-1.31/progress-A.md
++++ b/docs/refrain-1.31/progress-A.md
+@@ -1,28 +1,25 @@
+ # Поток A «Оформление» — состояние
+ 
+ Ветка: `worktree-agent-a166d10aab02b35d5` (worktree `.claude/worktrees/agent-a166d10aab02b35d5`).
+-Ветка переведена fast-forward на `7f40db1` (контракты 1.31 из `claude/wizardly-volta-879gpb`): worktree был создан от `main` без них.
+ 
+-## Готово
++## Готово (закоммичено)
+ 
+-- Прочитаны задание (`streams.md`, раздел A), контракты (`contracts.md`, `src/styleModel.ts`), спецификация (разделы 1–2).
+-- Разведка кода: `mods.ts`, `themes.ts`, `appearance.ts`, `styleApply.ts`, `styleSystem.ts`, `styleActions.ts`, `styleAi.ts`, `styleApi.ts`, `safeCss.ts`, `LookSettings.tsx`, `ModsSettings.tsx`, `StyleGallery.tsx`, `StyleEditor.tsx`, `StyleTabs.tsx`, `StyleAiPanel.tsx`, `Settings.tsx` (раздел look и поиск).
++- Модель «стиль + дополнения + мои правки» — `src/styleMigrate.ts`: `classifyRole`, `styleBase`, `projectAppearance` (appearance → поля 1.30), `diffEdits`, `countEdits`, `migrateAppearance` (= `migrate130: Migration130`, идемпотентный; сохранённый `appearance` — подсказка выбора стиля и вкладки, поля главнее), `appearanceOf`.
++- `themes.ts`: `BASE_STYLES` — «Современный», «Классический», схемы парами (`scheme:coffee|ocean|forest|plum|midnight|contrast`), `schemeStyleFor`.
++- Порядок CSS: `compileStyles(stack, snippets, edits)`; `styleApply.styleStack` строит стек из appearance (стиль → дополнения), правки после кусочков CSS.
++- `store.ts`: перенос при загрузке (`normalizeData`); `types.ts`: `appearance?: Appearance`.
++- `.refrainstyle` v3: роль, `fonts` (data:font, 400 КБ/1 МБ), `origin`; `@font-face` вырезается из CSS, собирается приложением (`fontFaceCss`, `withFontNames`). `parseStyleFile` ставит `origin: 'file'` (where «из файла» оставлен для отката).
++- `v131-styles.test.ts` (17 тестов: роль, перенос, идемпотентность, проекция без потерь, порядок CSS, v3, шрифты). `v130-styles.test.ts`: «слишком новая» версия файла теперь 4 (v3 читается по контракту).
++- `styleActions.ts`: действия 1.31 — `setAppearance`, `setAppearanceTab`, `pickStyle` (правки цветов сбрасываются при смене стиля — `editsForNewStyle`), `toggleAddon`, `moveAddon`, `resetEdits`, `setCurrent`, `currentAsStyle`, `saveEditsAsStyle`, `saveStyle`, `removeStyle`, `setAppearanceValue`.
+ 
+-Кода пока не менялось.
++## Дальше (по порядку)
+ 
+-## План (решения)
++1. UI: `LookSettings.tsx` — вкладки «Стиль · Дополнения · Анимации · Свой код» (вкладка в `appearance.tab`), карточка-сводка («Кофе · 3 правки поверх», «Настроить» раскрывает быстрые настройки + свой фон + значок + полный редактор, «Сбросить правки», «Сохранить как стиль»).
++2. `ModsSettings.tsx`: галерея только стилей (одиночный выбор `pickStyle`), фильтр «Все · Встроенные · Мои», убрать `BASE_TILES`/«Виды»; вкладка «Дополнения» (переключатели, настройки, порядок). `StyleGallery.tsx:257` — подпись из `origin` (helper в mods.ts). `design.css:92` — ширина `small-seg`.
++3. Перевести `StyleEditor`/`StyleAiPanel` на `saveStyle`/`setCurrent` (вместо `saveCustomStyle`/`toggleStyle`/`updateSettings(modToCurrent)`); дерево частей экрана + «Выбрать на экране»; часть «Конспект → Выноски» (`--co-*` в `styleApi.ts` + значения по умолчанию в design.css).
++4. «Инструкция для ИИ» (новый `AppearanceAiGuide.tsx`): копировать / .md / вставить ответ → `parseAiStyle` → до/после → применить, список выброшенного.
++5. `shared/prompts/styleReference.ts` (строка из `styleAi.styleReference()`, обновить под 1.31) + тест сверки.
++6. Поиск по настройкам в `Settings.tsx` (якоря → вкладки).
++7. e2e `e2e/v131-overflow.mjs`.
+ 
+-- `App.tsx` (не мой файл) применяет оформление по прежним полям (`look`, `accent`, `density`, `fontScale`, `bgImage`, `modsOn`, `myStyle`…). Поэтому `settings.appearance` — источник правды, а прежние поля — его «проекция»: каждое действие пишет и `appearance`, и проекцию. Заодно это и есть откат на 1.30.
+-- Порядок CSS по контракту: стиль → дополнения → кусочки CSS → мои правки (сейчас «Мой вид» идёт до сниппетов — поправить в `styleApply.ts`).
+-- Встроенные стили: «Современный», «Классический», схемы `scheme:<id>` (парами светлая/тёмная), «Стекло»; остальной каталог — дополнения.
+-- Перенос (`src/styleMigrate.ts`): по `Migration130`, идемпотентный; палитра/шрифт/углы/акцент, отличные от стиля, → `edits`.
+-- `fonts` в стиле: `@font-face` собирает приложение, в CSS стиля вырезается явно.
+-- Галерея: фильтр «Все · Встроенные · Мои», подпись из `origin`; убрать `BASE_TILES` и «Виды»; `design.css:92` — ширина `small-seg`.
+-- Редактор: дерево частей экрана + «Выбрать на экране»; часть «Конспект → Выноски» (`--co-*`).
+-- «Инструкция для ИИ»: копировать / .md / вставить ответ → `parseAiStyle` → до/после → применить, список выброшенного.
+-- `shared/prompts/styleReference.ts` + тест на совпадение со свежей генерацией.
+-- e2e `e2e/v131-overflow.mjs`.
+-
+-## Осталось
+-
+-Всё из плана выше. Проверки ещё не запускались.
++Проверки: tsc и vitest зелёные на коммите модели.
+diff --git a/src/styleActions.ts b/src/styleActions.ts
+index 503f7e4..fb213c4 100644
+--- a/src/styleActions.ts
++++ b/src/styleActions.ts
+@@ -1,9 +1,161 @@
+-// Действия над стилями (включить, порядок, значения настроек): отдельно от интерфейса, чтобы их можно было проверять тестами.
++// Действия над оформлением (выбрать стиль, дополнения, порядок, значения настроек, правки): отдельно от интерфейса, чтобы их можно было проверять тестами.
++// 1.31: каждое действие меняет settings.appearance и сразу пишет его проекцию в прежние поля (look, accent, modsOn, myStyle…) — по ним рисует окно
++// и работает 1.30 после отката (styleMigrate.ts). toggleStyle и прочие действия 1.30 остались для совместимости.
++import { currentAsMod } from './appearance';
+ import { cleanBg } from './bgImage';
++import { allMods } from './mods';
+ import { getData, updateSettings } from './store';
+-import { FONTS } from './themes';
++import type { Appearance, Mod131 } from './styleModel';
++import { appearanceOf, classifyRole, EDITS_ID, isBaseStyle, migrateAppearance, projectAppearance } from './styleMigrate';
++import { newStyleId } from './styleSystem';
++import { FONTS, PALETTE_VARS } from './themes';
+ import type { BgImage, Mod, Settings, StyleValue } from './types';
+ 
++// ---------- 1.31: стиль + дополнения + мои правки ----------
++
++/** Поменять оформление и записать его проекцию. `customMods` — если вместе с оформлением меняется список своих стилей. */
++export function setAppearance(patch: Partial<Appearance>, customMods?: Mod[]) {
++  const s = getData().settings;
++  const mods = customMods ?? s.customMods;
++  const a: Appearance = { ...appearanceOf({ ...s, customMods: mods }), ...patch };
++  if (!a.edits) delete a.edits;
++  for (const m of [a.style, ...a.addons]) if (m) void FONTS.find((f) => f.id === allMods(mods).find((x) => x.id === m)?.font)?.load?.();
++  updateSettings({ ...(customMods ? { customMods } : {}), ...projectAppearance(a, mods), appearance: a });
++}
++
++/** Запомнить открытую вкладку «Оформления» (вид окна не меняется). */
++export function setAppearanceTab(tab: NonNullable<Appearance['tab']>) {
++  const s = getData().settings;
++  updateSettings({ appearance: { ...appearanceOf(s), tab } });
++}
++
++/** Правки, которые относятся к цветам стиля: при смене стиля они сбрасываются, иначе новый стиль выглядел бы как прежний. */
++const COLOR_VARS = new Set([...Object.values(PALETTE_VARS), '--accent']);
++export function editsForNewStyle(e: Mod131 | undefined): Mod131 | undefined {
++  if (!e) return undefined;
++  const { accent: _a, look, vars, ...rest } = e;
++  const out: Mod131 = { ...rest };
++  if (look) {
++    const { light: _l, dark: _d, style: _s, headFont: _h, ...keep } = look;
++    if (Object.keys(keep).length) out.look = keep;
++  }
++  const v = { light: { ...(vars?.light ?? {}) }, dark: { ...(vars?.dark ?? {}) } };
++  for (const mode of ['light', 'dark'] as const) for (const k of Object.keys(v[mode])) if (COLOR_VARS.has(k)) delete v[mode][k];
++  if (Object.keys(v.light).length || Object.keys(v.dark).length) out.vars = { ...(Object.keys(v.light).length ? { light: v.light } : {}), ...(Object.keys(v.dark).length ? { dark: v.dark } : {}) };
++  return Object.keys(out).length > 3 ? out : undefined;
++}
++
++/** Выбрать стиль (ровно один). Правки цветов от прежнего стиля сбрасываются, остальные правки остаются. */
++export function pickStyle(id: string) {
++  const a = appearanceOf(getData().settings);
++  if (a.style === id) return;
++  setAppearance({ style: id, addons: a.addons.filter((x) => x !== id), edits: editsForNewStyle(a.edits) });
++}
++
++/** Включить или выключить дополнение. Новое — в конце: применяется последним и перекрывает прежние. */
++export function toggleAddon(id: string, on: boolean) {
++  const a = appearanceOf(getData().settings);
++  const rest = a.addons.filter((x) => x !== id);
++  setAppearance({ addons: on ? [...rest, id] : rest });
++}
++
++/** Поменять порядок дополнения: -1 — раньше, +1 — позже (перекрывает). */
++export function moveAddon(id: string, delta: -1 | 1) {
++  const list = [...appearanceOf(getData().settings).addons];
++  const i = list.indexOf(id);
++  const j = i + delta;
++  if (i < 0 || j < 0 || j >= list.length) return;
++  [list[i], list[j]] = [list[j], list[i]];
++  setAppearance({ addons: list });
++}
++
++/** «Сбросить правки»: оформление становится таким, как задумал автор стиля. */
++export function resetEdits() {
++  setAppearance({ edits: undefined });
++}
++
++/** Правка прежних полей (быстрые настройки, редактор «Настроить»): оформление пересчитывается — разница со стилем и есть «мои правки». */
++export function setCurrent(patch: Partial<Pick<Settings, 'look' | 'accent' | 'density' | 'fontScale' | 'bgImage' | 'myStyle'>>) {
++  const s = getData().settings;
++  const next = { ...s, ...patch };
++  updateSettings({ ...patch, appearance: migrateAppearance({ ...next, appearance: s.appearance }) });
++}
++
++/** Стиль целиком, как он сейчас выглядит: основа стиля + его CSS и переменные + мои правки. Для «Сохранить как стиль». */
++export function currentAsStyle(name: string): Mod131 {
++  const s = getData().settings;
++  const a = appearanceOf(s);
++  const style = isBaseStyle(a.style) ? undefined : allMods(s.customMods).find((m) => m.id === a.style);
++  const cur = currentAsMod(s);
++  const merge = (mode: 'light' | 'dark') => ({ ...(style?.vars?.[mode] ?? {}), ...(cur.vars?.[mode] ?? {}) });
++  const light = merge('light');
++  const dark = merge('dark');
++  const css = [style?.css ?? '', cur.css ?? ''].filter((x) => x.trim()).join('\n\n');
++  const out: Mod131 = {
++    ...cur,
++    id: newStyleId(),
++    name: name.trim().slice(0, 50) || 'Мой стиль',
++    description: style ? `На основе «${style.name}»` : 'Оформление из Refrain',
++    icon: style?.icon ?? '🎨',
++    where: 'свой',
++    role: 'style',
++    origin: 'mine',
++    ...(Object.keys(light).length || Object.keys(dark).length ? { vars: { ...(Object.keys(light).length ? { light } : {}), ...(Object.keys(dark).length ? { dark } : {}) } } : {}),
++    ...(style?.attrs || cur.attrs ? { attrs: { ...(style?.attrs ?? {}), ...(cur.attrs ?? {}) } } : {}),
++    ...(css ? { css } : {}),
++    ...(style?.settings ? { settings: style.settings } : {}),
++    ...(style?.fonts ? { fonts: style.fonts } : {}),
++    ...(style?.font && !cur.font ? { font: style.font } : {})
++  };
++  return out;
++}
++
++/** «Сохранить как стиль»: мои правки вместе со стилем становятся своим стилем, он выбирается, правок больше нет. */
++export function saveEditsAsStyle(name: string): Mod131 {
++  const s = getData().settings;
++  const m = currentAsStyle(name);
++  const a = appearanceOf(s);
++  const values = a.values[a.style] ? { ...a.values, [m.id]: { ...a.values[a.style] } } : a.values;
++  setAppearance({ style: m.id, edits: undefined, values, addons: a.addons }, [...s.customMods, m]);
++  return m;
++}
++
++/** Сохранить свой стиль или дополнение (из редактора, ИИ или файла). enable — сразу поставить: стиль выбирается, дополнение включается. */
++export function saveStyle(m: Mod131, opts: { enable?: boolean } = {}) {
++  setBasePreview(null);
++  const s = getData().settings;
++  const customMods = s.customMods.some((x) => x.id === m.id) ? s.customMods.map((x) => (x.id === m.id ? m : x)) : [...s.customMods, m];
++  const a = appearanceOf(s);
++  if (!opts.enable) return setAppearance({}, customMods);
++  if (classifyRole(m) === 'style') setAppearance({ style: m.id, addons: a.addons.filter((x) => x !== m.id), ...(a.style !== m.id ? { edits: editsForNewStyle(a.edits) } : {}) }, customMods);
++  else setAppearance({ addons: a.addons.includes(m.id) ? a.addons : [...a.addons, m.id] }, customMods);
++}
++
++/** Удалить свой стиль или дополнение. Если это был выбранный стиль — ставится «Современный». */
++export function removeStyle(id: string) {
++  const s = getData().settings;
++  const a = appearanceOf(s);
++  const values = { ...a.values };
++  delete values[id];
++  setAppearance({ ...(a.style === id ? { style: 'modern', edits: editsForNewStyle(a.edits) } : {}), addons: a.addons.filter((x) => x !== id), values }, s.customMods.filter((x) => x.id !== id));
++}
++
++/** Значение настройки стиля или дополнения. */
++export function setAppearanceValue(styleId: string, key: string, v: StyleValue | undefined) {
++  const a = appearanceOf(getData().settings);
++  const cur = { ...(a.values[styleId] ?? {}) };
++  if (v === undefined) delete cur[key];
++  else cur[key] = v;
++  const values = { ...a.values };
++  if (Object.keys(cur).length) values[styleId] = cur;
++  else delete values[styleId];
++  setAppearance({ values });
++}
++
++export { EDITS_ID };
++
++// ---------- 1.30 ----------
++
+ /** Фон от стиля поверх того, что есть: картинка из стиля заменяет свою, а числа (положение, видимость…) подстраиваются под картинку, которая уже стоит. */
+ export function bgWithStyle(cur: BgImage | undefined, bg: Partial<BgImage>): BgImage | undefined {
+   const src = bg.src ?? cur?.src;
 -- 
 2.43.0
 

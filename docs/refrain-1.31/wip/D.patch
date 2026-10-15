@@ -1,7 +1,7 @@
 From 287a44d8fb6bd91dc2b7154325f78c47406e84d7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:51:13 +0000
-Subject: [PATCH 1/5] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
+Subject: [PATCH 1/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
  =?UTF-8?q?=20=D0=BF=D0=BB=D0=B0=D0=BD=20=D0=B8=20=D1=85=D0=BE=D0=B4=20?=
  =?UTF-8?q?=D1=80=D0=B0=D0=B1=D0=BE=D1=82=20(progress-D.md)?=
 MIME-Version: 1.0
@@ -52,7 +52,7 @@ index 0000000..c6532e0
 From eaef287e80abcbce8bb573be72f7eba4063eb7a4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:55:03 +0000
-Subject: [PATCH 2/5] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
+Subject: [PATCH 2/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
  =?UTF-8?q?=20=D1=81=D0=BE=D1=85=D1=80=D0=B0=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5?=
  =?UTF-8?q?=20=D0=BF=D0=BE=20=D1=81=D0=B8=D0=B3=D0=BD=D0=B0=D0=BB=D1=83=20?=
  =?UTF-8?q?=C2=AB95=C2=BB?=
@@ -576,7 +576,7 @@ index 0000000..3444ac0
 From f66f91f64fe4eaa0cf290b0f31bcb5b81cfb9228 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:10:27 +0000
-Subject: [PATCH 3/5] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
+Subject: [PATCH 3/6] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
  =?UTF-8?q?=D0=BA=D0=BB=D0=B8=D0=B5=D0=BD=D1=82=20Refrain=20=D0=98=D0=98?=
  =?UTF-8?q?=20=E2=80=94=20=D0=B1=D1=8B=D1=81=D1=82=D1=80=D1=8B=D0=B9=20SHA?=
  =?UTF-8?q?-256=20=D0=B4=D0=BB=D1=8F=20PoW,=20=D1=81=D1=82=D0=B0=D1=82?=
@@ -788,7 +788,7 @@ index 3444ac0..dfc4826 100644
 From cadfa7d1dd9db8185fe08cf21532bae3676a6627 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:12:16 +0000
-Subject: [PATCH 4/5] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
+Subject: [PATCH 4/6] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
  =?UTF-8?q?=D0=BF=D0=BE=D1=81=D1=82=D0=B0=D0=B2=D1=89=D0=B8=D0=BA=20Refrai?=
  =?UTF-8?q?n=20=D0=98=D0=98=20=D0=B2=20aiCore=20=D0=B8=20=D0=BF=D0=BE?=
  =?UTF-8?q?=D1=80=D1=8F=D0=B4=D0=BE=D0=BA=20=C2=ABRefrain=20=D0=98=D0=98?=
@@ -1072,7 +1072,7 @@ index 3facc2b..bfebe80 100644
 From 528a6399592dcbdc1d85d50e6046167cbbf94b68 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:13:45 +0000
-Subject: [PATCH 5/5] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20Elect?=
+Subject: [PATCH 5/6] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20Elect?=
  =?UTF-8?q?ron=20=E2=80=94=20=D0=BA=D0=BB=D1=8E=D1=87=20=D1=83=D1=81=D1=82?=
  =?UTF-8?q?=D1=80=D0=BE=D0=B9=D1=81=D1=82=D0=B2=D0=B0=20P-256=20=D0=B8=20?=
  =?UTF-8?q?=D1=82=D0=BE=D0=BA=D0=B5=D0=BD=D1=8B=20=D1=82=D0=BE=D0=BB=D1=8C?=
@@ -1288,6 +1288,618 @@ index 2982904..b057896 100644
    ocrRecognize: (bytes) => ipcRenderer.invoke('ocr:recognize', bytes),
    trayState: (state) => ipcRenderer.send('tray:state', state),
    onMiniStart: (cb) => {
+-- 
+2.43.0
+
+
+From 48a60f307b319b639d9e88d893dccd95bd90ec63 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 15 Oct 2026 12:18:12 +0000
+Subject: [PATCH 6/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
+ =?UTF-8?q?=20=D0=BC=D0=BE=D1=81=D1=82=20=D0=B8=20=D0=BC=D0=BE=D0=B4=D1=83?=
+ =?UTF-8?q?=D0=BB=D1=8C=20Refrain=20=D0=98=D0=98=20=D0=B2=20=D0=BE=D0=BA?=
+ =?UTF-8?q?=D0=BD=D0=B5,=20=D1=82=D0=B5=D0=BA=D1=81=D1=82=D1=8B=20=D0=BE?=
+ =?UTF-8?q?=D1=88=D0=B8=D0=B1=D0=BE=D0=BA=20=D0=BF=D0=BE=20=D0=BA=D0=BE?=
+ =?UTF-8?q?=D0=B4=D0=B0=D0=BC,=20Android-=D0=BA=D0=BB=D0=B8=D0=B5=D0=BD?=
+ =?UTF-8?q?=D1=82,=20=D0=B7=D0=B0=D0=BC=D0=B5=D1=82=D0=BA=D0=B0=20=D0=BE?=
+ =?UTF-8?q?=20=D1=85=D0=BE=D0=B4=D0=B5=20=D1=80=D0=B0=D0=B1=D0=BE=D1=82?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ android/src/app/mnema/study/Bridge.java |  80 ++++++++++-
+ docs/refrain-1.31/progress-D.md         |   6 +-
+ shared/refrainClient.d.mts              |   1 +
+ shared/refrainClient.mjs                |  84 +++++++++--
+ src/platform/android.ts                 |  53 ++++++-
+ src/refrain.ts                          | 177 ++++++++++++++++++++++++
+ src/refrainBridge.ts                    |  51 +++++++
+ 7 files changed, 438 insertions(+), 14 deletions(-)
+ create mode 100644 src/refrain.ts
+ create mode 100644 src/refrainBridge.ts
+
+diff --git a/android/src/app/mnema/study/Bridge.java b/android/src/app/mnema/study/Bridge.java
+index 51a85ab..1be6be7 100644
+--- a/android/src/app/mnema/study/Bridge.java
++++ b/android/src/app/mnema/study/Bridge.java
+@@ -30,7 +30,12 @@ import java.net.HttpURLConnection;
+ import java.net.ProtocolException;
+ import java.net.URL;
+ import java.nio.charset.Charset;
++import java.security.KeyPairGenerator;
+ import java.security.KeyStore;
++import java.security.PrivateKey;
++import java.security.Signature;
++import java.security.cert.Certificate;
++import java.security.spec.ECGenParameterSpec;
+ import java.text.SimpleDateFormat;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -51,6 +56,8 @@ public class Bridge {
+     static final Charset UTF8 = Charset.forName("UTF-8");
+     static final String DATA_FILE = "mnema-data.json";
+     static final String KEY_ALIAS = "mnema-secrets";
++    /** Ключ устройства Refrain ИИ: EC P-256 только для подписи, секретная часть не покидает Android Keystore. */
++    static final String DEVICE_ALIAS = "refrain-device";
+     static final int MAX_RESPONSE = 64 * 1024 * 1024;
+ 
+     final AppActivity activity;
+@@ -255,7 +262,7 @@ public class Bridge {
+ 
+     /** Страница (и моды в ней) читает и пишет только эти настройки; остальные — только сама оболочка. */
+     static boolean prefAllowed(String name) {
+-        return "ai".equals(name) || "secret:cloud-pass".equals(name) || "secret:cloud-enc".equals(name);
++        return "ai".equals(name) || "secret:cloud-pass".equals(name) || "secret:cloud-enc".equals(name) || "refrain".equals(name) || "refrain-cache".equals(name);
+     }
+ 
+     @JavascriptInterface
+@@ -320,6 +327,77 @@ public class Bridge {
+         }
+     }
+ 
++    // ---------- ключ устройства Refrain ИИ ----------
++
++    KeyStore androidKeyStore() throws Exception {
++        KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
++        ks.load(null);
++        return ks;
++    }
++
++    /** Есть ли защищённое хранилище ключей: без него вход в Refrain ИИ не разрешается. */
++    @JavascriptInterface
++    public boolean deviceSecure(String k) {
++        if (!allowed(k)) return false;
++        try {
++            androidKeyStore();
++            return true;
++        } catch (Exception e) {
++            return false;
++        }
++    }
++
++    /** Публичный ключ устройства (SPKI, base64url). Ключа нет — создаётся в Android Keystore; секретная часть оттуда не извлекается. */
++    @JavascriptInterface
++    public String deviceKey(String k) {
++        if (!allowed(k)) return null;
++        try {
++            KeyStore ks = androidKeyStore();
++            if (!ks.containsAlias(DEVICE_ALIAS)) {
++                KeyPairGenerator g = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
++                g.initialize(new KeyGenParameterSpec.Builder(DEVICE_ALIAS, KeyProperties.PURPOSE_SIGN)
++                        .setAlgorithmParameterSpec(new ECGenParameterSpec("secp256r1"))
++                        .setDigests(KeyProperties.DIGEST_SHA256)
++                        .build());
++                g.generateKeyPair();
++            }
++            Certificate cert = ks.getCertificate(DEVICE_ALIAS);
++            if (cert == null) return "";
++            return Base64.encodeToString(cert.getPublicKey().getEncoded(), Base64.URL_SAFE | Base64.NO_PADDING | Base64.NO_WRAP);
++        } catch (Exception e) {
++            return "";
++        }
++    }
++
++    /** Подпись строки ключом устройства: SHA256withECDSA, ответ — DER в base64 (в r‖s переводит приложение). "" — ключа нет или ошибка. */
++    @JavascriptInterface
++    public String deviceSign(String k, String message) {
++        if (!allowed(k) || message == null) return "";
++        try {
++            KeyStore ks = androidKeyStore();
++            PrivateKey key = (PrivateKey) ks.getKey(DEVICE_ALIAS, null);
++            if (key == null) return "";
++            Signature sig = Signature.getInstance("SHA256withECDSA");
++            sig.initSign(key);
++            sig.update(message.getBytes(UTF8));
++            return Base64.encodeToString(sig.sign(), Base64.NO_WRAP);
++        } catch (Exception e) {
++            return "";
++        }
++    }
++
++    /** Забыть ключ устройства (выход, новый вход). */
++    @JavascriptInterface
++    public void deviceReset(String k) {
++        if (!allowed(k)) return;
++        try {
++            KeyStore ks = androidKeyStore();
++            if (ks.containsAlias(DEVICE_ALIAS)) ks.deleteEntry(DEVICE_ALIAS);
++        } catch (Exception e) {
++            // ключа и так нет
++        }
++    }
++
+     // ---------- сеть ----------
+ 
+     /** Запрос без ограничений браузера (CORS): ИИ, облако, синхронизация по Wi-Fi. Ответ приходит через __mnemaNative.done(id). */
+diff --git a/docs/refrain-1.31/progress-D.md b/docs/refrain-1.31/progress-D.md
+index c6532e0..1c2be60 100644
+--- a/docs/refrain-1.31/progress-D.md
++++ b/docs/refrain-1.31/progress-D.md
+@@ -5,7 +5,11 @@
+ ## Готово
+ 
+ - Прочитаны задание (streams.md, раздел D), контракты (contracts.md раздел 1, `shared/refrain/api.*`, `shared/prompts/tasks.ts`, `luna.ts`), сервер (`sign.ts`, `auth.ts`, `task.ts`, `me.ts`, `bugs.ts`, `test/helpers.ts`), клиентский код (`shared/aiCore.mjs`, `electron/ai.cjs`, `src/platform/android.ts`, `Bridge.java`, `src/ai.ts`, `aiTasks.ts`, `textbook.ts`, `AiSettings.tsx`, `plugins/host.ts`), спецификация (разделы 4–6).
+-- Кода потока D ещё нет.
++- Пункт 1 (клиент `shared/refrainClient.mjs`): готов — быстрый SHA-256 (~1 млн хэшей/с), PoW, вход, подпись, refresh по одному, кэш, тексты по кодам (`refrainMessage`).
++- Пункт 2 (`shared/aiCore.mjs`): готов — шаги `refrain → key → local` (настройка `order`), переход по FALLBACK_CODES, `via` только где есть Refrain ИИ (чужой тест lists.test.ts не тронут).
++- Пункт 3 (Electron): готов — `refrainParts` в `electron/ai.cjs` (ключ P-256, секрет и токены только в safeStorage, без настоящего хранилища вход запрещён), IPC `refrain:*` только своей странице, снимок окна; `preload.cjs` → `mnemaApi.refrain`.
++- Пункт 4 (Android): готов в коде — `Bridge.java` deviceSecure/deviceKey/deviceSign/deviceReset (Keystore EC, SHA256withECDSA), `android.ts` — клиент, DER → r‖s. Java целиком не собрать (нет android.jar); новые методы скомпилированы с заглушками Android-классов, подпись JDK в DER после derToP1363 проходит WebCrypto-проверку как на сервере.
++- Пункт 5: начат — `src/refrainBridge.ts`, `src/refrain.ts` (WIP, не проверены tsc).
+ 
+ ## План (что осталось)
+ 
+diff --git a/shared/refrainClient.d.mts b/shared/refrainClient.d.mts
+index ca70401..b47eae3 100644
+--- a/shared/refrainClient.d.mts
++++ b/shared/refrainClient.d.mts
+@@ -6,6 +6,7 @@ export const CACHE_TTL_MS: number;
+ export const CACHE_MAX: number;
+ export const FALLBACK_CODES: string[];
+ export function refrainPlatform(p: string): Platform;
++export function refrainMessage(code: string, extra?: { retryAfter?: number; until?: string | null; attemptsLeft?: number }): string;
+ 
+ export function sha256(data: string | Uint8Array): Uint8Array;
+ export function sha256hex(data: string | Uint8Array): string;
+diff --git a/shared/refrainClient.mjs b/shared/refrainClient.mjs
+index dfc4826..17da04f 100644
+--- a/shared/refrainClient.mjs
++++ b/shared/refrainClient.mjs
+@@ -148,17 +148,78 @@ export async function solvePow(challenge, difficulty, { yieldEvery = 20000, paus
+ 
+ // ---------- Ошибки ----------
+ 
+-/** Текст, если сервер не ответил по-русски сам (нет сети, ответ не JSON). Тексты кодов сервера приходят в error.message. */
+-const LOCAL_ERRORS = {
+-  network: 'Нет связи с Refrain ИИ. Проверь интернет.',
+-  internal: 'Сбой на сервере Refrain ИИ. Попробуй позже.',
+-  signed_out: 'Войди в Refrain ИИ: Настройки → ИИ-помощник.',
+-  no_secure_storage: 'На этом устройстве нет защищённого хранилища ключей, поэтому Refrain ИИ здесь не включить. Можно пользоваться своим ключом.',
+-  device_key: 'Не получилось создать ключ устройства. Попробуй ещё раз.'
+-};
++/** Секунды → «45 с», «3 мин», «2 ч». */
++function waitText(sec) {
++  const n = Math.max(1, Math.ceil(Number(sec) || 60));
++  if (n < 120) return `${n} с`;
++  if (n < 7200) return `${Math.ceil(n / 60)} мин`;
++  return `${Math.ceil(n / 3600)} ч`;
++}
++
++function untilText(until) {
++  const t = until ? Date.parse(until) : NaN;
++  if (!Number.isFinite(t)) return '';
++  return ' до ' + new Date(t).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
++}
++
++/**
++ * Что показать ученику по коду ошибки (contracts.md, «Коды ошибок»). Текст приложения, а не сервера: так он одинаковый везде
++ * и без причин срабатывания защиты. extra — retryAfter, until, attemptsLeft из ответа.
++ */
++export function refrainMessage(code, extra = {}) {
++  switch (code) {
++    case 'limit_day':
++      return 'На сегодня бесплатные страницы Refrain ИИ закончились. Лимит обновится в 00:00 по Москве.';
++    case 'limit_month':
++      return 'Бесплатные страницы Refrain ИИ на этот месяц закончились.';
++    case 'paused':
++      return 'Refrain ИИ на паузе. Попробуй позже или подключи свой ключ.';
++    case 'access_closed':
++      return 'Refrain ИИ сейчас в закрытом тесте. Если у тебя есть приглашение, введи его: Настройки → ИИ-помощник.';
++    case 'blocked':
++      return `Доступ к Refrain ИИ приостановлен${untilText(extra.until)}.`;
++    case 'too_fast':
++      return `Слишком часто. Подожди ${waitText(extra.retryAfter)} и попробуй ещё раз.`;
++    case 'bad_request':
++    case 'payload_too_large':
++      return 'Refrain ИИ не принял запрос — это ошибка приложения. Нажми «Сообщить о проблеме», пожалуйста.';
++    case 'upstream':
++      return 'Сбой ИИ, попробуй ещё раз.';
++    case 'internal':
++      return 'Сбой на сервере Refrain ИИ. Попробуй позже.';
++    case 'token_expired':
++      return 'Вход в Refrain ИИ устарел. Попробуй ещё раз.';
++    case 'device_unknown':
++    case 'session_revoked':
++      return 'Вход в Refrain ИИ на этом устройстве закончился. Войди заново: Настройки → ИИ-помощник.';
++    case 'device_limit':
++      return 'К аккаунту уже привязано наибольшее число устройств. Выбери, какое отвязать.';
++    case 'pow_invalid':
++      return 'Проверка устарела. Нажми «Прислать код» ещё раз.';
++    case 'email_rejected':
++      return 'Эта почта не подходит. Проверь адрес или возьми другую (одноразовые почты не принимаются).';
++    case 'code_invalid':
++      return 'Неверный или устаревший код.' + (Number.isInteger(extra.attemptsLeft) && extra.attemptsLeft > 0 ? ` Осталось попыток: ${extra.attemptsLeft}.` : ' Попроси новый код.');
++    case 'code_locked':
++      return `Слишком много попыток. Попробуй через ${waitText(extra.retryAfter)}.`;
++    case 'invite_invalid':
++      return 'Приглашение не подошло: оно неверное, истекло или им уже воспользовались.';
++    case 'network':
++      return 'Нет связи с Refrain ИИ. Проверь интернет.';
++    case 'signed_out':
++      return 'Войди в Refrain ИИ: Настройки → ИИ-помощник.';
++    case 'no_secure_storage':
++      return 'На этом устройстве нет защищённого хранилища ключей, поэтому Refrain ИИ здесь не включить. Можно пользоваться своим ключом.';
++    case 'device_key':
++      return 'Не получилось создать или прочитать ключ устройства. Войди в Refrain ИИ заново.';
++    default:
++      return '';
++  }
++}
+ 
+ function fail(code, extra = {}) {
+-  return { ok: false, code, error: extra.error || LOCAL_ERRORS[code] || 'Ошибка Refrain ИИ.', ...extra };
++  const { error, ...rest } = extra;
++  return { ok: false, code, error: refrainMessage(code, rest) || error || 'Ошибка Refrain ИИ.', ...rest };
+ }
+ 
+ /** Тело запроса /v1/task: только поля контракта, строки — в рамках. Лишнее не отправляем (сервер считает его сигналом). */
+@@ -215,7 +276,8 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
+     if (res.status >= 200 && res.status < 300 && body && body.ok !== false) return body;
+     const e = body && body.error && typeof body.error === 'object' ? body.error : {};
+     const { code, message, ...extra } = e;
+-    return fail(typeof code === 'string' ? code : 'internal', { ...extra, ...(typeof message === 'string' && message ? { error: message } : {}) });
++    // Текст сервера — только для кода, которого приложение не знает (новый выпуск сервера).
++    return fail(typeof code === 'string' ? code : 'internal', { ...extra, ...(typeof message === 'string' && message ? { error: message.slice(0, 300) } : {}) });
+   }
+ 
+   async function plain(path, body, timeout = 30000) {
+@@ -404,7 +466,7 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
+     /** Задача. fields — AiRequest.refrain, wishes — «Свои указания». Повтор того же фото или текста за 7 дней берётся из кэша. */
+     async task(fields, wishes) {
+       const body = taskBody(fields, wishes ?? fields?.wishes);
+-      if (!body) return fail('bad_request', { error: 'Refrain ИИ не знает такой задачи.' });
++      if (!body) return fail('bad_request');
+       const key = cacheKey(body);
+       const hit = cached(key, body.task);
+       if (hit) return { ok: true, text: hit.text, format: hit.format, cached: true, charged: 0, quota: session()?.quota ?? null };
+diff --git a/src/platform/android.ts b/src/platform/android.ts
+index 86950cb..bcae2c7 100644
+--- a/src/platform/android.ts
++++ b/src/platform/android.ts
+@@ -2,7 +2,9 @@
+ // файл данных, сеть без ограничений браузера, шифрование ключей, сохранение файлов, речь.
+ // Здесь из моста собирается такой же window.mnemaApi, как на Windows.
+ import { createAiService } from '../../shared/aiCore.mjs';
++import { b64url, createRefrainClient, derToP1363, fromB64 } from '../../shared/refrainClient.mjs';
+ import { bridgeKey } from './bridgeKey';
++import { androidDeviceName, refrainBridge } from '../refrainBridge';
+ 
+ interface AndroidBridge {
+   load(): string | null;
+@@ -29,6 +31,11 @@ interface AndroidBridge {
+   setSelMenu?(json: string): void;
+   listBackups?(): string;
+   readBackup?(name: string): string | null;
++  // Ключ устройства Refrain ИИ в Android Keystore (секретная часть не извлекается).
++  deviceSecure?(): boolean;
++  deviceKey?(): string;
++  deviceSign?(message: string): string;
++  deviceReset?(): void;
+ }
+ 
+ /** Каждый вызов моста несёт ключ (см. bridgeKey.ts): оборачиваем, чтобы остальной код его не видел. */
+@@ -94,7 +101,50 @@ if (RAW) {
+   const http = (url: string, init: { method?: string; headers?: Record<string, string>; body?: string; bodyBase64?: boolean; timeout?: number } = {}) =>
+     call<HttpRes>((id) => A.http(id, JSON.stringify({ url, method: init.method ?? 'GET', headers: init.headers ?? {}, body: init.body ?? null, bodyBase64: Boolean(init.bodyBase64), timeout: init.timeout ?? 60000 })));
+ 
++  // Refrain ИИ: сессия (токены) шифруется ключом из Android Keystore, ответы кэшируются в настройках приложения.
++  // Ни токены, ни ключ устройства в window.mnemaApi не попадают — наружу только действия и маска почты.
++  const pref = <T>(name: string, fallback: T, decrypt = false): T => {
++    try {
++      const v = A.prefGet(name);
++      if (!v) return fallback;
++      return JSON.parse(decrypt ? A.decrypt(v) : v) ?? fallback;
++    } catch {
++      return fallback;
++    }
++  };
++  const refrain = createRefrainClient({
++    http,
++    platform: 'android',
++    appVersion: A.appVersion() || '0.0.0',
++    store: {
++      read: () => pref('refrain', null, true),
++      write: (s) => {
++        const sealed = s ? A.encrypt(JSON.stringify(s)) : '';
++        if (s && !sealed) throw new Error('keystore');
++        A.prefSet('refrain', sealed);
++      },
++      readCache: () => pref('refrain-cache', {}),
++      writeCache: (c) => A.prefSet('refrain-cache', JSON.stringify(c))
++    },
++    signer: {
++      secure: async () => Boolean(A.deviceSecure?.()),
++      publicKey: async () => {
++        const k = A.deviceKey?.() ?? '';
++        if (!k) throw new Error('device key');
++        return k;
++      },
++      sign: async (message) => {
++        const der = A.deviceSign?.(message) ?? '';
++        const sig = der ? derToP1363(fromB64(der)) : null;
++        if (!sig) throw new Error('device sign');
++        return b64url(sig);
++      },
++      reset: async () => A.deviceReset?.()
++    }
++  });
++
+   const ai = createAiService({
++    refrain,
+     http,
+     store: {
+       read: () => {
+@@ -177,6 +227,7 @@ if (RAW) {
+     },
+     setAppIcon: A.setIcon ? (name: string) => A.setIcon!(name) : undefined,
+     setSelMenu: A.setSelMenu ? (items) => A.setSelMenu!(JSON.stringify(items)) : undefined,
+-    ocrRecognize: async (bytes) => (await import('./ocrWeb')).recognize(bytes)
++    ocrRecognize: async (bytes) => (await import('./ocrWeb')).recognize(bytes),
++    ...refrainBridge(refrain, { deviceName: androidDeviceName(navigator.userAgent) })
+   };
+ }
+diff --git a/src/refrain.ts b/src/refrain.ts
+new file mode 100644
+index 0000000..36f7f10
+--- /dev/null
++++ b/src/refrain.ts
+@@ -0,0 +1,177 @@
++// Refrain ИИ в окне приложения: поля задачи для сервера (без промта), «Свои указания», счётчик страниц, уменьшение фото,
++// журнал ошибок для «Сообщить о проблеме» и события для экранов лимита и формы. Сеть, токены и подпись — в shared/refrainClient.mjs.
++import { FIELD_LIMITS, pagesLabel, type ErrorCode, type Quota, type TaskId, type TaskRequest } from '../shared/refrain/api.mjs';
++import { TASK_SPECS } from '../shared/prompts/tasks';
++import { REFRAIN_API, refrainMessage } from '../shared/refrainClient.mjs';
++import { cleanNote } from './aiNotes';
++import type { AiAnswer } from './store';
++import type { AiNoteKey, AiNotes } from './types';
++
++export { REFRAIN_API, refrainMessage };
++
++/** Фото уходит в Refrain ИИ не больше этого по длинной стороне (сервер принимает до 2000 px). */
++export const REFRAIN_SIDE = 1600;
++
++export type RefrainFields = Omit<TaskRequest, 'wishes'>;
++
++const oneLine = (s: string) => s.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s{2,}/g, ' ').trim(); // eslint-disable-line no-control-regex
++
++/**
++ * Поля задачи для Refrain ИИ в рамках контракта (TASK_SPECS и FIELD_LIMITS). undefined — задача в рамки не влезает
++ * (нет нужного фото, текст длиннее предела): тогда запрос идёт мимо Refrain ИИ, а не нарушает контракт.
++ */
++export function refrainFields(f: RefrainFields | undefined): RefrainFields | undefined {
++  if (!f || typeof f !== 'object') return undefined;
++  const spec = TASK_SPECS[f.task as TaskId];
++  if (!spec) return undefined;
++  const out: RefrainFields = { task: spec.id };
++  if (f.image) {
++    if (spec.image === 'forbidden' || !FIELD_LIMITS.imageMimes.includes(f.image.mime) || typeof f.image.data !== 'string') return undefined;
++    if (Math.floor((f.image.data.length * 3) / 4) > FIELD_LIMITS.imageBytes) return undefined;
++    out.image = { mime: f.image.mime, data: f.image.data };
++  } else if (spec.image === 'required') return undefined;
++  if (typeof f.text === 'string' && f.text.trim()) {
++    if (!spec.textMax || f.text.length > spec.textMax) return undefined;
++    out.text = f.text;
++  } else if (spec.textMax && spec.image === 'forbidden') return undefined;
++  if (typeof f.subject === 'string' && oneLine(f.subject)) out.subject = oneLine(f.subject).slice(0, FIELD_LIMITS.subject);
++  if (typeof f.topic === 'string' && oneLine(f.topic)) out.topic = oneLine(f.topic).slice(0, FIELD_LIMITS.topic);
++  if (Number.isInteger(f.page) && f.page! >= 1 && f.page! <= FIELD_LIMITS.page) out.page = f.page;
++  return out;
++}
++
++/** «Свои указания» для Refrain ИИ: общие и для задачи одной строкой, до 400 знаков (сервер ставит их после правил задачи). */
++export function refrainWishes(notes: AiNotes | undefined, key: AiNoteKey): string {
++  const parts = [notes?.all, key !== 'all' ? notes?.[key] : undefined].map((x) => (x ? cleanNote(x) : '')).filter(Boolean);
++  return parts.join('; ').slice(0, FIELD_LIMITS.wishes);
++}
++
++// ---------- Счётчик страниц ----------
++
++function pagesWord(n: number): string {
++  if (!Number.isInteger(n)) return 'страницы';
++  const m10 = n % 10;
++  const m100 = n % 100;
++  if (m10 === 1 && m100 !== 11) return 'страница';
++  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'страницы';
++  return 'страниц';
++}
++
++/** «Сегодня 12 из 30 страниц», «В этом месяце 140 из 400»; share — доля для полоски (null — без лимита). */
++export function quotaLines(q: Quota): { day: string; month: string; dayShare: number | null; monthShare: number | null } {
++  const line = (head: string, u: { used: number; limit: number | null }) =>
++    u.limit === null ? `${head} ${pagesLabel(u.used)} ${pagesWord(Math.floor(u.used))} · без лимита` : `${head} ${pagesLabel(u.used)} из ${u.limit} ${pagesWord(u.limit)}`;
++  const share = (u: { used: number; limit: number | null }) => (u.limit === null ? null : u.limit <= 0 ? 1 : Math.min(1, u.used / u.limit));
++  return { day: line('Сегодня', q.day), month: line('В этом месяце', q.month), dayShare: share(q.day), monthShare: share(q.month) };
++}
++
++// ---------- Фото ----------
++
++/** Размер после уменьшения: длинная сторона не больше max, пропорции те же. */
++export function fitSide(w: number, h: number, max = REFRAIN_SIDE): { w: number; h: number } {
++  const long = Math.max(w, h);
++  if (long <= max) return { w, h };
++  const k = max / long;
++  return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
++}
++
++/** Фото для Refrain ИИ: если больше 1600 px или не JPEG/PNG/WebP — перерисовать в JPEG нужного размера. */
++export async function shrinkImage(img: { mime: string; data: string }, max = REFRAIN_SIDE): Promise<{ mime: 'image/jpeg' | 'image/png' | 'image/webp'; data: string }> {
++  const bytes = Uint8Array.from(atob(img.data), (c) => c.charCodeAt(0));
++  const bmp = await createImageBitmap(new Blob([bytes], { type: img.mime }));
++  const size = fitSide(bmp.width, bmp.height, max);
++  if (size.w === bmp.width && size.h === bmp.height && FIELD_LIMITS.imageMimes.includes(img.mime) && bytes.length <= FIELD_LIMITS.imageBytes) {
++    bmp.close?.();
++    return { mime: img.mime as 'image/jpeg', data: img.data };
++  }
++  const c = document.createElement('canvas');
++  c.width = size.w;
++  c.height = size.h;
++  const ctx = c.getContext('2d')!;
++  ctx.fillStyle = '#fff'; // прозрачный PNG в JPEG — на белом, а не на чёрном
++  ctx.fillRect(0, 0, size.w, size.h);
++  ctx.drawImage(bmp, 0, 0, size.w, size.h);
++  bmp.close?.();
++  return { mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] };
++}
++
++// ---------- Журнал для «Сообщить о проблеме» ----------
++
++const LOG_MAX = 50;
++const LINE_MAX = 300;
++const log: string[] = [];
++
++/** Строка журнала без почт, путей, длинных чисел и длинных токенов: в баг-репорт уходит только это. */
++export function scrubLine(s: string): string {
++  return String(s)
++    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[почта]')
++    .replace(/(?:[A-Za-z]:\\|file:\/\/\/?|\/(?:home|Users|data|storage|root|mnt|media|var|tmp|opt)\/)[^\s"'<>)]*/g, '[путь]')
++    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[…]')
++    .replace(/\b\d{7,}\b/g, '[число]')
++    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '') // eslint-disable-line no-control-regex
++    .slice(0, LINE_MAX);
++}
++
++/** Записать ошибку в журнал (в памяти, последние 50 строк; на диск и в localStorage не пишется). */
++export function logLine(s: string): void {
++  const t = new Date().toTimeString().slice(0, 8);
++  log.push(scrubLine(`${t} ${s}`));
++  if (log.length > LOG_MAX) log.splice(0, log.length - LOG_MAX);
++}
++
++export function journalLines(): string[] {
++  return log.slice(-LOG_MAX);
++}
++
++if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
++  window.addEventListener('error', (e) => logLine(`ошибка: ${e.message || 'без текста'}`));
++  window.addEventListener('unhandledrejection', (e) => logLine(`ошибка: ${(e.reason && (e.reason as Error).message) || String(e.reason)}`));
++}
++
++// ---------- События: экран лимита и «Сообщить о проблеме» ----------
++
++export interface RefrainNotice {
++  code?: ErrorCode;
++  quota?: Quota;
++  task?: TaskId;
++}
++
++/** Ответ ИИ пришёл: обновить счётчик, при лимите или закрытом тесте показать экран (RefrainHost). */
++export function noteAnswer(r: AiAnswer, task?: TaskId): void {
++  if (!r.ok) logLine(`ИИ${task ? ` (${task})` : ''}: ${r.code ?? ''} ${r.error}`);
++  const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(task ? { task } : {}) };
++  if (n.quota || n.code) window.dispatchEvent(new CustomEvent<RefrainNotice>('refrain:answer', { detail: n }));
++}
++
++export function onRefrainAnswer(cb: (n: RefrainNotice) => void): () => void {
++  const h = (e: Event) => cb((e as CustomEvent<RefrainNotice>).detail);
++  window.addEventListener('refrain:answer', h);
++  return () => window.removeEventListener('refrain:answer', h);
++}
++
++export interface ReportContext {
++  task?: TaskId;
++  error?: string;
++  category?: 'note' | 'textbook' | 'cards' | 'styles' | 'ai' | 'other';
++}
++
++/** Открыть «Сообщить о проблеме» (из настроек, под ошибкой ИИ, с экрана сбоя). Под ошибкой ИИ поля заполнятся сами. */
++export function openReportProblem(ctx: ReportContext = {}): void {
++  window.dispatchEvent(new CustomEvent<ReportContext>('refrain:report', { detail: ctx }));
++}
++
++export function onReportProblem(cb: (ctx: ReportContext) => void): () => void {
++  const h = (e: Event) => cb((e as CustomEvent<ReportContext>).detail ?? {});
++  window.addEventListener('refrain:report', h);
++  return () => window.removeEventListener('refrain:report', h);
++}
++
++/** Задача → раздел формы. */
++export function categoryFor(task?: TaskId): ReportContext['category'] {
++  if (!task) return 'ai';
++  if (task.startsWith('textbook.')) return 'textbook';
++  if (task === 'cards' || task === 'explain') return 'cards';
++  if (task === 'style') return 'styles';
++  if (task === 'notebook.read') return 'note';
++  return 'ai';
++}
+diff --git a/src/refrainBridge.ts b/src/refrainBridge.ts
+new file mode 100644
+index 0000000..4296b31
+--- /dev/null
++++ b/src/refrainBridge.ts
+@@ -0,0 +1,51 @@
++// Refrain ИИ в окне приложения: одни и те же действия на Windows/Linux (preload → главный процесс) и Android (клиент живёт в окне).
++// Здесь нет токенов и ключа устройства: наружу отдаются только результаты (маска почты, лимит, устройства, номер обращения).
++import type { BugReport, DeviceInfo, Me, Quota } from '../shared/refrain/api.mjs';
++import type { RefrainClient, RefrainResult, RefrainStatus } from '../shared/refrainClient.mjs';
++
++export interface RefrainApi {
++  status(): Promise<RefrainStatus>;
++  loginStart(email: string): Promise<RefrainResult>;
++  loginVerify(p: { email: string; code: string; invite?: string; replaceDevice?: string }): Promise<RefrainResult<{ emailMasked: string; quota: Quota }>>;
++  me(): Promise<RefrainResult<Omit<Me, 'ok'>>>;
++  invite(code: string): Promise<RefrainResult<{ quota: Quota }>>;
++  unbind(id: string): Promise<RefrainResult>;
++  deleteAccount(): Promise<RefrainResult>;
++  logout(): Promise<RefrainResult>;
++  bug(report: Omit<BugReport, 'pow'>): Promise<RefrainResult<{ id: number }>>;
++  /** Снимок окна (JPEG base64) для «Сообщить о проблеме»; null — здесь так нельзя. */
++  screenshot(): Promise<string | null>;
++}
++
++export type { DeviceInfo, Quota };
++
++/** Android: действия клиента из окна. deviceName — как устройство подписано в списке «Устройства». */
++export function refrainBridge(c: RefrainClient, o: { deviceName: string }): { refrain: RefrainApi } {
++  return {
++    refrain: {
++      status: () => c.status(),
++      loginStart: (email) => c.loginStart(email),
++      loginVerify: (p) => c.loginVerify({ email: p.email, code: p.code, invite: p.invite, replaceDevice: p.replaceDevice, deviceName: o.deviceName }),
++      me: () => c.me(),
++      invite: (code) => c.invite(code),
++      unbind: (id) => c.unbind(id),
++      deleteAccount: () => c.deleteAccount(),
++      logout: () => c.logout(),
++      bug: (r) => c.bug(r),
++      screenshot: async () => null
++    }
++  };
++}
++
++/** Refrain ИИ на этой платформе; null — веб-версия (там его нет). */
++export function refrainApi(): RefrainApi | null {
++  const api = window.mnemaApi as unknown as { refrain?: RefrainApi } | undefined;
++  return api?.refrain ?? null;
++}
++
++/** Имя телефона для списка устройств: «Android · Pixel 7» из строки браузера. */
++export function androidDeviceName(ua: string): string {
++  const m = /Android [\d.]+; ([^;)]+?)(?: Build\/[^;)]*)?[;)]/.exec(ua);
++  const model = m?.[1]?.trim();
++  return model && model !== 'K' ? `Android · ${model}`.slice(0, 60) : 'Android';
++}
 -- 
 2.43.0
 
