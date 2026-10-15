@@ -32,12 +32,14 @@ describe('POST /v1/task', () => {
     expect(dump).not.toContain('## Тема');
   });
 
-  it('Polza.ai: адрес из LLM_BASE_URL, списывается цена из ответа (usage.cost_rub), а не по токенам', async () => {
+  it('Polza.ai: адрес из LLM_BASE_URL; бюджету — цена из ответа (usage.cost_rub), ученику — страницы по прайсу', async () => {
     const h = new Harness();
     await h.setting('mode', 'all');
     const d = await h.login('polza@example.com');
     h.openai = () => openAiOk(undefined, { prompt_tokens: 2000, completion_tokens: 900, prompt_tokens_details: { cached_tokens: 1500 }, cost_rub: 0.02 });
-    expect((await d.task()).status).toBe(200);
+    const r = await d.task();
+    expect(r.status).toBe(200);
+    expect(r.body.charged).toBe(1); // 2 000 на вход и 900 на выход — одна страница, как ни округлила бы Polza
     const row = await h.env.DB.prepare('SELECT cost_micro, cached_tokens FROM usage').first<Record<string, unknown>>();
     expect(row).toMatchObject({ cost_micro: 20000, cached_tokens: 1500 });
   });

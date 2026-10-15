@@ -50,6 +50,7 @@ export class Harness {
           return Response.json({ ok: true, result: { message_id: this.tgId++ } });
         }
         if (url.startsWith('https://api.brevo.com/')) return Response.json({ messageId: 'x' }, { status: 201 });
+        if (url.startsWith('https://api.resend.com/')) return Response.json({ id: 'x' });
         if (url.startsWith('https://polza.ai/api/v1/chat/completions')) return this.openai(JSON.parse(body));
         if (url.startsWith('https://api.openai.com/v1/organization/usage/')) return this.usageApi();
         if (url.startsWith('https://api.github.com/')) return Response.json({ number: 42 }, { status: 201 });
@@ -63,7 +64,10 @@ export class Harness {
     return this.calls.filter((c) => c.url.includes('/sendMessage')).map((c) => JSON.parse(c.body)).map((b) => ({ text: b.text, silent: b.disable_notification }));
   }
   mails(): { to: string; subject: string; text: string }[] {
-    return this.calls.filter((c) => c.url.startsWith('https://api.brevo.com/')).map((c) => JSON.parse(c.body)).map((b) => ({ to: b.to[0].email, subject: b.subject, text: b.textContent }));
+    return this.calls
+      .filter((c) => c.url.startsWith('https://api.brevo.com/') || c.url.startsWith('https://api.resend.com/'))
+      .map((c) => JSON.parse(c.body))
+      .map((b) => (b.sender ? { to: b.to[0].email, subject: b.subject, text: b.textContent } : { to: b.to[0], subject: b.subject, text: b.text }));
   }
 
   async fetch(req: Request): Promise<Response> {

@@ -27,6 +27,8 @@ export interface Env {
   TELEGRAM_WEBHOOK_SECRET?: string;
   ADMIN_PIN_HASH?: string;
   BREVO_API_KEY?: string;
+  /** Resend (resend.com) — вместо Brevo, если задан. */
+  RESEND_API_KEY?: string;
   MAIL_FROM?: string;
   GITHUB_ISSUE_TOKEN?: string;
   /** Только для тестов: подмена сети наружу и часов. Переменные wrangler — строки, поэтому в выкладке задать их нельзя. */

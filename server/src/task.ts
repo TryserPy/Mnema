@@ -100,11 +100,14 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
     } catch {
       llm = { ok: false, status: 0, usage: null };
     }
-    const cost = llm.usage ? (llm.usage.costMicro ?? costMicro(llm.usage)) : 0;
+    // Ученику — страницы по прайсу модели (предсказуемо: «2 000 на вход и 900 на выход» — одна страница);
+    // бюджету и учёту — настоящая цена поставщика (у Polza с наценкой и округлением), если он её прислал.
+    const cost = llm.usage ? costMicro(llm.usage) : 0;
+    const spent = llm.usage ? (llm.usage.costMicro ?? cost) : 0;
     const usage = await student(env, s.account.id).settle(ticket, cost, now(env));
-    const totals = await budget(env).settle(ticket, cost, now(env));
+    const totals = await budget(env).settle(ticket, spent, now(env));
     await env.DB.prepare('UPDATE usage SET input_tokens = ?2, cached_tokens = ?3, output_tokens = ?4, cost_micro = ?5, ok = ?6, ms = ?7 WHERE id = ?1')
-      .bind(row!.id, llm.usage?.inputTokens ?? 0, llm.usage?.cachedInputTokens ?? 0, llm.usage?.outputTokens ?? 0, cost, llm.ok ? 1 : 0, Date.now() - started)
+      .bind(row!.id, llm.usage?.inputTokens ?? 0, llm.usage?.cachedInputTokens ?? 0, llm.usage?.outputTokens ?? 0, spent, llm.ok ? 1 : 0, Date.now() - started)
       .run();
     ctx.waitUntil(afterTask(env, cfg, totals.month, limits, s.account.id, s.account.email, usage.day, !llm.ok));
     return { llm, cost, usage };

@@ -15,6 +15,17 @@ describe('вход по почте', () => {
     expect(row!.code_hash).not.toContain(code);
   });
 
+  it('письма через Resend, если задан RESEND_API_KEY: ключ в заголовке, отправитель — MAIL_FROM', async () => {
+    const h = new Harness();
+    h.env.RESEND_API_KEY = 're_test_fake';
+    await h.login('res@example.com');
+    const call = h.calls.find((c) => c.url.startsWith('https://api.resend.com/emails'));
+    expect(call).toBeTruthy();
+    const b = JSON.parse(call!.body);
+    expect(b).toMatchObject({ to: ['res@example.com'], from: 'Refrain <noreply@example.com>' });
+    expect(h.calls.some((c) => c.url.startsWith('https://api.brevo.com/'))).toBe(false);
+  });
+
   it('одноразовая почта и неверный PoW отклоняются, решение PoW нельзя использовать дважды', async () => {
     const h = new Harness();
     expect((await h.json('POST', '/v1/auth/start', { email: 'x@mailinator.com', pow: await h.solvePow() })).body.error.code).toBe('email_rejected');
