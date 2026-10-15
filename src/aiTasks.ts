@@ -2,6 +2,7 @@
 // Общий вход для всех, кто спрашивает ИИ: свой системный текст оборачивают в aiSystem(задача, текст). Пока указаний нет — текст возвращается как есть.
 // Если запрос собирается целиком — aiRequest(задача, запрос): он ещё и укажет ИИ, выбранный для этой задачи.
 import { composeSystem } from './aiNotes';
+import { refrainFields, refrainWishes } from './refrain';
 import { getData, type AiRequest } from './store';
 import type { AiNoteKey } from './types';
 
@@ -20,9 +21,19 @@ export function aiProviderFor(task: AiTask): string | undefined {
   return task === 'all' || task === 'other' ? undefined : getData().settings.aiTaskProvider?.[task];
 }
 
-/** Готовый запрос: указания ученика дописаны к системному тексту, выбранный для задачи ИИ указан. */
+/**
+ * Готовый запрос: указания ученика дописаны к системному тексту, выбранный для задачи ИИ указан.
+ * Для Refrain ИИ (поле refrain) те же указания идут полем wishes; задача вне рамок контракта убирается — запрос пойдёт мимо Refrain ИИ.
+ */
 export function aiRequest(task: AiTask, req: AiRequest): AiRequest {
-  const system = composeSystem(getData().settings.aiNotes, task === 'other' ? 'all' : task, req.system);
+  const notes = getData().settings.aiNotes;
+  const key = task === 'other' ? 'all' : task;
+  const system = composeSystem(notes, key, req.system);
   const provider = aiProviderFor(task);
-  return { ...req, ...(system !== undefined ? { system } : {}), ...(provider ? { provider } : {}) };
+  const { refrain: raw, ...rest } = req;
+  const fields = refrainFields(raw);
+  const wishes = fields ? refrainWishes(notes, key) : '';
+  // wishes нет в типе AiRequest.refrain намеренно: его дописывает только эта функция (contracts.md, «Порядок поставщиков»).
+  const refrain = fields ? ({ ...fields, ...(wishes ? { wishes } : {}) } as AiRequest['refrain']) : undefined;
+  return { ...rest, ...(system !== undefined ? { system } : {}), ...(provider ? { provider } : {}), ...(refrain ? { refrain } : {}) };
 }
