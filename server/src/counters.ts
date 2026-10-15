@@ -38,7 +38,7 @@ export interface StudentUsage {
 interface StudentState {
   day: { key: string; used: number };
   month: { key: string; used: number };
-  inflight: { ticket: string; until: number } | null;
+  inflight: { ticket: string; until: number; reserve: number } | null;
   minute: number[];
 }
 
@@ -47,7 +47,12 @@ export class StudentCounter extends DurableObject {
     const s = (await this.ctx.storage.get<StudentState>('s')) ?? { day: { key: '', used: 0 }, month: { key: '', used: 0 }, inflight: null, minute: [] };
     if (s.day.key !== dayKey(now)) s.day = { key: dayKey(now), used: 0 };
     if (s.month.key !== monthKey(now)) s.month = { key: monthKey(now), used: 0 };
-    if (s.inflight && s.inflight.until < now) s.inflight = null;
+    // Задача не закрылась за 3 минуты (Worker упал между begin и settle): списываем резерв целиком, а не забываем.
+    if (s.inflight && s.inflight.until < now) {
+      s.day.used += s.inflight.reserve;
+      s.month.used += s.inflight.reserve;
+      s.inflight = null;
+    }
     s.minute = s.minute.filter((t) => t > now - 60000);
     return s;
   }
@@ -82,7 +87,7 @@ export class StudentCounter extends DurableObject {
     if (i.dayLimit !== null && s.day.used >= i.dayLimit) return { ok: false, code: 'limit_day' };
     if (i.monthLimit !== null && s.month.used >= i.monthLimit) return { ok: false, code: 'limit_month' };
     const ticket = crypto.randomUUID();
-    s.inflight = { ticket, until: i.now + INFLIGHT_TTL_MS };
+    s.inflight = { ticket, until: i.now + INFLIGHT_TTL_MS, reserve: i.reserve };
     s.minute.push(i.now);
     await this.ctx.storage.put('s', s);
     return { ok: true, ticket };
@@ -91,7 +96,9 @@ export class StudentCounter extends DurableObject {
   /** Закончить задачу: списать настоящий расход (0, если OpenAI не ответил) и снять замок. */
   async settle(ticket: string, costMicro: number, now: number): Promise<StudentUsage> {
     const s = await this.state(now);
-    if (s.inflight?.ticket === ticket) s.inflight = null;
+    // Замок уже истёк и резерв списан целиком — второй раз не списываем.
+    if (s.inflight?.ticket !== ticket) return { day: s.day.used, month: s.month.used };
+    s.inflight = null;
     s.day.used += costMicro;
     s.month.used += costMicro;
     await this.ctx.storage.put('s', s);
@@ -127,7 +134,12 @@ export class BudgetCounter extends DurableObject {
     const s = (await this.ctx.storage.get<BudgetState>('b')) ?? { day: { key: '', spent: 0 }, month: { key: '', spent: 0 }, reserved: {} };
     if (s.day.key !== dayKey(now)) s.day = { key: dayKey(now), spent: 0 };
     if (s.month.key !== monthKey(now)) s.month = { key: monthKey(now), spent: 0 };
-    for (const [k, r] of Object.entries(s.reserved)) if (r.until < now) delete s.reserved[k];
+    for (const [k, r] of Object.entries(s.reserved))
+      if (r.until < now) {
+        s.day.spent += r.micro;
+        s.month.spent += r.micro;
+        delete s.reserved[k];
+      }
     return s;
   }
   private totals(s: BudgetState): BudgetTotals {
@@ -146,6 +158,7 @@ export class BudgetCounter extends DurableObject {
 
   async settle(ticket: string, micro: number, now: number): Promise<BudgetTotals> {
     const s = await this.state(now);
+    if (!s.reserved[ticket]) return this.totals(s); // резерв уже истёк и списан целиком
     delete s.reserved[ticket];
     s.day.spent += micro;
     s.month.spent += micro;

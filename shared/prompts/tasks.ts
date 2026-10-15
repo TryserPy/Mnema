@@ -49,8 +49,8 @@ export const DEFAULT_PRICES = { model: 'gpt-6-luna', inputPerM: 0.1, cachedInput
 /** Сколько токенов на вход закладывать за фото при резервировании (с запасом: фото до 2000 px). */
 export const IMAGE_TOKENS_RESERVE = 1600;
 
-/** Сколько знаков текста считать за один токен при резервировании (русский текст — с запасом). */
-export const CHARS_PER_TOKEN_RESERVE = 2;
+/** Сколько знаков текста считать за один токен при резервировании: 1 — худший случай (редкие символы, эмодзи), резерв не ниже настоящей цены. */
+export const CHARS_PER_TOKEN_RESERVE = 1;
 
 /** Схема ответа «Карточки» (structured outputs). */
 export const CARDS_SCHEMA = {
@@ -72,7 +72,7 @@ export const CARDS_SCHEMA = {
 
 /** Наибольшая возможная стоимость задачи в µ$ — её сервер резервирует до запроса. */
 export function maxCostMicro(spec: TaskSpec, textChars: number, hasImage: boolean, prices = DEFAULT_PRICES): number {
-  const input = spec.promptTokens + 200 /* предмет, тема, указания */ + (hasImage ? IMAGE_TOKENS_RESERVE : 0) + Math.ceil(textChars / CHARS_PER_TOKEN_RESERVE);
+  const input = spec.promptTokens + 700 /* предмет, тема, указания: до 640 знаков */ + (hasImage ? IMAGE_TOKENS_RESERVE : 0) + Math.ceil(textChars / CHARS_PER_TOKEN_RESERVE);
   return Math.ceil(input * prices.inputPerM + spec.maxTokens * prices.outputPerM);
 }
 

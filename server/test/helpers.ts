@@ -130,7 +130,7 @@ export class Harness {
   async admin(): Promise<(method: string, path: string, body?: unknown, pin?: string) => Promise<{ status: number; body: any; raw: string }>> {
     const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
     const key = (k: string | ArrayBuffer) => crypto.subtle.importKey('raw', typeof k === 'string' ? enc.encode(k) : k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const params = new URLSearchParams({ auth_date: String(Math.floor(this.clock / 1000)), query_id: 'AAH', user: JSON.stringify({ id: 777, first_name: 'Owner' }) });
+    const params = new URLSearchParams({ auth_date: String(Math.floor(this.clock / 1000)), query_id: 'AAH' + Math.random().toString(36).slice(2), user: JSON.stringify({ id: 777, first_name: 'Owner' }) });
     const check = [...params.entries()].map(([k, v]) => `${k}=${v}`).sort().join('\n');
     const secret = await crypto.subtle.sign('HMAC', await key('WebAppData'), enc.encode(this.env.TELEGRAM_BOT_TOKEN!));
     params.set('hash', hex(await crypto.subtle.sign('HMAC', await key(secret), enc.encode(check))));

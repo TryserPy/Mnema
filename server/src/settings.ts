@@ -19,6 +19,8 @@ export interface Settings {
   newbieZeroUntil: number;
   /** Панель закрыта после 5 неверных PIN. */
   pinLock: { fails: number; until: number };
+  /** Бюджет в месяц, подтверждённый PIN (или по умолчанию): поднять больше чем вдвое от него — только с PIN, шагами не обойти. */
+  budgetBase: number;
   /** Последняя сверка с OpenAI. */
   leakCheck: { at: number; suspected: boolean };
 }
@@ -32,6 +34,7 @@ const DEFAULTS: Settings = {
   guard: DEFAULT_GUARD,
   newbieZeroUntil: 0,
   pinLock: { fails: 0, until: 0 },
+  budgetBase: DEFAULT_BUDGET.monthUsd,
   leakCheck: { at: 0, suspected: false }
 };
 

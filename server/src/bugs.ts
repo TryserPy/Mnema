@@ -17,6 +17,12 @@ export function scrub(s: string): string {
   return s
     .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[почта]')
     .replace(/(?:[A-Za-z]:\\|\/(?:home|Users|data|storage|root)\/)[^\s"'<>]*/g, '[путь]')
+    .replace(/\b(?:acc|dev|ses)_[A-Za-z0-9_-]{8,}/g, '[id]')
+    .replace(/\bv1\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}/g, '[токен]')
+    .replace(/\b(?:sk|pk|ghp|github_pat|xkeysib)[-_][A-Za-z0-9_-]{8,}/g, '[ключ]')
+    .replace(/[A-Za-z0-9_-]{32,}/g, '[ключ]')
+    .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, '[ip]')
+    .replace(/\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b/gi, '[ip]')
     .replace(/\b\d{7,}\b/g, '[число]')
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '');
 }

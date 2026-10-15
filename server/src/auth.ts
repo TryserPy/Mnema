@@ -196,7 +196,13 @@ export async function authRefresh(req: Request, env: Env, info: ClientInfo): Pro
     await signal(env, ['token_unknown'], { info, account: { id: s.account.id, email: s.account.email, group: s.group }, device: { id: s.device.id, name: s.device.name, platform: s.device.platform } });
     fail('device_unknown');
   }
-  await env.DB.prepare('INSERT INTO refresh_used (hash, account_id, used_at) VALUES (?1, ?2, ?3) ON CONFLICT(hash) DO NOTHING').bind(hash, s.account.id, t).run();
+  // Токен обновления тратится атомарно: из двух одновременных refresh одним токеном второй — повтор (кража), а не вторая пара токенов.
+  const first = await env.DB.prepare('INSERT INTO refresh_used (hash, account_id, used_at) VALUES (?1, ?2, ?3) ON CONFLICT(hash) DO NOTHING RETURNING hash').bind(hash, s.account.id, t).first();
+  if (!first) {
+    await revokeSessions(env, s.account.id);
+    await signal(env, ['refresh_reuse'], { info, account: { id: s.account.id, email: s.account.email, group: s.group }, device: { id: s.device.id, name: s.device.name, platform: s.device.platform } });
+    fail('session_revoked');
+  }
   return Response.json(await newSession(env, s.account, s.device.id, sess!.id));
 }
 

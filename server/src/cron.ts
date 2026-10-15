@@ -55,6 +55,10 @@ async function cleanup(env: Env): Promise<void> {
     env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?1').bind(t),
     env.DB.prepare('DELETE FROM admin_sessions WHERE expires_at < ?1').bind(t),
     env.DB.prepare('DELETE FROM bugs WHERE at < ?1').bind(t - 90 * 86400000),
-    env.DB.prepare('DELETE FROM scores WHERE updated_at < ?1').bind(t - 2 * 86400000)
+    env.DB.prepare('DELETE FROM scores WHERE updated_at < ?1').bind(t - 2 * 86400000),
+    // Маски IP в блоках и журнале не храним дольше 48 часов после окончания блока; прочитанные тревоги — 90 дней.
+    env.DB.prepare("DELETE FROM blocks WHERE kind IN ('ip', 'asn') AND COALESCE(lifted_at, until, since) < ?1").bind(t - 48 * 3600000),
+    env.DB.prepare("UPDATE journal SET target_id = 'ip' WHERE target_kind = 'ip' AND at < ?1").bind(t - 48 * 3600000),
+    env.DB.prepare('DELETE FROM alerts WHERE read_at IS NOT NULL AND at < ?1').bind(t - 90 * 86400000)
   ]);
 }

@@ -256,6 +256,7 @@ describe('массовая атака — уровень 3', () => {
     await h.setting('guard', { ...DEFAULT_GUARD, massAccounts: 3 });
     for (let i = 0; i < 3; i++) {
       const d = await h.login(`mass${i}@example.com`, { ip: `198.51.100.${10 + i}` });
+      expect((await d.task()).status).toBe(200); // «настоящий» аккаунт: свежие без истории аварийную паузу не включают
       const bad = summaryTask({ system: 'x', debug: 1 });
       await d.task(bad);
       await d.task(bad);
@@ -270,5 +271,68 @@ describe('массовая атака — уровень 3', () => {
     const admin = await h.admin();
     expect((await admin('POST', 'resume', undefined, '123456')).body.mode).toBe('all');
     expect((await s.task()).status).toBe(200);
+  });
+});
+
+describe('исправления по ревью безопасности', () => {
+  it('пачка свежих аккаунтов без истории не включает аварийную паузу', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const { DEFAULT_GUARD } = await import('../../shared/refrain/guard');
+    await h.setting('guard', { ...DEFAULT_GUARD, massAccounts: 3 });
+    for (let i = 0; i < 4; i++) {
+      const d = await h.login(`fresh${i}@example.com`, { ip: `198.51.100.${40 + i}` });
+      await d.task(summaryTask({ system: 'x', debug: 1 }));
+      await d.task(summaryTask({ system: 'x', debug: 1 }));
+    }
+    expect((await (await h.admin())('GET', 'overview')).body.mode).toBe('all');
+  });
+
+  it('заблокированный не может удалить аккаунт и зарегистрироваться заново', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const d = await h.login('evade@example.com');
+    const admin = await h.admin();
+    const acc = (await admin('GET', 'accounts?q=evade')).body.accounts[0];
+    await admin('POST', `accounts/${acc.id}/block`, { minutes: 60 });
+    const again = await h.login('evade@example.com', {}, { replaceDevice: d.id }); // у заблокированного лимит устройств — 1
+    expect((await again.call('DELETE', '/v1/account')).body.error.code).toBe('blocked');
+  });
+
+  it('PIN: пачка параллельных неверных PIN — не больше 5 проверок, панель закрыта', async () => {
+    const h = new Harness();
+    const admin = await h.admin();
+    const all = await Promise.all(Array.from({ length: 20 }, (_, i) => admin('PUT', 'mode', { mode: 'all' }, String(100000 + i))));
+    expect(all.filter((r) => r.body?.error?.code === 'code_invalid').length).toBeLessThanOrEqual(5);
+    expect((await admin('PUT', 'mode', { mode: 'all' }, '123456')).body.error.code).toBe('blocked');
+  });
+
+  it('бюджет шагами без PIN не поднять', async () => {
+    const h = new Harness();
+    const admin = await h.admin();
+    const b = (await admin('GET', 'budget')).body.budget;
+    expect((await admin('PUT', 'budget', { ...b, monthUsd: 40 })).status).toBe(200);
+    expect((await admin('PUT', 'budget', { ...b, monthUsd: 80 })).body.error.code).toBe('code_invalid');
+    const g = (await admin('GET', 'groups')).body.groups;
+    g.find((x: { id: string }) => x.id === 'student').perDay = 1000;
+    expect((await admin('PUT', 'groups', { groups: g })).body.error.code).toBe('code_invalid');
+  });
+
+  it('initData нельзя повторить', async () => {
+    const h = new Harness();
+    const params = new URLSearchParams({ auth_date: String(Math.floor(h.clock / 1000)), query_id: 'fixed', user: JSON.stringify({ id: 777 }) });
+    const enc = new TextEncoder();
+    const key = (k: string | ArrayBuffer) => crypto.subtle.importKey('raw', typeof k === 'string' ? enc.encode(k) : k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const secret = await crypto.subtle.sign('HMAC', await key('WebAppData'), enc.encode(h.env.TELEGRAM_BOT_TOKEN!));
+    const check = [...params.entries()].map(([k, v]) => `${k}=${v}`).sort().join('\n');
+    params.set('hash', [...new Uint8Array(await crypto.subtle.sign('HMAC', await key(secret), enc.encode(check)))].map((x) => x.toString(16).padStart(2, '0')).join(''));
+    expect((await h.json('POST', '/v1/admin/login/telegram', { initData: params.toString() })).status).toBe(200);
+    expect((await h.json('POST', '/v1/admin/login/telegram', { initData: params.toString() })).status).toBe(401);
+  });
+
+  it('из бага вычищаются id, токены и IP', async () => {
+    const { scrub } = await import('../src/bugs');
+    const s = scrub('dev_AbCdEfGhIjKlMnOp acc_123456789012 v1.eyJhIjoiYWNjX3gifQxx.abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG 203.0.113.7 2001:db8:1:2:3:4:5:6');
+    expect(s).not.toMatch(/dev_|acc_|v1\.|203\.0|2001:/);
   });
 });

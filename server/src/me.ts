@@ -2,7 +2,7 @@
 import { INVITE_RE, admits } from '../../shared/refrain/policy';
 import type { Me } from '../../shared/refrain/api.mjs';
 import { devicesOf, effectiveGroup, groupLimits, quotaOf, revokeSessions, student, unbindDevice, type Account } from './accounts';
-import { applyInvite } from './auth';
+import { applyInvite, bump } from './auth';
 import { now, type Env } from './env';
 import { fail, maskEmail, readJson, type ClientInfo } from './http';
 import { journal } from './journal';
@@ -27,6 +27,7 @@ export async function handleInvite(req: Request, env: Env, info: ClientInfo): Pr
   const { raw, body } = await readJson(req, 1024);
   const s = await verifySigned(req, env, raw, info, 'access');
   const code = String((body as { code?: unknown }).code ?? '').trim().toUpperCase();
+  if ((await bump(env, `invite:${s.account.id}`, 3600000)) > 10) fail('too_fast', { retryAfter: 3600 });
   if (!INVITE_RE.test(code)) fail('invite_invalid');
   await applyInvite(env, code, s.account);
   return handleMeAfter(env, s.account.id);
@@ -49,6 +50,8 @@ export async function handleDeviceDelete(req: Request, env: Env, info: ClientInf
 /** «Удалить аккаунт»: почта, счётчики, устройства, сессии. Цифры учёта остаются обезличенными (без связи с почтой). */
 export async function handleAccountDelete(req: Request, env: Env, info: ClientInfo): Promise<Response> {
   const s = await verifySigned(req, env, new Uint8Array(), info, 'access');
+  // Под блоком аккаунт не удаляется: иначе блок снимался бы удалением и повторной регистрацией (снять — только из панели).
+  if (s.group === 'blocked') fail('blocked', { until: s.account.blocked_until && s.account.blocked_until < 9e15 ? new Date(s.account.blocked_until).toISOString() : null });
   const id = s.account.id;
   await revokeSessions(env, id);
   await env.DB.batch([
@@ -61,6 +64,7 @@ export async function handleAccountDelete(req: Request, env: Env, info: ClientIn
     env.DB.prepare("UPDATE usage SET account_id = 'deleted' WHERE account_id = ?1").bind(id),
     env.DB.prepare("UPDATE events SET account_id = NULL, device_id = NULL WHERE account_id = ?1").bind(id),
     env.DB.prepare("DELETE FROM scores WHERE kind = 'account' AND subject = ?1").bind(id),
+    env.DB.prepare("UPDATE blocks SET label = 'удалён' WHERE kind = 'account' AND subject = ?1").bind(id),
     env.DB.prepare('DELETE FROM accounts WHERE id = ?1').bind(id)
   ]);
   await student(env, id).wipe();

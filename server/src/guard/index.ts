@@ -53,6 +53,8 @@ export async function gate(env: Env, s: Subjects, cfg: Settings): Promise<GateRe
   const keys: [SubjectKind, string][] = [];
   for (const k of ['account', 'device', 'ip', 'asn'] as SubjectKind[]) {
     if (trusted && (k === 'ip' || k === 'asn')) continue;
+    // Блок целой сети (ASN) касается только новых аккаунтов и входа: учеников с историей у того же оператора не выключаем.
+    if (k === 'asn' && s.account && s.account.group !== 'newbie') continue;
     const id = subjectId(k, s);
     if (id) keys.push([k, id]);
   }
@@ -242,7 +244,14 @@ async function markLevel2(env: Env, s: Subjects, rules: RuleId[], reason: string
 /** Уровень 3: массовая атака — уровень 2 у многих аккаунтов за окно. */
 async function checkMass(env: Env, cfg: Settings): Promise<void> {
   const g = cfg.guard;
-  const r = await env.DB.prepare("SELECT COUNT(DISTINCT subject) AS n FROM blocks WHERE kind = 'account' AND level = 2 AND since > ?1").bind(now(env) - g.massWindowMin * 60000).first<{ n: number }>();
+  // Считаются только «настоящие» аккаунты (старше суток или с успешными задачами) и не ожидающие подтверждения блоки:
+  // иначе аварийную паузу для всех легко вызвать пачкой свежих аккаунтов.
+  const t = now(env);
+  const r = await env.DB.prepare(
+    "SELECT COUNT(DISTINCT b.subject) AS n FROM blocks b JOIN accounts a ON a.id = b.subject WHERE b.kind = 'account' AND b.level = 2 AND b.pending = 0 AND b.since > ?1 AND (a.created_at < ?2 OR EXISTS (SELECT 1 FROM usage u WHERE u.account_id = a.id AND u.ok = 1))"
+  )
+    .bind(t - g.massWindowMin * 60000, t - 86400000)
+    .first<{ n: number }>();
   if ((r?.n ?? 0) >= g.massAccounts) await emergencyPause(env, cfg, 'guard', `Уровень 2 у ${r!.n} аккаунтов за ${g.massWindowMin} минут.`);
 }
 

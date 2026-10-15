@@ -33,18 +33,22 @@ async function lockedUntil(env: Env, cfg: Settings): Promise<number> {
   return cfg.pinLock.until > now(env) ? cfg.pinLock.until : 0;
 }
 
-/** Проверка PIN с учётом блокировки панели. */
+/**
+ * Проверка PIN с учётом блокировки панели. Попытка тратится атомарно ДО проверки: пачка параллельных догадок получает не больше 5,
+ * пятая неудача закрывает панель на час. Верный PIN обнуляет счётчик.
+ */
 async function pinOk(env: Env, cfg: Settings, pin: string | null): Promise<boolean> {
   if (await lockedUntil(env, cfg)) fail('blocked', { until: new Date(cfg.pinLock.until).toISOString() });
+  const tries = await bump(env, 'pin:tries', 3600000);
+  if (tries > 5) fail('blocked', { until: new Date(now(env) + 3600000).toISOString() });
   if (pin && (await checkPin(env.ADMIN_PIN_HASH, pin))) {
-    if (cfg.pinLock.fails) await saveSetting(env, 'pinLock', { fails: 0, until: 0 });
+    await env.DB.prepare("DELETE FROM counters WHERE key = 'pin:tries'").run();
     return true;
   }
-  const fails = cfg.pinLock.fails + 1;
-  const lock = fails >= 5;
-  await saveSetting(env, 'pinLock', { fails: lock ? 0 : fails, until: lock ? now(env) + 3600000 : 0 });
-  await journal(env, { actor: 'system', action: lock ? 'panel.locked' : 'panel.pin_wrong', reason: `неверный PIN (${fails})` });
-  const a = await raiseAlert(env, lock ? { level: 'critical', kind: 'pin_locked', title: 'Пять неверных PIN', text: 'Панель закрыта на час.', buttons: ['open_panel'] } : { level: 'warn', kind: 'pin_wrong', title: 'Неверный PIN в панели', text: `Попытка ${fails} из 5.` });
+  const lock = tries === 5;
+  if (lock) await saveSetting(env, 'pinLock', { fails: 0, until: now(env) + 3600000 });
+  await journal(env, { actor: 'system', action: lock ? 'panel.locked' : 'panel.pin_wrong', reason: `неверный PIN (${tries})` });
+  const a = await raiseAlert(env, lock ? { level: 'critical', kind: 'pin_locked', title: 'Пять неверных PIN', text: 'Панель закрыта на час.', buttons: ['open_panel'] } : { level: 'warn', kind: 'pin_wrong', title: 'Неверный PIN в панели', text: `Попытка ${tries} из 5.` });
   await a.deliver;
   return false;
 }
@@ -58,7 +62,11 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
   if (method === 'POST' && path === '/v1/admin/login/telegram') {
     if (await lockedUntil(env, cfg)) fail('blocked', { until: new Date(cfg.pinLock.until).toISOString() });
     const { body } = await readJson(req, 8192);
-    if (!(await verifyInitData(env, String((body as { initData?: unknown }).initData ?? ''), t))) fail('device_unknown');
+    const initData = String((body as { initData?: unknown }).initData ?? '');
+    if (!(await verifyInitData(env, initData, t))) fail('device_unknown');
+    // initData одноразовая: перехваченную строку нельзя повторить в течение её 5 минут.
+    const once = await env.DB.prepare('INSERT INTO pow_used (id, expires_at) VALUES (?1, ?2) ON CONFLICT(id) DO NOTHING RETURNING id').bind('tg:' + (new URLSearchParams(initData).get('hash') ?? ''), t + 600000).first();
+    if (!once) fail('device_unknown');
     return startSession(env, 'tg');
   }
   if (method === 'POST' && path === '/v1/admin/login/email/start') {
@@ -73,12 +81,10 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
   if (method === 'POST' && path === '/v1/admin/login/email/verify') {
     const { body } = await readJson(req, 1024);
     const b = body as { code?: unknown; pin?: unknown };
-    const row = await env.DB.prepare("SELECT code_hash, expires_at, attempts FROM login_codes WHERE email = '__admin__'").first<{ code_hash: string; expires_at: number; attempts: number }>();
-    if (!row || row.expires_at < t || row.attempts >= 5) fail('code_invalid', { attemptsLeft: 0 });
-    if (typeof b.code !== 'string' || !safeEqual(await tagged(env.TOKEN_SECRET, 'admin-code', b.code), row!.code_hash)) {
-      await env.DB.prepare("UPDATE login_codes SET attempts = attempts + 1 WHERE email = '__admin__'").run();
-      fail('code_invalid', { attemptsLeft: Math.max(0, 4 - row!.attempts) });
-    }
+    // Попытка тратится атомарно до сравнения — как у учеников.
+    const row = await env.DB.prepare("UPDATE login_codes SET attempts = attempts + 1 WHERE email = '__admin__' AND attempts < 5 AND expires_at >= ?1 RETURNING code_hash, attempts").bind(t).first<{ code_hash: string; attempts: number }>();
+    if (!row) fail('code_invalid', { attemptsLeft: 0 });
+    if (typeof b.code !== 'string' || !safeEqual(await tagged(env.TOKEN_SECRET, 'admin-code', b.code), row!.code_hash)) fail('code_invalid', { attemptsLeft: Math.max(0, 5 - row!.attempts) });
     if (!(await pinOk(env, cfg, typeof b.pin === 'string' ? b.pin : null))) fail('code_invalid');
     await env.DB.prepare("DELETE FROM login_codes WHERE email = '__admin__'").run();
     return startSession(env, 'web');
@@ -127,7 +133,12 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
   if (R('GET', 'budget')) return Response.json({ ok: true, budget: cfg.budget });
   if (R('PUT', 'budget')) {
     const b = cleanBudget(await body<BudgetConfig>());
-    if (b.monthUsd > cfg.budget.monthUsd * 2 || (b.dayUsd ?? 0) > (cfg.budget.dayUsd ?? Infinity) * 2) await needPin();
+    // PIN — если больше чем вдвое от подтверждённого PIN значения (а не от текущего: иначе 20 → 40 → 80 … шагами без PIN).
+    const base = cfg.budgetBase;
+    if (b.monthUsd > base * 2 || (b.dayUsd !== null && b.dayUsd > ((base * 2) / 28) * 2)) {
+      await needPin();
+      await saveSetting(env, 'budgetBase', Math.max(base, b.monthUsd));
+    }
     await saveSetting(env, 'budget', b);
     await journal(env, { actor, action: 'budget.set', target: { kind: 'budget', id: 'month' }, before: cfg.budget, after: b });
     return Response.json({ ok: true });
@@ -136,6 +147,9 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
   if (R('PUT', 'groups')) {
     const { groups } = await body<{ groups: GroupLimits[] }>();
     const clean = cleanGroups(groups, cfg.groups);
+    // Любое повышение лимитов (или снятие лимита) — опасное действие, с PIN.
+    const up = (a: number | null, b: number | null) => (b === null ? a !== null : a !== null && b > a);
+    if (clean.some((g) => { const p = cfg.groups.find((x) => x.id === g.id); return !p || up(p.perDay, g.perDay) || up(p.perMonth, g.perMonth) || g.perMinute > p.perMinute || g.devices > p.devices; })) await needPin();
     await saveSetting(env, 'groups', clean);
     await journal(env, { actor, action: 'group.update', target: { kind: 'group', id: 'all' }, before: cfg.groups, after: clean });
     return Response.json({ ok: true });
