@@ -1,10 +1,11 @@
 // 1.31, поток F: «Из тетради» — фото (разворот, клетка, {?слово?}, «Как в тетради», запрос notebook.read) и файлы (.docx, PDF, Markdown/Notion, ДЗ).
-import { strToU8, zipSync } from 'fflate';
+import { strToU8, zipSync, zlibSync } from 'fflate';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — генератор фикстуры на JS без типов
 import { makeDocx, p, t } from '../test-fixtures/notebook/make-docx.mjs';
 import { docSections, docxToMarkdown, dueDate, fileKindOf, homeworkOf, homeworkText, markdownDoc, matchTopic, notionTitle, parseSplitAnswer, parseXml, sectionNote, sectionsByStarts, splitOutline, splitSections, type XNode } from './fileImport';
+import { pdfToMarkdown } from './fileImportPdf';
 import { acceptUnsure, asInNotebook, cardDrafts, fixUnsure, hasAbbreviations, isSpreadShape, notebookRequest, parseNotebookAnswer, spreadCuts, tidyRequest, unsureCount, unsurePieces, whitenPaper } from './notebook';
 
 describe('тетрадь: разворот', () => {
@@ -236,5 +237,78 @@ describe('файл: Markdown и Notion', () => {
   });
   it('какие файлы берёт «Файл»', () => {
     expect(['a.docx', 'b.PDF', 'c.md', 'd.zip', 'e.txt', 'f.jpg', 'g.doc'].map(fileKindOf)).toEqual(['docx', 'pdf', 'md', 'md', 'md', null, null]);
+  });
+});
+
+describe('файл: PDF без сторонних библиотек', () => {
+  /** Маленький PDF из объектов: строки как есть, потоки — { dict, data } (data сжимается, если flate). */
+  const pdf = (objs: (string | { dict: string; data: Uint8Array | string; flate?: boolean })[], trailer = '/Root 1 0 R') => {
+    const parts: (string | Uint8Array)[] = ['%PDF-1.7\n'];
+    objs.forEach((o, i) => {
+      if (typeof o === 'string') parts.push(`${i + 1} 0 obj\n${o}\nendobj\n`);
+      else {
+        const raw = typeof o.data === 'string' ? strToU8(o.data, true) : o.data;
+        const data = o.flate ? zlibSync(raw) : raw;
+        parts.push(`${i + 1} 0 obj\n<< ${o.dict}${o.flate ? ' /Filter /FlateDecode' : ''} /Length ${data.length} >>\nstream\n`, data, '\nendstream\nendobj\n');
+      }
+    });
+    parts.push(`trailer\n<< ${trailer} >>\n%%EOF`);
+    const bytes = parts.map((x) => (typeof x === 'string' ? strToU8(x, true) : x));
+    const out = new Uint8Array(bytes.reduce((n, b) => n + b.length, 0));
+    let off = 0;
+    for (const b of bytes) (out.set(b, off), (off += b.length));
+    return out;
+  };
+  const page = (font: string, content: { dict: string; data: Uint8Array | string; flate?: boolean }, extra: string[] = []) =>
+    pdf(['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>', content, font, ...extra]);
+
+  it('фикстура из Chrome: шрифты с ToUnicode, заголовки по кеглю, абзацы', () => {
+    const r = pdfToMarkdown(new Uint8Array(readFileSync('test-fixtures/notebook/biology.pdf')));
+    expect(r.scans).toEqual([]);
+    expect(r.stats.pages).toBe(1);
+    expect(r.markdown).toBe(
+      '# § 12. Фотосинтез\n\nФотосинтез — это образование органических веществ из углекислого газа и воды на свету. Он идёт в хлоропластах клеток листа и даёт кислород, которым мы дышим каждый день.\n\nСветовая фаза — образуется АТФ.\n\n## Где идёт\n\nВ хлоропластах (зелёные пластиды).\n\n# § 13. Дыхание растений\n\nДыхание — окисление органических веществ с выделением энергии. Цена 5 \\$.'
+    );
+    expect(splitSections(r.markdown, 'Биология').map((s) => s.title)).toEqual(['§ 12. Фотосинтез', '§ 13. Дыхание растений']);
+  });
+  it('скан без текста: картинка страницы (JPEG) для ветки «Фото»', () => {
+    const r = pdfToMarkdown(new Uint8Array(readFileSync('test-fixtures/notebook/scan.pdf')));
+    expect(r.markdown).toBe('');
+    expect(r.scans).toHaveLength(1);
+    expect(r.scans[0]).toMatchObject({ kind: 'jpeg', w: 600, h: 800 });
+    const jpeg = (r.scans[0] as { bytes: Uint8Array }).bytes;
+    expect([jpeg[0], jpeg[1], jpeg[2]]).toEqual([0xff, 0xd8, 0xff]);
+  });
+  it('ToUnicode с bfrange (обе формы), двухбайтные коды, перенос слова, TJ с пробелом', () => {
+    const cmap = '/CIDInit /ProcSet findresource begin 12 dict begin begincmap 1 begincodespacerange <0000> <FFFF> endcodespacerange 2 beginbfrange <0001> <0003> <0444> <0010> <0011> [<043E> <0442>] endbfrange 1 beginbfchar <0020> <0020> endbfchar endcmap end end';
+    // ф ф х — о т: «фф» + перенос «х-» и пробел через TJ
+    const text = 'BT /F1 12 Tf 72 700 Td [<00010002> -400 <0010>] TJ 0 -14 Td <00110003> Tj ET';
+    const r = pdfToMarkdown(page('<< /Type /Font /Subtype /Type0 /BaseFont /X /Encoding /Identity-H /ToUnicode 6 0 R /DescendantFonts [7 0 R] >>', { dict: '', data: text, flate: true }, [`<< /Length ${cmap.length} >>\nstream\n${cmap}\nendstream`, '<< /Type /Font /Subtype /CIDFontType2 /DW 500 >>']));
+    expect(r.markdown).toBe('фх о\n\nтц'.replace('\n\n', ' '));
+  });
+  it('простой шрифт: Differences с именами кириллицы и старый cp1251 без кодировки', () => {
+    const diff = pdfToMarkdown(page('<< /Type /Font /Subtype /Type1 /BaseFont /Times /Encoding << /Differences [65 /afii10017 /afii10066 /space /uni0436] >> >>', { dict: '', data: 'BT /F1 12 Tf 10 10 Td (ABCD) Tj ET' }));
+    expect(diff.markdown).toBe('Аб ж');
+    const cp = pdfToMarkdown(page('<< /Type /Font /Subtype /TrueType /BaseFont /ArialCyr >>', { dict: '', data: strToU8('BT /F1 12 Tf 10 10 Td (\xcf\xf0\xe8\xe2\xe5\xf2) Tj ET', true) }));
+    expect(cp.markdown).toBe('Привет');
+  });
+  it('потоки объектов (ObjStm) и ASCIIHex', () => {
+    const inner = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+    const objstm = `5 0 ${inner}`;
+    const hex = Array.from(strToU8('BT /F1 12 Tf 10 10 Td (Hello world) Tj ET'), (b) => b.toString(16).padStart(2, '0')).join('') + '>';
+    const r = pdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+      { dict: '/Filter /ASCIIHexDecode', data: hex },
+      'null',
+      { dict: `/Type /ObjStm /N 1 /First ${'5 0 '.length}`, data: objstm, flate: true }
+    ]);
+    expect(pdfToMarkdown(r).markdown).toBe('Hello world');
+  });
+  it('зашифрованный PDF и не PDF — понятные ошибки', () => {
+    const enc = pdf(['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [] /Count 0 >>'], '/Root 1 0 R /Encrypt << /Filter /Standard >>');
+    expect(() => pdfToMarkdown(enc)).toThrow(/защищён/);
+    expect(() => pdfToMarkdown(strToU8('<html></html>'))).toThrow(/не похож на PDF/);
   });
 });

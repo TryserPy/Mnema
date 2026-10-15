@@ -106,11 +106,11 @@ function flag(n: XNode | undefined): boolean {
 // ---------- Markdown: экранирование ----------
 
 /** Знаки, которые в тексте из Word иначе станут разметкой: * и _ (жирный), $ (формула), ` (код), == (выделение), [ (ссылка). */
-function escInline(s: string): string {
+export function escInline(s: string): string {
   return s.replace(/([\\*_`$[\]])/g, '\\$1').replace(/==/g, '=\\=');
 }
 /** Начало строки: «# », «> », «- », «1. » из Word — это текст, а не разметка. */
-function escLineStart(s: string): string {
+export function escLineStart(s: string): string {
   return s.replace(/^(\s*)(#{1,6}\s|>|[-+]\s|\d+[.)]\s)/, (_m, sp: string, t: string) => sp + '\\' + t);
 }
 
