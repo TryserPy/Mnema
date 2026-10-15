@@ -1,0 +1,18 @@
+/* «Из тетради»: фото рядом с текстом, неуверенные слова, разделы файла. */
+.nb-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.nb-photo { width: 100%; max-height: 520px; object-fit: contain; border-radius: 8px; background: #fff; }
+.nb-text { min-width: 0; }
+.nb-read { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.nb-unsure { font: inherit; color: inherit; background: color-mix(in srgb, #e5c063 28%, transparent); border: 0; border-bottom: 2px dotted #c9a227; border-radius: 4px; padding: 0 3px; cursor: pointer; }
+.nb-fix { display: inline-block; width: 9em; padding: 2px 6px; height: auto; }
+.nb-row { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.nb-row.off { opacity: 0.6; }
+.nb-row-opts { margin: 6px 0 0 26px; }
+.nb-row-opts .ctl-seg, .nb-opts .ctl-seg { max-width: 100%; }
+.nb-draft { align-items: flex-start; }
+.nb-draft span { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .nb-page { grid-template-columns: minmax(0, 1fr); }
+  .nb-photo { max-height: 300px; }
+  .nb-row-opts { margin-left: 0; }
+}

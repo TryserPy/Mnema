@@ -101,7 +101,10 @@ export function ReportProblem({ ctx, shot, onClose }: { ctx: ReportContext; shot
         <span className="small muted">Не пиши почту, телефон и другие личные данные: отчёт читают разработчики.</span>
         {log.length > 0 && (
           <div className="stack gap4">
-            <Switch label={`Приложить журнал ошибок (${log.length} строк)`} checked={withLog} onChange={setWithLog} />
+            <div className="row gap8">
+              <span className="grow small">Приложить журнал ошибок ({log.length} строк)</span>
+              <Switch label="Приложить журнал ошибок" checked={withLog} onChange={setWithLog} />
+            </div>
             {withLog && (
               <details>
                 <summary className="small muted">Что уйдёт</summary>
@@ -112,7 +115,10 @@ export function ReportProblem({ ctx, shot, onClose }: { ctx: ReportContext; shot
         )}
         {shotOk && (
           <div className="stack gap4">
-            <Switch label="Приложить снимок окна" checked={withShot} onChange={setWithShot} />
+            <div className="row gap8">
+              <span className="grow small">Приложить снимок окна</span>
+              <Switch label="Приложить снимок окна" checked={withShot} onChange={setWithShot} />
+            </div>
             {withShot && <img className="rf-shot" src={`data:image/jpeg;base64,${shot}`} alt="Снимок окна, который уйдёт с отчётом" />}
           </div>
         )}

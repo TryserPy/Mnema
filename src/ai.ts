@@ -25,6 +25,11 @@ async function ask(task: AiTask | null, req: AiRequest): Promise<string> {
   return r.text;
 }
 
+/** Запрос по готовому AiRequest (тетрадь, файлы): указания ученика, Refrain ИИ и ошибки — как у остальных задач. */
+export function askAi(task: AiTask | null, req: AiRequest): Promise<string> {
+  return ask(task, req);
+}
+
 function resetLocal(): string {
   const d = new Date();
   d.setUTCHours(24, 0, 0, 0);
