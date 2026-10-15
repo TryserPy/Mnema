@@ -134,13 +134,15 @@ export interface RefrainNotice {
   code?: ErrorCode;
   quota?: Quota;
   task?: TaskId;
+  /** Текст ошибки — под ней кнопка «Сообщить о проблеме» с автозаполнением. */
+  error?: string;
 }
 
 /** Ответ ИИ пришёл: обновить счётчик, при лимите или закрытом тесте показать экран (RefrainHost). */
 export function noteAnswer(r: AiAnswer, task?: TaskId): void {
   if (!r.ok) logLine(`ИИ${task ? ` (${task})` : ''}: ${r.code ?? ''} ${r.error}`);
-  const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(task ? { task } : {}) };
-  if (n.quota || n.code) window.dispatchEvent(new CustomEvent<RefrainNotice>('refrain:answer', { detail: n }));
+  const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(!r.ok ? { error: r.error } : {}), ...(task ? { task } : {}) };
+  if (n.quota || n.code || n.error) window.dispatchEvent(new CustomEvent<RefrainNotice>('refrain:answer', { detail: n }));
 }
 
 export function onRefrainAnswer(cb: (n: RefrainNotice) => void): () => void {

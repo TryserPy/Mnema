@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { RefrainHost } from './components/RefrainHost';
 import { BackupsHost } from './components/BackupsHost';
 import { TutorialHost } from './components/Tutorial';
 import { ShowMeHost } from './components/ShowMe';
@@ -570,6 +571,7 @@ export function App() {
       {mobile && <TabBar route={route} go={go} dueAll={dueAll} />}
 
       {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
+      <RefrainHost go={go} />
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
           <span>{toast || lastToast.current}</span>

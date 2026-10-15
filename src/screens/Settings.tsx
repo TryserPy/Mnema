@@ -24,6 +24,8 @@ import { WebGroup } from '../components/WebInstall';
 import { openBackups } from '../components/BackupsHost';
 import { startTutorial } from '../components/Tutorial';
 import { openChanges } from '../components/ChangesDialog';
+import { canReport } from '../components/ReportProblem';
+import { openReportProblem } from '../refrain';
 import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, restoreData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
@@ -1084,6 +1086,13 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
             Пройти знакомство
           </button>
         </SRow>
+        {canReport() && (
+          <SRow label="Сообщить о проблеме" hint="Что сломалось — придёт разработчикам; номер обращения покажу">
+            <button className="btn small" onClick={() => openReportProblem()}>
+              Написать
+            </button>
+          </SRow>
+        )}
         <SRow label="Подсказки" hint="Те, что закрыл крестиком, появятся снова">
           <button className="btn small" disabled={!getData().settings.hiddenTips?.length} onClick={() => updateSettings({ hiddenTips: [] })}>
             Показать снова

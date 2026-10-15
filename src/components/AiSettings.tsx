@@ -3,6 +3,7 @@ import { humanError, testConnection } from '../ai';
 import type { AiAuth, AiConfig, AiFormat, AiModelInfo, AiProvider, CustomAi, CustomAiDraft } from '../store';
 import { Icon, Modal, Segmented, Switch, Collapse } from './ui';
 import { AiNotes } from './AiNotes';
+import { RefrainSettings, type AiConfigOrder } from './RefrainSettings';
 
 type ConfigPatch = Partial<Omit<AiConfig, 'hasKey' | 'custom'>> & { key?: { provider: 'anthropic' | 'gemini'; value: string } };
 type Status = { kind: 'ok' | 'warn' | 'info'; text: string } | null;
@@ -93,6 +94,7 @@ export function AiSettings() {
           Ключи ИИ на этом компьютере хранятся не зашифрованными: в системе нет хранилища паролей (GNOME Keyring или KWallet). Их защищают только права на файл (доступ у одного тебя). Установи хранилище паролей и введи ключи заново — тогда они будут зашифрованы.
         </div>
       )}
+      <RefrainSettings cfg={cfg as AiConfigOrder} onConfig={setCfg} />
       <div className="ai-list" role="radiogroup" aria-label="Какой ИИ">
         {providers.map((x) => (
           <div key={x.id} className={'ai-item' + (x.id === p ? ' on' : '')}>
