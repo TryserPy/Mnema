@@ -2,7 +2,9 @@
 // файл данных, сеть без ограничений браузера, шифрование ключей, сохранение файлов, речь.
 // Здесь из моста собирается такой же window.mnemaApi, как на Windows.
 import { createAiService } from '../../shared/aiCore.mjs';
+import { b64url, createRefrainClient, derToP1363, fromB64 } from '../../shared/refrainClient.mjs';
 import { bridgeKey } from './bridgeKey';
+import { androidDeviceName, refrainBridge } from '../refrainBridge';
 
 interface AndroidBridge {
   load(): string | null;
@@ -29,6 +31,11 @@ interface AndroidBridge {
   setSelMenu?(json: string): void;
   listBackups?(): string;
   readBackup?(name: string): string | null;
+  // Ключ устройства Refrain ИИ в Android Keystore (секретная часть не извлекается).
+  deviceSecure?(): boolean;
+  deviceKey?(): string;
+  deviceSign?(message: string): string;
+  deviceReset?(): void;
 }
 
 /** Каждый вызов моста несёт ключ (см. bridgeKey.ts): оборачиваем, чтобы остальной код его не видел. */
@@ -94,7 +101,50 @@ if (RAW) {
   const http = (url: string, init: { method?: string; headers?: Record<string, string>; body?: string; bodyBase64?: boolean; timeout?: number } = {}) =>
     call<HttpRes>((id) => A.http(id, JSON.stringify({ url, method: init.method ?? 'GET', headers: init.headers ?? {}, body: init.body ?? null, bodyBase64: Boolean(init.bodyBase64), timeout: init.timeout ?? 60000 })));
 
+  // Refrain ИИ: сессия (токены) шифруется ключом из Android Keystore, ответы кэшируются в настройках приложения.
+  // Ни токены, ни ключ устройства в window.mnemaApi не попадают — наружу только действия и маска почты.
+  const pref = <T>(name: string, fallback: T, decrypt = false): T => {
+    try {
+      const v = A.prefGet(name);
+      if (!v) return fallback;
+      return JSON.parse(decrypt ? A.decrypt(v) : v) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const refrain = createRefrainClient({
+    http,
+    platform: 'android',
+    appVersion: A.appVersion() || '0.0.0',
+    store: {
+      read: () => pref('refrain', null, true),
+      write: (s) => {
+        const sealed = s ? A.encrypt(JSON.stringify(s)) : '';
+        if (s && !sealed) throw new Error('keystore');
+        A.prefSet('refrain', sealed);
+      },
+      readCache: () => pref('refrain-cache', {}),
+      writeCache: (c) => A.prefSet('refrain-cache', JSON.stringify(c))
+    },
+    signer: {
+      secure: async () => Boolean(A.deviceSecure?.()),
+      publicKey: async () => {
+        const k = A.deviceKey?.() ?? '';
+        if (!k) throw new Error('device key');
+        return k;
+      },
+      sign: async (message) => {
+        const der = A.deviceSign?.(message) ?? '';
+        const sig = der ? derToP1363(fromB64(der)) : null;
+        if (!sig) throw new Error('device sign');
+        return b64url(sig);
+      },
+      reset: async () => A.deviceReset?.()
+    }
+  });
+
   const ai = createAiService({
+    refrain,
     http,
     store: {
       read: () => {
@@ -177,6 +227,7 @@ if (RAW) {
     },
     setAppIcon: A.setIcon ? (name: string) => A.setIcon!(name) : undefined,
     setSelMenu: A.setSelMenu ? (items) => A.setSelMenu!(JSON.stringify(items)) : undefined,
-    ocrRecognize: async (bytes) => (await import('./ocrWeb')).recognize(bytes)
+    ocrRecognize: async (bytes) => (await import('./ocrWeb')).recognize(bytes),
+    ...refrainBridge(refrain, { deviceName: androidDeviceName(navigator.userAgent) })
   };
 }

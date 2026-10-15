@@ -5,7 +5,11 @@
 ## Готово
 
 - Прочитаны задание (streams.md, раздел D), контракты (contracts.md раздел 1, `shared/refrain/api.*`, `shared/prompts/tasks.ts`, `luna.ts`), сервер (`sign.ts`, `auth.ts`, `task.ts`, `me.ts`, `bugs.ts`, `test/helpers.ts`), клиентский код (`shared/aiCore.mjs`, `electron/ai.cjs`, `src/platform/android.ts`, `Bridge.java`, `src/ai.ts`, `aiTasks.ts`, `textbook.ts`, `AiSettings.tsx`, `plugins/host.ts`), спецификация (разделы 4–6).
-- Кода потока D ещё нет.
+- Пункт 1 (клиент `shared/refrainClient.mjs`): готов — быстрый SHA-256 (~1 млн хэшей/с), PoW, вход, подпись, refresh по одному, кэш, тексты по кодам (`refrainMessage`).
+- Пункт 2 (`shared/aiCore.mjs`): готов — шаги `refrain → key → local` (настройка `order`), переход по FALLBACK_CODES, `via` только где есть Refrain ИИ (чужой тест lists.test.ts не тронут).
+- Пункт 3 (Electron): готов — `refrainParts` в `electron/ai.cjs` (ключ P-256, секрет и токены только в safeStorage, без настоящего хранилища вход запрещён), IPC `refrain:*` только своей странице, снимок окна; `preload.cjs` → `mnemaApi.refrain`.
+- Пункт 4 (Android): готов в коде — `Bridge.java` deviceSecure/deviceKey/deviceSign/deviceReset (Keystore EC, SHA256withECDSA), `android.ts` — клиент, DER → r‖s. Java целиком не собрать (нет android.jar); новые методы скомпилированы с заглушками Android-классов, подпись JDK в DER после derToP1363 проходит WebCrypto-проверку как на сервере.
+- Пункт 5: начат — `src/refrainBridge.ts`, `src/refrain.ts` (WIP, не проверены tsc).
 
 ## План (что осталось)
 

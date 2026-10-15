@@ -30,7 +30,12 @@ import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.security.KeyPairGenerator;
 import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.cert.Certificate;
+import java.security.spec.ECGenParameterSpec;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +56,8 @@ public class Bridge {
     static final Charset UTF8 = Charset.forName("UTF-8");
     static final String DATA_FILE = "mnema-data.json";
     static final String KEY_ALIAS = "mnema-secrets";
+    /** Ключ устройства Refrain ИИ: EC P-256 только для подписи, секретная часть не покидает Android Keystore. */
+    static final String DEVICE_ALIAS = "refrain-device";
     static final int MAX_RESPONSE = 64 * 1024 * 1024;
 
     final AppActivity activity;
@@ -255,7 +262,7 @@ public class Bridge {
 
     /** Страница (и моды в ней) читает и пишет только эти настройки; остальные — только сама оболочка. */
     static boolean prefAllowed(String name) {
-        return "ai".equals(name) || "secret:cloud-pass".equals(name) || "secret:cloud-enc".equals(name);
+        return "ai".equals(name) || "secret:cloud-pass".equals(name) || "secret:cloud-enc".equals(name) || "refrain".equals(name) || "refrain-cache".equals(name);
     }
 
     @JavascriptInterface
@@ -317,6 +324,77 @@ public class Bridge {
             return new String(plain, UTF8);
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    // ---------- ключ устройства Refrain ИИ ----------
+
+    KeyStore androidKeyStore() throws Exception {
+        KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
+        ks.load(null);
+        return ks;
+    }
+
+    /** Есть ли защищённое хранилище ключей: без него вход в Refrain ИИ не разрешается. */
+    @JavascriptInterface
+    public boolean deviceSecure(String k) {
+        if (!allowed(k)) return false;
+        try {
+            androidKeyStore();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Публичный ключ устройства (SPKI, base64url). Ключа нет — создаётся в Android Keystore; секретная часть оттуда не извлекается. */
+    @JavascriptInterface
+    public String deviceKey(String k) {
+        if (!allowed(k)) return null;
+        try {
+            KeyStore ks = androidKeyStore();
+            if (!ks.containsAlias(DEVICE_ALIAS)) {
+                KeyPairGenerator g = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
+                g.initialize(new KeyGenParameterSpec.Builder(DEVICE_ALIAS, KeyProperties.PURPOSE_SIGN)
+                        .setAlgorithmParameterSpec(new ECGenParameterSpec("secp256r1"))
+                        .setDigests(KeyProperties.DIGEST_SHA256)
+                        .build());
+                g.generateKeyPair();
+            }
+            Certificate cert = ks.getCertificate(DEVICE_ALIAS);
+            if (cert == null) return "";
+            return Base64.encodeToString(cert.getPublicKey().getEncoded(), Base64.URL_SAFE | Base64.NO_PADDING | Base64.NO_WRAP);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Подпись строки ключом устройства: SHA256withECDSA, ответ — DER в base64 (в r‖s переводит приложение). "" — ключа нет или ошибка. */
+    @JavascriptInterface
+    public String deviceSign(String k, String message) {
+        if (!allowed(k) || message == null) return "";
+        try {
+            KeyStore ks = androidKeyStore();
+            PrivateKey key = (PrivateKey) ks.getKey(DEVICE_ALIAS, null);
+            if (key == null) return "";
+            Signature sig = Signature.getInstance("SHA256withECDSA");
+            sig.initSign(key);
+            sig.update(message.getBytes(UTF8));
+            return Base64.encodeToString(sig.sign(), Base64.NO_WRAP);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Забыть ключ устройства (выход, новый вход). */
+    @JavascriptInterface
+    public void deviceReset(String k) {
+        if (!allowed(k)) return;
+        try {
+            KeyStore ks = androidKeyStore();
+            if (ks.containsAlias(DEVICE_ALIAS)) ks.deleteEntry(DEVICE_ALIAS);
+        } catch (Exception e) {
+            // ключа и так нет
         }
     }
 

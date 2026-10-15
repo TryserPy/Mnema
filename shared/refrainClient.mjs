@@ -148,17 +148,78 @@ export async function solvePow(challenge, difficulty, { yieldEvery = 20000, paus
 
 // ---------- Ошибки ----------
 
-/** Текст, если сервер не ответил по-русски сам (нет сети, ответ не JSON). Тексты кодов сервера приходят в error.message. */
-const LOCAL_ERRORS = {
-  network: 'Нет связи с Refrain ИИ. Проверь интернет.',
-  internal: 'Сбой на сервере Refrain ИИ. Попробуй позже.',
-  signed_out: 'Войди в Refrain ИИ: Настройки → ИИ-помощник.',
-  no_secure_storage: 'На этом устройстве нет защищённого хранилища ключей, поэтому Refrain ИИ здесь не включить. Можно пользоваться своим ключом.',
-  device_key: 'Не получилось создать ключ устройства. Попробуй ещё раз.'
-};
+/** Секунды → «45 с», «3 мин», «2 ч». */
+function waitText(sec) {
+  const n = Math.max(1, Math.ceil(Number(sec) || 60));
+  if (n < 120) return `${n} с`;
+  if (n < 7200) return `${Math.ceil(n / 60)} мин`;
+  return `${Math.ceil(n / 3600)} ч`;
+}
+
+function untilText(until) {
+  const t = until ? Date.parse(until) : NaN;
+  if (!Number.isFinite(t)) return '';
+  return ' до ' + new Date(t).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Что показать ученику по коду ошибки (contracts.md, «Коды ошибок»). Текст приложения, а не сервера: так он одинаковый везде
+ * и без причин срабатывания защиты. extra — retryAfter, until, attemptsLeft из ответа.
+ */
+export function refrainMessage(code, extra = {}) {
+  switch (code) {
+    case 'limit_day':
+      return 'На сегодня бесплатные страницы Refrain ИИ закончились. Лимит обновится в 00:00 по Москве.';
+    case 'limit_month':
+      return 'Бесплатные страницы Refrain ИИ на этот месяц закончились.';
+    case 'paused':
+      return 'Refrain ИИ на паузе. Попробуй позже или подключи свой ключ.';
+    case 'access_closed':
+      return 'Refrain ИИ сейчас в закрытом тесте. Если у тебя есть приглашение, введи его: Настройки → ИИ-помощник.';
+    case 'blocked':
+      return `Доступ к Refrain ИИ приостановлен${untilText(extra.until)}.`;
+    case 'too_fast':
+      return `Слишком часто. Подожди ${waitText(extra.retryAfter)} и попробуй ещё раз.`;
+    case 'bad_request':
+    case 'payload_too_large':
+      return 'Refrain ИИ не принял запрос — это ошибка приложения. Нажми «Сообщить о проблеме», пожалуйста.';
+    case 'upstream':
+      return 'Сбой ИИ, попробуй ещё раз.';
+    case 'internal':
+      return 'Сбой на сервере Refrain ИИ. Попробуй позже.';
+    case 'token_expired':
+      return 'Вход в Refrain ИИ устарел. Попробуй ещё раз.';
+    case 'device_unknown':
+    case 'session_revoked':
+      return 'Вход в Refrain ИИ на этом устройстве закончился. Войди заново: Настройки → ИИ-помощник.';
+    case 'device_limit':
+      return 'К аккаунту уже привязано наибольшее число устройств. Выбери, какое отвязать.';
+    case 'pow_invalid':
+      return 'Проверка устарела. Нажми «Прислать код» ещё раз.';
+    case 'email_rejected':
+      return 'Эта почта не подходит. Проверь адрес или возьми другую (одноразовые почты не принимаются).';
+    case 'code_invalid':
+      return 'Неверный или устаревший код.' + (Number.isInteger(extra.attemptsLeft) && extra.attemptsLeft > 0 ? ` Осталось попыток: ${extra.attemptsLeft}.` : ' Попроси новый код.');
+    case 'code_locked':
+      return `Слишком много попыток. Попробуй через ${waitText(extra.retryAfter)}.`;
+    case 'invite_invalid':
+      return 'Приглашение не подошло: оно неверное, истекло или им уже воспользовались.';
+    case 'network':
+      return 'Нет связи с Refrain ИИ. Проверь интернет.';
+    case 'signed_out':
+      return 'Войди в Refrain ИИ: Настройки → ИИ-помощник.';
+    case 'no_secure_storage':
+      return 'На этом устройстве нет защищённого хранилища ключей, поэтому Refrain ИИ здесь не включить. Можно пользоваться своим ключом.';
+    case 'device_key':
+      return 'Не получилось создать или прочитать ключ устройства. Войди в Refrain ИИ заново.';
+    default:
+      return '';
+  }
+}
 
 function fail(code, extra = {}) {
-  return { ok: false, code, error: extra.error || LOCAL_ERRORS[code] || 'Ошибка Refrain ИИ.', ...extra };
+  const { error, ...rest } = extra;
+  return { ok: false, code, error: refrainMessage(code, rest) || error || 'Ошибка Refrain ИИ.', ...rest };
 }
 
 /** Тело запроса /v1/task: только поля контракта, строки — в рамках. Лишнее не отправляем (сервер считает его сигналом). */
@@ -215,7 +276,8 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
     if (res.status >= 200 && res.status < 300 && body && body.ok !== false) return body;
     const e = body && body.error && typeof body.error === 'object' ? body.error : {};
     const { code, message, ...extra } = e;
-    return fail(typeof code === 'string' ? code : 'internal', { ...extra, ...(typeof message === 'string' && message ? { error: message } : {}) });
+    // Текст сервера — только для кода, которого приложение не знает (новый выпуск сервера).
+    return fail(typeof code === 'string' ? code : 'internal', { ...extra, ...(typeof message === 'string' && message ? { error: message.slice(0, 300) } : {}) });
   }
 
   async function plain(path, body, timeout = 30000) {
@@ -404,7 +466,7 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
     /** Задача. fields — AiRequest.refrain, wishes — «Свои указания». Повтор того же фото или текста за 7 дней берётся из кэша. */
     async task(fields, wishes) {
       const body = taskBody(fields, wishes ?? fields?.wishes);
-      if (!body) return fail('bad_request', { error: 'Refrain ИИ не знает такой задачи.' });
+      if (!body) return fail('bad_request');
       const key = cacheKey(body);
       const hit = cached(key, body.task);
       if (hit) return { ok: true, text: hit.text, format: hit.format, cached: true, charged: 0, quota: session()?.quota ?? null };

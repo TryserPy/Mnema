@@ -6,6 +6,7 @@ export const CACHE_TTL_MS: number;
 export const CACHE_MAX: number;
 export const FALLBACK_CODES: string[];
 export function refrainPlatform(p: string): Platform;
+export function refrainMessage(code: string, extra?: { retryAfter?: number; until?: string | null; attemptsLeft?: number }): string;
 
 export function sha256(data: string | Uint8Array): Uint8Array;
 export function sha256hex(data: string | Uint8Array): string;
