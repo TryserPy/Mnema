@@ -1,19 +1,21 @@
 # Поток C (промты и шаблоны) — ход работы
 
-Ветка worktree перемотана (fast-forward) с main на коммит ведущего 7f40db1 (контракты 1.31): без него в ветке не было `docs/refrain-1.31` и `shared/prompts`.
+Ветка worktree перемотана (fast-forward) с main на коммит ведущего 7f40db1 (контракты 1.31).
 
 ## Готово
-- Прочитаны задание, контракты, `shared/prompts/*`, промты в `textbookNote.ts`, `aiCards.ts`, `ai.ts`, раздел 7 спецификации.
-- Код пока не менялся.
+- `shared/prompts/templates.ts` — шаблоны gpt / claude / gemini / deepseek / small / universal, автоподбор, переменные, «🔒 Формат ответа».
+- `src/types.ts` — `promptTemplates?` в `Settings`.
+- `src/prompts.ts` — выбор шаблона (авто по модели из настроек ИИ, встроенный, свой), чистка настроек, `.refrainprompt`, встроенный пример страницы.
+- `src/textbookNote.ts`, `src/aiCards.ts` — промты из шаблонов (`readSystem()` — новый, `READ_SYSTEM` — встроенный универсальный).
+- `src/v130-textbook.test.ts` — два ожидания под выноски `[!def]`/`[!tip]`.
+- `shared/prompts/luna.ts` «Тетрадь» + `promptVersion` n1 → n2; сервер зелёный.
+- `src/v131-prompts.test.ts`.
 
-## План (что осталось)
-1. `shared/prompts/templates.ts`: шаблоны gpt / claude / gemini / deepseek / small / universal для задач textbook.*, notebook.read, cards, explain, formula; автоподбор по имени модели; переменные `{{разметка}} {{предмет}} {{тема}} {{страница}} {{указания}}`; «🔒 Формат ответа» по задаче.
-2. `src/prompts.ts`: выбор шаблона из `settings.promptTemplates`, кэш модели из `aiGetConfig`, чистка настроек, `.refrainprompt`, оценка токенов, встроенный пример страницы.
-3. `src/textbookNote.ts`, `src/aiCards.ts`: промты берутся из шаблонов (новая разметка, выноски вместо «> **Запомните:**»).
-4. `src/types.ts`: `promptTemplates?` в `Settings`.
-5. `src/components/PromptsSettings.tsx` (без пропсов).
-6. `luna.ts`: небольшая правка «Тетради» с `promptVersion` n1 → n2 (summary не трогать: серверный тест ждёт `s1`).
-7. Тесты `src/v131-prompts.test.ts`; правка двух ожиданий в `src/v130-textbook.test.ts` под новую разметку (вопрос ведущему).
+## Осталось
+- `src/components/PromptsSettings.tsx` (без пропсов) — написан (WIP), tsc зелёный; осталось глянуть в браузере (временная страница tmp-prompts.html, не коммитится).
+- Полные проверки: tsc, vitest, vite build, vite build --mode web.
 
-## Проверки
-Ещё не запускались.
+## Вопросы ведущему (в отчёт)
+- `src/textbook.ts`: `READ_SYSTEM` → `readSystem()` (иначе «Дословно» и первый шаг нескольких страниц не видят выбранный шаблон).
+- `src/store.ts` normalizeData: `promptTemplates: cleanPromptTemplates(r.settings?.promptTemplates)` (сейчас чистится при чтении в prompts.ts).
+- `src/ai.ts`: explain/formula могут брать `promptSystem('explain' | 'formula')`.
