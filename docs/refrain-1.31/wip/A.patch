@@ -1,7 +1,7 @@
 From 604c4910b05d2fc92b2adff328e6161a6a027538 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:51:12 +0000
-Subject: [PATCH 1/2] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+Subject: [PATCH 1/3] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
  =?UTF-8?q?=20WIP=20=E2=80=94=20=D0=BF=D0=BB=D0=B0=D0=BD=20=D0=B8=20=D1=81?=
  =?UTF-8?q?=D0=BE=D1=81=D1=82=D0=BE=D1=8F=D0=BD=D0=B8=D0=B5=20=D1=80=D0=B0?=
  =?UTF-8?q?=D0=B1=D0=BE=D1=82=20(progress-A.md)?=
@@ -57,7 +57,7 @@ index 0000000..080ea82
 From 4ce5993ff3c0e722e63885cd4545086050090bd6 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:55:03 +0000
-Subject: [PATCH 2/2] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+Subject: [PATCH 2/3] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
  =?UTF-8?q?=20=D1=81=D0=BE=D1=85=D1=80=D0=B0=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5?=
  =?UTF-8?q?=20=D0=BF=D0=BE=20=D1=81=D0=B8=D0=B3=D0=BD=D0=B0=D0=BB=D1=83=20?=
  =?UTF-8?q?=C2=AB95=C2=BB?=
@@ -303,6 +303,762 @@ index f478068..7308cec 100644
    out.css += (out.css ? '\n\n' : '') + parts.join('\n');
  }
  
+-- 
+2.43.0
+
+
+From be2ff537f1e5171872f523463eee458e0bd6e13e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 15 Oct 2026 12:16:23 +0000
+Subject: [PATCH 3/3] =?UTF-8?q?1.31=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20A:?=
+ =?UTF-8?q?=20=D0=BC=D0=BE=D0=B4=D0=B5=D0=BB=D1=8C=20=C2=AB=D1=81=D1=82?=
+ =?UTF-8?q?=D0=B8=D0=BB=D1=8C=20+=20=D0=B4=D0=BE=D0=BF=D0=BE=D0=BB=D0=BD?=
+ =?UTF-8?q?=D0=B5=D0=BD=D0=B8=D1=8F=20+=20=D0=BC=D0=BE=D0=B8=20=D0=BF?=
+ =?UTF-8?q?=D1=80=D0=B0=D0=B2=D0=BA=D0=B8=C2=BB,=20=D0=BF=D0=B5=D1=80?=
+ =?UTF-8?q?=D0=B5=D0=BD=D0=BE=D1=81=20=D0=B8=D0=B7=201.30,=20=D0=BF=D0=BE?=
+ =?UTF-8?q?=D1=80=D1=8F=D0=B4=D0=BE=D0=BA=20CSS?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- src/styleMigrate.ts: роль стиля, основа стиля, проекция в поля 1.30, перенос (Migration130), идемпотентный
+- themes.ts: встроенные стили — «Современный», «Классический», схемы парами
+- styleApply/compileStyles: стиль → дополнения → кусочки CSS → мои правки
+- store.ts: перенос при загрузке; types.ts: settings.appearance
+- .refrainstyle v3 (роль, шрифты, origin), @font-face только из поля fonts
+- v131-styles.test.ts; v130-styles.test.ts: «слишком новая» версия теперь 4
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ src/store.ts            |   3 +
+ src/styleApply.ts       |  62 ++++++----
+ src/styleMigrate.ts     | 228 +++++++++++++++++++++++++++++++++++++
+ src/styleSystem.ts      |  11 +-
+ src/themes.ts           |  37 ++++++
+ src/types.ts            |   2 +
+ src/v130-styles.test.ts |   2 +-
+ src/v131-styles.test.ts | 244 ++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 558 insertions(+), 31 deletions(-)
+ create mode 100644 src/styleMigrate.ts
+ create mode 100644 src/v131-styles.test.ts
+
+diff --git a/src/store.ts b/src/store.ts
+index fae036e..85e6d2e 100644
+--- a/src/store.ts
++++ b/src/store.ts
+@@ -17,6 +17,7 @@ import { applyImportPlan } from './mdApply';
+ import type { ImportPlan } from './mdImport';
+ import { cleanBg } from './bgImage';
+ import { cleanCustomMods, cleanMyStyle, cleanSnippets, cleanStyleBackup, cleanStyleValues } from './styleSystem';
++import { migrateAppearance } from './styleMigrate';
+ import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
+ import { cleanStudyPick } from './studyPick';
+ import { cleanExam, cleanNoteHistory, cleanSchedule, cleanTopics, cleanTrash, validExamDate } from './safeData';
+@@ -294,6 +295,8 @@ export function normalizeData(raw: unknown): AppData {
+       textbook: { ...DEFAULT_SETTINGS.textbook, ...(r.settings?.textbook ?? {}) }
+     }
+   };
++  // Оформление 1.31 (стиль + дополнения + мои правки): переносится из полей 1.30; уже перенесённое не меняется.
++  out.settings.appearance = migrateAppearance({ ...out.settings, appearance: r.settings?.appearance });
+   // История конспектов — только для тем, которые есть (или лежат в корзине): иначе от удалённых навсегда тем копился бы мусор.
+   const known = new Set([...out.topics.map((t) => t.id), ...(out.trash ?? []).flatMap((x) => x.removed.topics.map((t) => t.id))]);
+   const hist = cleanNoteHistory(r.noteHistory, known);
+diff --git a/src/styleApply.ts b/src/styleApply.ts
+index 76774b5..0c6c5c0 100644
+--- a/src/styleApply.ts
++++ b/src/styleApply.ts
+@@ -1,39 +1,51 @@
+-// Применение стилей к окну: один <style id="refrain-styles"> на всё (стили сверху вниз + сниппеты) и атрибуты data-ui-* / data-st-* на <html>.
++// Применение стилей: один <style id="refrain-styles"> на всё и атрибуты data-ui-* / data-st-* на <html>.
++// Порядок 1.31 (ApplyOrder в styleModel.ts): стиль → дополнения → кусочки CSS → мои правки.
+ // React-дерево при этом не перерисовывается: меняются только текст одного <style> и несколько атрибутов.
+ import { useSyncExternalStore } from 'react';
+ import { allMods } from './mods';
++import { appearanceOf, classifyRole, type AppearanceFields } from './styleMigrate';
+ import { attrName, compileStyles, MINE_ID, type Compiled } from './styleSystem';
+ import { FONTS } from './themes';
+-import type { CssSnippet, Mod, Settings, StyleValue } from './types';
++import type { CssSnippet, Mod, StyleValue } from './types';
+ 
+ const STYLE_ID = 'refrain-styles';
+ 
++type Layer = { mod: Mod; values?: Record<string, StyleValue> };
++type ApplyInput = AppearanceFields & { cssSnippets: CssSnippet[] };
++
+ let lastRefs: unknown[] = [];
+ let current: Compiled = { css: '', attrs: {} };
+ let applied: string[] = []; // имена атрибутов, которые мы поставили на <html>
+ /** Черновик из редактора: пока открыт, показывается на настоящем интерфейсе; закрыли без сохранения — откат. */
+-let draft: { mod: Mod; values?: Record<string, StyleValue> } | null = null;
+-let lastSettings: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues' | 'cssSnippets' | 'myStyle'> | null = null;
++let draft: Layer | null = null;
++let lastSettings: ApplyInput | null = null;
+ const subs = new Set<() => void>();
+ 
+-/** Включённые стили по порядку (сверху вниз), с их настройками. */
+-export function styleStack(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues'> & { myStyle?: Mod }, replace?: { mod: Mod; values?: Record<string, StyleValue> } | null) {
++/** Стиль и дополнения по порядку (сверху вниз), с их настройками, и мои правки — отдельно: они идут после кусочков CSS. */
++export function styleStack(s: AppearanceFields, replace?: Layer | null): { stack: Layer[]; edits?: Mod } {
++  const a = appearanceOf(s);
+   const byId = new Map(allMods(s.customMods).map((m) => [m.id, m]));
+-  const out: { mod: Mod; values?: Record<string, StyleValue> }[] = [];
+-  const seen = new Set<string>();
+-  for (const id of s.modsOn) {
+-    if (seen.has(id)) continue;
+-    seen.add(id);
++  const ids = [...(byId.has(a.style) ? [a.style] : []), ...a.addons];
++  const stack: Layer[] = [];
++  let placed = false;
++  for (const id of ids) {
+     const m = byId.get(id);
+     if (!m) continue;
+-    if (replace && replace.mod.id === id) out.push({ mod: replace.mod, values: replace.values ?? s.styleValues[id] });
+-    else out.push({ mod: m, values: s.styleValues[id] });
++    if (replace && replace.mod.id === id) {
++      stack.push({ mod: replace.mod, values: replace.values ?? s.styleValues[id] });
++      placed = true;
++    } else stack.push({ mod: m, values: s.styleValues[id] });
++  }
++  if (replace && !placed && replace.mod.id !== MINE_ID) {
++    // Новый или ещё не включённый стиль в редакторе: стиль встаёт на место стиля, дополнение — после остальных.
++    if (classifyRole(replace.mod) === 'style') {
++      const i = stack.findIndex((l) => l.mod.id === a.style);
++      if (i >= 0) stack.splice(i, 1, replace);
++      else stack.unshift(replace);
++    } else stack.push(replace);
+   }
+-  if (replace && !seen.has(replace.mod.id) && replace.mod.id !== MINE_ID) out.push({ mod: replace.mod, values: replace.values });
+-  // «Мой вид» — последним: правки из «Настроить текущий» перекрывают любые включённые стили.
+-  if (replace && replace.mod.id === MINE_ID) out.push({ mod: replace.mod, values: replace.values });
+-  else if (s.myStyle) out.push({ mod: s.myStyle });
+-  return out;
++  const edits = replace && replace.mod.id === MINE_ID ? replace.mod : s.myStyle;
++  return { stack, edits };
+ }
+ 
+ function write(c: Compiled) {
+@@ -54,15 +66,15 @@ function write(c: Compiled) {
+   if (changed) subs.forEach((f) => f());
+ }
+ 
+-function recompute(s: NonNullable<typeof lastSettings>) {
+-  const stack = styleStack(s, draft);
++function recompute(s: ApplyInput) {
++  const { stack, edits } = styleStack(s, draft);
+   for (const l of stack) if (l.mod.font) void FONTS.find((f) => f.id === l.mod.font)?.load?.();
+-  write(compileStyles(stack, s.cssSnippets as CssSnippet[]));
++  write(compileStyles(stack, s.cssSnippets, edits));
+ }
+ 
+-/** Применить включённые стили (вызывается при смене настроек; если ссылки на данные те же — ничего не делает). */
+-export function applyStyles(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleValues' | 'cssSnippets' | 'myStyle'>) {
+-  const refs = [s.modsOn, s.customMods, s.styleValues, s.cssSnippets, s.myStyle];
++/** Применить стиль, дополнения, кусочки CSS и правки (вызывается при смене настроек; если ссылки на данные те же — ничего не делает). */
++export function applyStyles(s: ApplyInput) {
++  const refs = [s.modsOn, s.customMods, s.styleValues, s.cssSnippets, s.myStyle, s.appearance];
+   lastSettings = s;
+   if (refs.length === lastRefs.length && refs.every((r, i) => r === lastRefs[i])) return;
+   lastRefs = refs;
+@@ -70,7 +82,7 @@ export function applyStyles(s: Pick<Settings, 'modsOn' | 'customMods' | 'styleVa
+ }
+ 
+ /** Показать стиль из редактора прямо в интерфейсе (null — убрать, всё как было). */
+-export function setStylePreview(p: { mod: Mod; values?: Record<string, StyleValue> } | null) {
++export function setStylePreview(p: Layer | null) {
+   draft = p;
+   if (lastSettings) recompute(lastSettings);
+ }
+diff --git a/src/styleMigrate.ts b/src/styleMigrate.ts
+new file mode 100644
+index 0000000..9fd8677
+--- /dev/null
++++ b/src/styleMigrate.ts
+@@ -0,0 +1,228 @@
++// Оформление 1.31: «стиль + дополнения + мои правки» (settings.appearance, см. styleModel.ts) и перенос из 1.30.
++//
++// settings.appearance — что выбрал человек. Прежние поля 1.30 (look, accent, density, fontScale, bgImage, myStyle, modsOn, styleValues)
++// — его проекция: по ним окно рисует App.tsx, и по ним же работает 1.30 после отката. Каждое действие пишет и то и другое (styleActions.ts),
++// а прочитать оформление можно всегда — appearanceOf() выводит его из полей, если они разошлись (откат, копия данных, старый файл).
++// Чистые функции, без интерфейса — их проверяют тесты (v131-styles.test.ts).
++import { cleanBg } from './bgImage';
++import { allMods } from './mods';
++import { safeColor } from './safeCss';
++import type { Appearance, Migration130, Mod131, StyleRole } from './styleModel';
++import { cleanLook, cleanMyStyle, type StyleValues } from './styleSystem';
++import { BASE_STYLES, DEFAULT_ACCENT, DEFAULT_LOOK, PALETTE_VARS, schemeStyleFor, type Palette } from './themes';
++import type { BgImage, CssSnippet, Density, Look, Mod, Settings } from './types';
++
++/** Поля настроек, из которых складывается оформление (1.30) и которые пишет проекция. */
++export type AppearanceFields = Pick<Settings, 'modsOn' | 'customMods' | 'styleValues'> & {
++  /** В контракте переноса (Migration130) у look есть только стиль, схемы и свои цвета — остальное необязательно. */
++  look: Partial<Look> & Pick<Look, 'light' | 'dark' | 'custom'>;
++  accent?: string;
++  density?: Density;
++  fontScale?: number;
++  bgImage?: BgImage;
++  myStyle?: Mod;
++  cssSnippets?: CssSnippet[];
++  appearance?: unknown;
++};
++
++export type Projection = Pick<Settings, 'look' | 'accent' | 'density' | 'fontScale' | 'modsOn' | 'styleValues'> & { bgImage: BgImage | undefined; myStyle: Mod | undefined };
++
++export const EDITS_ID = 'mine';
++const PALETTE_KEYS = Object.keys(PALETTE_VARS) as (keyof Palette)[];
++const PALETTE_BY_VAR = Object.fromEntries(PALETTE_KEYS.map((k) => [PALETTE_VARS[k], k])) as Record<string, keyof Palette>;
++const LOOK_KEYS = ['style', 'light', 'dark', 'font', 'headFont', 'radius', 'background'] as const;
++const TABS: NonNullable<Appearance['tab']>[] = ['style', 'addons', 'motion', 'code'];
++
++// ---------- Роль стиля ----------
++
++/** Переменные, которые задают цвета всего окна: если стиль их меняет, это стиль, а не дополнение. */
++const COLOR_VARS = new Set([...Object.values(PALETTE_VARS), '--accent']);
++
++/** Роль: явно заданная или по содержимому — цвета, фон, вид, шрифты → стиль, иначе дополнение (контракт styleModel.ts). */
++export function classifyRole(m: Mod131): StyleRole {
++  if (m.role === 'style' || m.role === 'addon') return m.role;
++  const vars = { ...(m.vars?.light ?? {}), ...(m.vars?.dark ?? {}) };
++  const colors = Object.keys(vars).some((k) => COLOR_VARS.has(k)) || Boolean(m.accent);
++  const look = Boolean(m.look && (m.look.light || m.look.dark || m.look.style || m.look.font || m.look.headFont));
++  return colors || look || Boolean(m.bg) || Boolean(m.fonts?.length) || Boolean(m.font) ? 'style' : 'addon';
++}
++
++/** Встроенный стиль без CSS («Современный», «Классический», схемы)? */
++export const isBaseStyle = (id: string) => BASE_STYLES.some((b) => b.id === id);
++
++// ---------- Основа стиля ----------
++
++/** Основа оформления, которую задаёт стиль (и дополнения, если вдруг меняют её): то, от чего считаются «мои правки». */
++export interface StyleBase {
++  look: Look;
++  accent: string;
++  density: Density;
++  fontScale: number;
++  bg?: Partial<BgImage>;
++}
++
++const MODERN: StyleBase = { look: { ...DEFAULT_LOOK, ...BASE_STYLES[0].look, custom: {} }, accent: DEFAULT_ACCENT, density: 'normal', fontScale: 1 };
++
++function withMod(b: StyleBase, m: Mod): StyleBase {
++  const look = cleanLook(m.look);
++  return {
++    look: look ? { ...b.look, ...look } : b.look,
++    accent: (m.accent && safeColor(m.accent)) || b.accent,
++    density: m.density ?? b.density,
++    fontScale: typeof m.fontScale === 'number' ? m.fontScale : b.fontScale,
++    bg: m.bg ? { ...(b.bg ?? {}), ...m.bg } : b.bg
++  };
++}
++
++/** Основа для стиля `style` с дополнениями `addons` (их основа накладывается по порядку). */
++export function styleBase(style: string, addons: string[], customMods: Mod[]): StyleBase {
++  const byId = new Map(allMods(customMods).map((m) => [m.id, m]));
++  const bs = BASE_STYLES.find((b) => b.id === style);
++  let base: StyleBase = bs ? { ...MODERN, look: { ...MODERN.look, ...bs.look, custom: {} }, accent: bs.accent } : MODERN;
++  const sm = bs ? undefined : byId.get(style);
++  if (sm) base = withMod(base, sm);
++  for (const id of addons) {
++    const m = byId.get(id);
++    if (m) base = withMod(base, m);
++  }
++  return base;
++}
++
++const sameBg = (a: Partial<BgImage> | undefined, b: Partial<BgImage> | undefined) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
++const withoutSrc = (bg: Partial<BgImage>) => {
++  const { src: _s, ...rest } = bg;
++  return rest;
++};
++
++// ---------- Проекция: оформление → поля 1.30 ----------
++
++/** Свой фон итогом: правка (своя картинка или подстройка картинки стиля) поверх фона стиля. `src: ''` в правке — «фон стиля убран». */
++function projectBg(base: StyleBase, e: Partial<BgImage> | undefined): BgImage | undefined {
++  if (e?.src === '') return undefined;
++  const src = e?.src ?? base.bg?.src;
++  if (!src) return undefined;
++  return cleanBg({ ...(base.bg ?? {}), ...(e ?? {}), v: 2, src }) ?? undefined;
++}
++
++/** Что записать в прежние поля, чтобы окно выглядело так, как велит оформление. */
++export function projectAppearance(a: Appearance, customMods: Mod[]): Projection {
++  const base = styleBase(a.style, a.addons, customMods);
++  const e = a.edits;
++  const custom: Look['custom'] = {};
++  const rest: { light: Record<string, string>; dark: Record<string, string> } = { light: {}, dark: {} };
++  for (const mode of ['light', 'dark'] as const)
++    for (const [name, value] of Object.entries(e?.vars?.[mode] ?? {})) {
++      const key = PALETTE_BY_VAR[name];
++      const c = key ? safeColor(value) : null;
++      if (key && c) (custom[mode] ??= {})[key] = c;
++      else if (!key) rest[mode][name] = value;
++    }
++  const look: Look = { ...base.look, ...(cleanLook(e?.look) ?? {}), custom };
++  const myStyle = e
++    ? cleanMyStyle({
++        vars: { ...(Object.keys(rest.light).length ? { light: rest.light } : {}), ...(Object.keys(rest.dark).length ? { dark: rest.dark } : {}) },
++        attrs: e.attrs,
++        css: e.css
++      })
++    : undefined;
++  return {
++    look,
++    accent: (e?.accent && safeColor(e.accent)) || base.accent,
++    density: e?.density ?? base.density,
++    fontScale: typeof e?.fontScale === 'number' ? e.fontScale : base.fontScale,
++    bgImage: projectBg(base, e?.bg),
++    myStyle,
++    modsOn: [...(isBaseStyle(a.style) ? [] : [a.style]), ...a.addons.filter((x) => x !== a.style)],
++    styleValues: a.values
++  };
++}
++
++// ---------- Вывод оформления из полей (перенос из 1.30) ----------
++
++/** «Мои правки»: всё, чем поля отличаются от основы стиля. undefined — правок нет. */
++export function diffEdits(base: StyleBase, f: Pick<AppearanceFields, 'look' | 'accent' | 'density' | 'fontScale' | 'bgImage' | 'myStyle'>): Mod131 | undefined {
++  const e: Mod131 = { id: EDITS_ID, name: 'Мои правки', description: '' };
++  const look: Partial<Look> = {};
++  for (const k of LOOK_KEYS) {
++    const v = f.look[k] ?? (k === 'style' ? 'modern' : undefined);
++    if (v !== undefined && v !== base.look[k]) (look as Record<string, unknown>)[k] = v;
++  }
++  const clean = cleanLook(look);
++  if (clean) e.look = clean;
++  const vars: { light: Record<string, string>; dark: Record<string, string> } = { light: {}, dark: {} };
++  for (const mode of ['light', 'dark'] as const) {
++    for (const k of PALETTE_KEYS) {
++      const c = safeColor(f.look.custom?.[mode]?.[k]);
++      if (c) vars[mode][PALETTE_VARS[k]] = c;
++    }
++    Object.assign(vars[mode], f.myStyle?.vars?.[mode] ?? {});
++  }
++  if (Object.keys(vars.light).length || Object.keys(vars.dark).length) e.vars = { ...(Object.keys(vars.light).length ? { light: vars.light } : {}), ...(Object.keys(vars.dark).length ? { dark: vars.dark } : {}) };
++  if (f.myStyle?.attrs && Object.keys(f.myStyle.attrs).length) e.attrs = { ...f.myStyle.attrs };
++  if (f.myStyle?.css?.trim()) e.css = f.myStyle.css;
++  if (f.accent && f.accent.toLowerCase() !== base.accent.toLowerCase()) e.accent = f.accent;
++  if (f.density && f.density !== base.density) e.density = f.density;
++  if (typeof f.fontScale === 'number' && Math.abs(f.fontScale - base.fontScale) > 0.001) e.fontScale = f.fontScale;
++  const want = f.bgImage;
++  const had = projectBg(base, undefined);
++  if (!want && had) e.bg = { src: '' };
++  else if (want && !sameBg(want, had)) e.bg = had && want.src === had.src ? withoutSrc(want) : { ...want };
++  return Object.keys(e).length > 3 ? e : undefined;
++}
++
++/** Сколько правок поверх стиля — для сводки «Кофе · 3 правки поверх». */
++export function countEdits(e: Mod131 | undefined): number {
++  if (!e) return 0;
++  const vars = new Set([...Object.keys(e.vars?.light ?? {}), ...Object.keys(e.vars?.dark ?? {})]);
++  return Object.keys(e.look ?? {}).length + vars.size + Object.keys(e.attrs ?? {}).length + (e.css?.trim() ? 1 : 0) + (e.accent ? 1 : 0) + (e.density ? 1 : 0) + (e.fontScale !== undefined ? 1 : 0) + (e.bg ? 1 : 0);
++}
++
++/** Сохранённое оформление как подсказка: только известные значения (оно может прийти из чужой копии данных). */
++function cleanHint(raw: unknown): { style?: string; tab?: Appearance['tab'] } {
++  const r = raw as Record<string, unknown> | null;
++  if (!r || typeof r !== 'object') return {};
++  return {
++    ...(typeof r.style === 'string' && r.style.length <= 40 ? { style: r.style } : {}),
++    ...(TABS.includes(r.tab as never) ? { tab: r.tab as Appearance['tab'] } : {})
++  };
++}
++
++/**
++ * Перенос из 1.30 (Migration130 в styleModel.ts) и он же — «прочитать оформление из полей».
++ *  - стиль = выбранный раньше (settings.appearance.style), если он ещё стоит; иначе последний включённый мод с ролью «стиль»;
++ *    иначе look.style с палитрой (пара схем, совпавшая со встроенным стилем, — этот стиль);
++ *  - остальные включённые моды — дополнения в прежнем порядке;
++ *  - всё, чем оформление отличается от основы стиля (myStyle, свои цвета, схемы, шрифт, главный цвет, плотность, размер, фон), — «мои правки»;
++ *  - styleValues → values как есть; customMods и cssSnippets не трогаются.
++ * Идемпотентен: перенос уже перенесённого возвращает то же самое.
++ */
++export function migrateAppearance(s: AppearanceFields): Appearance {
++  const mods = allMods(s.customMods);
++  const byId = new Map(mods.map((m) => [m.id, m]));
++  const on: string[] = [];
++  for (const id of s.modsOn) if (byId.has(id) && !on.includes(id)) on.push(id);
++  const hint = cleanHint(s.appearance);
++  const styleMods = on.filter((id) => classifyRole(byId.get(id)!) === 'style');
++  const lookStyle = s.look.style ?? 'modern';
++  let style: string;
++  if (hint.style && styleMods.includes(hint.style)) style = hint.style;
++  else if (styleMods.length) style = styleMods[styleMods.length - 1];
++  else if (hint.style && isBaseStyle(hint.style) && (BASE_STYLES.find((b) => b.id === hint.style)!.look.style ?? 'modern') === lookStyle) style = hint.style;
++  else style = lookStyle === 'classic' ? 'classic' : (schemeStyleFor(s.look.light, s.look.dark)?.id ?? 'modern');
++  const addons = on.filter((id) => id !== style);
++  const edits = diffEdits(styleBase(style, addons, s.customMods), s);
++  return { v: 1, style, addons, ...(edits ? { edits } : {}), values: (s.styleValues ?? {}) as StyleValues, ...(hint.tab ? { tab: hint.tab } : {}) };
++}
++
++/** Перенос по контракту styleModel.ts: те же правила, поля сверх контракта (главный цвет, плотность, размер, фон) — необязательны. */
++export const migrate130: Migration130 = migrateAppearance;
++
++/** Оформление, как оно есть сейчас. Поля — главнее: если их поменяли в обход (откат на 1.30, копия), оформление выводится из них заново. */
++export function appearanceOf(s: AppearanceFields): Appearance {
++  return migrateAppearance(s);
++}
++
++/** Название стиля для сводки и галереи. */
++export function styleName(id: string, customMods: Mod[]): string {
++  return BASE_STYLES.find((b) => b.id === id)?.name ?? allMods(customMods).find((m) => m.id === id)?.name ?? 'Стиль';
++}
+diff --git a/src/styleSystem.ts b/src/styleSystem.ts
+index 7308cec..13e219f 100644
+--- a/src/styleSystem.ts
++++ b/src/styleSystem.ts
+@@ -422,9 +422,9 @@ export function parseStyleFile(text: string, id: string): Mod131 {
+   if (!isStyleFile(raw)) throw new Error('Это не стиль Refrain.');
+   const f = raw as Record<string, unknown>;
+   if (f.kind === STYLE_KIND && typeof f.formatVersion === 'number' && f.formatVersion > STYLE_FORMAT_131) throw new Error('Стиль сделан в более новой версии Refrain — обнови приложение.');
+-  // «Откуда» и «где видно» задаёт приложение: в 1.30 сюда писалось «из файла», и подпись в галерее путала одно с другим.
+-  const { where: _w, origin: _o, ...rest } = f;
+-  const m = cleanMod({ ...rest, origin: 'file' }, id);
++  // «Откуда» задаёт приложение (origin): галерея 1.31 подписывает плитку им. where = «из файла» остаётся для отката на 1.30.
++  const { origin: _o, ...rest } = f;
++  const m = cleanMod({ ...rest, origin: 'file' }, id, 'из файла');
+   if (!m) throw new Error('В файле нет названия стиля.');
+   return m;
+ }
+@@ -479,11 +479,12 @@ export function compileOne(m: Mod131, values: Record<string, StyleValue> | undef
+   out.css += (out.css ? '\n\n' : '') + parts.join('\n');
+ }
+ 
+-/** Все включённые стили сверху вниз (следующий перекрывает предыдущий) и сниппеты «мой CSS». */
+-export function compileStyles(stack: { mod: Mod; values?: Record<string, StyleValue> }[], snippets: CssSnippet[] = []): Compiled {
++/** Итоговый CSS в порядке 1.31 (ApplyOrder в styleModel.ts): стиль и дополнения сверху вниз (следующий перекрывает предыдущий), кусочки CSS, мои правки. */
++export function compileStyles(stack: { mod: Mod; values?: Record<string, StyleValue> }[], snippets: CssSnippet[] = [], edits?: Mod): Compiled {
+   const out: Compiled = { css: '', attrs: {} };
+   for (const l of stack) compileOne(l.mod, l.values, out);
+   for (const sn of snippets) if (sn.on && sn.css.trim()) out.css += (out.css ? '\n\n' : '') + `/* сниппет: ${cleanModName(sn.name)} */\n${sanitizeCss(sn.css)}`;
++  if (edits) compileOne(edits, undefined, out);
+   return out;
+ }
+ 
+diff --git a/src/themes.ts b/src/themes.ts
+index 7bff2d3..8ef5ac0 100644
+--- a/src/themes.ts
++++ b/src/themes.ts
+@@ -74,6 +74,43 @@ export const STYLES: { id: 'modern' | 'classic'; name: string; text: string; loo
+   { id: 'classic', name: 'Классический', text: 'Тёплая бумага и книжные заголовки', look: { style: 'classic', light: 'paper', dark: 'graphite', headFont: 'literata' }, accent: '#3F51D8' }
+ ];
+ 
++/** Встроенный стиль 1.31 без своего CSS: основа оформления (схемы светлой и тёмной темы, заголовки) и главный цвет. */
++export interface BaseStyle {
++  id: string;
++  name: string;
++  icon: string;
++  text: string;
++  look: Partial<Settings['look']>;
++  accent: string;
++}
++
++const scheme = (id: string, name: string, icon: string, text: string, light: string, dark: string): BaseStyle => ({
++  id: 'scheme:' + id,
++  name,
++  icon,
++  text,
++  look: { style: 'modern', light, dark, headFont: 'same' },
++  accent: THEMES.find((t) => t.id === id)!.accent
++});
++
++/**
++ * Встроенные стили 1.31: «Современный», «Классический» и бывшие цветовые схемы — парами (светлая + тёмная), чтобы у стиля был вид в обеих темах.
++ * Любую схему по отдельности можно выбрать внутри стиля («Готовая палитра» в «Настроить») — это правка поверх стиля.
++ */
++export const BASE_STYLES: BaseStyle[] = [
++  { id: 'modern', name: 'Современный', icon: '🪟', text: 'Светлый и спокойный, простые заголовки', look: { style: 'modern', light: 'air', dark: 'night', headFont: 'same' }, accent: DEFAULT_ACCENT },
++  { id: 'classic', name: 'Классический', icon: '📜', text: 'Тёплая бумага и книжные заголовки', look: { style: 'classic', light: 'paper', dark: 'graphite', headFont: 'literata' }, accent: '#3F51D8' },
++  scheme('coffee', 'Кофе', '☕', 'Тёплый тёмный, оранжевый акцент; днём — песок', 'sand', 'coffee'),
++  scheme('ocean', 'Океан', '🌊', 'Глубокий синий; днём — небо', 'sky', 'ocean'),
++  scheme('forest', 'Лес', '🌲', 'Тёмно-зелёный; днём — мята', 'mint', 'forest'),
++  scheme('plum', 'Слива', '🫐', 'Сливовый тёмный; днём — сакура', 'sakura', 'plum'),
++  scheme('midnight', 'Полночь', '🌑', 'Чёрный для OLED-экранов; днём — снег', 'snow', 'midnight'),
++  scheme('contrast', 'Контраст', '◐', 'Самый чёткий текст: белый и чёрный', 'contrast', 'midnight')
++];
++
++/** Встроенный стиль-схема для пары тем (если такая пара есть). */
++export const schemeStyleFor = (light: string, dark: string) => BASE_STYLES.find((b) => b.id.startsWith('scheme:') && b.look.light === light && b.look.dark === dark);
++
+ /** Прежнее оформление по умолчанию (до 1.5) переводим на новый стиль; изменённое вручную — оставляем «Классическим». */
+ export function migrateLook(look: Partial<Settings['look']> | undefined, accent: string | undefined): { look: Settings['look']; accent?: string } {
+   if (!look) return { look: { ...DEFAULT_LOOK, custom: {} } };
+diff --git a/src/types.ts b/src/types.ts
+index b20a5d1..06bd86f 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -319,6 +319,8 @@ export interface Settings {
+   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
+   appIcon?: string; // значок на рабочем столе телефона: 'default', 'theme' (под тему) или id темы (свой выбор)
+   bgImage?: BgImage; // свой фон картинкой (data:image); до 1.30 было { src, fade }, переносится при загрузке (см. bgImage.ts)
++  /** Оформление 1.31: стиль + дополнения + мои правки (styleModel.ts). Поля выше и ниже (look, accent, modsOn, myStyle…) — его проекция, для окна и отката на 1.30. */
++  appearance?: import('./styleModel').Appearance;
+   myStyle?: Mod; // «Мой вид» (1.30): правки из «Настроить текущий» — переменные, раскладка, CSS; применяются последними, после включённых стилей
+   cardTemplates: CardTemplate[]; // свои шаблоны карточек
+   modsOn: string[]; // включённые моды
+diff --git a/src/v130-styles.test.ts b/src/v130-styles.test.ts
+index 65828c4..2dad27c 100644
+--- a/src/v130-styles.test.ts
++++ b/src/v130-styles.test.ts
+@@ -167,7 +167,7 @@ describe('файл стиля версии 2', () => {
+     expect(back).toMatchObject({ density: 'compact', fontScale: 1.2, bg: { opacity: 0.4, blur: 3 } });
+     const v1 = JSON.stringify({ kind: 'refrain-style', formatVersion: 1, name: 'Старый', css: '.a{color:red}', vars: { light: { '--accent': '#112233' } } });
+     expect(parseStyleFile(v1, 'z')).toMatchObject({ name: 'Старый', css: '.a{color:red}' });
+-    expect(() => parseStyleFile(JSON.stringify({ kind: 'refrain-style', formatVersion: 3, name: 'Новый', css: 'a{}' }), 'q')).toThrow(/новой версии/);
++    expect(() => parseStyleFile(JSON.stringify({ kind: 'refrain-style', formatVersion: 4, name: 'Новый', css: 'a{}' }), 'q')).toThrow(/новой версии/);
+     expect(parseStyleFile(JSON.stringify({ kind: 'mnema-mod', name: 'Мод', css: 'a{}' }), 'q').name).toBe('Мод');
+   });
+   it('картинка фона попадает в файл только по просьбе и если небольшая; из файла — только настоящая картинка', () => {
+diff --git a/src/v131-styles.test.ts b/src/v131-styles.test.ts
+new file mode 100644
+index 0000000..86762de
+--- /dev/null
++++ b/src/v131-styles.test.ts
+@@ -0,0 +1,244 @@
++// Refrain 1.31: «Оформление» — стиль + дополнения + мои правки, перенос из 1.30 без потерь, порядок CSS, шрифты внутри стиля.
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { CATALOG } from './mods';
++import { sanitizeCss } from './safeCss';
++import { appearanceOf, classifyRole, countEdits, migrateAppearance, projectAppearance, styleBase, type AppearanceFields } from './styleMigrate';
++import type { Appearance, Mod131 } from './styleModel';
++import { cleanMod, compileStyles, fontFaceCss, MAX_FONT_BYTES, parseStyleFile, STYLE_FORMAT_131, styleToFile } from './styleSystem';
++import { normalizeData } from './store';
++import { BASE_STYLES, DEFAULT_ACCENT, DEFAULT_LOOK } from './themes';
++import type { Mod, Settings } from './types';
++
++const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
++const WOFF = 'data:font/woff2;base64,' + 'A'.repeat(400);
++
++beforeEach(() => {
++  const orig = console.error.bind(console);
++  vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
++    if (!String(a[0]).startsWith('Не удалось сохранить')) orig(...a);
++  });
++});
++afterEach(() => vi.restoreAllMocks());
++
++const old = (settings: Record<string, unknown>) => ({ version: 1, subjects: [], topics: [], cards: [], settings });
++const fields = (p: Partial<AppearanceFields> = {}): AppearanceFields => ({
++  look: { ...DEFAULT_LOOK, custom: {} },
++  accent: DEFAULT_ACCENT,
++  density: 'normal',
++  fontScale: 1,
++  modsOn: [],
++  customMods: [],
++  styleValues: {},
++  cssSnippets: [],
++  ...p
++});
++/** Проекция должна вернуть те же поля, из которых оформление выведено: тогда при переносе ничего не теряется. */
++const sameFields = (s: AppearanceFields, a: Appearance) => {
++  const p = projectAppearance(a, s.customMods);
++  expect(p.look).toEqual({ ...DEFAULT_LOOK, ...s.look, custom: s.look.custom ?? {} });
++  expect(p.accent.toLowerCase()).toBe((s.accent ?? DEFAULT_ACCENT).toLowerCase());
++  expect(p.density).toBe(s.density ?? 'normal');
++  expect(p.fontScale).toBe(s.fontScale ?? 1);
++  expect(p.bgImage).toEqual(s.bgImage);
++  expect(p.myStyle).toEqual(s.myStyle);
++  expect(new Set(p.modsOn)).toEqual(new Set(s.modsOn));
++  expect(p.styleValues).toBe(s.styleValues);
++};
++
++const bigStyle: Mod131 = { id: 'm-big', name: 'Большой', description: '', vars: { light: { '--bg': '#101010', '--ink': '#f0f0f0' }, dark: { '--bg': '#000000' } }, css: '.card{border-width:2px}', origin: 'file' };
++const bigStyle2: Mod131 = { id: 'm-big2', name: 'Ещё большой', description: '', look: { dark: 'coffee' }, accent: '#E0A15B', origin: 'ai' };
++const small: Mod131 = { id: 'm-small', name: 'Маленький', description: '', attrs: { grades: 'grid' }, css: '.grades{gap:4px}', origin: 'mine' };
++
++describe('роль стиля', () => {
++  it('цвета, фон, вид, шрифты → стиль, иначе дополнение; явная роль главнее', () => {
++    expect(classifyRole(bigStyle)).toBe('style');
++    expect(classifyRole(bigStyle2)).toBe('style');
++    expect(classifyRole(small)).toBe('addon');
++    expect(classifyRole({ ...small, bg: { opacity: 0.5 } })).toBe('style');
++    expect(classifyRole({ ...small, fonts: [{ family: 'Рука', src: WOFF }] })).toBe('style');
++    expect(classifyRole({ ...bigStyle, role: 'addon' })).toBe('addon');
++    expect(classifyRole({ ...small, vars: { light: { '--rf-btn-h': '50px' } } })).toBe('addon');
++  });
++  it('в каталоге стиль — только «Стекло», остальное — дополнения, всё встроенное', () => {
++    expect(CATALOG.filter((m) => classifyRole(m) === 'style').map((m) => m.id)).toEqual(['glass']);
++    expect(CATALOG.every((m) => m.origin === 'builtin')).toBe(true);
++  });
++});
++
++describe('перенос из 1.30', () => {
++  it('настройки по умолчанию → «Современный» без дополнений и правок', () => {
++    const a = migrateAppearance(fields());
++    expect(a).toEqual({ v: 1, style: 'modern', addons: [], values: {} });
++  });
++  it('несколько стилей: стиль — последний включённый «большой», остальные — дополнения в прежнем порядке', () => {
++    const s = fields({ customMods: [bigStyle, bigStyle2, small], modsOn: ['notebook', 'm-big', 'glass', 'm-small', 'm-big2'], styleValues: { notebook: { cell: 30 }, glass: { blur: 20 } } });
++    s.look = { ...s.look, dark: 'coffee' };
++    s.accent = '#E0A15B';
++    const a = migrateAppearance(s);
++    expect(a.style).toBe('m-big2');
++    expect(a.addons).toEqual(['notebook', 'm-big', 'glass', 'm-small']);
++    expect(a.values).toEqual({ notebook: { cell: 30 }, glass: { blur: 20 } });
++    // look.dark и главный цвет пришли от самого стиля — это не правки
++    expect(a.edits).toBeUndefined();
++    sameFields(s, a);
++  });
++  it('myStyle, свои цвета, схема, шрифт, главный цвет, плотность, размер текста и фон → мои правки; ничего не теряется', () => {
++    const myStyle = cleanMod({ name: 'Мой вид', vars: { light: { '--rf-btn-h': '48px' } }, attrs: { cards: 'flat' }, css: '.hero{color:red}' }, 'mine', 'мой вид')!;
++    const mine: Mod = { id: myStyle.id, name: myStyle.name, description: '', vars: myStyle.vars, attrs: myStyle.attrs, css: myStyle.css };
++    const s = fields({
++      look: { ...DEFAULT_LOOK, light: 'snow', font: 'nunito', radius: 'round', background: 'grid', custom: { light: { bg: '#FAFAFA' }, dark: { ink: '#EEEEEE' } } },
++      accent: '#C2417A',
++      density: 'compact',
++      fontScale: 1.15,
++      bgImage: { v: 2, src: PNG, fade: 0.55, x: 50, y: 50, size: 'cover', zoom: 100, opacity: 0.45, blur: 6, dim: 0, tint: '#000000', fixed: true, underSide: true, sideAlpha: 0.7, underBar: true, barAlpha: 0.78 },
++      myStyle: mine,
++      cssSnippets: [{ id: 's1', name: 'Скрыть счётчики', css: '.badge{display:none}', on: true }]
++    });
++    const a = migrateAppearance(s);
++    expect(a.style).toBe('modern');
++    expect(a.edits).toMatchObject({
++      look: { light: 'snow', font: 'nunito', radius: 'round', background: 'grid' },
++      accent: '#C2417A',
++      density: 'compact',
++      fontScale: 1.15,
++      attrs: { cards: 'flat' },
++      css: '.hero{color:red}',
++      vars: { light: { '--bg': '#FAFAFA', '--rf-btn-h': '48px' }, dark: { '--ink': '#EEEEEE' } }
++    });
++    expect(a.edits!.bg!.src).toBe(PNG);
++    expect(countEdits(a.edits)).toBe(4 + 1 + 1 + 1 + 3 + 1 + 1 + 1);
++    sameFields(s, a);
++    // кусочки CSS переносом не трогаются: их в оформлении нет вовсе
++    expect(JSON.stringify(a)).not.toContain('Скрыть счётчики');
++  });
++  it('«Классический» и пары схем узнаются; одиночная схема — правка поверх «Современного»', () => {
++    expect(migrateAppearance(fields({ look: { ...DEFAULT_LOOK, style: 'classic', light: 'paper', dark: 'graphite', headFont: 'literata', custom: {} }, accent: '#3F51D8' }))).toMatchObject({ style: 'classic', addons: [] });
++    expect(migrateAppearance(fields({ look: { ...DEFAULT_LOOK, light: 'sand', dark: 'coffee', custom: {} }, accent: '#E0A15B' }))).toEqual({ v: 1, style: 'scheme:coffee', addons: [], values: {} });
++    const one = migrateAppearance(fields({ look: { ...DEFAULT_LOOK, dark: 'coffee', custom: {} } }));
++    expect(one.style).toBe('modern');
++    expect(one.edits?.look).toEqual({ dark: 'coffee' });
++  });
++  it('по контракту: на входе только поля Migration130 (без главного цвета и плотности) — тоже переносится', () => {
++    const a = migrateAppearance({ modsOn: ['m-small'], customMods: [small], myStyle: undefined, styleValues: {}, cssSnippets: [], look: { style: 'classic', light: 'paper', dark: 'graphite', custom: {} } });
++    expect(a.style).toBe('classic');
++    expect(a.addons).toEqual(['m-small']);
++  });
++  it('перенос идемпотентен: повторный запуск на перенесённом ничего не меняет', () => {
++    const cases: AppearanceFields[] = [
++      fields(),
++      fields({ customMods: [bigStyle, bigStyle2, small], modsOn: ['m-big', 'glass', 'm-small', 'm-big2'], look: { ...DEFAULT_LOOK, dark: 'coffee', custom: {} }, accent: '#E0A15B' }),
++      fields({ modsOn: ['glass', 'notebook'], look: { ...DEFAULT_LOOK, light: 'sky', dark: 'ocean', custom: { dark: { bg: '#000000' } } }, accent: '#4FA3F7', fontScale: 1.2 }),
++      fields({ look: { ...DEFAULT_LOOK, style: 'classic', light: 'mint', dark: 'coffee', headFont: 'literata', custom: {} } })
++    ];
++    for (const s of cases) {
++      const a1 = migrateAppearance(s);
++      const a2 = migrateAppearance({ ...s, appearance: a1 });
++      expect(a2).toEqual(a1);
++      // и проекция переноса снова даёт то же оформление
++      const p = projectAppearance(a1, s.customMods);
++      expect(migrateAppearance({ ...s, ...p, appearance: a1 })).toEqual(a1);
++    }
++  });
++  it('выбранный встроенный стиль запоминается, пока подходит к полям', () => {
++    const s = fields({ look: { ...DEFAULT_LOOK, light: 'air', dark: 'coffee', custom: {} }, accent: '#E0A15B' });
++    const a = migrateAppearance({ ...s, appearance: { v: 1, style: 'scheme:coffee', addons: [], values: {}, tab: 'addons' } });
++    expect(a.style).toBe('scheme:coffee');
++    expect(a.edits?.look).toEqual({ light: 'air' });
++    expect(a.tab).toBe('addons');
++    // откат на 1.30 и выбор «Классического» там: поля главнее, стиль выводится заново
++    const back = migrateAppearance({ ...fields({ look: { ...DEFAULT_LOOK, style: 'classic', light: 'paper', dark: 'graphite', headFont: 'literata', custom: {} }, accent: '#3F51D8' }), appearance: a });
++    expect(back.style).toBe('classic');
++    // чужое значение в сохранённом оформлении не попадает дальше
++    expect(migrateAppearance({ ...s, appearance: { style: 42, tab: 'evil' } }).tab).toBeUndefined();
++  });
++  it('загрузка данных 1.30 переносит оформление, и сохранение с загрузкой его не меняют', () => {
++    const d1 = normalizeData(old({ modsOn: ['notebook', 'glass'], customMods: [small], myStyle: { vars: { light: { '--rf-btn-h': '50px' } } }, look: { style: 'modern', light: 'air', dark: 'night', custom: {} }, styleValues: { glass: { blur: 10 } }, cssSnippets: [{ id: 'a', name: 'A', css: '.a{}', on: true }] }));
++    const a = d1.settings.appearance!;
++    expect(a).toMatchObject({ style: 'glass', addons: ['notebook'], values: { glass: { blur: 10 } }, edits: { vars: { light: { '--rf-btn-h': '50px' } } } });
++    const d2 = normalizeData(JSON.parse(JSON.stringify(d1)));
++    expect(d2.settings.appearance).toEqual(a);
++    expect(d2.settings.modsOn).toEqual(['notebook', 'glass']); // прежние поля остаются для отката
++    expect(d2.settings.customMods.map((m) => m.id)).toEqual(['m-small']);
++  });
++});
++
++describe('проекция и порядок CSS', () => {
++  it('выбор встроенного стиля ставит его основу; стиль-мод идёт первым, потом дополнения', () => {
++    const p = projectAppearance({ v: 1, style: 'scheme:coffee', addons: ['notebook'], values: {} }, []);
++    expect(p.look).toMatchObject({ light: 'sand', dark: 'coffee', style: 'modern' });
++    expect(p.accent).toBe(BASE_STYLES.find((b) => b.id === 'scheme:coffee')!.accent);
++    expect(p.modsOn).toEqual(['notebook']);
++    expect(projectAppearance({ v: 1, style: 'glass', addons: ['notebook', 'compact'], values: {} }, []).modsOn).toEqual(['glass', 'notebook', 'compact']);
++    expect(styleBase('classic', [], []).look).toMatchObject({ style: 'classic', headFont: 'literata' });
++  });
++  it('правка «фон стиля убран» и подстройка картинки стиля без копии картинки', () => {
++    const withBg: Mod131 = { id: 'm-bg', name: 'Фон', description: '', bg: { src: PNG, opacity: 0.6 } };
++    expect(projectAppearance({ v: 1, style: 'm-bg', addons: [], values: {} }, [withBg]).bgImage?.opacity).toBe(0.6);
++    const s = fields({ customMods: [withBg], modsOn: ['m-bg'], bgImage: undefined });
++    expect(migrateAppearance(s).edits?.bg).toEqual({ src: '' });
++    const moved = projectAppearance({ v: 1, style: 'm-bg', addons: [], values: {} }, [withBg]).bgImage!;
++    const a = migrateAppearance({ ...s, bgImage: { ...moved, blur: 20 } });
++    expect(a.edits?.bg?.src).toBeUndefined();
++    expect(projectAppearance(a, [withBg]).bgImage).toEqual({ ...moved, blur: 20 });
++  });
++  it('стиль → дополнения → кусочки CSS → мои правки', () => {
++    const style: Mod = { id: 's', name: 'S', description: '', css: '.a{color:#111111}' };
++    const addon: Mod = { id: 'd', name: 'D', description: '', css: '.a{color:#222222}' };
++    const edits: Mod = { id: 'mine', name: 'Мой вид', description: '', css: '.a{color:#444444}' };
++    const css = compileStyles([{ mod: style }, { mod: addon }], [{ id: 'x', name: 'X', css: '.a{color:#333333}', on: true }], edits).css;
++    const at = (c: string) => css.indexOf(c);
++    expect(at('#111111')).toBeLessThan(at('#222222'));
++    expect(at('#222222')).toBeLessThan(at('#333333'));
++    expect(at('#333333')).toBeLessThan(at('#444444'));
++  });
++  it('оформление можно прочитать всегда — даже без settings.appearance', () => {
++    const s = { ...fields({ modsOn: ['glass'] }) } as Partial<Settings> as AppearanceFields;
++    expect(appearanceOf(s).style).toBe('glass');
++  });
++});
++
++describe('.refrainstyle версии 3: роль, шрифты, откуда', () => {
++  it('сохраняется и читается; origin задаёт приложение, а не файл', () => {
++    const m = cleanMod({ name: 'Рукописный', role: 'style', fonts: [{ family: 'Рука', src: WOFF, weight: '400 700' }], vars: { light: { '--display': "'Рука', serif" } }, origin: 'builtin' }, 'm-hand')!;
++    const text = styleToFile(m);
++    const raw = JSON.parse(text);
++    expect(raw.formatVersion).toBe(STYLE_FORMAT_131);
++    expect(raw.origin).toBeUndefined();
++    expect(raw.role).toBe('style');
++    const back = parseStyleFile(text, 'n1') as Mod131;
++    expect(back.origin).toBe('file');
++    expect(back.fonts).toEqual([{ family: 'Рука', src: WOFF, weight: '400 700' }]);
++    expect(() => parseStyleFile(JSON.stringify({ ...raw, formatVersion: STYLE_FORMAT_131 + 1 }), 'z')).toThrow(/новой версии/);
++  });
++  it('шрифт: только data:font woff2/ttf, не больше 400 КБ на шрифт и 1 МБ на стиль; имя без кавычек', () => {
++    const big = 'data:font/woff2;base64,' + 'A'.repeat(Math.ceil(((MAX_FONT_BYTES + 10) * 4) / 3));
++    const near = 'data:font/ttf;base64,' + 'A'.repeat(Math.floor((MAX_FONT_BYTES * 4) / 3) - 8);
++    const m = cleanMod(
++      {
++        name: 'Ш',
++        fonts: [
++          { family: 'Сеть', src: 'https://evil.example.com/f.woff2' },
++          { family: "Кав'ычка", src: WOFF },
++          { family: 'Большой', src: big },
++          { family: 'Один', src: near },
++          { family: 'Два', src: near },
++          { family: 'Три', src: near },
++          { family: 'Норм', src: WOFF, style: 'italic', weight: '900' }
++        ]
++      },
++      'x'
++    )!;
++    expect(m.fonts!.map((f) => f.family)).toEqual(['Один', 'Два', 'Норм']);
++    expect(m.fonts![2]).toEqual({ family: 'Норм', src: WOFF, style: 'italic' });
++  });
++  it('@font-face в CSS стиля вырезается; собирает его приложение из поля fonts, с именем внутри стиля', () => {
++    expect(sanitizeCss("@font-face { font-family: X; src: url(https://evil.example.com/x.woff2) } .a{color:red}")).not.toMatch(/font-face|evil/);
++    const m = cleanMod({ name: 'Ш', fonts: [{ family: 'Рука', src: WOFF }], vars: { light: { '--display': "'Рука', serif" } }, css: ".h { font-family: 'Рука' }" }, 'm-1')!;
++    const css = compileStyles([{ mod: m }]).css;
++    expect(fontFaceCss(m)).toContain("font-family: 'Refrain m-1 Рука'");
++    expect(css).toContain('@font-face');
++    expect(css).toContain("--display: 'Refrain m-1 Рука', serif");
++    expect(css).toContain(".h { font-family: 'Refrain m-1 Рука' }");
++    expect(css).not.toContain('evil');
++  });
++});
 -- 
 2.43.0
 
