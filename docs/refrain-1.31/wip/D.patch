@@ -1,7 +1,7 @@
 From 287a44d8fb6bd91dc2b7154325f78c47406e84d7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:51:13 +0000
-Subject: [PATCH 1/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
+Subject: [PATCH 1/7] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
  =?UTF-8?q?=20=D0=BF=D0=BB=D0=B0=D0=BD=20=D0=B8=20=D1=85=D0=BE=D0=B4=20?=
  =?UTF-8?q?=D1=80=D0=B0=D0=B1=D0=BE=D1=82=20(progress-D.md)?=
 MIME-Version: 1.0
@@ -52,7 +52,7 @@ index 0000000..c6532e0
 From eaef287e80abcbce8bb573be72f7eba4063eb7a4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 13 Oct 2026 17:55:03 +0000
-Subject: [PATCH 2/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
+Subject: [PATCH 2/7] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
  =?UTF-8?q?=20=D1=81=D0=BE=D1=85=D1=80=D0=B0=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5?=
  =?UTF-8?q?=20=D0=BF=D0=BE=20=D1=81=D0=B8=D0=B3=D0=BD=D0=B0=D0=BB=D1=83=20?=
  =?UTF-8?q?=C2=AB95=C2=BB?=
@@ -576,7 +576,7 @@ index 0000000..3444ac0
 From f66f91f64fe4eaa0cf290b0f31bcb5b81cfb9228 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:10:27 +0000
-Subject: [PATCH 3/6] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
+Subject: [PATCH 3/7] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
  =?UTF-8?q?=D0=BA=D0=BB=D0=B8=D0=B5=D0=BD=D1=82=20Refrain=20=D0=98=D0=98?=
  =?UTF-8?q?=20=E2=80=94=20=D0=B1=D1=8B=D1=81=D1=82=D1=80=D1=8B=D0=B9=20SHA?=
  =?UTF-8?q?-256=20=D0=B4=D0=BB=D1=8F=20PoW,=20=D1=81=D1=82=D0=B0=D1=82?=
@@ -788,7 +788,7 @@ index 3444ac0..dfc4826 100644
 From cadfa7d1dd9db8185fe08cf21532bae3676a6627 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:12:16 +0000
-Subject: [PATCH 4/6] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
+Subject: [PATCH 4/7] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
  =?UTF-8?q?=D0=BF=D0=BE=D1=81=D1=82=D0=B0=D0=B2=D1=89=D0=B8=D0=BA=20Refrai?=
  =?UTF-8?q?n=20=D0=98=D0=98=20=D0=B2=20aiCore=20=D0=B8=20=D0=BF=D0=BE?=
  =?UTF-8?q?=D1=80=D1=8F=D0=B4=D0=BE=D0=BA=20=C2=ABRefrain=20=D0=98=D0=98?=
@@ -1072,7 +1072,7 @@ index 3facc2b..bfebe80 100644
 From 528a6399592dcbdc1d85d50e6046167cbbf94b68 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:13:45 +0000
-Subject: [PATCH 5/6] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20Elect?=
+Subject: [PATCH 5/7] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20Elect?=
  =?UTF-8?q?ron=20=E2=80=94=20=D0=BA=D0=BB=D1=8E=D1=87=20=D1=83=D1=81=D1=82?=
  =?UTF-8?q?=D1=80=D0=BE=D0=B9=D1=81=D1=82=D0=B2=D0=B0=20P-256=20=D0=B8=20?=
  =?UTF-8?q?=D1=82=D0=BE=D0=BA=D0=B5=D0=BD=D1=8B=20=D1=82=D0=BE=D0=BB=D1=8C?=
@@ -1295,7 +1295,7 @@ index 2982904..b057896 100644
 From 48a60f307b319b639d9e88d893dccd95bd90ec63 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 15 Oct 2026 12:18:12 +0000
-Subject: [PATCH 6/6] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
+Subject: [PATCH 6/7] =?UTF-8?q?WIP=20=D0=BF=D0=BE=D1=82=D0=BE=D0=BA=20D:?=
  =?UTF-8?q?=20=D0=BC=D0=BE=D1=81=D1=82=20=D0=B8=20=D0=BC=D0=BE=D0=B4=D1=83?=
  =?UTF-8?q?=D0=BB=D1=8C=20Refrain=20=D0=98=D0=98=20=D0=B2=20=D0=BE=D0=BA?=
  =?UTF-8?q?=D0=BD=D0=B5,=20=D1=82=D0=B5=D0=BA=D1=81=D1=82=D1=8B=20=D0=BE?=
@@ -1900,6 +1900,214 @@ index 0000000..4296b31
 +  const model = m?.[1]?.trim();
 +  return model && model !== 'K' ? `Android · ${model}`.slice(0, 60) : 'Android';
 +}
+-- 
+2.43.0
+
+
+From a0d6087560d6333a6bdb99f6bdb5bdd961f29eb3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 15 Oct 2026 12:19:00 +0000
+Subject: [PATCH 7/7] =?UTF-8?q?=D0=9F=D0=BE=D1=82=D0=BE=D0=BA=20D:=20?=
+ =?UTF-8?q?=D0=B7=D0=B0=D0=B4=D0=B0=D1=87=D0=B8=20Refrain=20=D0=98=D0=98?=
+ =?UTF-8?q?=20=D0=B2=20=D0=B2=D1=8B=D0=B7=D0=BE=D0=B2=D0=B0=D1=85=20(?=
+ =?UTF-8?q?=D1=83=D1=87=D0=B5=D0=B1=D0=BD=D0=B8=D0=BA,=20=D0=BA=D0=B0?=
+ =?UTF-8?q?=D1=80=D1=82=D0=BE=D1=87=D0=BA=D0=B8,=20=D0=BE=D0=B1=D1=8A?=
+ =?UTF-8?q?=D1=8F=D1=81=D0=BD=D0=B5=D0=BD=D0=B8=D0=B5,=20=D1=84=D0=BE?=
+ =?UTF-8?q?=D1=80=D0=BC=D1=83=D0=BB=D0=B0,=20=D1=81=D1=82=D0=B8=D0=BB?=
+ =?UTF-8?q?=D1=8C),=20=C2=AB=D0=A1=D0=B2=D0=BE=D0=B8=20=D1=83=D0=BA=D0=B0?=
+ =?UTF-8?q?=D0=B7=D0=B0=D0=BD=D0=B8=D1=8F=C2=BB=20=D0=BF=D0=BE=D0=BB=D0=B5?=
+ =?UTF-8?q?=D0=BC=20wishes,=20=D1=82=D0=B5=D0=BA=D1=81=D1=82=D1=8B=20?=
+ =?UTF-8?q?=D0=BE=D1=88=D0=B8=D0=B1=D0=BE=D0=BA=20=D0=BF=D0=BE=20=D0=BA?=
+ =?UTF-8?q?=D0=BE=D0=B4=D0=B0=D0=BC?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VBbhQjYzPBxhq8avzfcHSn
+---
+ src/ai.ts       | 37 ++++++++++++++++++++++++++++++-------
+ src/aiTasks.ts  | 17 ++++++++++++++---
+ src/styleAi.ts  |  2 +-
+ src/textbook.ts | 13 +++++++++----
+ 4 files changed, 54 insertions(+), 15 deletions(-)
+
+diff --git a/src/ai.ts b/src/ai.ts
+index ec262f9..d2ba804 100644
+--- a/src/ai.ts
++++ b/src/ai.ts
+@@ -1,17 +1,24 @@
+ // ИИ-помощник: обёртки над запросами к модели (сами запросы и ключи — в главном процессе).
+ import { aiRequest, type AiTask } from './aiTasks';
+ import { cardsPrompt, noteForAi, parseAiCards, type AiCardDraft } from './aiCards';
++import { noteAnswer, refrainFields, shrinkImage } from './refrain';
++import type { AiRequest } from './store';
+ import type { AppData } from './types';
+ 
+ export function aiAvailable(data: AppData): boolean {
+   return data.settings.features.ai && Boolean(window.mnemaApi?.aiAsk);
+ }
+ 
+-/** Один запрос к ИИ. `task` — для чего (тогда добавятся свои указания ученика и выбранный для задачи ИИ); без задачи запрос уходит как есть. */
+-async function ask(task: AiTask | null, req: { system?: string; text: string; image?: { mime: string; data: string }; maxTokens?: number }): Promise<string> {
++/**
++ * Один запрос к ИИ. `task` — для чего (тогда добавятся свои указания ученика и выбранный для задачи ИИ); без задачи запрос уходит как есть.
++ * req.refrain — та же задача для Refrain ИИ (без промта); без него запрос идёт мимо Refrain ИИ.
++ */
++async function ask(task: AiTask | null, req: AiRequest): Promise<string> {
+   const api = window.mnemaApi;
+   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows и Linux.');
+-  const r = await api.aiAsk(task ? aiRequest(task, req) : req);
++  const sent = task ? aiRequest(task, req) : { ...req, refrain: refrainFields(req.refrain) };
++  const r = await api.aiAsk(sent);
++  noteAnswer(r, sent.refrain?.task);
+   if (!r.ok) throw new Error(humanError(r.error));
+   if (!r.text) throw new Error('Модель вернула пустой ответ.');
+   return r.text;
+@@ -60,7 +67,8 @@ export async function recognizeFormula(pngBase64: string): Promise<string> {
+       'Ты распознаёшь рукописные формулы по математике, физике и химии, написанные школьником. Верни ТОЛЬКО код формулы в LaTeX, без знаков $, без ``` и без пояснений. Химические формулы пиши с индексами: H_2O. Если строк несколько — раздели их \\\\. Если формулу разобрать нельзя, верни одно слово: НЕРАЗБОРЧИВО.',
+     text: 'Распознай формулу на картинке.',
+     image: { mime: 'image/png', data: pngBase64 },
+-    maxTokens: 300
++    maxTokens: 300,
++    refrain: { task: 'formula', image: await shrinkImage({ mime: 'image/png', data: pngBase64 }).catch(() => ({ mime: 'image/png' as const, data: pngBase64 })) }
+   });
+   const latex = cleanLatex(text);
+   if (/НЕРАЗБОРЧИВО/i.test(latex)) throw new Error('Не получилось разобрать. Попробуй написать крупнее и чётче.');
+@@ -82,10 +90,25 @@ export async function explainDifferently(p: { subject?: string; topic?: string;
+     system:
+       'Ты — доброжелательный репетитор для школьника. Ученик не может запомнить карточку. Объясни ответ ИНАЧЕ, чем в карточке: простыми словами, через один понятный пример или аналогию из жизни, и в конце дай короткую подсказку, как это запомнить. Не больше 110 слов. Пиши по-русски, на «ты». Формулы оформляй в $...$. Опирайся на школьную программу и материалы ученика; не выдумывай фактов и дат. Без вступлений вроде «Конечно!».',
+     text: context,
+-    maxTokens: 500
++    maxTokens: 500,
++    refrain: { task: 'explain', text: context.slice(0, 2500) }
+   });
+ }
+ 
++/** Refrain ИИ отвечает карточками в JSON {cards:[{q,a,why}]}; разбор черновиков ждёт строки «вопрос :: ответ». Не JSON — как есть. */
++export function cardsJsonToLines(answer: string): string {
++  try {
++    const j = JSON.parse(answer.trim()) as { cards?: { q?: unknown; a?: unknown }[] };
++    if (!j || !Array.isArray(j.cards)) return answer;
++    return j.cards
++      .filter((c) => c && typeof c.q === 'string' && typeof c.a === 'string')
++      .map((c) => `${String(c.q).replace(/::/g, ':').replace(/\s+/g, ' ')} :: ${String(c.a).replace(/\s+/g, ' ')}`)
++      .join('\n');
++  } catch {
++    return answer;
++  }
++}
++
+ export async function testConnection(): Promise<string> {
+   return ask(null, { text: 'Ответь одним словом по-русски: «готово».', maxTokens: 20 });
+ }
+@@ -95,8 +118,8 @@ export async function draftCards(p: { subject?: string; topic: string; note: str
+   const note = noteForAi(p.note);
+   if (!note) throw new Error('В конспекте пока нет текста.');
+   const { system, text } = cardsPrompt({ subject: p.subject, topic: p.topic, note, have: p.have });
+-  const answer = await ask('cards', { system, text, maxTokens: 1500 });
+-  const drafts = parseAiCards(answer, p.have);
++  const answer = await ask('cards', { system, text, maxTokens: 1500, refrain: { task: 'cards', text: note, subject: p.subject, topic: p.topic } });
++  const drafts = parseAiCards(cardsJsonToLines(answer), p.have);
+   if (!drafts.length) throw new Error('ИИ ответил не так, как просили, — карточек из ответа не получилось. Попробуй ещё раз.');
+   return drafts;
+ }
+diff --git a/src/aiTasks.ts b/src/aiTasks.ts
+index 2a428ed..9632c01 100644
+--- a/src/aiTasks.ts
++++ b/src/aiTasks.ts
+@@ -2,6 +2,7 @@
+ // Общий вход для всех, кто спрашивает ИИ: свой системный текст оборачивают в aiSystem(задача, текст). Пока указаний нет — текст возвращается как есть.
+ // Если запрос собирается целиком — aiRequest(задача, запрос): он ещё и укажет ИИ, выбранный для этой задачи.
+ import { composeSystem } from './aiNotes';
++import { refrainFields, refrainWishes } from './refrain';
+ import { getData, type AiRequest } from './store';
+ import type { AiNoteKey } from './types';
+ 
+@@ -20,9 +21,19 @@ export function aiProviderFor(task: AiTask): string | undefined {
+   return task === 'all' || task === 'other' ? undefined : getData().settings.aiTaskProvider?.[task];
+ }
+ 
+-/** Готовый запрос: указания ученика дописаны к системному тексту, выбранный для задачи ИИ указан. */
++/**
++ * Готовый запрос: указания ученика дописаны к системному тексту, выбранный для задачи ИИ указан.
++ * Для Refrain ИИ (поле refrain) те же указания идут полем wishes; задача вне рамок контракта убирается — запрос пойдёт мимо Refrain ИИ.
++ */
+ export function aiRequest(task: AiTask, req: AiRequest): AiRequest {
+-  const system = composeSystem(getData().settings.aiNotes, task === 'other' ? 'all' : task, req.system);
++  const notes = getData().settings.aiNotes;
++  const key = task === 'other' ? 'all' : task;
++  const system = composeSystem(notes, key, req.system);
+   const provider = aiProviderFor(task);
+-  return { ...req, ...(system !== undefined ? { system } : {}), ...(provider ? { provider } : {}) };
++  const { refrain: raw, ...rest } = req;
++  const fields = refrainFields(raw);
++  const wishes = fields ? refrainWishes(notes, key) : '';
++  // wishes нет в типе AiRequest.refrain намеренно: его дописывает только эта функция (contracts.md, «Порядок поставщиков»).
++  const refrain = fields ? ({ ...fields, ...(wishes ? { wishes } : {}) } as AiRequest['refrain']) : undefined;
++  return { ...rest, ...(system !== undefined ? { system } : {}), ...(provider ? { provider } : {}), ...(refrain ? { refrain } : {}) };
+ }
+diff --git a/src/styleAi.ts b/src/styleAi.ts
+index 228d636..b12210c 100644
+--- a/src/styleAi.ts
++++ b/src/styleAi.ts
+@@ -341,7 +341,7 @@ export async function aiReady(data: AppData): Promise<AiReady> {
+ export async function askStyle(wish: string, opts: { id: string; base: BaseAppearance; current?: Mod }): Promise<AiStyleResult> {
+   const api = window.mnemaApi;
+   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
+-  const r = await api.aiAsk(aiRequest('style', { system: styleSystemPrompt(), text: styleUserText(wish, opts.current), maxTokens: 4000 }));
++  const r = await api.aiAsk(aiRequest('style', { system: styleSystemPrompt(), text: styleUserText(wish, opts.current), maxTokens: 4000, refrain: { task: 'style', text: styleUserText(wish, opts.current) } }));
+   if (!r.ok) throw new Error(humanError(r.error));
+   if (!r.text?.trim()) throw new Error('Модель вернула пустой ответ. Попробуй ещё раз.');
+   return parseAiStyle(r.text, { id: opts.id, fallbackName: opts.current?.name ?? wish.slice(0, 40), base: opts.base });
+diff --git a/src/textbook.ts b/src/textbook.ts
+index 5f3c981..0fd5679 100644
+--- a/src/textbook.ts
++++ b/src/textbook.ts
+@@ -4,6 +4,7 @@
+ // Точный режим — ИИ с зрением; если он не справился, страница читается без интернета.
+ import { humanError } from './ai';
+ import { aiRequest } from './aiTasks';
++import { noteAnswer, REFRAIN_SIDE, type RefrainFields } from './refrain';
+ import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
+ import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
+ import { refineFigureBox, remapFigureMarks, tidyFigures } from './textbookFigures';
+@@ -461,11 +462,13 @@ function photoTrouble(prep: Prepared): string {
+   return a.length ? ' ' + a.map((x) => x.text).join(' ') : ' Проверь, что страница видна целиком, резкая и хорошо освещена.';
+ }
+ 
+-async function askAi(system: string, text: string, photoUri: string | null, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
++/** refrain — та же задача для Refrain ИИ (фото уже уменьшено до 1600 px или текст страниц). */
++async function askAi(system: string, text: string, photoUri: string | null, maxTokens: number, refrain?: RefrainFields): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+   const api = window.mnemaApi;
+   if (!api?.aiAsk) return { ok: false, error: 'ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.' };
+   try {
+-    const r = await api.aiAsk(aiRequest('textbook', { system, text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens }));
++    const r = await api.aiAsk(aiRequest('textbook', { system, text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens, refrain }));
++    noteAnswer(r, refrain?.task);
+     if (!r.ok) return { ok: false, error: humanError(r.error) };
+     return { ok: true, text: r.text };
+   } catch (e) {
+@@ -511,7 +514,9 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
+       const r = await readUpright(p, part, onProgress, span);
+       return { ...r.page, n, note: `${why} Страница прочитана без интернета — проверь её внимательнее.` };
+     };
+-    const ans = await askAi(direct ? pageSystem(o.style) : READ_SYSTEM, `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000);
++    // Refrain ИИ: «Конспект»/«Кратко» сразу по странице или «Дословно» (чтение для свода), фото — 1600 px.
++    const refrain: RefrainFields = { task: direct ? (o.style === 'brief' ? 'textbook.brief' : 'textbook.summary') : 'textbook.verbatim', image: { mime: 'image/jpeg', data: canvasToJpeg(scaleCanvas(canvas, REFRAIN_SIDE), 0.85).split(',')[1] }, ...(n ? { page: n } : {}) };
++    const ans = await askAi(direct ? pageSystem(o.style) : READ_SYSTEM, `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000, refrain);
+     if (!ans.ok) {
+       pages.push(await fallback(ans.error));
+       continue;
+@@ -617,7 +622,7 @@ async function mergeWithAi(pages: PageResult[], style: Exclude<NoteStyle, 'verba
+   const parts: string[] = [];
+   for (let k = 0; k < chunks.length; k++) {
+     if (chunks.length > 1) onStep(`ИИ составляет конспект, часть ${k + 1} из ${chunks.length}…`);
+-    const ans = await askAi(mergeSystem(style), chunks[k].text, null, 7000);
++    const ans = await askAi(mergeSystem(style), chunks[k].text, null, 7000, { task: 'textbook.merge', text: chunks[k].text });
+     if (!ans.ok) return { ok: false, why: ans.error };
+     const v = parseMerged(ans.text, pages, chunks[k].chars);
+     if (!v.ok) return { ok: false, why: v.why };
 -- 
 2.43.0
 
