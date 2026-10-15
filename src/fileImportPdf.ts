@@ -844,8 +844,10 @@ export function pdfToMarkdown(bytes: Uint8Array): PdfResult {
   const markdown = linesToMarkdown(perPage);
   const letters = markdown.replace(/[^\p{L}\p{N}]/gu, '').length;
   const warnings: string[] = [];
-  const isScan = letters < pages.length * 40;
-  if (isScan && unreadable && !scans.length) throw new Error('Текст в этом PDF набран шрифтом без таблицы символов — прочитать его нельзя. Открой PDF и сохрани как .docx (Word умеет) или «Печать → Сохранить как PDF».');
+  // Скан: текста почти нет, а на страницах — большие картинки.
+  const isScan = letters < pages.length * 40 && scans.length > 0;
+  if (!letters && !scans.length && !unreadable) throw new Error('В PDF не нашлось ни текста, ни снимков страниц.');
+  if (!letters && unreadable && !scans.length) throw new Error('Текст в этом PDF набран шрифтом без таблицы символов — прочитать его нельзя. Открой PDF и сохрани как .docx (Word умеет) или «Печать → Сохранить как PDF».');
   if (!isScan && unreadable) warnings.push('Часть текста набрана шрифтом без таблицы символов и пропущена.');
   return { markdown: isScan ? '' : markdown, stats: { tables: 0, images, pages: pages.length }, warnings, scans: isScan ? scans : [] };
 }

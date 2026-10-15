@@ -279,12 +279,11 @@ describe('файл: PDF без сторонних библиотек', () => {
     const jpeg = (r.scans[0] as { bytes: Uint8Array }).bytes;
     expect([jpeg[0], jpeg[1], jpeg[2]]).toEqual([0xff, 0xd8, 0xff]);
   });
-  it('ToUnicode с bfrange (обе формы), двухбайтные коды, перенос слова, TJ с пробелом', () => {
+  it('ToUnicode с bfrange (обе формы), двухбайтные коды, строки абзаца склеиваются, TJ со сдвигом — пробел', () => {
     const cmap = '/CIDInit /ProcSet findresource begin 12 dict begin begincmap 1 begincodespacerange <0000> <FFFF> endcodespacerange 2 beginbfrange <0001> <0003> <0444> <0010> <0011> [<043E> <0442>] endbfrange 1 beginbfchar <0020> <0020> endbfchar endcmap end end';
-    // ф ф х — о т: «фф» + перенос «х-» и пробел через TJ
     const text = 'BT /F1 12 Tf 72 700 Td [<00010002> -400 <0010>] TJ 0 -14 Td <00110003> Tj ET';
     const r = pdfToMarkdown(page('<< /Type /Font /Subtype /Type0 /BaseFont /X /Encoding /Identity-H /ToUnicode 6 0 R /DescendantFonts [7 0 R] >>', { dict: '', data: text, flate: true }, [`<< /Length ${cmap.length} >>\nstream\n${cmap}\nendstream`, '<< /Type /Font /Subtype /CIDFontType2 /DW 500 >>']));
-    expect(r.markdown).toBe('фх о\n\nтц'.replace('\n\n', ' '));
+    expect(r.markdown).toBe('фх о тц');
   });
   it('простой шрифт: Differences с именами кириллицы и старый cp1251 без кодировки', () => {
     const diff = pdfToMarkdown(page('<< /Type /Font /Subtype /Type1 /BaseFont /Times /Encoding << /Differences [65 /afii10017 /afii10066 /space /uni0436] >> >>', { dict: '', data: 'BT /F1 12 Tf 10 10 Td (ABCD) Tj ET' }));
