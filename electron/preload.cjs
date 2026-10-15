@@ -20,6 +20,19 @@ contextBridge.exposeInMainWorld('mnemaApi', {
   aiProbe: (q) => ipcRenderer.invoke('ai:probe', q),
   aiKeyStorage: () => ipcRenderer.invoke('ai:keyStorage'),
   aiTranscribe: (req) => ipcRenderer.invoke('ai:transcribe', req),
+  // Refrain ИИ: вход, лимит, устройства, «Сообщить о проблеме». Токены и ключ устройства остаются в главном процессе.
+  refrain: {
+    status: () => ipcRenderer.invoke('refrain:status'),
+    loginStart: (email) => ipcRenderer.invoke('refrain:loginStart', { email }),
+    loginVerify: (p) => ipcRenderer.invoke('refrain:loginVerify', p),
+    me: () => ipcRenderer.invoke('refrain:me'),
+    invite: (code) => ipcRenderer.invoke('refrain:invite', { code }),
+    unbind: (id) => ipcRenderer.invoke('refrain:unbind', { id }),
+    deleteAccount: () => ipcRenderer.invoke('refrain:deleteAccount'),
+    logout: () => ipcRenderer.invoke('refrain:logout'),
+    bug: (report) => ipcRenderer.invoke('refrain:bug', report),
+    screenshot: () => ipcRenderer.invoke('refrain:screenshot')
+  },
   ocrRecognize: (bytes) => ipcRenderer.invoke('ocr:recognize', bytes),
   trayState: (state) => ipcRenderer.send('tray:state', state),
   onMiniStart: (cb) => {
