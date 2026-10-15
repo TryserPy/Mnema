@@ -1,8 +1,12 @@
 // Общая логика ИИ-помощника для Windows (главный процесс Electron) и Android (окно приложения).
-// Claude, Gemini, модель на компьютере (LM Studio) и любые свои ИИ по API в трёх форматах:
+// Refrain ИИ (shared/refrainClient.mjs), Claude, Gemini, модель на компьютере (LM Studio) и любые свои ИИ по API в трёх форматах:
 // OpenAI-совместимый, Anthropic или Gemini. Сеть и хранение ключей передаются снаружи.
+import { ERRORS } from './refrain/api.mjs';
+import { FALLBACK_CODES } from './refrainClient.mjs';
 
 export const BUILTIN = ['anthropic', 'gemini', 'local'];
+/** Кого спрашивать: Refrain ИИ, свой ключ (основной ИИ или выбранный для задачи), без интернета (модель на компьютере). */
+export const STEPS = ['refrain', 'key', 'local'];
 const FORMATS = ['openai', 'anthropic', 'gemini'];
 const AUTH = ['bearer', 'api-key', 'x-api-key', 'none'];
 
@@ -13,12 +17,19 @@ export const DEFAULTS = {
   models: { anthropic: 'claude-haiku-4-5-20251001', gemini: 'gemini-3.5-flash-lite', local: '' },
   endpoint: 'http://localhost:1234/v1',
   custom: [], // { id, name, format, baseUrl, model, vision, auth, headers, speechModel }
-  keys: {} // anthropic | gemini | c:<id> → зашифрованный ключ
+  keys: {}, // anthropic | gemini | c:<id> → зашифрованный ключ
+  order: STEPS // порядок поставщиков; следующий берётся, если первый недоступен или у Refrain ИИ кончился лимит
 };
+
+/** Порядок — всегда все три шага без повторов: неизвестное выбрасывается, недостающее дописывается в обычном порядке. */
+export function normalizeOrder(o) {
+  const seen = Array.isArray(o) ? o.filter((x, i) => STEPS.includes(x) && o.indexOf(x) === i) : [];
+  return [...seen, ...STEPS.filter((x) => !seen.includes(x))];
+}
 
 export function normalizeConfig(c) {
   c = c && typeof c === 'object' ? c : {};
-  return { ...DEFAULTS, ...c, models: { ...DEFAULTS.models, ...(c.models || {}) }, custom: Array.isArray(c.custom) ? c.custom : [], keys: { ...(c.keys || {}) } };
+  return { ...DEFAULTS, ...c, models: { ...DEFAULTS.models, ...(c.models || {}) }, custom: Array.isArray(c.custom) ? c.custom : [], keys: { ...(c.keys || {}) }, order: normalizeOrder(c.order) };
 }
 
 /** Ключ без мусора: пробелов, переносов, кавычек, «Bearer ». */
@@ -68,8 +79,10 @@ const isFreeModel = (m) => /:free$/.test(m || '') || m === FREE_ROUTER;
 /** Бесплатные модели OpenRouter часто перегружены: просим OpenRouter при ошибке взять любую другую бесплатную. */
 const openRouterFallback = (p) => (isOpenRouter(p) && isFreeModel(p.model) && p.model !== FREE_ROUTER ? { models: [p.model, FREE_ROUTER] } : {});
 
-function publicConfig(c) {
+function publicConfig(c, refrain) {
   return {
+    order: c.order,
+    refrain: Boolean(refrain),
     provider: c.provider,
     visionProvider: c.visionProvider || '',
     speechProvider: c.speechProvider || '',
@@ -83,16 +96,18 @@ function publicConfig(c) {
 /**
  * http(url, { method, headers, body, bodyBase64, timeout }) → Promise<{ status, text, error? }>
  * store: { read() → config, write(config), encrypt(s), decrypt(s), newId() }
+ * refrain — клиент Refrain ИИ (createRefrainClient) или ничего (веб-версия: там Refrain ИИ нет).
  */
-export function createAiService({ http, store }) {
+export function createAiService({ http, store, refrain = null }) {
+  const offline = (msg) => Object.assign(new Error(msg), { network: true });
   async function fetchJson(url, init, timeout = 150000) {
     const res = await http(url, { ...init, timeout });
     if (!res.status) {
       const code = String(res.error || res.text || '');
-      if (/ECONNREFUSED|refused/i.test(code)) throw new Error('Не удаётся подключиться. Если это программа на компьютере (LM Studio, Ollama) — запусти в ней сервер.');
-      if (/ENOTFOUND|EAI_AGAIN|UnknownHost/i.test(code)) throw new Error('Не найден сервер по этому адресу. Проверь адрес и интернет.');
+      if (/ECONNREFUSED|refused/i.test(code)) throw offline('Не удаётся подключиться. Если это программа на компьютере (LM Studio, Ollama) — запусти в ней сервер.');
+      if (/ENOTFOUND|EAI_AGAIN|UnknownHost/i.test(code)) throw offline('Не найден сервер по этому адресу. Проверь адрес и интернет.');
       if (/timeout|Нет ответа|Timeout/i.test(code)) throw new Error('ИИ не ответил вовремя. Попробуй ещё раз.');
-      throw new Error('Нет связи с сервером (' + (code || 'network') + '). Проверь интернет.');
+      throw offline('Нет связи с сервером (' + (code || 'network') + '). Проверь интернет.');
     }
     let body = null;
     try {
@@ -168,16 +183,16 @@ export function createAiService({ http, store }) {
 
   function resolve(c, id) {
     const dec = (k) => store.decrypt(c.keys[k]);
-    if (id === 'anthropic') return { p: { name: 'Claude', format: 'anthropic', baseUrl: 'https://api.anthropic.com', model: c.models.anthropic, vision: true }, key: dec('anthropic'), needKey: true };
-    if (id === 'gemini') return { p: { name: 'Gemini', format: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com', model: c.models.gemini, vision: true }, key: dec('gemini'), needKey: true };
+    if (id === 'anthropic') return { id, p: { name: 'Claude', format: 'anthropic', baseUrl: 'https://api.anthropic.com', model: c.models.anthropic, vision: true }, key: dec('anthropic'), needKey: true };
+    if (id === 'gemini') return { id, p: { name: 'Gemini', format: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com', model: c.models.gemini, vision: true }, key: dec('gemini'), needKey: true };
     if (id === 'local') {
       const base = trimBase(c.endpoint || DEFAULTS.endpoint);
-      return { p: { name: 'На компьютере', format: 'openai', baseUrl: base, model: c.models.local, vision: true, auth: 'none' }, key: '', needKey: false };
+      return { id, p: { name: 'На компьютере', format: 'openai', baseUrl: base, model: c.models.local, vision: true, auth: 'none' }, key: '', needKey: false };
     }
     if (typeof id === 'string' && id.startsWith('custom:')) {
       const p = c.custom.find((x) => x.id === id.slice(7));
       if (!p) throw new Error('Этот ИИ удалён. Выбери другой в настройках ИИ.');
-      return { p, key: dec('c:' + p.id), needKey: p.auth !== 'none' && !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(p.baseUrl || '') };
+      return { id, p, key: dec('c:' + p.id), needKey: p.auth !== 'none' && !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(p.baseUrl || '') };
     }
     throw new Error('Не выбран ИИ.');
   }
@@ -193,6 +208,24 @@ export function createAiService({ http, store }) {
       }
     }
     return resolve(c, c.provider);
+  }
+
+  /** Свой ключ: основной ИИ или выбранный для задачи. null — не настроен (или основной — модель на компьютере: это отдельный шаг). */
+  function keyStep(c, req) {
+    let r = pickFor(c, req.provider);
+    if (r.id === 'local') return null;
+    if (req.image && r.p.vision === false) {
+      if (!c.visionProvider) throw new Error(`«${r.p.name}» не понимает картинки. В настройках ИИ выбери, какой ИИ использовать для картинок.`);
+      r = resolve(c, c.visionProvider);
+    }
+    if (r.needKey && !r.key) throw new Error(`Не указан ключ API для «${r.p.name}».`);
+    return r;
+  }
+
+  /** Без интернета: модель на компьютере — если её выбрали основной, для задачи или указали её имя. */
+  function localStep(c, req) {
+    if (c.provider !== 'local' && req.provider !== 'local' && !c.models.local) return null;
+    return resolve(c, 'local');
   }
 
   async function runOnce(p, key, req, maxTokens) {
@@ -342,7 +375,7 @@ export function createAiService({ http, store }) {
   // ---------- Обработчики (одинаковые на Windows и Android) ----------
 
   return {
-    getConfig: () => publicConfig(normalizeConfig(store.read())),
+    getConfig: () => publicConfig(normalizeConfig(store.read()), refrain),
     setConfig(patch) {
       const c = normalizeConfig(store.read());
       if (patch && typeof patch === 'object') {
@@ -351,19 +384,20 @@ export function createAiService({ http, store }) {
         if (patch.speechProvider === '' || validId(c, patch.speechProvider)) c.speechProvider = patch.speechProvider;
         if (patch.models && typeof patch.models === 'object') for (const k of BUILTIN) if (typeof patch.models[k] === 'string') c.models[k] = patch.models[k].trim().slice(0, 200);
         if (typeof patch.endpoint === 'string') c.endpoint = patch.endpoint.trim().slice(0, 200);
+        if (Array.isArray(patch.order)) c.order = normalizeOrder(patch.order);
         if (patch.key && typeof patch.key.value === 'string' && ['anthropic', 'gemini'].includes(patch.key.provider)) {
           let v = '';
           try {
             v = cleanKey(patch.key.value);
           } catch {
-            return publicConfig(c);
+            return publicConfig(c, refrain);
           }
           if (v) c.keys[patch.key.provider] = store.encrypt(v);
           else delete c.keys[patch.key.provider];
         }
       }
       store.write(c);
-      return publicConfig(c);
+      return publicConfig(c, refrain);
     },
     saveCustom(draft) {
       const c = normalizeConfig(store.read());
@@ -378,7 +412,7 @@ export function createAiService({ http, store }) {
         } else if (prev && !sameServer(prev.baseUrl, p.baseUrl)) delete c.keys['c:' + p.id];
         if (draft.select) c.provider = 'custom:' + p.id;
         store.write(c);
-        return { ok: true, id: p.id, config: publicConfig(c) };
+        return { ok: true, id: p.id, config: publicConfig(c, refrain) };
       } catch (e) {
         return { ok: false, error: e.message };
       }
@@ -391,23 +425,66 @@ export function createAiService({ http, store }) {
       if (c.visionProvider === 'custom:' + id) c.visionProvider = '';
       if (c.speechProvider === 'custom:' + id) c.speechProvider = '';
       store.write(c);
-      return publicConfig(c);
+      return publicConfig(c, refrain);
     },
+    /**
+     * Запрос по порядку поставщиков (настройка order). Refrain ИИ спрашивается, только если в запросе есть поле refrain
+     * (задача без промта) и ученик вошёл; при его отказах из FALLBACK_CODES и без сети берётся следующий.
+     * Запрос без refrain (моды, проверки) идёт мимо Refrain ИИ.
+     */
     async ask(req) {
       if (!req || typeof req.text !== 'string') return { ok: false, error: 'Пустой запрос' };
       if (req.image && (typeof req.image.data !== 'string' || req.image.data.length > 8 * 1024 * 1024)) return { ok: false, error: 'Картинка слишком большая' };
+      let c;
       try {
-        const c = normalizeConfig(store.read());
-        let r = pickFor(c, req.provider);
-        if (req.image && r.p.vision === false) {
-          if (!c.visionProvider) throw new Error(`«${r.p.name}» не понимает картинки. В настройках ИИ выбери, какой ИИ использовать для картинок.`);
-          r = resolve(c, c.visionProvider);
-        }
-        if (r.needKey && !r.key) throw new Error(`Не указан ключ API для «${r.p.name}».`);
-        return { ok: true, text: await run(r.p, r.key, req) };
+        c = normalizeConfig(store.read());
       } catch (e) {
         return { ok: false, error: e.message || String(e) };
       }
+      let refrainFail = null;
+      let why = '';
+      let lastError = '';
+      let triedAfterRefrain = false;
+      for (let i = 0; i < c.order.length; i++) {
+        const step = c.order[i];
+        if (step === 'refrain') {
+          if (!refrain || !req.refrain || typeof req.refrain !== 'object' || !refrain.signedIn()) continue;
+          let r;
+          try {
+            r = await refrain.task(req.refrain);
+          } catch {
+            r = { ok: false, code: 'network', error: 'Нет связи с Refrain ИИ.' };
+          }
+          if (r.ok) return { ok: true, text: r.text, via: 'refrain', ...(r.quota ? { quota: r.quota } : {}) };
+          refrainFail = r;
+          lastError = r.error;
+          if (!FALLBACK_CODES.includes(r.code)) break;
+          continue;
+        }
+        let r;
+        try {
+          r = step === 'key' ? keyStep(c, req) : localStep(c, req);
+        } catch (e) {
+          if (!why) why = e.message || String(e);
+          continue;
+        }
+        if (!r) continue;
+        if (refrainFail) triedAfterRefrain = true;
+        try {
+          // via нужен, только чтобы отличить ответ Refrain ИИ; где его нет (веб), ответ прежний.
+          return { ok: true, text: await run(r.p, r.key, req), ...(refrain ? { via: step } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
+        } catch (e) {
+          lastError = e.message || String(e);
+          // Без сети свой ключ не поможет — пробуем модель на компьютере, если она следующая.
+          if (!(e.network && step === 'key')) break;
+        }
+      }
+      if (!lastError) {
+        lastError = why || 'Не выбран ИИ.';
+        if (refrain && req.refrain && !refrain.signedIn()) lastError += ' Или войди в Refrain ИИ: Настройки → ИИ-помощник.';
+      }
+      const code = refrainFail && !triedAfterRefrain && Object.prototype.hasOwnProperty.call(ERRORS, refrainFail.code) ? refrainFail.code : undefined;
+      return { ok: false, error: lastError, ...(code ? { code } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
     },
     async transcribe(req) {
       if (!req || typeof req.data !== 'string' || req.data.length > 20 * 1024 * 1024) return { ok: false, error: 'Запись слишком длинная' };
