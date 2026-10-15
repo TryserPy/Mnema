@@ -26,6 +26,9 @@ import { FormulaEditor } from './lazy';
 import { HandFormulaPad } from './HandFormulaPad';
 import { keyFor, matches, prettyCombo, type KeyAction } from '../keys';
 import { getData } from '../store';
+import { CALLOUTS } from '../../shared/prompts/markup';
+import { activeCallout, Callout, PageChip, UnsureWords } from '../calloutEditor';
+import '../callouts.css';
 import { Icon, Modal, touchUI, usePresence } from './ui';
 
 /** $формула$ в тексте сразу превращается в формулу. */
@@ -204,6 +207,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   const selActionRef = useRef<(a: SelAction) => void>(() => {});
   // Есть ли сейчас выделенный текст (на телефоне — кнопка «Выделенное» в панели инструментов).
   const [hasSel, setHasSel] = useState(false);
+  // «В выноску» в панели выделения раскрывает ряд типов.
+  const [coPick, setCoPick] = useState(false);
   // Панель выделения показывает, что уже включено (жирный, маркер…) — перерисовываем её, пока она открыта.
   const [, repaint] = useReducer((x: number) => x + 1, 0);
 
@@ -224,6 +229,10 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
       // Таблицы (в Markdown — | a | b |): вставка через «Вставить → Таблица», строки и столбцы — кнопками над таблицей.
       TableKit.configure({ table: false }),
       PipeSafeTable.configure({ resizable: false }),
+      // Выноски «> [!def] Термин», плашка [стр. N], подсветка {?слово?} (src/calloutEditor.ts).
+      Callout,
+      PageChip,
+      UnsureWords,
       DollarMath,
       NoStickyMarks,
       AutoHighlight(
@@ -579,16 +588,45 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   askLinkRef.current = askLink;
   selActionRef.current = runSel;
 
+  /** «В выноску»: тот же тип ещё раз — выноска убирается. */
+  function applyCallout(kind: string) {
+    if (!editor) return;
+    if (activeCallout(editor.state) === kind) editor.chain().focus().unsetCallout().run();
+    else editor.chain().focus().setCallout(kind).run();
+    // Выноска оборачивает текст — позиции сдвигаются; панель остаётся на месте (как у «Списка» и «Рамки»).
+    if (bubbleAt.current) {
+      const { from, to } = editor.state.selection;
+      bubbleAt.current = { from, to };
+    }
+  }
+
+  /** «Вставить → Выноска»: строка с курсором становится выноской «Определение», курсор — в её заголовок. */
+  function insertCallout() {
+    if (!editor) return;
+    if (!editor.chain().focus().setCallout('def').run()) return;
+    const sel = editor.state.selection.$from;
+    for (let d = sel.depth; d > 0; d--) {
+      if (sel.node(d).type.name !== 'callout') continue;
+      const at = sel.before(d);
+      requestAnimationFrame(() => (editor.view.nodeDOM(at) as HTMLElement | null)?.querySelector<HTMLInputElement>('.callout-title')?.focus());
+      break;
+    }
+  }
+
   /** Показать панель выделения (по правой кнопке мыши или кнопкой «Выделенное» на телефоне). */
   function showBubble() {
     if (!editor || editor.state.selection.empty) return;
     const sel = editor.state.selection;
     bubbleAt.current = { from: sel.from, to: sel.to };
+    setCoPick(false);
     repaint();
     editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'show'));
     // Позицию пересчитать, когда панель уже на странице (иначе она считается от пустого места).
     requestAnimationFrame(() => !editor.isDestroyed && editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'updatePosition')));
   }
+
+  const coKind = activeCallout(editor.state);
+  const coLook = coKind ? CALLOUTS.find((c) => c.type === coKind) : undefined;
 
   const hint = (id: KeyAction, bare = false) => {
     if (touchUI()) return '';
@@ -660,6 +698,9 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
             </button>
             <button role="menuitem" onClick={insert(() => editor.chain().focus().toggleBlockquote().run())}>
               <span className="menu-ico">❝</span> Важное (рамка)
+            </button>
+            <button role="menuitem" onClick={insert(insertCallout)}>
+              <span className="menu-ico">📘</span> Выноска: определение, правило…
             </button>
           </div>
         )}
@@ -772,6 +813,22 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
               <small>На тему, термин или правило</small>
             </span>
           </button>
+          <button type="button" className={coKind ? 'on' : ''} aria-expanded={coPick} onClick={() => setCoPick(!coPick)}>
+            <Icon name="bulb" size={18} />
+            <span className="sel-text">
+              <b>{coKind ? 'Выноска' : 'В выноску'}</b>
+              <small>{coLook ? `${coLook.icon} ${coLook.title}` : 'Определение, правило, пример…'}</small>
+            </span>
+          </button>
+          {coPick && (
+            <div className="sel-callouts" role="group" aria-label="Вид выноски">
+              {CALLOUTS.map((c) => (
+                <button key={c.type} type="button" data-callout-pick={c.type} className={coKind === c.type ? 'on' : ''} aria-pressed={coKind === c.type} title={coKind === c.type ? 'Убрать выноску' : c.when} onClick={() => applyCallout(c.type)}>
+                  <span aria-hidden="true">{c.icon}</span> {c.title}
+                </button>
+              ))}
+            </div>
+          )}
           {onAddRule && (
             <button type="button" onClick={() => runSel('rule')}>
               <Icon name="rules" size={18} />

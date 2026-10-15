@@ -76,14 +76,16 @@
   padding: 0 2px;
 }
 
-/* «В выноску» в панели выделения: выбор типа. */
-.sel-callouts { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px 6px 34px; }
-.sel-callouts button {
+/* «В выноску» в панели выделения: выбор типа (селекторы сильнее общих правил .sel-actions button). */
+.bubble.sel-panel .sel-actions .sel-callouts { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px 6px 40px; }
+.bubble.sel-panel .sel-actions .sel-callouts button {
   font: inherit;
   font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  width: auto;
+  min-height: 32px;
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -92,4 +94,4 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.sel-callouts button.on { border-color: var(--accent); color: var(--accent); }
+.bubble.sel-panel .sel-actions .sel-callouts button.on { border-color: var(--accent); color: var(--accent-text, var(--accent)); }

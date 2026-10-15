@@ -120,7 +120,7 @@ const callout: TokenizerAndRendererExtension = {
   tokenizer(src) {
     const m = matchCallout(src);
     if (!m) return undefined;
-    return { type: 'callout', raw: m.raw, kind: m.kind, fold: m.fold, title: m.title, titleTokens: this.lexer.inlineTokens(m.title), tokens: this.lexer.blockTokens(m.body, []) };
+    return { type: 'callout', raw: m.raw, kind: m.kind, fold: m.fold, title: m.title, titleTokens: this.lexer.inlineTokens(m.title), tokens: this.lexer.blockTokens(m.body, []).map((x) => (x.type === 'text' && 'tokens' in x ? { ...x, type: 'paragraph' } : x)) };
   },
   childTokens: ['titleTokens', 'tokens'],
   renderer(t) {
