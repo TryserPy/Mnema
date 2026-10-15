@@ -180,6 +180,16 @@ export function allMods(custom: Mod[]): Mod131[] {
   return [...CATALOG, ...custom];
 }
 
+/** Откуда стиль. У своих стилей 1.30 поля нет — догадываемся по прежней подписи (where). */
+export function originOf(m: Mod131): NonNullable<Mod131['origin']> {
+  if (m.origin) return m.origin;
+  if (CATALOG.some((c) => c.id === m.id)) return 'builtin';
+  return m.where === 'ИИ' ? 'ai' : m.where === 'из файла' ? 'file' : 'mine';
+}
+
+/** Подпись в плитке: откуда стиль (а не где он меняет вид). */
+export const ORIGIN_LABEL: Record<NonNullable<Mod131['origin']>, string> = { builtin: 'Встроенный', file: 'Мой · из файла', ai: 'Мой · от ИИ', mine: 'Мой' };
+
 /** Итоговые стили всех включённых модов и своего CSS. */
 export function modsCss(on: string[], custom: Mod[], userCss: string): string {
   const parts = allMods(custom)

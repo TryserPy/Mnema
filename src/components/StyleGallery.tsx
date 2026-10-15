@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cssForDemo, demoParts, type DemoPart } from '../styleDemo';
+import { originOf, ORIGIN_LABEL } from '../mods';
 import { attrName, compileStyles } from '../styleSystem';
 import type { Mod } from '../types';
 import { Icon } from './ui';
@@ -253,8 +254,8 @@ export function StyleTile({ mod, on, theme, onToggle, actions = [], delay }: { m
             <Icon name="check" size={16} />
           </span>
         </span>
-        <span className="st-info">
-          {mod.where && <span className="st-where">{mod.where}</span>}
+        <span className="st-info" title={mod.description || undefined}>
+          <span className="st-where">{ORIGIN_LABEL[originOf(mod)]}</span>
           <span className="st-name">
             {mod.icon && <span aria-hidden="true">{mod.icon} </span>}
             {mod.name}
