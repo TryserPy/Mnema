@@ -72,11 +72,21 @@ async function open(theme, width) {
 
 async function openTopic(page, width) {
   if (width < 700) {
-    await page.locator('.mobile-bar button').first().click();
-    await page.waitForTimeout(300);
+    // Телефон: панель → предмет → тема в списке предмета → вкладка «Конспект».
+    await page.locator('.tabbar .tab', { hasText: 'Знания' }).click();
+    await page.waitForTimeout(350);
+    await page.getByRole('button', { name: 'Все темы списком' }).click();
+    await page.waitForTimeout(400);
+    await page.locator('.sidebar:not(.rail) .tree-row.subject .tree-label', { hasText: 'Биология' }).first().click();
+    await page.waitForTimeout(400);
+    await page.locator('.main .topic-row', { hasText: 'Фотосинтез' }).first().click();
+    await page.waitForTimeout(400);
+    const tab = page.locator('.topic-tabs [role="tab"], .topic-tabs button', { hasText: 'Конспект' }).first();
+    if (await tab.count()) await tab.click().catch(() => {});
+  } else {
+    await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();
+    await page.locator('.tree-row', { hasText: 'Фотосинтез' }).locator('.tree-label').click();
   }
-  await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.twisty').click();
-  await page.locator('.tree-row', { hasText: 'Фотосинтез' }).locator('.tree-label').click();
   await page.locator('.ProseMirror').waitFor();
   await page.waitForTimeout(500);
 }
@@ -145,7 +155,7 @@ for (const theme of ['light', 'dark']) {
       await page.keyboard.press('End');
       await page.keyboard.press('Enter');
       await page.keyboard.type('[!rule] ');
-      await page.waitForTimeout(200);
+      await page.locator('.note-doc [data-callout="rule"]').waitFor({ timeout: 3000 }).catch(() => {});
       check(await page.locator('.note-doc [data-callout="rule"]').isVisible(), `${tag}: «[!rule] » стала выноской`);
       check(await page.evaluate(() => document.activeElement?.classList.contains('callout-title')), `${tag}: курсор — в заголовке выноски`);
       await page.keyboard.type('Закон Ома');
@@ -185,10 +195,12 @@ for (const theme of ['light', 'dark']) {
     await page.goto(URL + '#/');
     await page.waitForTimeout(400);
     if (width < 700) {
-      await page.locator('.mobile-bar button').first().click();
-      await page.waitForTimeout(300);
+      await page.locator('.tabbar .tab', { hasText: 'Знания' }).click();
+      await page.waitForTimeout(350);
+      await page.getByRole('button', { name: 'Все темы списком' }).click();
+      await page.waitForTimeout(400);
     }
-    await page.locator('.tree-row.subject', { hasText: 'Биология' }).locator('.tree-label').click();
+    await page.locator('.sidebar:not(.rail) .tree-row.subject .tree-label', { hasText: 'Биология' }).first().click();
     await page.waitForTimeout(300);
     await page.getByRole('radio', { name: /Правила/ }).click();
     await page.locator('.rule-card', { hasText: 'Буравчик' }).first().click();

@@ -204,7 +204,10 @@ export const Callout = Node.create({
       };
       const toBody = () => {
         const pos = getPos();
-        if (typeof pos === 'number') editor.chain().focus().setTextSelection(pos + 2).run();
+        if (typeof pos !== 'number') return;
+        // focus() TipTap срабатывает кадром позже — буква, набранная сразу после Enter, ушла бы в заголовок.
+        editor.view.focus();
+        editor.chain().setTextSelection(pos + 2).focus().run();
       };
 
       const paint = () => {

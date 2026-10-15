@@ -26,7 +26,7 @@
 }
 .md summary[data-callout-title] { cursor: pointer; list-style: none; }
 .md summary[data-callout-title]::-webkit-details-marker { display: none; }
-.md summary[data-callout-title]::after { content: '›'; margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+.md summary[data-callout-title]::after { content: '›'; margin-left: auto; padding-left: 8px; font-size: 1.3em; line-height: 1; color: var(--muted); transition: transform 0.15s; }
 .md details[open] > summary[data-callout-title]::after { transform: rotate(90deg); }
 :is(.md, .note-doc) [data-callout-icon] { flex: none; font-weight: 400; }
 :is(.md, .note-doc) [data-callout-body] { margin-top: 3px; color: var(--ink); }
