@@ -1,4 +1,5 @@
 // Раз в 5 минут: повторы тревог, сверка с OpenAI, скачок расхода, чистка старых записей.
+import { PAGE_MICRO } from '../../shared/prompts/tasks';
 import { retryAlerts, raiseAlert } from './alerts';
 import { bump } from './auth';
 import { now, type Env } from './env';
@@ -21,7 +22,7 @@ export async function spikeCheck(env: Env): Promise<boolean> {
   const hour = (await env.DB.prepare('SELECT COALESCE(SUM(cost_micro), 0) AS c FROM usage WHERE at > ?1').bind(t - 3600000).first<{ c: number }>())!.c / 1e6;
   const week = (await env.DB.prepare('SELECT COALESCE(SUM(cost_micro), 0) AS c FROM usage WHERE at > ?1 AND at <= ?2').bind(t - 7 * 86400000, t - 3600000).first<{ c: number }>())!.c / 1e6;
   const avg = week / (7 * 24 - 1);
-  if (hour < cfg.budget.spikeMinUsd || hour <= avg * cfg.budget.spikeFactor) return false;
+  if (hour < cfg.budget.spikeMinRub || hour <= avg * cfg.budget.spikeFactor) return false;
   if ((await bump(env, 'spike', 3600000)) !== 1) return false;
   const switched = cfg.mode === 'all';
   if (switched) {
@@ -29,14 +30,14 @@ export async function spikeCheck(env: Env): Promise<boolean> {
     await saveSetting(env, 'mode', 'testers');
     await saveSetting(env, 'pause', { reason: 'spike', since: t });
   }
-  await journal(env, { actor: 'system', action: 'budget.spike', reason: `за час $${hour.toFixed(2)}, среднее $${avg.toFixed(2)}`, before: cfg.mode, after: switched ? 'testers' : cfg.mode });
+  await journal(env, { actor: 'system', action: 'budget.spike', reason: `за час ${hour.toFixed(2)} ₽, среднее ${avg.toFixed(2)} ₽`, before: cfg.mode, after: switched ? 'testers' : cfg.mode });
   const top = await env.DB.prepare('SELECT a.email AS email, SUM(u.cost_micro) AS c FROM usage u JOIN accounts a ON a.id = u.account_id WHERE u.at > ?1 GROUP BY u.account_id ORDER BY c DESC LIMIT 1').bind(t - 3600000).first<{ email: string; c: number }>();
   const ratio = avg > 0 ? (hour / avg).toFixed(1).replace('.', ',') : '∞';
   const a = await raiseAlert(env, {
     level: 'warn',
     kind: 'spike',
     title: 'Скачок расхода',
-    text: `За час $${hour.toFixed(2)} — в ${ratio} раза выше обычного.${top ? ` Больше всех: ${top.email.slice(0, 1)}***@${top.email.split('@')[1]} — ${Math.round(top.c / 650)} стр. за час.` : ''}`,
+    text: `За час ${hour.toFixed(2)} ₽ — в ${ratio} раза выше обычного.${top ? ` Больше всех: ${top.email.slice(0, 1)}***@${top.email.split('@')[1]} — ${Math.round(top.c / PAGE_MICRO)} стр. за час.` : ''}`,
     done: switched ? ['mode_testers'] : [],
     buttons: ['block', 'restore_mode', 'open_panel']
   });

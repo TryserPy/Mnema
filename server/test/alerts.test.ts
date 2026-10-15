@@ -133,7 +133,7 @@ describe('панель', () => {
   it('скачок расхода: режим «Тестировщики», тревога, «Вернуть режим»', async () => {
     const h = new Harness();
     await h.setting('mode', 'all');
-    for (let i = 0; i < 400; i++) await h.env.DB.prepare("INSERT INTO usage (at, account_id, grp, task, input_tokens, cached_tokens, output_tokens, cost_micro, ok, ms) VALUES (?1, 'acc_x', 'student', 'cards', 1, 0, 1, 1000, 1, 1)").bind(h.clock - 600000).run();
+    for (let i = 0; i < 400; i++) await h.env.DB.prepare("INSERT INTO usage (at, account_id, grp, task, input_tokens, cached_tokens, output_tokens, cost_micro, ok, ms) VALUES (?1, 'acc_x', 'student', 'cards', 1, 0, 1, 60000, 1, 1)").bind(h.clock - 600000).run();
     await h.cron();
     expect(h.telegram().some((m) => m.text.includes('Скачок расхода'))).toBe(true);
     const admin = await h.admin();

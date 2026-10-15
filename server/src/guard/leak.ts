@@ -26,8 +26,8 @@ export function judgeLeak(ours: { cost: number; requests: number }, theirs: { co
   const oursUsd = ours.cost / 1e6;
   const openAiUsd = theirs.cost / 1e6;
   if (theirs.foreignModels.length) return { suspected: true, why: `в расходе проекта есть модели, которые сервер не вызывает: ${theirs.foreignModels.join(', ')}`, oursUsd, openAiUsd };
-  if (ours.requests === 0 && openAiUsd > p.idleUsd) return { suspected: true, why: `у нас 0 запросов, а OpenAI насчитал $${openAiUsd.toFixed(2)}`, oursUsd, openAiUsd };
-  if (openAiUsd > oursUsd * (1 + p.overShare) && openAiUsd - oursUsd > p.overUsd) return { suspected: true, why: `OpenAI насчитал $${openAiUsd.toFixed(2)}, наш учёт — $${oursUsd.toFixed(2)}`, oursUsd, openAiUsd };
+  if (ours.requests === 0 && openAiUsd > p.idleRub) return { suspected: true, why: `у нас 0 запросов, а OpenAI насчитал ${openAiUsd.toFixed(2)} ₽`, oursUsd, openAiUsd };
+  if (openAiUsd > oursUsd * (1 + p.overShare) && openAiUsd - oursUsd > p.overRub) return { suspected: true, why: `OpenAI насчитал ${openAiUsd.toFixed(2)} ₽, наш учёт — ${oursUsd.toFixed(2)} ₽`, oursUsd, openAiUsd };
   return { suspected: false, why: '', oursUsd, openAiUsd };
 }
 
@@ -47,7 +47,9 @@ export async function leakCheck(env: Env, cfg: Settings, force = false): Promise
   const foreign: string[] = [];
   for (const [model, u] of Object.entries(oa.byModel)) {
     theirs += costMicro(u);
-    if (u.requests > 0 && model !== env.OPENAI_MODEL && !model.startsWith(env.OPENAI_MODEL + '-')) foreign.push(model);
+    // OpenAI пишет модель без приставки поставщика («gpt-6-luna-…»), Polza — с ней («openai/gpt-6-luna»).
+    const own = env.OPENAI_MODEL.replace(/^[a-z-]+\//, '');
+    if (u.requests > 0 && model !== own && !model.startsWith(own + '-')) foreign.push(model);
   }
   const v = judgeLeak({ cost: ours.c, requests: ours.n }, { cost: theirs, foreignModels: foreign }, p);
   await saveSetting(env, 'leakCheck', { at: t, suspected: v.suspected || cfg.leakCheck.suspected });

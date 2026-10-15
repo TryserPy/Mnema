@@ -24,7 +24,7 @@ export interface Where {
 }
 
 /** Ответ OpenAI по умолчанию: короткий конспект и usage как у типичной страницы. */
-export function openAiOk(text = '## Тема\n*Суть.*\n- пункт', usage = { prompt_tokens: 2000, completion_tokens: 900, prompt_tokens_details: { cached_tokens: 0 } }) {
+export function openAiOk(text = '## Тема\n*Суть.*\n- пункт', usage: Record<string, unknown> = { prompt_tokens: 2000, completion_tokens: 900, prompt_tokens_details: { cached_tokens: 0 } }) {
   return new Response(JSON.stringify({ model: 'gpt-6-luna-2026-09-22', choices: [{ message: { content: text }, finish_reason: 'stop' }], usage }), { headers: { 'content-type': 'application/json' } });
 }
 
@@ -50,7 +50,7 @@ export class Harness {
           return Response.json({ ok: true, result: { message_id: this.tgId++ } });
         }
         if (url.startsWith('https://api.brevo.com/')) return Response.json({ messageId: 'x' }, { status: 201 });
-        if (url.startsWith('https://api.openai.com/v1/chat/completions')) return this.openai(JSON.parse(body));
+        if (url.startsWith('https://polza.ai/api/v1/chat/completions')) return this.openai(JSON.parse(body));
         if (url.startsWith('https://api.openai.com/v1/organization/usage/')) return this.usageApi();
         if (url.startsWith('https://api.github.com/')) return Response.json({ number: 42 }, { status: 201 });
         return new Response('no route in test', { status: 599 });

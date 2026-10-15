@@ -311,8 +311,8 @@ describe('исправления по ревью безопасности', () =
     const h = new Harness();
     const admin = await h.admin();
     const b = (await admin('GET', 'budget')).body.budget;
-    expect((await admin('PUT', 'budget', { ...b, monthUsd: 40 })).status).toBe(200);
-    expect((await admin('PUT', 'budget', { ...b, monthUsd: 80 })).body.error.code).toBe('code_invalid');
+    expect((await admin('PUT', 'budget', { ...b, monthRub: 2400 })).status).toBe(200);
+    expect((await admin('PUT', 'budget', { ...b, monthRub: 4800 })).body.error.code).toBe('code_invalid');
     const g = (await admin('GET', 'groups')).body.groups;
     g.find((x: { id: string }) => x.id === 'student').perDay = 1000;
     expect((await admin('PUT', 'groups', { groups: g })).body.error.code).toBe('code_invalid');

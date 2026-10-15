@@ -16,7 +16,7 @@ describe('POST /v1/task', () => {
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ ok: true, format: 'markdown', promptVersion: 's1', charged: 1 });
     expect(r.body.quota).toMatchObject({ day: { used: 1, limit: 10 }, group: 'newbie' });
-    expect(sent.model).toBe('gpt-6-luna');
+    expect(sent.model).toBe('openai/gpt-6-luna');
     expect(sent.max_completion_tokens).toBe(1800);
     expect(sent.reasoning_effort).toBe('low');
     expect(sent.store).toBe(false);
@@ -26,10 +26,20 @@ describe('POST /v1/task', () => {
     expect(user.indexOf('Пожелания ученика')).toBeGreaterThan(user.indexOf('Страница 2.'));
     // в базе — только цифры
     const row = await h.env.DB.prepare('SELECT * FROM usage').first<Record<string, unknown>>();
-    expect(row).toMatchObject({ task: 'textbook.summary', input_tokens: 2000, output_tokens: 900, cost_micro: 650, ok: 1 });
+    expect(row).toMatchObject({ task: 'textbook.summary', input_tokens: 2000, output_tokens: 900, cost_micro: 38554, ok: 1 });
     const dump = JSON.stringify(await h.env.DB.prepare('SELECT * FROM usage, events').all());
     expect(dump).not.toContain('8 классе');
     expect(dump).not.toContain('## Тема');
+  });
+
+  it('Polza.ai: адрес из LLM_BASE_URL, списывается цена из ответа (usage.cost_rub), а не по токенам', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const d = await h.login('polza@example.com');
+    h.openai = () => openAiOk(undefined, { prompt_tokens: 2000, completion_tokens: 900, prompt_tokens_details: { cached_tokens: 1500 }, cost_rub: 0.02 });
+    expect((await d.task()).status).toBe(200);
+    const row = await h.env.DB.prepare('SELECT cost_micro, cached_tokens FROM usage').first<Record<string, unknown>>();
+    expect(row).toMatchObject({ cost_micro: 20000, cached_tokens: 1500 });
   });
 
   it('ключ OpenAI не попадает в ответы, даже при ошибке OpenAI; страницы при ошибке не списаны', async () => {
@@ -90,16 +100,16 @@ describe('POST /v1/task', () => {
   it('бюджет: резерв не влезает — пауза для всех, кроме владельца; тревоги 50/80/100 %', async () => {
     const h = new Harness();
     await h.setting('mode', 'all');
-    await h.setting('budget', { monthUsd: 0.003, dayUsd: 0.003, alertAt: [0.5, 0.8, 1], spikeFactor: 3, spikeMinUsd: 100, greedyShare: 1, signupWaveHour: 30, signupWavePerIp: 5, upstreamErrorShare: 0.2 });
+    await h.setting('budget', { monthRub: 0.178, dayRub: 0.178, alertAt: [0.5, 0.8, 1], spikeFactor: 3, spikeMinRub: 100, greedyShare: 1, signupWaveHour: 30, signupWavePerIp: 5, upstreamErrorShare: 0.2 });
     const d = await h.login('poor@example.com');
     const owner = await h.login('owner@example.com');
-    expect((await d.task()).status).toBe(200); // 650 µ$ из 3000; резерв конспекта 1165 µ$
+    expect((await d.task()).status).toBe(200); // 38 554 µ₽ из 178 000; резерв конспекта 72 068 µ₽
     h.clock += 61000;
     expect((await d.task()).status).toBe(200);
     h.clock += 61000;
-    expect((await d.task()).status).toBe(200); // 1950 µ$ — 65 %
+    expect((await d.task()).status).toBe(200); // 115 662 µ₽ — 65 %
     h.clock += 61000;
-    expect((await d.task()).status).toBe(503); // 1950 + 1165 > 3000: резерв не влезает
+    expect((await d.task()).status).toBe(503); // 115 662 + 72 068 > 178 000: резерв не влезает
     expect((await owner.task()).status).toBe(200);
     const texts = h.telegram().map((m) => m.text);
     expect(texts.some((t) => t.includes('Бюджет 50 %'))).toBe(true);

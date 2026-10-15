@@ -2,8 +2,8 @@
 // Промт собирает сервер. Текст запроса и ответ ИИ нигде не сохраняются: в базу идут только цифры.
 import { FIELD_LIMITS, type TaskId, type TaskRequest, type TaskResponse } from '../../shared/refrain/api.mjs';
 import type { RuleId } from '../../shared/refrain/guard';
-import { admits, dayBudgetUsd } from '../../shared/refrain/policy';
-import { PAGE_MICROUSD, TASK_SPECS, costMicro, maxCostMicro } from '../../shared/prompts/tasks';
+import { admits, dayBudgetRub } from '../../shared/refrain/policy';
+import { PAGE_MICRO, TASK_SPECS, costMicro, maxCostMicro } from '../../shared/prompts/tasks';
 import { lunaSystem, lunaUser } from '../../shared/prompts/luna';
 import { budget, groupLimits, quotaOf, student } from './accounts';
 import { dayKey, monthKey } from './counters';
@@ -66,8 +66,8 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
   const perMinute = Math.floor(lim.perMinute / g.slowdown);
   const begin = await student(env, s.account.id).begin({
     now: t,
-    dayLimit: lim.perDay === null ? null : lim.perDay * PAGE_MICROUSD,
-    monthLimit: lim.perMonth === null ? null : lim.perMonth * PAGE_MICROUSD,
+    dayLimit: lim.perDay === null ? null : lim.perDay * PAGE_MICRO,
+    monthLimit: lim.perMonth === null ? null : lim.perMonth * PAGE_MICRO,
     perMinute,
     reserve
   });
@@ -78,7 +78,7 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
   }
   const ticket = (begin as { ticket: string }).ticket;
   const days = new Date(new Date(t).getUTCFullYear(), new Date(t).getUTCMonth() + 1, 0).getDate();
-  const limits = { day: Math.round(dayBudgetUsd(cfg.budget, days) * 1e6), month: Math.round(cfg.budget.monthUsd * 1e6) };
+  const limits = { day: Math.round(dayBudgetRub(cfg.budget, days) * 1e6), month: Math.round(cfg.budget.monthRub * 1e6) };
   const res = await budget(env).reserve(ticket, reserve, limits, t, s.group === 'owner');
   if (!res.ok) {
     await student(env, s.account.id).settle(ticket, 0, t);
@@ -100,7 +100,7 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
     } catch {
       llm = { ok: false, status: 0, usage: null };
     }
-    const cost = llm.usage ? costMicro(llm.usage) : 0;
+    const cost = llm.usage ? (llm.usage.costMicro ?? costMicro(llm.usage)) : 0;
     const usage = await student(env, s.account.id).settle(ticket, cost, now(env));
     const totals = await budget(env).settle(ticket, cost, now(env));
     await env.DB.prepare('UPDATE usage SET input_tokens = ?2, cached_tokens = ?3, output_tokens = ?4, cost_micro = ?5, ok = ?6, ms = ?7 WHERE id = ?1')
@@ -115,7 +115,7 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
 
   const text = cleanAnswer((llm as { text: string }).text, spec.format);
   if (text === null) fail('upstream');
-  const out: TaskResponse = { ok: true, text: text!, format: spec.format, promptVersion: spec.promptVersion, charged: Math.round((cost / PAGE_MICROUSD) * 100) / 100, quota: quotaOf(usage, lim, s.group, t) };
+  const out: TaskResponse = { ok: true, text: text!, format: spec.format, promptVersion: spec.promptVersion, charged: Math.round((cost / PAGE_MICRO) * 100) / 100, quota: quotaOf(usage, lim, s.group, t) };
   return Response.json(out);
 }
 
@@ -144,7 +144,7 @@ async function afterTask(env: Env, cfg: Settings, monthSpent: number, limits: { 
   try {
     await budgetAlerts(env, cfg, monthSpent, limits.month, false);
     if (accountDay > limits.day * cfg.budget.greedyShare && (await bump(env, `greedy:${accountId}:${dayKey(now(env))}`, 86400000)) === 1) {
-      const a = await raiseAlert(env, { level: 'warn', kind: 'greedy', title: 'Жадный ученик', text: `Один аккаунт потратил за сутки $${(accountDay / 1e6).toFixed(2)} — больше ${Math.round(cfg.budget.greedyShare * 100)} % дневного бюджета.`, who: { email: maskEmail(email) }, buttons: ['block', 'open_panel'], target: accountId, groupKey: `greedy:${accountId}` });
+      const a = await raiseAlert(env, { level: 'warn', kind: 'greedy', title: 'Жадный ученик', text: `Один аккаунт потратил за сутки ${(accountDay / 1e6).toFixed(2)} ₽ — больше ${Math.round(cfg.budget.greedyShare * 100)} % дневного бюджета.`, who: { email: maskEmail(email) }, buttons: ['block', 'open_panel'], target: accountId, groupKey: `greedy:${accountId}` });
       await a.deliver;
     }
     if (failed) {
@@ -171,7 +171,7 @@ export async function budgetAlerts(env: Env, cfg: Settings, spent: number, month
       level: full ? 'critical' : 'warn',
       kind: 'budget',
       title: `Бюджет ${Math.round(p * 100)} %`,
-      text: `Потрачено $${(spent / 1e6).toFixed(2)} из $${cfg.budget.monthUsd} за месяц.${full ? ' Refrain ИИ на паузе для всех, кроме тебя.' : ''}`,
+      text: `Потрачено ${(spent / 1e6).toFixed(2)} ₽ из ${cfg.budget.monthRub} ₽ за месяц.${full ? ' Refrain ИИ на паузе для всех, кроме тебя.' : ''}`,
       done: full ? ['budget_pause'] : [],
       buttons: ['open_panel'],
       groupKey: `budget:${p}`

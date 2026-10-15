@@ -1,4 +1,5 @@
-// Запрос к OpenAI (Chat Completions). Ключ — секрет OPENAI_API_KEY: не попадает ни в журнал, ни в ответы, ни в тексты ошибок.
+// Запрос к модели (Chat Completions, формат OpenAI) — через Polza.ai или напрямую в OpenAI: адрес LLM_BASE_URL.
+// Ключ — секрет OPENAI_API_KEY (ключ Polza или OpenAI): не попадает ни в журнал, ни в ответы, ни в тексты ошибок.
 // Модель одна (OPENAI_MODEL), рассуждение и потолок ответа — из реестра задач; приложение их не задаёт.
 import { CARDS_SCHEMA, type TaskSpec } from '../../shared/prompts/tasks';
 import { outbound, type Env } from './env';
@@ -7,6 +8,8 @@ export interface LlmUsage {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
+  /** Цена запроса от поставщика, µ₽ (Polza присылает usage.cost_rub). Нет — считаем по токенам. */
+  costMicro?: number;
 }
 export type LlmResult = { ok: true; text: string; usage: LlmUsage; model: string } | { ok: false; status: number; usage: LlmUsage | null };
 
@@ -25,7 +28,7 @@ export async function callOpenAI(env: Env, spec: TaskSpec, system: string, user:
   };
   let res: Response;
   try {
-    res = await outbound(env)('https://api.openai.com/v1/chat/completions', {
+    res = await outbound(env)(`${(env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${env.OPENAI_API_KEY}` },
       body: JSON.stringify(body),
@@ -34,14 +37,18 @@ export async function callOpenAI(env: Env, spec: TaskSpec, system: string, user:
   } catch {
     return { ok: false, status: 0, usage: null };
   }
-  let data: { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } }; model?: string } | null = null;
+  let data: { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; cost_rub?: number; cost?: number }; model?: string } | null = null;
   try {
     data = await res.json();
   } catch {
     data = null;
   }
   const u = data?.usage;
-  const usage = u ? { inputTokens: u.prompt_tokens ?? 0, cachedInputTokens: u.prompt_tokens_details?.cached_tokens ?? 0, outputTokens: u.completion_tokens ?? 0 } : null;
+  // Цена от Polza — в рублях: cost_rub, у части моделей просто cost. Отрицательное и нечисловое не принимаем.
+  const rub = typeof u?.cost_rub === 'number' ? u.cost_rub : env.LLM_BASE_URL?.includes('polza.ai') && typeof u?.cost === 'number' ? u.cost : undefined;
+  const usage = u
+    ? { inputTokens: u.prompt_tokens ?? 0, cachedInputTokens: u.prompt_tokens_details?.cached_tokens ?? 0, outputTokens: u.completion_tokens ?? 0, ...(rub !== undefined && Number.isFinite(rub) && rub >= 0 ? { costMicro: Math.ceil(rub * 1e6) } : {}) }
+    : null;
   if (!res.ok || !data) return { ok: false, status: res.status, usage };
   const text = String(data.choices?.[0]?.message?.content ?? '').trim();
   if (!text || !usage) return { ok: false, status: 502, usage };

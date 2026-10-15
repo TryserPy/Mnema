@@ -1,5 +1,6 @@
 // API панели: сайт admin/ и мини-приложение tg/. Вход — initData Telegram или код на почту владельца + PIN. Токен 15 минут.
 // Опасные действия — с PIN; 5 неверных PIN — панель закрыта на час и критическая тревога. Всё пишется в журнал.
+import { PAGE_MICRO } from '../../shared/prompts/tasks';
 import { ACCESS_MODES, DEFAULT_BUDGET, INVITE_RE, type AccessMode, type BudgetConfig, type GroupLimits } from '../../shared/refrain/policy';
 import { DEFAULT_GUARD, type GuardConfig, type RuleId } from '../../shared/refrain/guard';
 import type { AccountRow, BlockRow, BugRow, DayStat, Overview } from '../../shared/refrain/admin';
@@ -135,9 +136,9 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
     const b = cleanBudget(await body<BudgetConfig>());
     // PIN — если больше чем вдвое от подтверждённого PIN значения (а не от текущего: иначе 20 → 40 → 80 … шагами без PIN).
     const base = cfg.budgetBase;
-    if (b.monthUsd > base * 2 || (b.dayUsd !== null && b.dayUsd > ((base * 2) / 28) * 2)) {
+    if (b.monthRub > base * 2 || (b.dayRub !== null && b.dayRub > ((base * 2) / 28) * 2)) {
       await needPin();
-      await saveSetting(env, 'budgetBase', Math.max(base, b.monthUsd));
+      await saveSetting(env, 'budgetBase', Math.max(base, b.monthRub));
     }
     await saveSetting(env, 'budget', b);
     await journal(env, { actor, action: 'budget.set', target: { kind: 'budget', id: 'month' }, before: cfg.budget, after: b });
@@ -304,11 +305,11 @@ const num = (v: unknown, min: number, max: number, def: number) => (typeof v ===
 function cleanBudget(b: BudgetConfig): BudgetConfig {
   const d = DEFAULT_BUDGET;
   return {
-    monthUsd: num(b?.monthUsd, 0, 10000, d.monthUsd),
-    dayUsd: b?.dayUsd === null ? null : num(b?.dayUsd, 0, 1000, d.monthUsd / 15),
+    monthRub: num(b?.monthRub, 0, 1000000, d.monthRub),
+    dayRub: b?.dayRub === null ? null : num(b?.dayRub, 0, 100000, d.monthRub / 15),
     alertAt: Array.isArray(b?.alertAt) ? b.alertAt.filter((x) => typeof x === 'number' && x > 0 && x <= 1).slice(0, 5) : d.alertAt,
     spikeFactor: num(b?.spikeFactor, 1.5, 100, d.spikeFactor),
-    spikeMinUsd: num(b?.spikeMinUsd, 0, 100, d.spikeMinUsd),
+    spikeMinRub: num(b?.spikeMinRub, 0, 10000, d.spikeMinRub),
     greedyShare: num(b?.greedyShare, 0.001, 1, d.greedyShare),
     signupWaveHour: num(b?.signupWaveHour, 1, 100000, d.signupWaveHour),
     signupWavePerIp: num(b?.signupWavePerIp, 1, 1000, d.signupWavePerIp),
@@ -368,8 +369,8 @@ function cleanGuard(g: GuardConfig): GuardConfig {
       windowMin: num(g?.leak?.windowMin, 10, 1440, d.leak.windowMin),
       lagMin: num(g?.leak?.lagMin, 0, 120, d.leak.lagMin),
       overShare: num(g?.leak?.overShare, 0.01, 10, d.leak.overShare),
-      overUsd: num(g?.leak?.overUsd, 0, 1000, d.leak.overUsd),
-      idleUsd: num(g?.leak?.idleUsd, 0, 1000, d.leak.idleUsd)
+      overRub: num(g?.leak?.overRub, 0, 100000, d.leak.overRub),
+      idleRub: num(g?.leak?.idleRub, 0, 100000, d.leak.idleRub)
     }
   };
 }
@@ -387,9 +388,9 @@ async function overview(env: Env, cfg: Settings): Promise<Overview> {
     mode: cfg.mode,
     prevMode: cfg.prevMode,
     paused: { reason: cfg.pause.reason === 'leak' ? 'guard' : cfg.pause.reason, since: cfg.pause.since ? new Date(cfg.pause.since).toISOString() : null },
-    month: { spentUsd: totals.month / 1e6, budgetUsd: cfg.budget.monthUsd, pages: Math.round(totals.month / 650) },
-    today: { spentUsd: totals.day / 1e6, budgetUsd: cfg.budget.dayUsd ?? (cfg.budget.monthUsd / days) * 2, students: today?.a ?? 0, requests: today?.n ?? 0, errors: today?.bad ?? 0 },
-    lastHourUsd: (hour?.c ?? 0) / 1e6,
+    month: { spentRub: totals.month / 1e6, budgetRub: cfg.budget.monthRub, pages: Math.round(totals.month / PAGE_MICRO) },
+    today: { spentRub: totals.day / 1e6, budgetRub: cfg.budget.dayRub ?? (cfg.budget.monthRub / days) * 2, students: today?.a ?? 0, requests: today?.n ?? 0, errors: today?.bad ?? 0 },
+    lastHourRub: (hour?.c ?? 0) / 1e6,
     unreadAlerts: counts?.al ?? 0,
     newBugs: counts?.bg ?? 0,
     activeBlocks: counts?.bl ?? 0
@@ -406,8 +407,8 @@ async function accountRow(env: Env, cfg: Settings, a: Account): Promise<AccountR
     emailMasked: maskEmail(a.email),
     group: await effectiveGroup(env, a),
     createdAt: new Date(a.created_at).toISOString(),
-    todayPages: Math.round(((u?.d ?? 0) / 650) * 10) / 10,
-    monthPages: Math.round(((u?.m ?? 0) / 650) * 10) / 10,
+    todayPages: Math.round(((u?.d ?? 0) / PAGE_MICRO) * 10) / 10,
+    monthPages: Math.round(((u?.m ?? 0) / PAGE_MICRO) * 10) / 10,
     devices: dev?.n ?? 0,
     blockedUntil: a.blocked_until && a.blocked_until > t ? new Date(Math.min(a.blocked_until, 8.64e15)).toISOString() : null,
     score: Math.round(await scoreOf(env, 'account', a.id, cfg.guard.halfLifeMin))
@@ -419,11 +420,11 @@ async function stats(env: Env, days: number): Promise<DayStat[]> {
   const { results } = await env.DB.prepare("SELECT date((at + 10800000) / 1000, 'unixepoch') AS day, task, SUM(cost_micro) AS c, COUNT(*) AS n FROM usage WHERE at > ?1 GROUP BY day, task ORDER BY day").bind(t - days * 86400000).all<{ day: string; task: string; c: number; n: number }>();
   const map = new Map<string, DayStat>();
   for (const r of results) {
-    const d = map.get(r.day) ?? { day: r.day, usd: 0, pages: 0, requests: 0, byTask: {} };
-    d.usd += r.c / 1e6;
-    d.pages += r.c / 650;
+    const d = map.get(r.day) ?? { day: r.day, rub: 0, pages: 0, requests: 0, byTask: {} };
+    d.rub += r.c / 1e6;
+    d.pages += r.c / PAGE_MICRO;
     d.requests += r.n;
-    d.byTask[r.task] = { usd: r.c / 1e6, requests: r.n };
+    d.byTask[r.task] = { rub: r.c / 1e6, requests: r.n };
     map.set(r.day, d);
   }
   return [...map.values()];

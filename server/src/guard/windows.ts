@@ -1,6 +1,6 @@
 // Правила по скользящим окнам: берут историю из events и usage (только цифры и хэши IP).
 import type { RuleId } from '../../../shared/refrain/guard';
-import { PAGE_MICROUSD } from '../../../shared/prompts/tasks';
+import { PAGE_MICRO } from '../../../shared/prompts/tasks';
 import type { GroupLimits } from '../../../shared/refrain/policy';
 import { now, type Env } from '../env';
 import type { ClientInfo } from '../http';
@@ -40,7 +40,7 @@ export async function windowRules(env: Env, cfg: Settings, info: ClientInfo, acc
   if (g.burn_rate.enabled && lim.perDay !== null) {
     const hour = await env.DB.prepare('SELECT COALESCE(SUM(cost_micro), 0) AS c FROM usage WHERE account_id = ?1 AND at > ?2').bind(accountId, t - 3600000).first<{ c: number }>();
     const week = await env.DB.prepare('SELECT COALESCE(SUM(cost_micro), 0) AS c FROM usage WHERE account_id = ?1 AND at > ?2').bind(accountId, t - 7 * 86400000).first<{ c: number }>();
-    if (burnRate((hour?.c ?? 0) / PAGE_MICROUSD, lim.perDay, (week?.c ?? 0) / PAGE_MICROUSD / (7 * 24), p<{ groupFactor: number; selfFactor: number; minPages: number }>('burn_rate'))) out.push('burn_rate');
+    if (burnRate((hour?.c ?? 0) / PAGE_MICRO, lim.perDay, (week?.c ?? 0) / PAGE_MICRO / (7 * 24), p<{ groupFactor: number; selfFactor: number; minPages: number }>('burn_rate'))) out.push('burn_rate');
   }
   return out;
 }

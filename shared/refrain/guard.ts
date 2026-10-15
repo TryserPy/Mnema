@@ -70,11 +70,11 @@ export interface GuardConfig {
     /** Окно сверки и задержка: данные Usage API приходят с опозданием, поэтому сверяем окно, закончившееся lagMin минут назад. */
     windowMin: number;
     lagMin: number;
-    /** Утечка, если расход OpenAI больше нашего на столько долей И на столько $. */
+    /** Утечка, если расход OpenAI больше нашего на столько долей И на столько ₽. */
     overShare: number;
-    overUsd: number;
-    /** Расход у OpenAI при нуле запросов у нас за окно — утечка, если он больше этого, $. */
-    idleUsd: number;
+    overRub: number;
+    /** Расход у OpenAI при нуле запросов у нас за окно — утечка, если он больше этого, ₽. */
+    idleRub: number;
   };
 }
 
@@ -112,7 +112,7 @@ export const DEFAULT_GUARD: GuardConfig = {
   blockAsnMin: 30,
   massAccounts: 10,
   massWindowMin: 15,
-  leak: { enabled: true, everyMin: 10, windowMin: 60, lagMin: 15, overShare: 0.25, overUsd: 0.5, idleUsd: 0.1 }
+  leak: { enabled: true, everyMin: 10, windowMin: 60, lagMin: 15, overShare: 0.25, overRub: 30, idleRub: 6 }
 };
 
 export type Level = 0 | 1 | 2 | 3;

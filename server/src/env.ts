@@ -8,6 +8,8 @@ export interface Env {
   BUDGET: DurableObjectNamespace<BudgetCounter>;
   // переменные (wrangler.toml)
   OPENAI_MODEL: string;
+  /** Адрес API в формате OpenAI: https://polza.ai/api/v1 (Polza.ai) или https://api.openai.com/v1. */
+  LLM_BASE_URL?: string;
   ADMIN_ORIGIN: string;
   ADMIN_URL: string;
   TG_APP_URL: string;

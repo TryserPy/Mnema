@@ -22,7 +22,7 @@ const INFLIGHT_TTL_MS = 3 * 60 * 1000;
 
 export interface BeginInput {
   now: number;
-  /** Лимиты в µ$; null — без лимита. */
+  /** Лимиты в µ₽; null — без лимита. */
   dayLimit: number | null;
   monthLimit: number | null;
   perMinute: number;

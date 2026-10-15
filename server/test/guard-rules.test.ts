@@ -87,15 +87,15 @@ describe('клиент', () => {
 
 describe('утечка ключа', () => {
   const p = DEFAULT_GUARD.leak;
-  it('расход OpenAI на 25 % и $0,50 выше нашего', () => {
-    expect(judgeLeak({ cost: 1_000_000, requests: 100 }, { cost: 2_000_000, foreignModels: [] }, p).suspected).toBe(true);
+  it('расход OpenAI на 25 % и 30 ₽ выше нашего', () => {
+    expect(judgeLeak({ cost: 60_000_000, requests: 100 }, { cost: 120_000_000, foreignModels: [] }, p).suspected).toBe(true);
   });
   it('мелкое расхождение — не утечка', () => {
-    expect(judgeLeak({ cost: 1_000_000, requests: 100 }, { cost: 1_200_000, foreignModels: [] }, p).suspected).toBe(false);
-    expect(judgeLeak({ cost: 100_000, requests: 10 }, { cost: 400_000, foreignModels: [] }, p).suspected).toBe(false);
+    expect(judgeLeak({ cost: 60_000_000, requests: 100 }, { cost: 72_000_000, foreignModels: [] }, p).suspected).toBe(false);
+    expect(judgeLeak({ cost: 6_000_000, requests: 10 }, { cost: 24_000_000, foreignModels: [] }, p).suspected).toBe(false);
   });
   it('расход при нуле запросов у нас', () => {
-    expect(judgeLeak({ cost: 0, requests: 0 }, { cost: 150_000, foreignModels: [] }, p).suspected).toBe(true);
+    expect(judgeLeak({ cost: 0, requests: 0 }, { cost: 9_000_000, foreignModels: [] }, p).suspected).toBe(true);
   });
   it('чужая модель в расходе проекта', () => {
     expect(judgeLeak({ cost: 1, requests: 1 }, { cost: 1, foreignModels: ['gpt-6-sol'] }, p).suspected).toBe(true);

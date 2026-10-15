@@ -52,16 +52,16 @@ export function admits(mode: AccessMode, group: GroupId): boolean {
 }
 
 export interface BudgetConfig {
-  /** Бюджет на месяц, $. */
-  monthUsd: number;
-  /** Бюджет на сутки, $; null — двойная средняя доля месяца (monthUsd / дней в месяце × 2). */
-  dayUsd: number | null;
+  /** Бюджет на месяц, ₽ (по умолчанию ≈ $20 по ценам Polza). */
+  monthRub: number;
+  /** Бюджет на сутки, ₽; null — двойная средняя доля месяца (monthRub / дней в месяце × 2). */
+  dayRub: number | null;
   /** Пороги тревог, доли месячного бюджета. На 1 — пауза для всех, кроме владельца. */
   alertAt: number[];
   /** Скачок: расход за час больше среднего часового за 7 дней во столько раз → режим «Тестировщики» и тревога. */
   spikeFactor: number;
-  /** Скачок не считается, пока за час потрачено меньше этого, $ (чтобы ночью два запроса не давали «втрое»). */
-  spikeMinUsd: number;
+  /** Скачок не считается, пока за час потрачено меньше этого, ₽ (чтобы ночью два запроса не давали «втрое»). */
+  spikeMinRub: number;
   /** «Жадный ученик»: один аккаунт за сутки потратил больше этой доли дневного бюджета → тревога с кнопкой «Заблокировать». */
   greedyShare: number;
   /** «Волна регистраций»: новых аккаунтов за час больше этого — лимит «Новичка» временно 0. */
@@ -72,19 +72,19 @@ export interface BudgetConfig {
 }
 
 export const DEFAULT_BUDGET: BudgetConfig = {
-  monthUsd: 20,
-  dayUsd: null,
+  monthRub: 1200,
+  dayRub: null,
   alertAt: [0.5, 0.8, 1],
   spikeFactor: 3,
-  spikeMinUsd: 0.2,
+  spikeMinRub: 12,
   greedyShare: 0.05,
   signupWaveHour: 30,
   signupWavePerIp: 5,
   upstreamErrorShare: 0.2
 };
 
-export function dayBudgetUsd(b: BudgetConfig, daysInMonth: number): number {
-  return b.dayUsd ?? (b.monthUsd / daysInMonth) * 2;
+export function dayBudgetRub(b: BudgetConfig, daysInMonth: number): number {
+  return b.dayRub ?? (b.monthRub / daysInMonth) * 2;
 }
 
 /** Приглашение: RFN-XXXX-XXXX, алфавит без похожих знаков (нет 0/O, 1/I/L). */

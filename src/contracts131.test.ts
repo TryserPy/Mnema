@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { ERRORS, FIELD_LIMITS, TASKS, TASK_FIELDS, canonicalString, pagesLabel, parseAppHeader, powOk } from '../shared/refrain/api.mjs';
 import { CALLOUTS, CALLOUT_HEAD, MARKS } from '../shared/prompts/markup';
-import { PAGE_MICROUSD, TASK_SPECS, costMicro, maxCostMicro } from '../shared/prompts/tasks';
+import { PAGE_MICRO, TASK_SPECS, costMicro, maxCostMicro } from '../shared/prompts/tasks';
 import { DEFAULT_GROUPS, INVITE_RE, admits } from '../shared/refrain/policy';
 import { DEFAULT_GUARD } from '../shared/refrain/guard';
 import { AI_NOTE_MAX } from './aiNotes';
@@ -13,7 +13,7 @@ describe('контракты 1.31', () => {
     for (const t of TASKS) expect(TASK_SPECS[t as keyof typeof TASK_SPECS].id).toBe(t);
   });
   it('страница — $0,00065: 2000 токенов на вход и 900 на выход', () => {
-    expect(costMicro({ inputTokens: 2000, cachedInputTokens: 0, outputTokens: 900 })).toBe(PAGE_MICROUSD);
+    expect(costMicro({ inputTokens: 2000, cachedInputTokens: 0, outputTokens: 900 })).toBe(PAGE_MICRO);
   });
   it('резерв не меньше любого возможного расхода в рамках задачи', () => {
     for (const s of Object.values(TASK_SPECS)) {

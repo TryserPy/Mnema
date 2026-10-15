@@ -1,7 +1,7 @@
 // Аккаунты, устройства, сессии и действующая группа ученика.
 import type { DeviceInfo, GroupId, Quota } from '../../shared/refrain/api.mjs';
 import { NEWBIE_DAYS, type GroupLimits } from '../../shared/refrain/policy';
-import { PAGE_MICROUSD } from '../../shared/prompts/tasks';
+import { PAGE_MICRO } from '../../shared/prompts/tasks';
 import { nextMidnight, type StudentUsage } from './counters';
 import { now, type Env } from './env';
 import type { Settings } from './settings';
@@ -66,7 +66,7 @@ export function groupLimits(s: Settings, g: GroupId, t: number): GroupLimits {
 }
 
 export function quotaOf(usage: StudentUsage, lim: GroupLimits, g: GroupId, t: number): Quota {
-  const pages = (micro: number) => Math.round((micro / PAGE_MICROUSD) * 100) / 100;
+  const pages = (micro: number) => Math.round((micro / PAGE_MICRO) * 100) / 100;
   return {
     day: { used: pages(usage.day), limit: lim.perDay },
     month: { used: pages(usage.month), limit: lim.perMonth },

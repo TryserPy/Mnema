@@ -7,20 +7,28 @@
 
 - Node.js 22 — https://nodejs.org (LTS). Проверка: `node -v`.
 - Репозиторий: `git clone https://github.com/TryserPy/Mnema && cd Mnema && git checkout claude/wizardly-volta-879gpb && cd server && npm ci`.
-- Аккаунты: OpenAI (платформа, с оплатой), Cloudflare (бесплатный), Brevo (бесплатный), Telegram, GitHub.
+- Аккаунты: Polza.ai (с балансом), Cloudflare (бесплатный), Brevo (бесплатный), Telegram, GitHub.
 
-## 1. OpenAI — отдельный проект и ключи
+## 1. Polza.ai — ключ и баланс
 
-1. Войди на https://platform.openai.com → Settings → Projects (https://platform.openai.com/settings/organization/projects) → **Create project** → имя `Refrain`.
-2. В проекте: Settings → **Limits**: разреши **только** модель `gpt-6-luna`, остальные запрети.
-3. Там же — **бюджет проекта** (например, $25 в месяц при бюджете $20 в панели Refrain). Это последний предохранитель.
-4. API keys (https://platform.openai.com/api-keys) → выбери проект `Refrain` → **Create new secret key** → скопируй (показывается один раз).
-5. ID проекта (`proj_…`) — в Settings → Projects, строка проекта.
-6. Админ-ключ для сверки расхода: Organization → **Admin keys** (https://platform.openai.com/settings/organization/admin-keys) → создать; если есть вариант «только чтение» — выбери его. Без админ-ключа сверка с OpenAI просто молчит, остальное работает.
+Модель `openai/gpt-6-luna` вызывается через Polza.ai (https://polza.ai): формат OpenAI, оплата в рублях с баланса.
+1. Войди в личный кабинет Polza.ai и пополни баланс. **Баланс — главный предохранитель**: больше, чем лежит на счёте, не потратится. Держи на нём немного (например, месячный бюджет из панели).
+2. Создай отдельный API-ключ для Refrain (раздел ключей API в кабинете). Скопируй его целиком.
+3. Проверь ключ в своём терминале (ключ никуда не присылай):
+   ```bash
+   curl -sS https://polza.ai/api/v1/chat/completions \
+     -H "Authorization: Bearer ВСТАВЬ_КЛЮЧ" -H "Content-Type: application/json" \
+     -d '{"model":"openai/gpt-6-luna","messages":[{"role":"user","content":"Скажи: ок"}],"max_completion_tokens":50,"reasoning_effort":"low"}'
+   ```
+   Ключ вставляется **вместо** `ВСТАВЬ_КЛЮЧ`, без угловых скобок и пробелов. `UNAUTHORIZED` — ключ неверный или скопирован не целиком. В ответе должны быть `choices` и `usage` (с `cost_rub` или `cost`).
+4. Модель и адрес уже вписаны в `server/wrangler.toml`: `OPENAI_MODEL = "openai/gpt-6-luna"`, `LLM_BASE_URL = "https://polza.ai/api/v1"`.
+
+Сверка расхода для поиска утечки ключа работает только с ключом напрямую от OpenAI (Usage API организации). С Polza она отключена — `OPENAI_PROJECT_ID` и `OPENAI_ADMIN_KEY` не задавай.
 
 ## 2. Brevo — письма с кодами входа
 
 1. Регистрация: https://www.brevo.com → бесплатный план (около 300 писем в день; проверь текущие условия при регистрации).
+   Brevo спрашивает про организацию — компания не обязательна: название — «Refrain» (или своё имя), сайт — `https://tryserpy.github.io/Mnema-site/`, размер — 1 человек, адрес — свой город. Это нужно Brevo для подписи писем и проверки от спама.
 2. Отправитель: Senders, Domains & Dedicated IPs → **Senders** (https://app.brevo.com/senders) → Add a sender → адрес, с которого придут коды (например, твой ящик) → подтверди по письму.
 3. Ключ API: SMTP & API → **API Keys** (https://app.brevo.com/settings/keys/api) → Generate a new API key → скопируй (начинается с `xkeysib-`).
 
@@ -66,9 +74,7 @@ https://github.com/settings/personal-access-tokens/new → **Fine-grained token*
 
 | Команда | Что вставить |
 | --- | --- |
-| `npx wrangler secret put OPENAI_API_KEY` | ключ проекта (шаг 1.4) |
-| `npx wrangler secret put OPENAI_PROJECT_ID` | `proj_…` (шаг 1.5) |
-| `npx wrangler secret put OPENAI_ADMIN_KEY` | админ-ключ (шаг 1.6) |
+| `npx wrangler secret put OPENAI_API_KEY` | ключ Polza.ai (шаг 1.2) — имя секрета историческое |
 | `npx wrangler secret put TOKEN_SECRET` | случайная строка: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` |
 | `npx wrangler secret put OWNER_EMAIL` | твоя почта (ты — группа «Ты», сюда коды панели и резервные тревоги) |
 | `npx wrangler secret put OWNER_TELEGRAM_ID` | число из @userinfobot (шаг 3.2) |
@@ -114,13 +120,13 @@ curl -sS "https://api.telegram.org/bot<ТОКЕН>/setWebhook" \
 3. Выпуск приложения 1.31.0 — как обычно.
 4. Открыть всем: панель → Доступ → «Все» (с PIN). Новая версия приложения не нужна.
 
-## Если ключ OpenAI мог утечь
+## Если ключ ИИ мог утечь
 
-Сервер сам включит аварийную паузу (Refrain ИИ работает только у тебя) и пришлёт 🚨-тревогу. Отозвать ключ он не может.
+Признаки: баланс Polza тает быстрее, чем «Расход» в панели, или в истории запросов Polza есть чужие модели. Отозвать ключ сервер не может.
 
-1. В проекте OpenAI создай новый ключ (https://platform.openai.com/api-keys).
+1. В кабинете Polza.ai создай новый ключ.
 2. `npx wrangler secret put OPENAI_API_KEY` — вставь новый.
-3. В OpenAI отзови старый ключ (Revoke).
-4. В панели: «Ключ заменён» (PIN) → «Вернуть режим».
+3. В Polza удали старый ключ.
+4. В панели: «Ключ заменён» (PIN) → «Вернуть режим» (если пауза включалась).
 
 Подробности о Workers и wrangler: https://developers.cloudflare.com/workers/wrangler/commands/ · секреты: https://developers.cloudflare.com/workers/configuration/secrets/

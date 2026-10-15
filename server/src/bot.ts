@@ -25,7 +25,7 @@ export async function handleWebhook(req: Request, env: Env): Promise<Response> {
   if (cmd === '/status') {
     const totals = await budget(env).read(t);
     const hour = await env.DB.prepare('SELECT COUNT(*) AS n, SUM(ok = 0) AS bad, COALESCE(SUM(cost_micro), 0) AS c FROM usage WHERE at > ?1').bind(t - 3600000).first<{ n: number; bad: number; c: number }>();
-    await tgSend(env, `Режим: ${MODE_RU[cfg.mode]}\nМесяц: $${(totals.month / 1e6).toFixed(2)} из $${cfg.budget.monthUsd}\nЗа час: $${((hour?.c ?? 0) / 1e6).toFixed(2)}, запросов ${hour?.n ?? 0}, ошибок ${hour?.bad ?? 0}`, { silent: true, buttons: [[{ text: 'Открыть панель', url: env.TG_APP_URL }]] });
+    await tgSend(env, `Режим: ${MODE_RU[cfg.mode]}\nМесяц: ${(totals.month / 1e6).toFixed(2)} ₽ из ${cfg.budget.monthRub} ₽\nЗа час: ${((hour?.c ?? 0) / 1e6).toFixed(2)} ₽, запросов ${hour?.n ?? 0}, ошибок ${hour?.bad ?? 0}`, { silent: true, buttons: [[{ text: 'Открыть панель', url: env.TG_APP_URL }]] });
   } else if (cmd === '/pause') {
     if (cfg.mode !== 'owner' && cfg.mode !== 'off') await saveSetting(env, 'prevMode', cfg.mode);
     await saveSetting(env, 'mode', 'owner');

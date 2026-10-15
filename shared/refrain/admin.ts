@@ -26,9 +26,9 @@ export interface Overview {
   /** Режим до аварийной паузы или скачка: его возвращает кнопка «Вернуть режим». */
   prevMode: AccessMode | null;
   paused: { reason: 'budget' | 'guard' | 'spike' | 'manual' | null; since: string | null };
-  month: { spentUsd: number; budgetUsd: number; pages: number };
-  today: { spentUsd: number; budgetUsd: number; students: number; requests: number; errors: number };
-  lastHourUsd: number;
+  month: { spentRub: number; budgetRub: number; pages: number };
+  today: { spentRub: number; budgetRub: number; students: number; requests: number; errors: number };
+  lastHourRub: number;
   unreadAlerts: number;
   newBugs: number;
   activeBlocks: number;
@@ -72,10 +72,10 @@ export interface BugRow {
 
 export interface DayStat {
   day: string;
-  usd: number;
+  rub: number;
   pages: number;
   requests: number;
-  byTask: Record<string, { usd: number; requests: number }>;
+  byTask: Record<string, { rub: number; requests: number }>;
 }
 
 /** Маршруты. pin — нужен заголовок x-refrain-pin. */

@@ -39,13 +39,13 @@ export const TASK_SPECS: Record<TaskId, TaskSpec> = {
 };
 
 /**
- * Цена одной «страницы»: типичный конспект с фото — 2 000 токенов на вход и 900 на выход по $0,10 / $0,50 за миллион ≈ $0,00065.
- * Внутри сервер считает деньги в микродолларах (µ$), ученику показывает страницы = µ$ / PAGE_MICROUSD.
+ * Цена одной «страницы»: типичный конспект с фото — 2 000 токенов на вход и 900 на выход по 5,93 ₽ / 29,66 ₽ за миллион
+ * (openai/gpt-6-luna через Polza.ai) ≈ 0,0386 ₽. Деньги сервер считает в микрорублях (µ₽), ученику показывает страницы = µ₽ / PAGE_MICRO.
  */
-export const PAGE_MICROUSD = 650;
+export const PAGE_MICRO = 38554;
 
-/** Цены модели по умолчанию, µ$ за 1 токен × 1e6 (то есть $ за миллион). Настоящие — в конфиге сервера (меняются без выпуска). */
-export const DEFAULT_PRICES = { model: 'gpt-6-luna', inputPerM: 0.1, cachedInputPerM: 0.01, outputPerM: 0.5 };
+/** Цены модели по умолчанию, ₽ за миллион токенов (= µ₽ за токен). Кэш Polza отдельно не тарифицирует — считается как обычный вход. */
+export const DEFAULT_PRICES = { model: 'openai/gpt-6-luna', inputPerM: 5.93, cachedInputPerM: 5.93, outputPerM: 29.66 };
 
 /** Сколько токенов на вход закладывать за фото при резервировании (с запасом: фото до 2000 px). */
 export const IMAGE_TOKENS_RESERVE = 1600;
@@ -71,13 +71,13 @@ export const CARDS_SCHEMA = {
   }
 } as const;
 
-/** Наибольшая возможная стоимость задачи в µ$ — её сервер резервирует до запроса. */
+/** Наибольшая возможная стоимость задачи в µ₽ — её сервер резервирует до запроса. */
 export function maxCostMicro(spec: TaskSpec, textChars: number, hasImage: boolean, prices = DEFAULT_PRICES): number {
   const input = spec.promptTokens + 700 /* предмет, тема, указания: до 640 знаков */ + (hasImage ? IMAGE_TOKENS_RESERVE : 0) + Math.ceil(textChars / CHARS_PER_TOKEN_RESERVE);
   return Math.ceil(input * prices.inputPerM + spec.maxTokens * prices.outputPerM);
 }
 
-/** Настоящая стоимость по usage из ответа OpenAI, µ$. Рассуждения входят в output_tokens и оплачиваются как ответ. */
+/** Стоимость по usage, µ₽, если поставщик не прислал цену сам. Рассуждения входят в output_tokens и оплачиваются как ответ. */
 export function costMicro(usage: { inputTokens: number; cachedInputTokens: number; outputTokens: number }, prices = DEFAULT_PRICES): number {
   const fresh = Math.max(0, usage.inputTokens - usage.cachedInputTokens);
   return Math.ceil(fresh * prices.inputPerM + usage.cachedInputTokens * prices.cachedInputPerM + usage.outputTokens * prices.outputPerM);

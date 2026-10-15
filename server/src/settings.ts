@@ -34,7 +34,7 @@ const DEFAULTS: Settings = {
   guard: DEFAULT_GUARD,
   newbieZeroUntil: 0,
   pinLock: { fails: 0, until: 0 },
-  budgetBase: DEFAULT_BUDGET.monthUsd,
+  budgetBase: DEFAULT_BUDGET.monthRub,
   leakCheck: { at: 0, suspected: false }
 };
 
