@@ -14,6 +14,11 @@ export const CACHE_MAX = 60;
 /** При этих ошибках Refrain ИИ запрос уходит следующему по порядку (свой ключ, без интернета). network — нет связи с сервером. */
 export const FALLBACK_CODES = ['limit_day', 'limit_month', 'paused', 'access_closed', 'blocked', 'upstream', 'network'];
 
+/** Платформа для заголовка x-refrain-app и устройства: сервер знает только windows, linux и android. */
+export function refrainPlatform(p) {
+  return p === 'win32' || p === 'windows' ? 'windows' : p === 'android' ? 'android' : 'linux';
+}
+
 /** Обновить токен доступа заранее, если до конца осталось меньше этого. */
 const REFRESH_AHEAD_MS = 30 * 1000;
 
@@ -27,17 +32,19 @@ const K = new Uint32Array([
 ]);
 const W = new Uint32Array(64);
 const enc = new TextEncoder();
+// Рабочий буфер для коротких сообщений (PoW, строка подписи): без выделения памяти на каждый хэш.
+const SMALL = new Uint8Array(512);
+const SMALL_VIEW = new DataView(SMALL.buffer);
 
-/** SHA-256 строки (UTF-8) или байтов → 32 байта. */
-export function sha256(data) {
-  const msg = typeof data === 'string' ? enc.encode(data) : data;
-  const len = msg.length;
+/** SHA-256 первых len байт msg → out (32 байта). */
+function hashInto(msg, len, out) {
   const total = ((len + 9 + 63) >> 6) << 6;
-  const buf = new Uint8Array(total);
-  buf.set(msg);
+  const buf = total <= SMALL.length ? SMALL : new Uint8Array(total);
+  const dv = buf === SMALL ? SMALL_VIEW : new DataView(buf.buffer);
+  buf.set(len === msg.length ? msg : msg.subarray(0, len));
+  buf.fill(0, len, total);
   buf[len] = 0x80;
   const bits = len * 8;
-  const dv = new DataView(buf.buffer);
   dv.setUint32(total - 8, Math.floor(bits / 0x100000000));
   dv.setUint32(total - 4, bits >>> 0);
   let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a, h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
@@ -66,10 +73,21 @@ export function sha256(data) {
     }
     h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + h) | 0;
   }
-  const out = new Uint8Array(32);
-  const ov = new DataView(out.buffer);
-  [h0, h1, h2, h3, h4, h5, h6, h7].forEach((v, i) => ov.setUint32(i * 4, v >>> 0));
+  const hs = [h0, h1, h2, h3, h4, h5, h6, h7];
+  for (let i = 0; i < 8; i++) {
+    const v = hs[i];
+    out[i * 4] = v >>> 24;
+    out[i * 4 + 1] = (v >>> 16) & 0xff;
+    out[i * 4 + 2] = (v >>> 8) & 0xff;
+    out[i * 4 + 3] = v & 0xff;
+  }
   return out;
+}
+
+/** SHA-256 строки (UTF-8) или байтов → 32 байта. */
+export function sha256(data) {
+  const msg = typeof data === 'string' ? enc.encode(data) : data;
+  return hashInto(msg, msg.length, new Uint8Array(32));
 }
 
 export const hex = (bytes) => Array.from(bytes, (x) => x.toString(16).padStart(2, '0')).join('');
@@ -115,9 +133,14 @@ export function derToP1363(der) {
 
 /** Proof-of-work: перебор, пока SHA-256(challenge + ':' + i) не начнётся с difficulty нулевых бит. Время от времени уступает поток. */
 export async function solvePow(challenge, difficulty, { yieldEvery = 20000, pause = () => new Promise((r) => setTimeout(r, 0)), limit = 1e8 } = {}) {
-  const prefix = challenge + ':';
+  const prefix = enc.encode(challenge + ':');
+  const msg = new Uint8Array(prefix.length + 20);
+  msg.set(prefix);
+  const out = new Uint8Array(32);
   for (let i = 0; i < limit; i++) {
-    if (powOk(sha256(prefix + i), difficulty)) return String(i);
+    const digits = String(i);
+    for (let k = 0; k < digits.length; k++) msg[prefix.length + k] = digits.charCodeAt(k);
+    if (powOk(hashInto(msg, prefix.length + digits.length, out), difficulty)) return digits;
     if (i && i % yieldEvery === 0) await pause();
   }
   throw new Error('pow');
@@ -146,7 +169,11 @@ export function taskBody(fields, wishes) {
   if (typeof b.subject === 'string') b.subject = b.subject.slice(0, FIELD_LIMITS.subject);
   if (typeof b.topic === 'string') b.topic = b.topic.slice(0, FIELD_LIMITS.topic);
   if (b.page !== undefined && !(Number.isInteger(b.page) && b.page >= 1 && b.page <= FIELD_LIMITS.page)) delete b.page;
-  if (b.image) b.image = { mime: b.image.mime, data: b.image.data };
+  if (b.image) {
+    if (typeof b.image !== 'object' || !FIELD_LIMITS.imageMimes.includes(b.image.mime) || typeof b.image.data !== 'string') return null;
+    b.image = { mime: b.image.mime, data: b.image.data };
+  }
+  if (b.text !== undefined && typeof b.text !== 'string') return null;
   delete b.wishes;
   const w = typeof wishes === 'string' ? wishes.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, FIELD_LIMITS.wishes) : '';
   if (w) b.wishes = w;
@@ -212,6 +239,14 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
     if (raw) headers['content-type'] = 'application/json';
     if (withAccess) headers[H.auth] = `Bearer ${s.accessToken}`;
     return parse(await http(base + fullPath, { method, headers, body: raw || undefined, timeout }));
+  }
+
+  function clearCache() {
+    try {
+      store.writeCache({ entries: {}, versions: {} });
+    } catch {
+      /* кэш необязателен */
+    }
   }
 
   async function forget() {
@@ -323,9 +358,16 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
   return {
     /** Вход выполнен на этом устройстве. */
     signedIn: () => Boolean(session()),
-    status() {
+    /** Для экрана настроек: вошёл ли ученик, маска почты, остаток лимита и можно ли здесь хранить ключ устройства. Токенов здесь нет. */
+    async status() {
       const s = session();
-      return s ? { signedIn: true, emailMasked: s.emailMasked || '', quota: s.quota || null } : { signedIn: false };
+      let secure = false;
+      try {
+        secure = Boolean(await signer.secure());
+      } catch {
+        secure = false;
+      }
+      return s ? { signedIn: true, secure, emailMasked: s.emailMasked || '', quota: s.quota || null } : { signedIn: false, secure };
     },
 
     /** Шаг 1: задачка (≈1 с) и письмо с кодом. Ответ одинаковый для любой почты. */
@@ -396,13 +438,17 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
     },
     async deleteAccount() {
       const r = await signed('DELETE', '/account');
-      if (r.ok !== false) await forget();
+      if (r.ok !== false) {
+        await forget();
+        clearCache();
+      }
       return r;
     },
     /** Выйти: закрыть сессию на сервере (если есть связь) и забыть токены и ключ здесь. */
     async logout() {
       if (session()) await signed('POST', '/auth/logout');
       await forget();
+      clearCache();
       return { ok: true };
     },
 

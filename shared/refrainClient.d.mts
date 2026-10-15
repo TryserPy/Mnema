@@ -5,6 +5,7 @@ export const REFRAIN_API: string;
 export const CACHE_TTL_MS: number;
 export const CACHE_MAX: number;
 export const FALLBACK_CODES: string[];
+export function refrainPlatform(p: string): Platform;
 
 export function sha256(data: string | Uint8Array): Uint8Array;
 export function sha256hex(data: string | Uint8Array): string;
@@ -39,6 +40,8 @@ export interface RefrainSession {
   quota?: Quota | null;
 }
 
+export type RefrainStatus = { signedIn: false; secure: boolean } | { signedIn: true; secure: boolean; emailMasked: string; quota: Quota | null };
+
 export interface RefrainSigner {
   publicKey(): Promise<string>;
   sign(message: string): Promise<string>;
@@ -48,7 +51,7 @@ export interface RefrainSigner {
 
 export interface RefrainClient {
   signedIn(): boolean;
-  status(): { signedIn: false } | { signedIn: true; emailMasked: string; quota: Quota | null };
+  status(): Promise<RefrainStatus>;
   loginStart(email: string): Promise<RefrainResult>;
   loginVerify(p: { email: string; code: string; invite?: string; replaceDevice?: string; deviceName?: string }): Promise<RefrainResult<{ emailMasked: string; quota: Quota }>>;
   task(fields: Omit<TaskRequest, 'wishes'> & { wishes?: string }, wishes?: string): Promise<RefrainResult<{ text: string; format: string; cached?: boolean; charged: number; quota: Quota | null }>>;
