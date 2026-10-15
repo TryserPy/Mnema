@@ -8,8 +8,10 @@ import { currentAsMod, modToCurrent, resetCurrentPatch } from '../appearance';
 import { MAX_BG_SRC_FILE } from '../bgImage';
 import { MAX_CSS, sanitizeCss } from '../safeCss';
 import { downloadFile } from '../share';
-import { getData, updateSettings, useData } from '../store';
-import { saveCustomStyle, setBasePreview } from '../styleActions';
+import { getData, useData } from '../store';
+import { currentAsStyle, saveStyle, setAppearanceValue, setBasePreview, setCurrent } from '../styleActions';
+import { classifyRole } from '../styleMigrate';
+import type { Mod131 } from '../styleModel';
 import { API_CLASSES, API_PARTS, API_ROOT_ATTRS, API_VARS } from '../styleApi';
 import { setStylePreview } from '../styleApply';
 import { cleanMod, cleanSetting, MINE_ID, newStyleId, OLD_STYLE_EXT, parseStyleFile, STYLE_ATTRS, STYLE_EXT, styleToFile } from '../styleSystem';
@@ -341,7 +343,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
   const dirty = useMemo(() => (current ? JSON.stringify(pickSnap(settings)) !== JSON.stringify(snap.current) : JSON.stringify([local, values]) !== start.current), [current, settings, local, values]);
 
   function apply(next: Mod) {
-    if (current) updateSettings(modToCurrent(next, getData().settings));
+    if (current) setCurrent(modToCurrent(next, getData().settings));
     else setLocal(next);
   }
   // Шаги «Назад»: быстрые подряд правки (ползунок) считаются одним шагом.
@@ -392,19 +394,18 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
     const clean = cleanMod(local, local.id, initial?.where ?? 'свой');
     if (!clean) return toast('Дай стилю название');
     setStylePreview(null);
-    saveCustomStyle(clean, { enable });
-    const s = getData().settings;
-    updateSettings({ styleValues: { ...s.styleValues, [clean.id]: values } });
+    const role = (initial as Mod131 | undefined)?.role ?? classifyRole(clean as Mod131);
+    saveStyle({ ...clean, role, origin: (initial as Mod131 | undefined)?.origin ?? 'mine' } as Mod131, { enable });
+    for (const [k, v] of Object.entries(values ?? {})) setAppearanceValue(clean.id, k, v);
     start.current = JSON.stringify([local, values]);
     toast(`Стиль «${clean.name}» сохранён`);
     onClose();
   }
   /** Текущее оформление → «Мои стили» (копия всего, что сейчас стоит). */
   function saveCurrentAsStyle(name: string) {
-    const clean = cleanMod({ ...m, name: name.trim() || 'Мой вид', description: 'Оформление из Refrain', icon: '🎨' }, newStyleId(), 'свой');
-    if (!clean) return;
-    // Основа (тема, плотность, фон…) уже стоит в настройках: сохраняем стиль, но не включаем — иначе он «запомнит» это как прежнее.
-    saveCustomStyle(clean);
+    // Стиль + мои правки целиком; сохраняется, но не выбирается — выбрать можно в галерее.
+    const clean = currentAsStyle(name.trim() || 'Мой вид');
+    saveStyle(clean);
     setSaveAs(null);
     toast(`Стиль «${clean.name}» сохранён в «Мои стили»`);
   }
@@ -424,7 +425,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
     }
   }
   function revert() {
-    if (current) updateSettings({ ...snap.current });
+    if (current) setCurrent({ ...snap.current });
     else {
       setLocal(initial ?? local);
       setValues({ ...(initial ? (getData().settings.styleValues[initial.id] ?? {}) : {}) });
@@ -565,7 +566,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
             <button className="btn small ghost" onClick={revert} disabled={!dirty} title="Вернуть всё, как было, когда ты открыл редактор">
               Отменить правки
             </button>
-            <ConfirmButton className="btn small ghost danger" label="Точно сбросить?" onConfirm={() => (updateSettings(resetCurrentPatch()), (hist.current.stack = []))}>
+            <ConfirmButton className="btn small ghost danger" label="Точно сбросить?" onConfirm={() => (setCurrent(resetCurrentPatch()), (hist.current.stack = []))}>
               Сбросить всё
             </ConfirmButton>
             {exportRow}

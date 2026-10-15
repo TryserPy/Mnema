@@ -242,3 +242,11 @@ describe('.refrainstyle версии 3: роль, шрифты, откуда', (
     expect(css).not.toContain('evil');
   });
 });
+
+describe('справочник стилей для ИИ (shared/prompts/styleReference.ts)', () => {
+  it('совпадает со свежей генерацией из styleApi/styleSystem/themes', async () => {
+    const { STYLE_REFERENCE } = await import('../shared/prompts/styleReference');
+    const { styleReference } = await import('./styleAi');
+    expect(STYLE_REFERENCE).toBe(styleReference());
+  });
+});

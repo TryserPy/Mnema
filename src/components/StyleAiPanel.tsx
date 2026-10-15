@@ -4,7 +4,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getData } from '../store';
-import { saveCustomStyle, setBasePreview, toggleStyle } from '../styleActions';
+import { pickStyle, saveStyle, setBasePreview } from '../styleActions';
+import { appearanceOf, classifyRole } from '../styleMigrate';
+import type { Mod131 } from '../styleModel';
 import { setStylePreview } from '../styleApply';
 import { aiReady, askStyle, type AiReady, type AiStyleResult } from '../styleAi';
 import { newStyleId } from '../styleSystem';
@@ -88,9 +90,11 @@ export function StyleAiPanel({ current, onClose, onUse, replaceId, onGo }: { cur
     const mod = final();
     if (!mod) return;
     preview(null); // сначала вернуть, как было, — тогда включение запомнит правильную основу
-    saveCustomStyle(mod, { enable });
+    const was = appearanceOf(getData().settings).style;
+    const m: Mod131 = { ...mod, origin: 'ai', role: (current as Mod131 | undefined)?.role ?? classifyRole(mod as Mod131) };
+    saveStyle(m, { enable });
     onClose();
-    toast(enable ? `Стиль «${mod.name}» включён` : `Стиль «${mod.name}» сохранён в «Мои стили»`, enable ? { label: 'Отменить', run: () => toggleStyle(mod, false) } : undefined);
+    toast(enable ? `Стиль «${mod.name}» включён` : `Стиль «${mod.name}» сохранён в «Мои стили»`, enable && m.role === 'style' ? { label: 'Отменить', run: () => pickStyle(was) } : undefined);
   }
   function use() {
     const mod = final();
