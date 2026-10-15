@@ -30,7 +30,7 @@ export const TASK_SPECS: Record<TaskId, TaskSpec> = {
   'textbook.brief': { id: 'textbook.brief', title: 'Кратко с фото', promptVersion: 'b1', promptTokens: 700, maxTokens: 900, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1 },
   'textbook.verbatim': { id: 'textbook.verbatim', title: 'Дословно', promptVersion: 'v1', promptTokens: 600, maxTokens: 3000, reasoning: 'none', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1 },
   'textbook.merge': { id: 'textbook.merge', title: 'Свести параграф', promptVersion: 'm1', promptTokens: 700, maxTokens: 3500, reasoning: 'low', format: 'markdown', image: 'forbidden', textMax: 28000, pagesEstimate: 0.6 },
-  'notebook.read': { id: 'notebook.read', title: 'Тетрадь', promptVersion: 'n1', promptTokens: 650, maxTokens: 2000, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1.2 },
+  'notebook.read': { id: 'notebook.read', title: 'Тетрадь', promptVersion: 'n2', promptTokens: 650, maxTokens: 2000, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1.2 },
   cards: { id: 'cards', title: 'Карточки', promptVersion: 'c1', promptTokens: 400, maxTokens: 1200, reasoning: 'none', format: 'json', image: 'forbidden', textMax: 6000, pagesEstimate: 0.3 },
   explain: { id: 'explain', title: 'Объяснить иначе', promptVersion: 'e1', promptTokens: 150, maxTokens: 350, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 2500, pagesEstimate: 0.05 },
   style: { id: 'style', title: 'Стиль с ИИ', promptVersion: 'y1', promptTokens: 2500, maxTokens: 3000, reasoning: 'low', format: 'json', image: 'forbidden', textMax: 12000, pagesEstimate: 1.5 },
