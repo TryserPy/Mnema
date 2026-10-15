@@ -17,6 +17,7 @@ import { applyImportPlan } from './mdApply';
 import type { ImportPlan } from './mdImport';
 import { cleanBg } from './bgImage';
 import { cleanCustomMods, cleanMyStyle, cleanSnippets, cleanStyleBackup, cleanStyleValues } from './styleSystem';
+import { migrateAppearance } from './styleMigrate';
 import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
 import { cleanStudyPick } from './studyPick';
 import { cleanExam, cleanNoteHistory, cleanSchedule, cleanTopics, cleanTrash, validExamDate } from './safeData';
@@ -294,6 +295,8 @@ export function normalizeData(raw: unknown): AppData {
       textbook: { ...DEFAULT_SETTINGS.textbook, ...(r.settings?.textbook ?? {}) }
     }
   };
+  // Оформление 1.31 (стиль + дополнения + мои правки): переносится из полей 1.30; уже перенесённое не меняется.
+  out.settings.appearance = migrateAppearance({ ...out.settings, appearance: r.settings?.appearance });
   // История конспектов — только для тем, которые есть (или лежат в корзине): иначе от удалённых навсегда тем копился бы мусор.
   const known = new Set([...out.topics.map((t) => t.id), ...(out.trash ?? []).flatMap((x) => x.removed.topics.map((t) => t.id))]);
   const hist = cleanNoteHistory(r.noteHistory, known);

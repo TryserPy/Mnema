@@ -167,7 +167,7 @@ describe('файл стиля версии 2', () => {
     expect(back).toMatchObject({ density: 'compact', fontScale: 1.2, bg: { opacity: 0.4, blur: 3 } });
     const v1 = JSON.stringify({ kind: 'refrain-style', formatVersion: 1, name: 'Старый', css: '.a{color:red}', vars: { light: { '--accent': '#112233' } } });
     expect(parseStyleFile(v1, 'z')).toMatchObject({ name: 'Старый', css: '.a{color:red}' });
-    expect(() => parseStyleFile(JSON.stringify({ kind: 'refrain-style', formatVersion: 3, name: 'Новый', css: 'a{}' }), 'q')).toThrow(/новой версии/);
+    expect(() => parseStyleFile(JSON.stringify({ kind: 'refrain-style', formatVersion: 4, name: 'Новый', css: 'a{}' }), 'q')).toThrow(/новой версии/);
     expect(parseStyleFile(JSON.stringify({ kind: 'mnema-mod', name: 'Мод', css: 'a{}' }), 'q').name).toBe('Мод');
   });
   it('картинка фона попадает в файл только по просьбе и если небольшая; из файла — только настоящая картинка', () => {

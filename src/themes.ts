@@ -74,6 +74,43 @@ export const STYLES: { id: 'modern' | 'classic'; name: string; text: string; loo
   { id: 'classic', name: 'Классический', text: 'Тёплая бумага и книжные заголовки', look: { style: 'classic', light: 'paper', dark: 'graphite', headFont: 'literata' }, accent: '#3F51D8' }
 ];
 
+/** Встроенный стиль 1.31 без своего CSS: основа оформления (схемы светлой и тёмной темы, заголовки) и главный цвет. */
+export interface BaseStyle {
+  id: string;
+  name: string;
+  icon: string;
+  text: string;
+  look: Partial<Settings['look']>;
+  accent: string;
+}
+
+const scheme = (id: string, name: string, icon: string, text: string, light: string, dark: string): BaseStyle => ({
+  id: 'scheme:' + id,
+  name,
+  icon,
+  text,
+  look: { style: 'modern', light, dark, headFont: 'same' },
+  accent: THEMES.find((t) => t.id === id)!.accent
+});
+
+/**
+ * Встроенные стили 1.31: «Современный», «Классический» и бывшие цветовые схемы — парами (светлая + тёмная), чтобы у стиля был вид в обеих темах.
+ * Любую схему по отдельности можно выбрать внутри стиля («Готовая палитра» в «Настроить») — это правка поверх стиля.
+ */
+export const BASE_STYLES: BaseStyle[] = [
+  { id: 'modern', name: 'Современный', icon: '🪟', text: 'Светлый и спокойный, простые заголовки', look: { style: 'modern', light: 'air', dark: 'night', headFont: 'same' }, accent: DEFAULT_ACCENT },
+  { id: 'classic', name: 'Классический', icon: '📜', text: 'Тёплая бумага и книжные заголовки', look: { style: 'classic', light: 'paper', dark: 'graphite', headFont: 'literata' }, accent: '#3F51D8' },
+  scheme('coffee', 'Кофе', '☕', 'Тёплый тёмный, оранжевый акцент; днём — песок', 'sand', 'coffee'),
+  scheme('ocean', 'Океан', '🌊', 'Глубокий синий; днём — небо', 'sky', 'ocean'),
+  scheme('forest', 'Лес', '🌲', 'Тёмно-зелёный; днём — мята', 'mint', 'forest'),
+  scheme('plum', 'Слива', '🫐', 'Сливовый тёмный; днём — сакура', 'sakura', 'plum'),
+  scheme('midnight', 'Полночь', '🌑', 'Чёрный для OLED-экранов; днём — снег', 'snow', 'midnight'),
+  scheme('contrast', 'Контраст', '◐', 'Самый чёткий текст: белый и чёрный', 'contrast', 'midnight')
+];
+
+/** Встроенный стиль-схема для пары тем (если такая пара есть). */
+export const schemeStyleFor = (light: string, dark: string) => BASE_STYLES.find((b) => b.id.startsWith('scheme:') && b.look.light === light && b.look.dark === dark);
+
 /** Прежнее оформление по умолчанию (до 1.5) переводим на новый стиль; изменённое вручную — оставляем «Классическим». */
 export function migrateLook(look: Partial<Settings['look']> | undefined, accent: string | undefined): { look: Settings['look']; accent?: string } {
   if (!look) return { look: { ...DEFAULT_LOOK, custom: {} } };

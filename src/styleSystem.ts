@@ -422,9 +422,9 @@ export function parseStyleFile(text: string, id: string): Mod131 {
   if (!isStyleFile(raw)) throw new Error('Это не стиль Refrain.');
   const f = raw as Record<string, unknown>;
   if (f.kind === STYLE_KIND && typeof f.formatVersion === 'number' && f.formatVersion > STYLE_FORMAT_131) throw new Error('Стиль сделан в более новой версии Refrain — обнови приложение.');
-  // «Откуда» и «где видно» задаёт приложение: в 1.30 сюда писалось «из файла», и подпись в галерее путала одно с другим.
-  const { where: _w, origin: _o, ...rest } = f;
-  const m = cleanMod({ ...rest, origin: 'file' }, id);
+  // «Откуда» задаёт приложение (origin): галерея 1.31 подписывает плитку им. where = «из файла» остаётся для отката на 1.30.
+  const { origin: _o, ...rest } = f;
+  const m = cleanMod({ ...rest, origin: 'file' }, id, 'из файла');
   if (!m) throw new Error('В файле нет названия стиля.');
   return m;
 }
@@ -479,11 +479,12 @@ export function compileOne(m: Mod131, values: Record<string, StyleValue> | undef
   out.css += (out.css ? '\n\n' : '') + parts.join('\n');
 }
 
-/** Все включённые стили сверху вниз (следующий перекрывает предыдущий) и сниппеты «мой CSS». */
-export function compileStyles(stack: { mod: Mod; values?: Record<string, StyleValue> }[], snippets: CssSnippet[] = []): Compiled {
+/** Итоговый CSS в порядке 1.31 (ApplyOrder в styleModel.ts): стиль и дополнения сверху вниз (следующий перекрывает предыдущий), кусочки CSS, мои правки. */
+export function compileStyles(stack: { mod: Mod; values?: Record<string, StyleValue> }[], snippets: CssSnippet[] = [], edits?: Mod): Compiled {
   const out: Compiled = { css: '', attrs: {} };
   for (const l of stack) compileOne(l.mod, l.values, out);
   for (const sn of snippets) if (sn.on && sn.css.trim()) out.css += (out.css ? '\n\n' : '') + `/* сниппет: ${cleanModName(sn.name)} */\n${sanitizeCss(sn.css)}`;
+  if (edits) compileOne(edits, undefined, out);
   return out;
 }
 

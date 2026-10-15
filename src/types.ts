@@ -335,6 +335,8 @@ export interface Settings {
   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
   appIcon?: string; // значок на рабочем столе телефона: 'default', 'theme' (под тему) или id темы (свой выбор)
   bgImage?: BgImage; // свой фон картинкой (data:image); до 1.30 было { src, fade }, переносится при загрузке (см. bgImage.ts)
+  /** Оформление 1.31: стиль + дополнения + мои правки (styleModel.ts). Поля выше и ниже (look, accent, modsOn, myStyle…) — его проекция, для окна и отката на 1.30. */
+  appearance?: import('./styleModel').Appearance;
   myStyle?: Mod; // «Мой вид» (1.30): правки из «Настроить текущий» — переменные, раскладка, CSS; применяются последними, после включённых стилей
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды
