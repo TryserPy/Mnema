@@ -1,4 +1,4 @@
-# Refrain 1.31 — передача в новый чат
+# Refrain 1.31 — передача
 
 Ветка в обоих репозиториях: `claude/wizardly-volta-879gpb` (TryserPy/Mnema и TryserPy/Mnema-site). PR не создан, сервер не выложен.
 
@@ -6,51 +6,38 @@
 
 | Часть | Состояние | Где |
 | --- | --- | --- |
-| Контракты (фаза 1) | готово, утверждены | `docs/refrain-1.31/contracts.md`, `shared/refrain/*`, `shared/prompts/{markup,tasks,luna}.ts`, `src/styleModel.ts`, `AiRequest.refrain`/`AiAnswer` в `src/store.ts` |
-| Сервер и защита (фаза 2) | готово, 65 тестов, все находки ревью закрыты | `server/`, `docs/refrain-1.31/security-review.md` (таблица «Что сделано»), CI `.github/workflows/server.yml` (выкладка только вручную) |
-| Ручные шаги запуска | описаны | `docs/refrain-1.31/launch.md` |
-| Задания потокам | описаны | `docs/refrain-1.31/streams.md` |
+| Контракты (фаза 1) | утверждены | `docs/refrain-1.31/contracts.md`, `shared/refrain/*`, `shared/prompts/{markup,tasks,luna}.ts`, `src/styleModel.ts` |
+| Сервер и защита (фаза 2) | готово, 65 тестов | `server/`, `docs/refrain-1.31/security-review.md`, CI `.github/workflows/server.yml` (выкладка вручную) |
+| D Клиент Refrain ИИ | готово | `shared/refrainClient.mjs`, `shared/aiCore.mjs`, `electron/ai.cjs`, `Bridge.java`, `src/refrain*.ts`, `src/components/{RefrainSettings,RefrainHost,LimitScreen,ReportProblem}.tsx` |
+| C Промты | готово | `shared/prompts/templates.ts`, `src/prompts.ts`, `src/components/PromptsSettings.tsx` (в разделе «ИИ-помощник») |
+| B Выноски | готово | `src/callout*.ts`, `src/callouts.css`, `NoteEditor.tsx`, `Markdown.tsx`, `mdImport/mdExport/obsidian.ts` |
+| F Тетрадь и файлы | готово | `src/notebook*.ts`, `src/fileImport*.ts`, `src/components/NotebookImport.tsx`, пункт «Из тетради» в «Создать» |
+| A Оформление | готово | `src/styleMigrate.ts`, `styleActions.ts`, `LookSettings.tsx`, `ModsSettings.tsx`, `AppearanceAiGuide.tsx`, `shared/prompts/styleReference.ts` |
+| E Сайт | готово | Mnema-site: `admin/`, `tg/`, `privacy/`, `e2e/admin.mjs` |
+| Фаза 4: подключения ведущего | готово | `luna.ts` STYLE ← `STYLE_REFERENCE`; `PromptsSettings` → «ИИ»; «Объяснить иначе»/«Формула»/«Из тетради»/«Дословно» → шаблоны C |
 
-## Что не закончено (фаза 3)
+Ход работы каждого потока — `docs/refrain-1.31/progress/<поток>.md`. Патчи `wip/` влиты и удалены.
 
-Код потоков A, B, C, D, F **не влит** в ветку. Он лежит патчами `docs/refrain-1.31/wip/<поток>.patch` (серия коммитов от `7f40db1`), ход работы — `docs/refrain-1.31/progress/<поток>.md`. Последние коммиты каждого — WIP, могут не собираться.
+## Проверки (итог)
 
-| Поток | Сделано (по заметкам) | Осталось |
-| --- | --- | --- |
-| A Оформление | модель «стиль + дополнения + правки», перенос из 1.30 (`styleMigrate.ts`), порядок CSS, действия | интерфейс вкладок, галерея, редактор, «Инструкция для ИИ», `@font-face`, `styleReference.ts`, e2e |
-| B Выноски | отрисовка выносок в Markdown.tsx, `{?слово?}`, часть редактора, e2e на компьютере | доделать узел в NoteEditor, импорт/экспорт, e2e 380 px и тёмная |
-| C Промты | шаблоны под модели, автоподбор, переменные, экран «Промты» (WIP) | проверка экрана, перенос промтов из textbookNote/aiCards, тесты |
-| D Клиент Refrain ИИ | клиент, aiCore, ключ устройства Electron/Android, задачи в вызовах, тексты ошибок | интерфейс (AiSettings, экран лимита, вход), «Сообщить о проблеме», тесты |
-| E Сайт | `privacy/`, `admin/` (WIP), `tg/` (WIP), e2e (WIP) — **уже в ветке Mnema-site** | доделать экраны, проверку Playwright |
-| F Тетрадь | разворот, клетка, notebook.read, `{?…?}`, .docx/Markdown/Notion/PDF без зависимостей, ДЗ | обработка фото, компоненты, пункт в CreateMenu, e2e |
+- `npx tsc --noEmit` — чисто; `npx vitest run` — 66 файлов / 1121 тест; `npx vite build` и `npx vite build --mode web` — собираются.
+- `cd server && npx tsc --noEmit && npx vitest run` — 65 тестов.
+- e2e против `npx vite preview --mode web --outDir dist-web --port 4174` (Playwright глобальный, Chromium `/opt/pw-browsers/chromium-1194`):
+  - `e2e/v131-refrain.mjs` — вход, счётчик, лимит → «Без интернета», закрытый тест → приглашение, «Сообщить о проблеме» (22 ✓);
+  - `e2e/v131-callouts.mjs` — выноски, светлая/тёмная × 1280/380 (89 ✓);
+  - `e2e/v131-notebook.mjs` — фото разворота и .docx (всё ✓);
+  - `e2e/v131-overflow.mjs` — все стили (144) и дополнения (240) × темы × ширины, ничего не вылезает.
+- Mnema-site: `node e2e/admin.mjs` — 84 ✓.
+- Поиск настоящих ключей и почт по изменённым файлам — чисто (примеры — `@example.com`, ключи в тестах — заглушки).
 
-## Фаза 4 (после потоков)
+## Осталось
 
-Влить потоки, решить конфликты (`types.ts`, `Settings.tsx`), подключения ведущего:
-- `luna.ts` STYLE ← `shared/prompts/styleReference.ts` (A);
-- `PromptsSettings` (C) → раздел «ИИ» (D);
-- промты «Объяснить иначе»/«Формула» в `ai.ts` → шаблоны C;
-- «Из тетради» для своего ключа → шаблоны C.
-Затем: `npx tsc --noEmit`, `npx vitest run`, `npx vite build`, `npx vite build --mode web`, `cd server && npx vitest run`; e2e (вход → конспект → лимит → «Без интернета»; закрытый тест; пауза; смена стиля 380/1280, светлая/тёмная); проверка, что нет настоящих ключей и почт.
+- Ручные шаги запуска сервера и адрес `REFRAIN_API` (сейчас `https://refrain-ai.example.workers.dev`) — `docs/refrain-1.31/launch.md`.
+- Справочник стилей для ИИ ≈ 11 тыс. знаков — больше оценки `promptTokens: 2500` у задачи `style` (резерв занижен, списание по факту). Решить: сжать справочник или поднять оценку в контракте.
+- «Тетрадь»: корешок разворота не ищется по картинке — режется посередине.
+- «Разбить по темам с ИИ» в «Из тетради → Файл» идёт без Refrain ИИ (в реестре задач нет подходящей задачи) — только свой ключ / без интернета.
+- Перед слиянием удалить рабочие заметки `progress/`.
 
 ## Решения по умолчанию (ждут владельца)
 
 Brevo и `*.workers.dev`; лимиты из документа; старт в режиме «Тестировщики»; идеи раздела 9 не делаем; возраст учеников и 152-ФЗ/GDPR не решены.
-
----
-
-## Промт для нового чата
-
-Скопируй целиком:
-
-```
-Продолжаем выпуск Refrain 1.31.0. Репозитории TryserPy/Mnema и TryserPy/Mnema-site, ветка claude/wizardly-volta-879gpb в обоих (другие ветки не трогать, PR не создавать, сервер не выкладывать). Отвечай по-русски, коротко, по фактам.
-
-Сначала прочитай docs/refrain-1.31/HANDOFF.md, затем STATUS.md, contracts.md и streams.md в той же папке. Контракты и решения не пересматривай. Спецификация — артефакт https://claude.ai/artifact/7w1CHSk4p311UAMpzYHAMN (читать только нужные разделы).
-
-ЭКОНОМЬ ЛИМИТЫ: подагентов не запускай, работай сам, по одному потоку за раз. Порядок: D (клиент Refrain ИИ) → C (промты) → B (выноски) → F (тетрадь) → A (оформление) → E (сайт). Для каждого: git am docs/refrain-1.31/wip/<поток>.patch на ветку (при конфликте — разрешить), прочитать progress/<поток>.md, доделать по streams.md, прогнать npx tsc --noEmit и npx vitest run (сборку vite и e2e — только в конце потока), закоммитить и запушить. Читай файлы частями, не целиком, без лишних обзоров кода.
-
-Если я напишу «90» или «95» — сразу закоммить и запушь всё, обнови HANDOFF.md (что сделано, что осталось) и остановись.
-
-В конце каждого потока — короткий отчёт: что сделано, чем проверено (команда и итог), что осталось.
-```

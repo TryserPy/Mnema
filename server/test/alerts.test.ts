@@ -161,12 +161,12 @@ describe('бот', () => {
 describe('баги', () => {
   it('без входа, с PoW; почты и пути вычищены; в issue нет почты и снимка; 90 дней', async () => {
     const h = new Harness();
-    const bug = { category: 'note', text: 'Таблица съехала, пишите на kid@mail.ru', app: { version: '1.31.0', platform: 'windows', os: 'Windows 11' }, log: ['Error at C:\\Users\\Anya\\app.js:1', 'id 123456789'], screenshot: btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xe0)) };
+    const bug = { category: 'note', text: 'Таблица съехала, пишите на kid@example.com', app: { version: '1.31.0', platform: 'windows', os: 'Windows 11' }, log: ['Error at C:\\Users\\Anya\\app.js:1', 'id 123456789'], screenshot: btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xe0)) };
     expect((await h.json('POST', '/v1/bug', bug)).body.error.code).toBe('pow_invalid');
     const r = await h.json('POST', '/v1/bug', { ...bug, pow: await h.solvePow('bug') });
     expect(r.body).toMatchObject({ ok: true, id: 1 });
     const row = (await h.env.DB.prepare('SELECT * FROM bugs').first<Record<string, string>>())!;
-    expect(row.text).not.toContain('kid@mail.ru');
+    expect(row.text).not.toContain('kid@example.com');
     expect(row.log).not.toContain('Anya');
     expect(row.log).not.toContain('123456789');
     expect(JSON.stringify(row)).not.toContain('/9j/'); // снимок не хранится
