@@ -287,7 +287,7 @@ describe('импорт: чужие хранилища', () => {
     expect(cell.subjectName).toBe('Биология');
     expect(mit.parentKey).toBe(cell.key);
     expect(plan.topics.find((t) => t.name === 'Заметка')!.subjectName).toBe('Мой vault');
-    expect(cell.note).toBe(`См. [деление](mnema://topic/${mit.key}) и Нет такой.\n\n![схема.png](${PNG})\n> **Запомни**\n> текст`);
+    expect(cell.note).toBe(`См. [деление](mnema://topic/${mit.key}) и Нет такой.\n\n![схема.png](${PNG})\n> [!tip] Запомни\n> текст`);
     expect(plan.topics).toHaveLength(3);
   });
   it('HTML и опасные ссылки из файла не попадают в конспект', () => {

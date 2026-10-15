@@ -8,7 +8,9 @@
 //
 // Разметка: CommonMark + GFM (таблицы), формулы $…$ и $$…$$, выделение ==…==, свойства YAML сверху, картинки — файлами.
 // Рамки учебника «> **Запомните:** …» пишутся выносками Obsidian «> [!important] Запомните» (в других программах это обычная цитата).
+// Выноски Refrain «> [!def] Термин» (shared/prompts/markup.ts) выгружаются без изменений.
 // flavor 'obsidian' — ещё и ссылки между темами [[вики]] и видео ![](ссылка).
+import { legacyFramesToCallouts } from './callout';
 import { cardsToCsv, cardsToMarkdown, emitCards, emitList, emitPoems, type FlatCard, type PlainCard } from './mdCards';
 import { b64ToBytes, bytesToB64, EXT_BY_MIME, emitFrontmatter, linkPath, parseImageUri, relPath, safeFileName, uniquePath } from './mdPortable';
 import { hashText } from './noteText';
@@ -36,8 +38,6 @@ interface Planned {
 
 const dirOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
 const baseOf = (p: string) => p.slice(p.lastIndexOf('/') + 1).replace(/\.md$/i, '');
-
-const CALLOUT: Record<string, string> = { запомните: 'important', 'это важно': 'important', важно: 'important', вывод: 'summary', правило: 'note', определение: 'note', пример: 'example', внимание: 'warning' };
 
 export function buildMarkdownExport(data: AppData, opts: { flavor?: Flavor } = {}): ExportFile[] {
   const flavor = opts.flavor ?? 'plain';
@@ -133,12 +133,8 @@ export function buildMarkdownExport(data: AppData, opts: { flavor?: Flavor } = {
       if (flavor === 'obsidian') return text === baseOf(target.path) ? `[[${wikiTarget(target)}]]` : `[[${wikiTarget(target)}|${text}]]`;
       return `[${text}](${linkPath(relPath(here, target.path))})`;
     });
-    {
-      s = s.replace(/^> \*\*([^*\n]+?)\*\*[:.]?[ \t]*(.*)$/gm, (m, title: string, rest: string) => {
-        const kind = CALLOUT[title.replace(/[:.\s]+$/, '').toLowerCase()];
-        return kind ? `> [!${kind}] ${title.replace(/[:.\s]+$/, '')}${rest ? '\n> ' + rest : ''}` : m;
-      });
-    }
+    // Рамки учебника → выноски Obsidian; выноски «> [!def] …» уже в нужном виде и остаются как есть.
+    s = legacyFramesToCallouts(s);
     return s.trim();
   }
 

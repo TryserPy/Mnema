@@ -7,7 +7,7 @@
 import { validIconImg } from './iconImage';
 import { parseCards, parseListTable, parsePoems, type PlainCard } from './mdCards';
 import { b64ToBytes, bytesToB64, bytesToImageUri, cleanPath, isDrawingSvg, MIME_BY_EXT, metaStr, parseFrontmatter, resolveRel, safeSvgText, sanitizeImportedMarkdown } from './mdPortable';
-import { CALLOUT_TITLES } from './obsidian';
+import { calloutsToLegacyFrames } from './callout';
 import { validExamDate } from './safeData';
 import type { CardType, ListKind, ListMode, PagePhoto, StudyList } from './types';
 import { parseVideo } from './video';

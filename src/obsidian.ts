@@ -1,5 +1,6 @@
 // Перевод заметки Obsidian в конспект Refrain.
 
+/** Заголовки чужих выносок Obsidian, когда в строке «> [!type]» заголовка нет. */
 export const CALLOUT_TITLES: Record<string, string> = {
   note: 'Заметка',
   info: 'Информация',
@@ -48,11 +49,7 @@ export function convertObsidian(md: string, images: Record<string, string> = {})
   });
   // Ссылки [[Заметка#Раздел|текст]] → текст
   s = s.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, alias?: string) => (alias ?? target.split('#')[0]).trim());
-  // Выноски > [!note] Заголовок
-  s = s.replace(/^>\s*\[!(\w+)\][+-]?\s*(.*)$/gm, (_m, type: string, title: string) => {
-    const t = title.trim() || CALLOUT_TITLES[type.toLowerCase()] || type;
-    return `> **${t}**`;
-  });
+  // Выноски «> [!note] Заголовок» остаются как есть: конспект показывает их рамкой (src/callout.ts).
   // Блочные ссылки ^abc123 в конце строки
   s = s.replace(/\s\^[a-zA-Z0-9-]+$/gm, '');
   return s.replace(/\n{3,}/g, '\n\n').trim();
