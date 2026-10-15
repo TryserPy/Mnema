@@ -2,6 +2,7 @@
 import { aiRequest, type AiTask } from './aiTasks';
 import { cardsPrompt, noteForAi, parseAiCards, type AiCardDraft } from './aiCards';
 import { noteAnswer, refrainFields, shrinkImage } from './refrain';
+import { promptSystem } from './prompts';
 import type { AiRequest } from './store';
 import type { AppData } from './types';
 
@@ -63,8 +64,7 @@ export function cleanLatex(s: string): string {
 export async function recognizeFormula(pngBase64: string): Promise<string> {
   // Распознавание формул — строгий формат ответа, поэтому свои указания ученика сюда не добавляем.
   const text = await ask(null, {
-    system:
-      'Ты распознаёшь рукописные формулы по математике, физике и химии, написанные школьником. Верни ТОЛЬКО код формулы в LaTeX, без знаков $, без ``` и без пояснений. Химические формулы пиши с индексами: H_2O. Если строк несколько — раздели их \\\\. Если формулу разобрать нельзя, верни одно слово: НЕРАЗБОРЧИВО.',
+    system: promptSystem('formula'),
     text: 'Распознай формулу на картинке.',
     image: { mime: 'image/png', data: pngBase64 },
     maxTokens: 300,
@@ -87,8 +87,7 @@ export async function explainDifferently(p: { subject?: string; topic?: string; 
     .filter(Boolean)
     .join('\n');
   return ask('explain', {
-    system:
-      'Ты — доброжелательный репетитор для школьника. Ученик не может запомнить карточку. Объясни ответ ИНАЧЕ, чем в карточке: простыми словами, через один понятный пример или аналогию из жизни, и в конце дай короткую подсказку, как это запомнить. Не больше 110 слов. Пиши по-русски, на «ты». Формулы оформляй в $...$. Опирайся на школьную программу и материалы ученика; не выдумывай фактов и дат. Без вступлений вроде «Конечно!».',
+    system: promptSystem('explain', { vars: { subject: p.subject, topic: p.topic } }),
     text: context,
     maxTokens: 500,
     refrain: { task: 'explain', text: context.slice(0, 2500) }

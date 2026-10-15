@@ -13,6 +13,7 @@ import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
 import { CloudDialog } from '../components/CloudDialog';
 import { AiSettings } from '../components/AiSettings';
+import { PromptsSettings } from '../components/PromptsSettings';
 import { FEATURES, MODS_AVAILABLE } from '../featureList';
 import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
@@ -188,6 +189,11 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
       <div className="sgroup-body pad">
         <AiSettings />
       </div>
+      {window.mnemaApi?.aiGetConfig && (
+        <div className="sgroup-body pad">
+          <PromptsSettings />
+        </div>
+      )}
     </div>
   );
   else if (current === 'keys') pane = (

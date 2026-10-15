@@ -8,7 +8,7 @@ import { noteAnswer, REFRAIN_SIDE, type RefrainFields } from './refrain';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
 import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
 import { refineFigureBox, remapFigureMarks, tidyFigures } from './textbookFigures';
-import { mergeInput, mergeSystem, pageSystem, parseMerged, READ_SYSTEM, type NoteStyle } from './textbookNote';
+import { mergeInput, mergeSystem, pageSystem, parseMerged, readSystem, type NoteStyle } from './textbookNote';
 import { analyzeRegions, strokeStat } from './textbookRegions';
 import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
 import type { Quad } from './textbookImage';
@@ -516,7 +516,7 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
     };
     // Refrain ИИ: «Конспект»/«Кратко» сразу по странице или «Дословно» (чтение для свода), фото — 1600 px.
     const refrain: RefrainFields = { task: direct ? (o.style === 'brief' ? 'textbook.brief' : 'textbook.summary') : 'textbook.verbatim', image: { mime: 'image/jpeg', data: canvasToJpeg(scaleCanvas(canvas, REFRAIN_SIDE), 0.85).split(',')[1] }, ...(n ? { page: n } : {}) };
-    const ans = await askAi(direct ? pageSystem(o.style) : READ_SYSTEM, `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000, refrain);
+    const ans = await askAi(direct ? pageSystem(o.style) : readSystem(), `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000, refrain);
     if (!ans.ok) {
       pages.push(await fallback(ans.error));
       continue;

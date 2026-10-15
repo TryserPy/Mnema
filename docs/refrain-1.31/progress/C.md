@@ -11,11 +11,13 @@
 - `shared/prompts/luna.ts` «Тетрадь» + `promptVersion` n1 → n2; сервер зелёный.
 - `src/v131-prompts.test.ts`.
 
-## Осталось
-- `src/components/PromptsSettings.tsx` (без пропсов) — написан (WIP), tsc зелёный; осталось глянуть в браузере (временная страница tmp-prompts.html, не коммитится).
-- Полные проверки: tsc, vitest, vite build, vite build --mode web.
+## Доделано в новой сессии
+- Временные файлы WIP (скриншоты, tmp-prompts) убраны; экран «Промты» проверен по скриншотам 380 и 1100 px.
+- Подключения: `textbook.ts` → `readSystem()`; «Объяснить иначе» и «Формула» в `ai.ts` → `promptSystem('explain' | 'formula')`; `PromptsSettings` — в разделе «ИИ-помощник» (`Settings.tsx`, только где есть `aiGetConfig`).
 
-## Вопросы ведущему (в отчёт)
-- `src/textbook.ts`: `READ_SYSTEM` → `readSystem()` (иначе «Дословно» и первый шаг нескольких страниц не видят выбранный шаблон).
-- `src/store.ts` normalizeData: `promptTemplates: cleanPromptTemplates(r.settings?.promptTemplates)` (сейчас чистится при чтении в prompts.ts).
-- `src/ai.ts`: explain/formula могут брать `promptSystem('explain' | 'formula')`.
+## Проверки
+- `npx tsc --noEmit` — без ошибок; `npx vitest run` — 63 файла / 1049 тестов зелёные; `npx vite build` и `--mode web` — собираются.
+
+## Осталось
+- `store.ts` normalizeData: чистка `promptTemplates` при загрузке (сейчас — при чтении в `prompts.ts`, этого достаточно).
+- «Из тетради» (F) для своего ключа → `promptSystem('notebook.read')`.
