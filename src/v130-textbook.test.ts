@@ -169,9 +169,10 @@ describe('режимы конспекта: указания ИИ', () => {
   it('«Конспект» не требует переписывать дословно, а «Дословно» требует', () => {
     expect(pageSystem('summary')).not.toMatch(/дословно/i);
     expect(pageSystem('summary')).toMatch(/20–35%/);
-    expect(pageSystem('summary')).toMatch(/\*\*Термин\*\* — определение/);
+    // 1.31: определения и рамки — выносками Refrain (shared/prompts/markup.ts), а не «**Термин** — …» и «> **Запомните:**».
+    expect(pageSystem('summary')).toMatch(/> \[!def\] Термин/);
     expect(pageSystem('summary')).toMatch(/таблицей/);
-    expect(pageSystem('summary')).toMatch(/> \*\*Запомните:\*\*/);
+    expect(pageSystem('summary')).toMatch(/> \[!tip\] Запомни/);
     expect(pageSystem('brief')).toMatch(/5–10 пунктов/);
     expect(pageSystem('verbatim')).toBe(READ_SYSTEM);
     expect(READ_SYSTEM).toMatch(/точно/);
