@@ -230,7 +230,7 @@ export function PromptsSettings() {
               <span className="grow">{m.name}</span>
             </button>
           ))}
-          <button type="button" className="btn small" onClick={() => createMine(text, `Мой: ${TASK_TITLES[task]}`)}>
+          <button type="button" className="btn small" onClick={() => createMine(text, `${TASK_TITLES[task]} (${familyTitle(resolved.family)})`)}>
             + Новый шаблон
           </button>
           <button type="button" className="link-btn small" onClick={() => fileInput.current?.click()}>
@@ -314,7 +314,7 @@ export function PromptsSettings() {
           ) : (
             <span className="small muted">
               Встроенный шаблон менять нельзя.{' '}
-              <button type="button" className="link-btn small" onClick={() => createMine(text, `Мой: ${TASK_TITLES[task]}`)}>
+              <button type="button" className="link-btn small" onClick={() => createMine(text, `${TASK_TITLES[task]} (${familyTitle(resolved.family)})`)}>
                 Сделать свой на его основе
               </button>
             </span>

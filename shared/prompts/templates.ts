@@ -89,7 +89,8 @@ const VAR_RE = /\{\{\s*([^{}\s]{1,30})\s*\}\}/g;
 
 /**
  * Подставить переменные. Неизвестные ({{класс}}) остаются как есть.
- * Строка, где стоит известная переменная без значения («Предмет: {{предмет}}.» без предмета), убирается целиком, чтобы в промте не висело «Предмет: .».
+ * Строка, где стоят только пустые известные переменные («Предмет: {{предмет}}.» без предмета), убирается целиком, чтобы в промте не висело «Предмет: .»;
+ * если в строке есть и непустая, пустые просто исчезают.
  */
 export function fillVars(text: string, vars: PromptVars, family: TemplateFamily = 'universal'): string {
   const values: Record<PromptVarName, string> = {
@@ -103,7 +104,10 @@ export function fillVars(text: string, vars: PromptVars, family: TemplateFamily 
   const lines = String(text ?? '')
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .filter((ln) => ![...ln.matchAll(VAR_RE)].some((mm) => known(mm[1]) && !values[mm[1]]));
+    .filter((ln) => {
+      const names = [...ln.matchAll(VAR_RE)].map((mm) => mm[1]).filter(known);
+      return !names.some((n) => !values[n]) || names.some((n) => values[n]);
+    });
   return lines
     .join('\n')
     .replace(VAR_RE, (all, n: string) => (known(n) ? values[n] : all))
