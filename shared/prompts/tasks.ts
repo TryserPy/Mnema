@@ -34,7 +34,8 @@ export const TASK_SPECS: Record<TaskId, TaskSpec> = {
   cards: { id: 'cards', title: 'Карточки', promptVersion: 'c1', promptTokens: 400, maxTokens: 1200, reasoning: 'none', format: 'json', image: 'forbidden', textMax: 6000, pagesEstimate: 0.3 },
   explain: { id: 'explain', title: 'Объяснить иначе', promptVersion: 'e1', promptTokens: 150, maxTokens: 350, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 2500, pagesEstimate: 0.05 },
   style: { id: 'style', title: 'Стиль с ИИ', promptVersion: 'y2', promptTokens: 2500, maxTokens: 3000, reasoning: 'low', format: 'json', image: 'forbidden', textMax: 12000, pagesEstimate: 1.5 },
-  formula: { id: 'formula', title: 'Формула от руки', promptVersion: 'f1', promptTokens: 120, maxTokens: 200, reasoning: 'none', format: 'latex', image: 'required', textMax: 0, pagesEstimate: 0.05 }
+  formula: { id: 'formula', title: 'Формула от руки', promptVersion: 'f1', promptTokens: 120, maxTokens: 200, reasoning: 'none', format: 'latex', image: 'required', textMax: 0, pagesEstimate: 0.05 },
+  'file.split': { id: 'file.split', title: 'Разбить файл по темам', promptVersion: 'p1', promptTokens: 150, maxTokens: 600, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 12000, pagesEstimate: 0.3 }
 };
 
 /**

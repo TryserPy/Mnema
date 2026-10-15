@@ -6,7 +6,7 @@ export const API_VERSION = 1;
 export const API_PREFIX = '/v1';
 
 /** Задачи, которые приложение может попросить. Промты к ним собирает сервер (shared/prompts/tasks.ts). */
-export const TASKS = ['textbook.summary', 'textbook.brief', 'textbook.verbatim', 'textbook.merge', 'notebook.read', 'cards', 'explain', 'style', 'formula'];
+export const TASKS = ['textbook.summary', 'textbook.brief', 'textbook.verbatim', 'textbook.merge', 'notebook.read', 'cards', 'explain', 'style', 'formula', 'file.split'];
 
 /** Поля тела POST /v1/task. Всё прочее — нарушение контракта (сервер отвечает bad_request и записывает сигнал «лишние поля»). */
 export const TASK_FIELDS = ['task', 'image', 'text', 'subject', 'topic', 'page', 'wishes'];

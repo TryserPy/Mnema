@@ -183,7 +183,8 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
     setBusy('ИИ раскладывает по темам…');
     setErr('');
     try {
-      const starts = parseSplitAnswer(await askAi('other', { system: SPLIT_SYSTEM, text: splitOutline(doc.markdown), maxTokens: 800 }));
+      const outline = splitOutline(doc.markdown);
+      const starts = parseSplitAnswer(await askAi('other', { system: SPLIT_SYSTEM, text: outline, maxTokens: 800, refrain: { task: 'file.split', text: outline } }));
       if (!starts.length) throw new Error('ИИ не нашёл границ тем. Попробуй «По заголовкам».');
       setRows(toRows(sectionsByStarts(doc.markdown, starts, doc.name)));
     } catch (e) {

@@ -373,3 +373,16 @@ describe('баг-репорт', () => {
     expect(srv.calls.map((x) => x.path)).toEqual(['/auth/pow', '/bug']);
   });
 });
+
+describe('задача file.split («Из тетради → Файл → Разбить по темам с ИИ»)', () => {
+  it('идёт в Refrain ИИ только с текстом, промт — начала абзацев без фото', async () => {
+    const { lunaSystem, lunaUser } = await import('../shared/prompts/luna');
+    expect(refrainFields({ task: 'file.split', text: '0: § 12. Фотосинтез\n1: Растения…' })).toEqual({ task: 'file.split', text: '0: § 12. Фотосинтез\n1: Растения…' });
+    expect(refrainFields({ task: 'file.split' })).toBeUndefined();
+    expect(refrainFields({ task: 'file.split', text: 'x'.repeat(12001) })).toBeUndefined();
+    expect(lunaSystem('file.split')).toMatch(/N \| Название темы/);
+    const u = lunaUser('file.split', { text: '0: абзац' });
+    expect(u).toContain('Начала абзацев');
+    expect(u).not.toContain('Фото');
+  });
+});

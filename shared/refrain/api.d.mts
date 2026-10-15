@@ -1,6 +1,6 @@
 // Типы контракта «приложение ↔ сервер Refrain ИИ». Значения — в api.mjs, описание — docs/refrain-1.31/contracts.md.
 
-export type TaskId = 'textbook.summary' | 'textbook.brief' | 'textbook.verbatim' | 'textbook.merge' | 'notebook.read' | 'cards' | 'explain' | 'style' | 'formula';
+export type TaskId = 'textbook.summary' | 'textbook.brief' | 'textbook.verbatim' | 'textbook.merge' | 'notebook.read' | 'cards' | 'explain' | 'style' | 'formula' | 'file.split';
 export type ErrorCode =
   | 'limit_day'
   | 'limit_month'

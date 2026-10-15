@@ -7,7 +7,7 @@ import type { TaskId } from '../refrain/api.mjs';
 import { MARKS_RULES, MARKUP_RULES, MARKUP_RULES_SMALL, READING_RULES } from './markup';
 
 /** Задачи, у которых есть шаблоны. Промт стиля собирается из справочника стилей (поток оформления), здесь его нет. */
-export type TemplateTask = Exclude<TaskId, 'style'>;
+export type TemplateTask = Exclude<TaskId, 'style' | 'file.split'>;
 export const TEMPLATE_TASKS: TemplateTask[] = ['textbook.summary', 'textbook.brief', 'textbook.verbatim', 'textbook.merge', 'notebook.read', 'cards', 'explain', 'formula'];
 
 export type TemplateFamily = 'gpt' | 'claude' | 'gemini' | 'deepseek' | 'small' | 'universal';
