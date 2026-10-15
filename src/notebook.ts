@@ -8,7 +8,7 @@ import { MARKS } from '../shared/prompts/markup';
 import { lunaSystem, lunaUser } from '../shared/prompts/luna';
 import { TASK_SPECS } from '../shared/prompts/tasks';
 import { FIELD_LIMITS } from '../shared/refrain/api.mjs';
-import { cardDraft, DEFAULT_HIGHLIGHT, findImportant } from './important';
+import { cardDraft, DEFAULT_HIGHLIGHT, findImportant, type ImportantItem } from './important';
 import type { AiRequest } from './store';
 import { fixFormulas } from './textbookMath';
 import { normalizeAiBlocks, sanitizeAiText } from './textbookText';
@@ -266,17 +266,36 @@ export interface CardDraft {
 /** Сколько черновиков на тему: больше — долг повторений на недели, лучше начать с малого. */
 export const DRAFTS_PER_TOPIC = 12;
 
+/** Выноски «> [!def] Термин» → обычная цитата, которую понимает поиск «Важного»: заголовок определения встаёт в начало текста. */
+function calloutsAsQuotes(md: string): string {
+  const lines = md.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^>\s*\[!(\w+)\][+-]?\s*(.*)$/.exec(lines[i]);
+    if (!m) continue;
+    const [, type, title] = m;
+    const body = /^>\s?(.*)$/.exec(lines[i + 1] ?? '')?.[1]?.trim();
+    if (type === 'def' && title && body && !body.toLowerCase().startsWith(title.toLowerCase())) lines[i + 1] = `> ${title} — ${body}`;
+    lines[i] = type === 'tip' || type === 'rule' ? '> Запомните:' : '>';
+    if (!body) lines[i] = title ? `> ${type === 'tip' || type === 'rule' ? 'Запомните: ' : ''}${title}` : '';
+  }
+  return lines.join('\n');
+}
+
 /** «Черновики карточек» без ИИ: определения, даты и рамки «Запомните» из текста — ученик выберет, какие оставить. */
 export function cardDrafts(md: string, limit = DRAFTS_PER_TOPIC): CardDraft[] {
+  // Одно предложение — одна карточка. Если в определении есть дата, лучше спросить дату: «Что такое отмена крепостного права?» — не вопрос.
+  const rank = { date: 0, box: 1, definition: 2 } as Record<string, number>;
+  const best = new Map<string, ImportantItem>();
+  for (const item of findImportant(calloutsAsQuotes(acceptUnsure(md)), DEFAULT_HIGHLIGHT)) {
+    if (!(item.type in rank)) continue;
+    const key = item.sentence.trim().toLowerCase();
+    const had = best.get(key);
+    if (!had || rank[item.type] < rank[had.type]) best.set(key, item);
+  }
   const out: CardDraft[] = [];
-  const seen = new Set<string>();
-  for (const item of findImportant(acceptUnsure(md), DEFAULT_HIGHLIGHT)) {
-    if (item.type !== 'definition' && item.type !== 'date' && item.type !== 'box') continue;
+  for (const item of best.values()) {
     const d = cardDraft(item);
-    const key = d.front.toLowerCase();
-    if (!d.front.trim() || seen.has(key)) continue;
-    seen.add(key);
-    out.push(d);
+    if (d.front.trim()) out.push(d);
     if (out.length >= limit) break;
   }
   return out;

@@ -1,6 +1,6 @@
 // 1.31, поток F: «Из тетради» — фото (разворот, клетка, {?слово?}, «Как в тетради», запрос notebook.read) и файлы (.docx, PDF, Markdown/Notion, ДЗ).
 import { describe, expect, it } from 'vitest';
-import { acceptUnsure, asInNotebook, fixUnsure, hasAbbreviations, isSpreadShape, notebookRequest, parseNotebookAnswer, spreadCuts, tidyRequest, unsureCount, unsurePieces, whitenPaper } from './notebook';
+import { acceptUnsure, asInNotebook, cardDrafts, fixUnsure, hasAbbreviations, isSpreadShape, notebookRequest, parseNotebookAnswer, spreadCuts, tidyRequest, unsureCount, unsurePieces, whitenPaper } from './notebook';
 
 describe('тетрадь: разворот', () => {
   it('широкий снимок — разворот, «стоячий» — одна страница', () => {
@@ -92,5 +92,18 @@ describe('тетрадь: «Как в тетради»', () => {
     expect(asInNotebook('$\\text{вещество}$ и {?раствор?}')).toBe('$\\text{вещество}$ и {?р-р?}');
     expect(hasAbbreviations('Клетка делится.')).toBe(false);
     expect(hasAbbreviations('то есть')).toBe(true);
+  });
+});
+
+describe('тетрадь: черновики карточек без ИИ', () => {
+  it('определения, даты и «Запомните» — по одной карточке на предложение, метки {?…?} сняты', () => {
+    const d = cardDrafts('## Фотосинтез\n\nФотосинтез — это образование органических {?веществ?} на свету.\n\n> [!def] Хлорофилл\n> зелёный пигмент растений.\n\nОтмена крепостного права — 19 февраля 1861 г.\n\n> [!tip] Запомните\n> Свет нужен всегда.');
+    expect(d.map((x) => x.front)).toEqual(['Что такое «фотосинтез»?', 'Что такое «хлорофилл»?', 'Отмена крепостного права — {{19 февраля 1861 г.}}', 'Что нужно запомнить? Свет нужен всегда.…']);
+    expect(d[0].back).toBe('Образование органических веществ на свету.');
+    expect(d[2].type).toBe('cloze');
+  });
+  it('не больше заданного числа', () => {
+    const md = Array.from({ length: 30 }, (_, i) => `Слово${i} — это понятие номер ${i}.`).join('\n\n');
+    expect(cardDrafts(md, 5)).toHaveLength(5);
   });
 });
