@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Logo } from '../components/Logo';
 import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
-import { LookPane } from '../components/LookSettings';
+import { LookPane, lookTabFor } from '../components/LookSettings';
+import { setAppearanceTab } from '../styleActions';
 import { FeaturesPane } from '../components/FeaturesPane';
 import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
@@ -47,7 +48,10 @@ interface IndexItem {
 
 // Поиск по настройкам: что где лежит.
 const INDEX: IndexItem[] = [
-  { label: 'Стиль: современный или классический', section: 'look', anchor: 'style', words: 'вид дизайн' },
+  { label: 'Стиль: современный, классический, схемы', section: 'look', anchor: 'style', words: 'вид дизайн кофе океан лес' },
+  { label: 'Дополнения к стилю', section: 'look', anchor: 'addons', words: 'моды поверх клетка кнопки колонка' },
+  { label: 'Инструкция для ИИ (стиль через чат-бот)', section: 'look', anchor: 'ai-guide', words: 'chatgpt claude deepseek без ключа md' },
+  { label: 'Сбросить мои правки оформления', section: 'look', anchor: 'look-summary', words: 'правки поверх сохранить как стиль' },
   { label: 'Светлая или тёмная тема', section: 'look', anchor: 'theme', words: 'ночь темный светлый система' },
   { label: 'Цвета темы', section: 'look', anchor: 'theme', words: 'палитра воздух бумага графит' },
   { label: 'Главный цвет', section: 'look', anchor: 'accent', words: 'акцент кнопки' },
@@ -118,6 +122,8 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
   const open = (id: string, anchor?: string) => {
     setQuery('');
     setSection(sectionId(id) ?? null);
+    const tab = sectionId(id) === 'look' ? lookTabFor(anchor) : null;
+    if (tab) setAppearanceTab(tab);
     setFlash(anchor ?? null);
     (document.querySelector('.main') as HTMLElement | null)?.scrollTo({ top: 0 });
   };
@@ -179,7 +185,7 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
   );
 
   let pane: ReactNode = null;
-  if (current === 'look') pane = <LookPane dark={dark} onGo={(id) => open(id)} />;
+  if (current === 'look') pane = <LookPane dark={dark} onGo={(id) => open(id)} focus={flash} />;
   else if (current === 'features') pane = <FeaturesPane openSection={open} />;
   else if (current === 'study') pane = <StudyPane />;
   else if (current === 'reminders') pane = <RemindersPane desktop={desktop} android={android} />;

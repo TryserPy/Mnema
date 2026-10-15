@@ -12,14 +12,24 @@
 - `v131-styles.test.ts` (17 тестов: роль, перенос, идемпотентность, проекция без потерь, порядок CSS, v3, шрифты). `v130-styles.test.ts`: «слишком новая» версия файла теперь 4 (v3 читается по контракту).
 - `styleActions.ts`: действия 1.31 — `setAppearance`, `setAppearanceTab`, `pickStyle` (правки цветов сбрасываются при смене стиля — `editsForNewStyle`), `toggleAddon`, `moveAddon`, `resetEdits`, `setCurrent`, `currentAsStyle`, `saveEditsAsStyle`, `saveStyle`, `removeStyle`, `setAppearanceValue`.
 
-## Дальше (по порядку)
+## Доделано в новой сессии
 
-1. UI: `LookSettings.tsx` — вкладки «Стиль · Дополнения · Анимации · Свой код» (вкладка в `appearance.tab`), карточка-сводка («Кофе · 3 правки поверх», «Настроить» раскрывает быстрые настройки + свой фон + значок + полный редактор, «Сбросить правки», «Сохранить как стиль»).
-2. `ModsSettings.tsx`: галерея только стилей (одиночный выбор `pickStyle`), фильтр «Все · Встроенные · Мои», убрать `BASE_TILES`/«Виды»; вкладка «Дополнения» (переключатели, настройки, порядок). `StyleGallery.tsx:257` — подпись из `origin` (helper в mods.ts). `design.css:92` — ширина `small-seg`.
-3. Перевести `StyleEditor`/`StyleAiPanel` на `saveStyle`/`setCurrent` (вместо `saveCustomStyle`/`toggleStyle`/`updateSettings(modToCurrent)`); дерево частей экрана + «Выбрать на экране»; часть «Конспект → Выноски» (`--co-*` в `styleApi.ts` + значения по умолчанию в design.css).
-4. «Инструкция для ИИ» (новый `AppearanceAiGuide.tsx`): копировать / .md / вставить ответ → `parseAiStyle` → до/после → применить, список выброшенного.
-5. `shared/prompts/styleReference.ts` (строка из `styleAi.styleReference()`, обновить под 1.31) + тест сверки.
-6. Поиск по настройкам в `Settings.tsx` (якоря → вкладки).
-7. e2e `e2e/v131-overflow.mjs`.
+- `LookSettings.tsx`: карточка текущего оформления («Кофе · 3 правки поверх», дополнения), «Настроить» раскрывает быстрые настройки, свой фон и значок (всё через `setCurrent`), «Сбросить правки», «Сохранить как стиль»; вкладки «Стиль · Дополнения · Анимации · Свой код» (запоминаются в `appearance.tab`).
+- Поиск по настройкам: якорь → вкладка (`lookTabFor`), быстрые настройки раскрываются сами; новые пункты «Дополнения», «Инструкция для ИИ», «Сбросить мои правки».
+- `AppearanceAiGuide.tsx` — «Инструкция для ИИ»: копировать / .md / вставить ответ → `parseAiStyle` → «До / После» на настоящем интерфейсе → применить; список выброшенного.
+- `StyleEditor`/`StyleAiPanel` — на `saveStyle`/`setCurrent`/`currentAsStyle` (старые `saveCustomStyle`/`toggleStyle` больше не вызываются из интерфейса). В справке редактора — «Выбрать на экране» и подсветка части по нажатию на её метку.
+- `styleApi.ts`: часть «Конспект → Выноски» (`--co-def|rule|tip|ex|warn`).
+- `shared/prompts/styleReference.ts` (`STYLE_REFERENCE`) + тест сверки; подключён в `luna.ts` (STYLE), `promptVersion` style y1 → y2.
+- `e2e/v131-overflow.mjs`: 9 стилей и все дополнения × светлая/тёмная × 1280/380 × «Сегодня», предмет, тема, «Оформление».
+
+## Проверки
+
+- `npx tsc --noEmit` — чисто; `npx vitest run` — 66 файлов / 1121 тест; `cd server && npx vitest run` — 65; `npx vite build` и `--mode web` — собираются.
+- `e2e/v131-overflow.mjs`: стили — 144 проверки, дополнения — 240, ничего не вылезает.
+
+## Осталось
+
+- Справочник для ИИ ≈11 тыс. знаков — больше оценки `promptTokens: 2500` у задачи style (списание идёт по настоящему расходу, но резерв занижен). Решение — за владельцем: сжать справочник или поднять оценку в контракте.
+- Старые действия `toggleStyle`/`moveStyle`/`saveCustomStyle` в `styleActions.ts` остались для совместимости (тесты 1.30).
 
 Проверки: tsc и vitest зелёные на коммите модели.

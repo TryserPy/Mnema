@@ -93,3 +93,8 @@
   .style-editor.peek .se-body, .style-editor.peek .se-tabs, .style-editor.peek .se-tools, .style-editor.peek .se-meta, .style-editor.peek .se-saveas, .style-editor.peek .se-sub { display: none; }
   .style-editor.peek .se-head > .grow > .small { display: none; }
 }
+
+/* «Выбрать на экране»: подсветка части интерфейса. */
+.se-part-hl { outline: 2px dashed var(--accent) !important; outline-offset: 2px; }
+.se-part-btn { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; }
+.se-part-btn:hover code { text-decoration: underline; }

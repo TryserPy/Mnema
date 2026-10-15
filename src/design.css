@@ -926,3 +926,10 @@ html[data-density='comfy'] .topic-row { padding: 20px 22px; }
 .mobile-brand { overflow: hidden; }
 .mobile-brand .test-tag { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .st-pc { align-self: flex-start; margin-top: 2px; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; color: var(--muted); background: var(--sunken); }
+
+/* «Оформление» 1.31: карточка текущего оформления и вкладки. */
+.look-summary { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.look-summary-ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-text, var(--accent)); flex: none; }
+.look-summary-text { min-width: 0; }
+.look-summary-text strong { overflow-wrap: anywhere; }
+.ctl-seg.look-tabs { width: 460px; max-width: 100%; }

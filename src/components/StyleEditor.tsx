@@ -262,13 +262,61 @@ function SettingsPane({ m, set, values, setValue }: { m: Mod; set: (m: Mod) => v
   );
 }
 
-function HelpPane() {
+/** Подсветить часть экрана [data-part] на секунду. */
+function flashPart(name: string) {
+  for (const el of document.querySelectorAll<HTMLElement>(`[data-part='${CSS.escape(name)}']`)) {
+    el.classList.add('se-part-hl');
+    setTimeout(() => el.classList.remove('se-part-hl'), 1200);
+  }
+}
+
+function HelpPane({ onPicking }: { onPicking?: (on: boolean) => void }) {
   const [q, setQ] = useState('');
+  const [picking, setPicking] = useState(false);
+  // «Выбрать на экране»: наведение подсвечивает часть [data-part], нажатие ищет её в справке. Esc — отмена.
+  useEffect(() => {
+    if (!picking) return;
+    onPicking?.(true);
+    let hl: HTMLElement | null = null;
+    const partOf = (t: EventTarget | null) => (t instanceof Element && !t.closest('.style-editor') ? t.closest<HTMLElement>('[data-part]') : null);
+    const over = (e: MouseEvent) => {
+      const el = partOf(e.target);
+      if (el === hl) return;
+      hl?.classList.remove('se-part-hl');
+      hl = el;
+      hl?.classList.add('se-part-hl');
+    };
+    const stop = () => setPicking(false);
+    const click = (e: MouseEvent) => {
+      const el = partOf(e.target);
+      if (!el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setQ(el.dataset.part ?? '');
+      stop();
+    };
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && stop();
+    document.addEventListener('mouseover', over, true);
+    document.addEventListener('click', click, true);
+    document.addEventListener('keydown', key, true);
+    return () => {
+      hl?.classList.remove('se-part-hl');
+      document.removeEventListener('mouseover', over, true);
+      document.removeEventListener('click', click, true);
+      document.removeEventListener('keydown', key, true);
+      onPicking?.(false);
+    };
+  }, [picking, onPicking]);
   const ql = q.trim().toLowerCase();
   const hit = (a: string, b: string) => !ql || a.toLowerCase().includes(ql) || b.toLowerCase().includes(ql);
   return (
     <div className="se-pane se-help">
-      <input className="input" placeholder="Найти в справке…" aria-label="Поиск по справке" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="row gap8">
+        <input className="input grow" placeholder="Найти в справке…" aria-label="Поиск по справке" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button type="button" className={'btn small' + (picking ? ' on' : '')} aria-pressed={picking} onClick={() => setPicking(!picking)} title="Наведи на часть интерфейса и нажми — справка покажет, как она называется">
+          {picking ? 'Нажми на часть…' : 'Выбрать на экране'}
+        </button>
+      </div>
       <p className="small muted">
         Стиль — это только оформление: CSS и настройки вида, программ в нём нет. Файл — <code>{STYLE_EXT}</code> (обычный JSON). Включить можно несколько стилей: тот, что ниже в списке, перекрывает верхние. Тёмная тема: <code>:root[data-theme='dark'] …</code>. Переменные из конструктора записываются с <code>!important</code>, чтобы перекрыть тему.
       </p>
@@ -302,7 +350,10 @@ function HelpPane() {
       <h4 className="se-h">Метки частей</h4>
       {API_PARTS.filter((p) => hit(p.name, p.doc)).map((p) => (
         <p key={p.name} className="se-doc">
-          <code>[data-part='{p.name}']</code> — {p.doc}
+          <button type="button" className="se-part-btn" onClick={() => flashPart(p.name)} title="Показать на экране">
+            <code>[data-part='{p.name}']</code>
+          </button>{' '}
+          — {p.doc}
         </p>
       ))}
       <h4 className="se-h">Атрибуты на корне</h4>
@@ -537,7 +588,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
             }
           />
         )}
-        {tab === 'help' && <HelpPane />}
+        {tab === 'help' && <HelpPane onPicking={setPeek} />}
       </div>
       {saveAs !== null && (
         <div className="row gap8 se-saveas">
