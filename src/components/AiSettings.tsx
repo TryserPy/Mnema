@@ -6,6 +6,7 @@ import { AiNotes } from './AiNotes';
 import { ProviderOrder, RefrainSettings, type AiConfigOrder } from './RefrainSettings';
 import { Fold } from './Fold';
 import { PromptsSettings } from './PromptsSettings';
+import { PromptSafety } from './PromptSafety';
 import { refrainApi } from '../refrainBridge';
 
 type ConfigPatch = Partial<Omit<AiConfig, 'hasKey' | 'custom'>> & { key?: { provider: 'anthropic' | 'gemini'; value: string } };
@@ -94,6 +95,8 @@ export function AiSettings() {
   const localOk = api.platform !== 'android';
   const mode = modeOf(ordered, refrainOn);
   const keyProviders = providers.filter((x) => x.id !== 'local');
+  /** Свои ИИ, у которых есть ключ (или ключ не нужен). */
+  const readyKeys = keyProviders.filter((x) => (x.custom ? x.custom.hasKey || x.custom.auth === 'none' : cfg.hasKey[x.id as 'anthropic' | 'gemini']));
 
   /** Выбор «кто помогает»: выбранный — первым, остальные остаются запасными по порядку. */
   async function choose(m: Mode) {
@@ -101,8 +104,9 @@ export function AiSettings() {
     setKey('');
     if (m === 'refrain') return void save({ order: ['refrain', 'key', 'local'] } as ConfigPatch);
     if (m === 'local') return void save({ provider: 'local', order: ['local', 'refrain', 'key'] } as ConfigPatch);
-    const ready = keyProviders.find((x) => (x.custom ? x.custom.hasKey || x.custom.auth === 'none' : cfg!.hasKey[x.id as 'anthropic' | 'gemini']));
-    await save({ ...(p === 'local' ? { provider: ready?.id ?? 'anthropic' } : {}), order: ['key', 'refrain', 'local'] } as ConfigPatch);
+    // Основной ИИ без ключа, а у другого ключ есть — берём тот, что с ключом: иначе выглядит, будто ключ «не видно».
+    const curReady = readyKeys.some((x) => x.id === p);
+    await save({ ...(p === 'local' || !curReady ? { provider: readyKeys[0]?.id ?? (p === 'local' ? 'anthropic' : p) } : {}), order: ['key', 'refrain', 'local'] } as ConfigPatch);
   }
 
   const modes: { id: Mode; icon: string; title: string; text: string; tag?: string }[] = [
@@ -137,6 +141,17 @@ export function AiSettings() {
       {mode === 'refrain' && (
         <div className="ai-step">
           <RefrainSettings cfg={ordered} />
+        </div>
+      )}
+
+      {mode === 'refrain' && readyKeys.length > 0 && (
+        <div className="hint row gap8 wrap" role="note" data-part="own-key-note">
+          <span className="grow">
+            🔑 Твой ключ сохранён: {readyKeys.map((x) => x.name).join(', ')}. Сейчас он запасной — работает, когда ты не вошёл в Refrain ИИ, у него кончился лимит или нет связи.
+          </span>
+          <button className="btn small" onClick={() => void choose('key')}>
+            Сделать основным
+          </button>
         </div>
       )}
 
@@ -274,6 +289,10 @@ export function AiSettings() {
 
       <Fold id="ai-notes" icon="💬" title="Как объяснять" hint="Твои пожелания к ИИ: «объясняй проще», «я в 7 классе»">
         <AiNotes cfg={cfg} part="notes" />
+      </Fold>
+
+      <Fold id="ai-safety" icon="🛡" title="Как защищены промты" hint="Что уходит ИИ и почему его нельзя «уговорить» сломать приложение">
+        <PromptSafety />
       </Fold>
 
       <Fold id="ai-advanced" icon="⚙️" title="Для продвинутых" hint="Модели, запасной ИИ, промты">

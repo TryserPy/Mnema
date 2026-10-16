@@ -329,7 +329,9 @@ export async function aiReady(data: AppData): Promise<AiReady> {
       const p = cfg.provider;
       const custom = p.startsWith('custom:') ? cfg.custom.find((x) => 'custom:' + x.id === p) : undefined;
       const ok = p === 'anthropic' || p === 'gemini' ? cfg.hasKey[p] : p === 'local' ? true : custom ? custom.hasKey || custom.auth === 'none' : true;
-      if (!ok) return { ok: false, hint: 'У ИИ-помощника нет ключа. Зайди в Настройки → ИИ-помощник, вставь ключ (там подсказано, где его взять) — и возвращайся.', go: 'ai' };
+      // Refrain ИИ первым в очереди — ключ не нужен: ответит он (или скажет, что войти).
+      const refrainFirst = Boolean((cfg as { refrain?: boolean }).refrain) && ((cfg as { order?: string[] }).order ?? ['refrain'])[0] === 'refrain';
+      if (!ok && !refrainFirst) return { ok: false, hint: 'У ИИ-помощника нет ключа. Зайди в Настройки → ИИ-помощник, вставь ключ (там подсказано, где его взять) — и возвращайся.', go: 'ai' };
     }
   } catch {
     /* не вышло прочитать настройки — пусть ответит сам запрос */

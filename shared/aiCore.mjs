@@ -27,9 +27,21 @@ export function normalizeOrder(o) {
   return [...seen, ...STEPS.filter((x) => !seen.includes(x))];
 }
 
+/**
+ * Порядок для настроек без него (до 1.31): у кого уже был свой ключ или модель на компьютере, тот и остаётся первым —
+ * иначе после обновления Refrain ИИ встал бы впереди, а свой ключ «пропал» бы из вкладки ИИ.
+ */
+export function legacyOrder(c) {
+  const keys = c.keys && typeof c.keys === 'object' ? Object.keys(c.keys).filter((k) => c.keys[k]) : [];
+  const keyless = Array.isArray(c.custom) && c.custom.some((x) => x && x.auth === 'none' && 'custom:' + x.id === c.provider);
+  if (c.provider === 'local') return ['local', 'key', 'refrain'];
+  if (keys.length || keyless) return ['key', 'refrain', 'local'];
+  return undefined;
+}
+
 export function normalizeConfig(c) {
   c = c && typeof c === 'object' ? c : {};
-  return { ...DEFAULTS, ...c, models: { ...DEFAULTS.models, ...(c.models || {}) }, custom: Array.isArray(c.custom) ? c.custom : [], keys: { ...(c.keys || {}) }, order: normalizeOrder(c.order) };
+  return { ...DEFAULTS, ...c, models: { ...DEFAULTS.models, ...(c.models || {}) }, custom: Array.isArray(c.custom) ? c.custom : [], keys: { ...(c.keys || {}) }, order: normalizeOrder(c.order ?? legacyOrder(c)) };
 }
 
 /** Ключ без мусора: пробелов, переносов, кавычек, «Bearer ». */

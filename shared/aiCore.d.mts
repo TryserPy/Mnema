@@ -3,6 +3,7 @@ import type { RefrainClient } from './refrainClient.mjs';
 export const BUILTIN: string[];
 export const STEPS: ('refrain' | 'key' | 'local')[];
 export function normalizeOrder(o: unknown): ('refrain' | 'key' | 'local')[];
+export function legacyOrder(c: Record<string, unknown>): ('refrain' | 'key' | 'local')[] | undefined;
 export const DEFAULTS: Record<string, unknown>;
 export function cleanKey(k: string): string;
 export function normalizeConfig(c: unknown): Record<string, unknown>;

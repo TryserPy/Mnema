@@ -278,6 +278,12 @@ const paths: Record<string, ReactNode> = {
       <path d="m9 12 2 2 4-4" />
     </>
   ),
+  flag: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 4h11l-2 4 2 4H5" />
+    </>
+  ),
   bell: (
     <>
       <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />

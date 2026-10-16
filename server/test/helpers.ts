@@ -32,6 +32,8 @@ export class Harness {
   calls: Call[] = [];
   clock = Date.now();
   telegramUp = true;
+  /** Баланс на счёте Polza, ₽ (GET /balance); null — Polza отвечает ошибкой. */
+  polzaBalance: number | null = 1000;
   openai: (body: Record<string, unknown>) => Response | Promise<Response> = () => openAiOk();
   usageApi: () => Response = () => new Response(JSON.stringify({ data: [], has_more: false }), { headers: { 'content-type': 'application/json' } });
   env: Env;
@@ -52,6 +54,7 @@ export class Harness {
         if (url.startsWith('https://api.brevo.com/')) return Response.json({ messageId: 'x' }, { status: 201 });
         if (url.startsWith('https://api.resend.com/')) return Response.json({ id: 'x' });
         if (url.startsWith('https://polza.ai/api/v1/chat/completions')) return this.openai(JSON.parse(body));
+        if (url.startsWith('https://polza.ai/api/v1/balance')) return this.polzaBalance === null ? new Response('{}', { status: 500 }) : Response.json({ amount: String(this.polzaBalance) });
         if (url.startsWith('https://api.openai.com/v1/organization/usage/')) return this.usageApi();
         if (url.startsWith('https://api.github.com/')) return Response.json({ number: 42 }, { status: 201 });
         return new Response('no route in test', { status: 599 });

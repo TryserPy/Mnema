@@ -28,7 +28,8 @@ export type KeyAction =
   | 'goStats'
   | 'goSettings'
   | 'markText'
-  | 'linkText';
+  | 'linkText'
+  | 'reportProblem';
 
 export interface KeyDef {
   id: KeyAction;
@@ -57,6 +58,7 @@ export const KEY_DEFS: KeyDef[] = [
   { id: 'newTopic', group: 'Везде', label: 'Новая тема (в открытом предмете)', def: 'Ctrl+N' },
   { id: 'toggleSidebar', group: 'Везде', label: 'Скрыть или показать левую панель', def: 'Ctrl+\\' },
   { id: 'toggleImportant', group: 'Везде', label: 'Отметить тему важной ★', def: 'Ctrl+D' },
+  { id: 'reportProblem', group: 'Везде', label: 'Сообщить о проблеме (со снимком экрана)', def: 'Ctrl+Shift+E' },
   { id: 'insertFormula', group: 'Конспект', label: 'Вставить формулу', def: 'Ctrl+M' },
   { id: 'handFormula', group: 'Конспект', label: 'Формула от руки', def: 'Ctrl+Shift+M', needs: 'ai' },
   { id: 'insertDrawing', group: 'Конспект', label: 'Вставить рисунок', def: 'Ctrl+Shift+D' },
