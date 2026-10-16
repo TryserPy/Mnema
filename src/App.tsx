@@ -13,7 +13,8 @@ import { Trash } from './screens/Trash';
 import { hidesTabBar, TabBar } from './components/TabBar';
 import { sessionPrefs } from './session';
 import { exactPlace, fillBack, getPlace, testBack } from './studyBack';
-import { saveRoute, startRoute, toggleBack, withTab } from './navMemory';
+import { setAppearanceTab } from './styleActions';
+import { forgetScreen, repress, saveRoute, startRoute, withTab } from './navMemory';
 import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
 import { RuleView } from './components/Rules';
@@ -80,8 +81,8 @@ export function App() {
   const data = useData();
   const [route, setRoute] = useState<Route>(() => startRoute(getData()));
   // Откуда пришли на экран-«кнопку» (для второго нажатия) и где была прокрутка на прошлых экранах.
-  const lastRef = useRef<Route | null>(null);
-  const scrollMem = useRef(new Map<string, number>());
+  // Повторное нажатие на кнопку экрана: новый номер — экран собирается заново, с нуля.
+  const [fresh, setFresh] = useState(0);
   const [palette, setPalette] = useState(false);
   const [addingSubject, setAddingSubject] = useState<false | { folderId?: string; as?: 'subject' | 'folder' }>(false);
   const [toast, setToast] = useState('');
@@ -334,21 +335,19 @@ export function App() {
     }
     setRuleOpen(null);
     const cur = routeRef.current;
-    const main = document.querySelector('.main');
-    // Второе нажатие на кнопку экрана, где уже стоишь, — назад, туда же, где была прокрутка.
-    const back = toggleBack(r, cur, lastRef.current);
-    r = back ?? withTab(r);
-    if (r.name !== cur.name) {
-      const here = exactPlace(cur);
-      if (main) scrollMem.current.set(JSON.stringify(here), main.scrollTop);
-      lastRef.current = here;
-    }
+    // Второе нажатие на кнопку экрана, где уже стоишь (Настройки, Справка, Статистика…), — тот же экран в начальном
+    // состоянии, как будто на кнопку только что нажали: без открытого раздела, вкладки и прокрутки.
+    const again = repress(r, cur);
+    if (again) {
+      forgetScreen(again);
+      if (again.name === 'settings') setAppearanceTab('style');
+      setFresh((n) => n + 1);
+      r = again;
+    } else r = withTab(r);
     // Повторение и контрольная помнят, откуда их запустили (с вкладкой), — туда и вернёмся.
     setRoute(fillBack(r, cur, getPlace()));
     setDrawer(false);
-    const y = back ? (scrollMem.current.get(JSON.stringify(back)) ?? 0) : 0;
-    main?.scrollTo(0, 0);
-    if (y) requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector('.main')?.scrollTo(0, y)));
+    document.querySelector('.main')?.scrollTo(0, 0);
   };
 
   // Файл Refrain, открытый двойным щелчком из файлового менеджера (.mnema — тема, .refrainstyle/.mnemamod — стиль).
@@ -568,7 +567,7 @@ export function App() {
       <Sidebar route={route} go={go} dueAll={dueAll} adding={adding} setAdding={setAdding} onNewSubject={(o) => { setDrawer(false); setAddingSubject(o ?? {}); }} onSearch={() => { setDrawer(false); setPalette(true); }} mobile={mobile} />
 
       <main className="main" data-part="main">
-        <div className="page-anim" key={route.name + ('id' in route ? route.id : '')}>
+        <div className="page-anim" key={route.name + ('id' in route ? route.id : '') + ':' + fresh}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
         {route.name === 'knowledge' && <Knowledge go={go} onTree={mobile ? () => setDrawer(true) : undefined} />}
         {route.name === 'profile' && <Profile go={go} />}

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { placeToSave, startRoute, toggleBack } from './navMemory';
+import { placeToSave, repress, startRoute } from './navMemory';
 import type { AppData, Route } from './types';
 
-describe('навигация: второе нажатие — назад, запуск — там же', () => {
+describe('навигация: второе нажатие — экран с нуля, запуск — там же', () => {
   const topic: Route = { name: 'topic', id: 't1', tab: 'cards' };
-  it('кнопка экрана, где уже стоишь, — назад; ссылка с разделом — нет', () => {
-    expect(toggleBack({ name: 'settings' }, { name: 'settings' }, topic)).toEqual(topic);
-    expect(toggleBack({ name: 'stats' }, { name: 'stats' }, { name: 'today' })).toEqual({ name: 'today' });
-    expect(toggleBack({ name: 'settings', section: 'ai' }, { name: 'settings' }, topic)).toBeNull();
-    expect(toggleBack({ name: 'settings' }, { name: 'today' }, topic)).toBeNull();
-    expect(toggleBack({ name: 'today' }, { name: 'today' }, topic)).toBeNull();
-    expect(toggleBack({ name: 'settings' }, { name: 'settings' }, null)).toBeNull();
+  it('кнопка экрана, где уже стоишь, — тот же экран в начальном состоянии; ссылка с разделом — обычный переход', () => {
+    expect(repress({ name: 'settings' }, { name: 'settings', section: 'look' })).toEqual({ name: 'settings' });
+    expect(repress({ name: 'stats' }, { name: 'stats', tab: 'map' })).toEqual({ name: 'stats' });
+    expect(repress({ name: 'help' }, { name: 'help', section: 'use' })).toEqual({ name: 'help' });
+    expect(repress({ name: 'settings', section: 'ai' }, { name: 'settings' })).toBeNull();
+    expect(repress({ name: 'settings' }, { name: 'today' })).toBeNull();
+    expect(repress({ name: 'topic', id: 't1' }, topic)).toBeNull();
   });
   it('повторение не восстанавливается — только экран, откуда его запустили', () => {
     expect(placeToSave({ name: 'review', back: topic })).toEqual(topic);

@@ -1,19 +1,27 @@
-// Навигация 1.31: повторное нажатие на кнопку экрана (Настройки, Статистика, Справка…) возвращает туда, где был;
+// Навигация 1.31: повторное нажатие на кнопку экрана (Настройки, Статистика, Справка…) возвращает экран в начальное
+// состояние — как будто на кнопку только что нажали впервые (в «Настройках» — к списку разделов, прокрутка наверх);
 // после перезапуска приложение открывается там же, где его закрыли (если прошло не больше 12 часов); вкладка темы помнится.
 import { exists } from './studyBack';
 import { recall, remember } from './uiMemory';
 import type { AppData, Route } from './types';
 
-/** Экраны-«кнопки»: второе нажатие на такую кнопку — назад. */
-const TOGGLES = new Set<Route['name']>(['settings', 'features', 'stats', 'help', 'trash', 'homework', 'knowledge', 'profile']);
+/** Экраны-«кнопки»: второе нажатие на такую кнопку — экран с нуля. */
+const TOGGLES = new Set<Route['name']>(['settings', 'features', 'stats', 'help', 'trash', 'homework', 'knowledge', 'profile', 'today']);
 const FRESH_MS = 12 * 3600 * 1000;
 
-/** Нажали кнопку экрана, на котором уже стоим, — куда вернуться (или null: обычный переход). */
-export function toggleBack(r: Route, cur: Route, last: Route | null): Route | null {
-  if (!last || r.name !== cur.name || !TOGGLES.has(r.name) || last.name === cur.name) return null;
-  // Переход с параметром («Настройки → ИИ» из подсказки) — это не кнопка, а ссылка: не назад.
+/**
+ * Нажали кнопку экрана, на котором уже стоим, — экран нужно открыть с нуля (null — обычный переход).
+ * Переход с параметром («Настройки → ИИ» из подсказки) — это не кнопка, а ссылка: его не трогаем.
+ */
+export function repress(r: Route, cur: Route): Route | null {
+  if (r.name !== cur.name || !TOGGLES.has(r.name)) return null;
   if (('section' in r && r.section) || ('tab' in r && r.tab)) return null;
-  return last;
+  return { name: r.name } as Route;
+}
+
+/** Что забыть при сбросе экрана: раздел настроек (иначе он откроется снова). */
+export function forgetScreen(r: Route): void {
+  if (r.name === 'settings' || r.name === 'features') remember('settings-section', undefined);
 }
 
 /** Где ученик был: повторение и тест не восстанавливаем (только экран, откуда их запустили). */
