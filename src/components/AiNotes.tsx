@@ -78,7 +78,8 @@ function readyProviders(cfg: AiConfig): { id: string; name: string }[] {
   return out;
 }
 
-export function AiNotes({ cfg }: { cfg: AiConfig }) {
+/** part: 'notes' — свои указания и подсказки; 'routing' — какой ИИ для какой задачи («Для продвинутых»). */
+export function AiNotes({ cfg, part }: { cfg: AiConfig; part: 'notes' | 'routing' }) {
   const data = useData();
   const [more, setMore] = useState(() => AI_NOTE_KEYS.some((k) => k !== 'all' && data.settings.aiNotes?.[k]));
   const choices = readyProviders(cfg).filter((x) => x.id !== cfg.provider);
@@ -89,12 +90,31 @@ export function AiNotes({ cfg }: { cfg: AiConfig }) {
     else delete next[t];
     updateSettings({ aiTaskProvider: Object.keys(next).length ? next : undefined });
   };
+  if (part === 'routing')
+    return choices.length > 0 || Object.keys(chosen).length > 0 ? (
+      <div className="stack gap8">
+        <div className="stack gap4">
+          <strong className="small">Какой ИИ для чего</strong>
+          <span className="small muted">По умолчанию всё делает основной ИИ. Для задачи можно взять другой из настроенных — например, посильнее для учебника. Нет ключа или ИИ удалён — возьмётся основной.</span>
+        </div>
+        {AI_TASKS.map((t) => (
+          <label key={t} className="row gap8 small">
+            <span className="grow">{TASK_TITLE[t]}</span>
+            <select className="input" value={chosen[t] ?? ''} onChange={(e) => setTask(t, e.target.value)} aria-label={`ИИ для задачи: ${TASK_TITLE[t]}`}>
+              <option value="">как основной</option>
+              {[...choices, ...(chosen[t] && !choices.some((c) => c.id === chosen[t]) ? [{ id: chosen[t]!, name: 'выбранный раньше' }] : [])].map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+    ) : null;
   return (
     <div className="stack gap12 ai-notes">
-      <div className="stack gap4">
-        <h3>Свои указания</h3>
-        <span className="small muted">Refrain допишет их к запросам ИИ: он будет объяснять так, как удобно тебе. Они не меняют правила и формат ответов, поэтому ничего не сломают. Указания лежат только у тебя и в чужие файлы не попадают.</span>
-      </div>
+      <span className="small muted">Напиши, как тебе удобнее: Refrain добавит это к каждой просьбе. Ничего не сломается — правила ответов от этого не меняются. Пожелания хранятся только у тебя.</span>
       <NoteField k="all" />
       <button type="button" className="link-btn small row gap4" aria-expanded={more} onClick={() => setMore(!more)}>
         <Icon name="chevron" size={14} /> {more ? 'Скрыть указания для отдельных задач' : 'Указания для отдельных задач'}
@@ -107,7 +127,7 @@ export function AiNotes({ cfg }: { cfg: AiConfig }) {
         </div>
       )}
       <div className="stack gap8">
-        <h3>Подсказки с ИИ</h3>
+        <strong className="small">Подсказки</strong>
         <div className="row gap8">
           <span className="grow small">
             Когда в теме есть конспект, а карточек нет, предлагать черновики карточек. ИИ сам ничего не отправляет: запрос уйдёт, только если ты нажмёшь «Предложить карточки».
@@ -115,27 +135,6 @@ export function AiNotes({ cfg }: { cfg: AiConfig }) {
           <Switch label="Предлагать черновики карточек" checked={Boolean(data.settings.aiAuto?.cards)} onChange={(v) => updateSettings({ aiAuto: v ? { cards: true } : undefined })} />
         </div>
       </div>
-      {(choices.length > 0 || Object.keys(chosen).length > 0) && (
-        <div className="stack gap8">
-          <div className="stack gap4">
-            <h3>Какой ИИ для чего</h3>
-            <span className="small muted">По умолчанию всё делает основной ИИ. Для задачи можно взять другой из настроенных — например, посильнее для учебника. Нет ключа или ИИ удалён — возьмётся основной.</span>
-          </div>
-          {AI_TASKS.map((t) => (
-            <label key={t} className="row gap8 small">
-              <span className="grow">{TASK_TITLE[t]}</span>
-              <select className="input" value={chosen[t] ?? ''} onChange={(e) => setTask(t, e.target.value)} aria-label={`ИИ для задачи: ${TASK_TITLE[t]}`}>
-                <option value="">как основной</option>
-                {[...choices, ...(chosen[t] && !choices.some((c) => c.id === chosen[t]) ? [{ id: chosen[t]!, name: 'выбранный раньше' }] : [])].map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

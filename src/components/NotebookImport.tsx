@@ -1,12 +1,13 @@
 // «Создать → Из тетради»: Фото (почерк читает ИИ, проверка «фото ↔ текст», неуверенные слова правятся нажатием)
 // и Файл (.docx, PDF, Markdown/Notion → разделы → темы, домашка, черновики карточек).
 import '../notebook.css';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { aiAvailable, askAi } from '../ai';
 import { docSections, docxToMarkdown, fileKindOf, homeworkOf, homeworkText, markdownDoc, matchTopic, parseSplitAnswer, sectionNote, sectionsByStarts, SPLIT_SYSTEM, splitOutline, type FileDoc, type FileSection } from '../fileImport';
 import { acceptUnsure, asInNotebook, cardDrafts, fixUnsure, hasAbbreviations, notebookRequest, parseNotebookAnswer, tidyRequest, unsureCount, unsurePieces, type CardDraft } from '../notebook';
 import { pdfImageBlob, photoPages, type PagePhoto } from '../notebookPhoto';
 import { promptSystem } from '../prompts';
+import { logLine } from '../refrain';
 import { addCard, addHomework, addTopic, getData, sortedSubjects, updateTopic, useData } from '../store';
 import type { Route } from '../types';
 import { Markdown } from './Markdown';
@@ -30,7 +31,8 @@ interface Row {
 
 const FILE_ACCEPT = '.docx,.pdf,.md,.markdown,.txt,.zip';
 
-export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; topicId?: string }; go: (r: Route) => void; onClose: () => void }) {
+/** onInsert — окно открыто из конспекта («Вставить → Фото тетради»): прочитанное вставляется туда, где курсор. */
+export function NotebookImport({ at, go, onClose, onInsert }: { at: { subjectId?: string; topicId?: string }; go: (r: Route) => void; onClose: () => void; onInsert?: (md: string) => void }) {
   const data = useData();
   const subjects = sortedSubjects(data);
   const [mode, setMode] = useState<Mode>('photo');
@@ -45,6 +47,11 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
   const [topicName, setTopicName] = useState('');
   const [how, setHow] = useState<'verbatim' | 'tidy'>('verbatim');
   const [drafts, setDrafts] = useState<(CardDraft & { on: boolean })[] | null>(null);
+  const [tidyFailed, setTidyFailed] = useState(false);
+  const errRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (err) errRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [err]);
   // Файл
   const [doc, setDoc] = useState<FileDoc | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -67,6 +74,22 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
 
   // ---------- Фото ----------
 
+  const topicLabel = () => (topicId ? data.topics.find((t) => t.id === topicId)?.name : topicName.trim());
+
+  /** Одна страница → текст. Ошибка остаётся у страницы (её можно прочитать ещё раз), а не ломает остальные. */
+  async function readOne(photo: PagePhoto): Promise<Page> {
+    const topic = topicLabel();
+    const req = notebookRequest({ mime: 'image/jpeg', data: photo.data }, { subject: subject?.name, topic });
+    try {
+      const raw = await askAi('textbook', { ...req, system: promptSystem('notebook.read', { vars: { subject: subject?.name, topic } }) });
+      const p = parseNotebookAnswer(raw);
+      return { photo, md: p.markdown, empty: p.empty };
+    } catch (e) {
+      logLine(`Тетрадь: страница не прочитана — ${(e as Error).message}`);
+      return { photo, md: '', error: (e as Error).message };
+    }
+  }
+
   async function readPhotos(files: Blob[]) {
     setErr('');
     setDrafts(null);
@@ -75,17 +98,9 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
       setBusy('Готовлю фото…');
       const photos: PagePhoto[] = [];
       for (const f of files) photos.push(...(await photoPages(f, { split, whiten })));
-      const topic = topicId ? data.topics.find((t) => t.id === topicId)?.name : topicName.trim();
       for (let i = 0; i < photos.length; i++) {
         setBusy(`Читаю страницу ${i + 1} из ${photos.length}…`);
-        const req = notebookRequest({ mime: 'image/jpeg', data: photos[i].data }, { subject: subject?.name, topic });
-        try {
-          const raw = await askAi('textbook', { ...req, system: promptSystem('notebook.read', { vars: { subject: subject?.name, topic } }) });
-          const p = parseNotebookAnswer(raw);
-          out.push({ photo: photos[i], md: p.markdown, empty: p.empty });
-        } catch (e) {
-          out.push({ photo: photos[i], md: '', error: (e as Error).message });
-        }
+        out.push(await readOne(photos[i]));
         setPages([...out]);
       }
     } catch (e) {
@@ -95,28 +110,53 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
     }
   }
 
+  async function retryPage(i: number) {
+    const p = pages[i];
+    if (!p) return;
+    setBusy(`Читаю страницу ${i + 1} ещё раз…`);
+    const next = await readOne(p.photo);
+    setPages((ps) => ps.map((x, k) => (k === i ? next : x)));
+    setBusy('');
+  }
+
   const setPage = (i: number, md: string) => setPages((ps) => ps.map((p, k) => (k === i ? { ...p, md } : p)));
   const allMd = () => pages.map((p) => acceptUnsure(p.md).trim()).filter(Boolean).join('\n\n');
 
-  async function finishPhotos() {
+  async function finishPhotos(asIs = false) {
     let md = allMd();
     if (!md) return setErr('На фото не нашлось записей.');
     setErr('');
-    if (how === 'tidy') {
+    setTidyFailed(false);
+    if (how === 'tidy' && !asIs) {
       setBusy('Свожу в конспект…');
       try {
-        const topic = topicId ? data.topics.find((t) => t.id === topicId)?.name : topicName.trim();
+        const topic = topicLabel();
         md = parseNotebookAnswer(await askAi('textbook', { ...tidyRequest(md, { subject: subject?.name, topic }), system: promptSystem('textbook.merge', { vars: { subject: subject?.name, topic } }) })).markdown || md;
       } catch (e) {
         setBusy('');
-        return setErr((e as Error).message);
+        logLine(`Тетрадь: не свёл в конспект — ${(e as Error).message}`);
+        setTidyFailed(true);
+        return setErr(`Не получилось свести в конспект: ${(e as Error).message}`);
       }
       setBusy('');
     }
-    const id = saveNote(md);
     const chosen = (drafts ?? []).filter((d) => d.on);
+    if (onInsert && at.topicId) {
+      onInsert(md);
+      for (const d of chosen) addCard({ topicId: at.topicId, type: d.type, front: d.front, back: d.back });
+      toast(chosen.length ? `Текст вставлен, карточек: ${chosen.length}` : 'Текст из тетради вставлен в конспект');
+      return onClose();
+    }
+    let id: string;
+    try {
+      id = saveNote(md);
+    } catch (e) {
+      logLine(`Тетрадь: не сохранил — ${(e as Error).message}`);
+      return setErr(`Не получилось сохранить: ${(e as Error).message}`);
+    }
     for (const d of chosen) addCard({ topicId: id, type: d.type, front: d.front, back: d.back });
-    toast(chosen.length ? `Конспект сохранён, карточек: ${chosen.length}` : 'Конспект сохранён');
+    const skipped = pages.filter((p) => p.error).length;
+    toast([chosen.length ? `Конспект сохранён, карточек: ${chosen.length}` : 'Конспект сохранён', skipped ? `непрочитанных страниц: ${skipped}` : ''].filter(Boolean).join(' · '));
     onClose();
     go({ name: 'topic', id, tab: 'note' });
   }
@@ -235,44 +275,51 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
   const unsure = pages.reduce((n, p) => n + unsureCount(p.md), 0);
 
   return (
-    <Modal title="Из тетради" onClose={onClose} width={820} sticky>
+    <Modal title={onInsert ? 'Фото тетради в конспект' : 'Из тетради'} onClose={onClose} width={820} sticky>
       <div className="stack gap12 nb" data-part="notebook">
-        <Segmented
-          ariaLabel="Откуда"
-          value={mode}
-          onChange={(v) => {
-            setMode(v);
-            setErr('');
-          }}
-          options={[
-            { value: 'photo', label: 'Фото' },
-            { value: 'file', label: 'Файл' }
-          ]}
-        />
-        <label className="row gap8">
-          <span className="small muted nowrap">Предмет</span>
-          <select className="input grow" value={subjectId} onChange={(e) => (setSubjectId(e.target.value), setTopicId(''), setRows([]), setDoc(null))}>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!onInsert && (
+          <Segmented
+            ariaLabel="Откуда"
+            value={mode}
+            onChange={(v) => {
+              setMode(v);
+              setErr('');
+            }}
+            options={[
+              { value: 'photo', label: 'Фото' },
+              { value: 'file', label: 'Файл' }
+            ]}
+          />
+        )}
+        {onInsert && <span className="small muted">Сфотографируй страницу тетради — ИИ перепишет почерк, а ты проверишь текст рядом с фото. Текст встанет туда, где был курсор.</span>}
+        {!onInsert && (
+          <label className="row gap8">
+            <span className="small muted nowrap">Предмет</span>
+            <select className="input grow" value={subjectId} onChange={(e) => (setSubjectId(e.target.value), setTopicId(''), setRows([]), setDoc(null))}>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {mode === 'photo' && (
           <>
-            <div className="row gap8 wrap">
-              <select className="input grow" value={topicId} onChange={(e) => setTopicId(e.target.value)} aria-label="Тема">
-                <option value="">Новая тема</option>
-                {topics.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    Дописать в «{t.name}»
-                  </option>
-                ))}
-              </select>
-              {!topicId && <input className="input grow" value={topicName} onChange={(e) => setTopicName(e.target.value)} placeholder="Название темы" aria-label="Название темы" />}
-            </div>
+            {!onInsert && (
+              <div className="row gap8 wrap">
+                <select className="input grow" value={topicId} onChange={(e) => setTopicId(e.target.value)} aria-label="Тема">
+                  <option value="">Новая тема</option>
+                  {topics.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Дописать в «{t.name}»
+                    </option>
+                  ))}
+                </select>
+                {!topicId && <input className="input grow" value={topicName} onChange={(e) => setTopicName(e.target.value)} placeholder="Название темы" aria-label="Название темы" />}
+              </div>
+            )}
             {!pages.length && (
               <>
                 <div className="row gap8 wrap nb-opts">
@@ -306,7 +353,7 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
               </>
             )}
             {pages.map((p, i) => (
-              <PageCheck key={i} n={i + 1} page={p} onChange={(md) => setPage(i, md)} />
+              <PageCheck key={i} n={i + 1} page={p} onChange={(md) => setPage(i, md)} onRetry={busy ? undefined : () => void retryPage(i)} />
             ))}
             {ready && (
               <div className="stack gap8 nb-finish">
@@ -325,15 +372,17 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
                     Другие фото
                   </button>
                 </div>
-                <Segmented
-                  ariaLabel="Как сохранить"
-                  value={how}
-                  onChange={setHow}
-                  options={[
-                    { value: 'verbatim', label: 'Дословно' },
-                    { value: 'tidy', label: 'Конспектом' }
-                  ]}
-                />
+                {!onInsert && (
+                  <Segmented
+                    ariaLabel="Как сохранить"
+                    value={how}
+                    onChange={setHow}
+                    options={[
+                      { value: 'verbatim', label: 'Дословно' },
+                      { value: 'tidy', label: 'Конспектом' }
+                    ]}
+                  />
+                )}
                 {drafts === null ? (
                   <button className="btn small ghost" onClick={() => setDrafts(cardDrafts(allMd()).map((d) => ({ ...d, on: true })))}>
                     Черновики карточек
@@ -353,9 +402,16 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
                 ) : (
                   <span className="small muted">Определений и дат для карточек не нашлось.</span>
                 )}
-                <div className="row end">
+                {!pages.some((p) => p.md.trim()) && <span className="small muted">Сохранять пока нечего: ни одна страница не прочитана. Нажми «Прочитать ещё раз» у страницы или выбери другие фото.</span>}
+                {pages.some((p) => p.error) && pages.some((p) => p.md.trim()) && <span className="small muted">Непрочитанные страницы не попадут в конспект — их можно прочитать ещё раз.</span>}
+                <div className="row gap8 end wrap">
+                  {tidyFailed && (
+                    <button className="btn" onClick={() => void finishPhotos(true)}>
+                      Сохранить дословно
+                    </button>
+                  )}
                   <button className="btn primary" onClick={() => void finishPhotos()} disabled={!pages.some((p) => p.md.trim())}>
-                    Сохранить конспект
+                    {onInsert ? 'Вставить в конспект' : 'Сохранить конспект'}
                   </button>
                 </div>
               </div>
@@ -454,7 +510,7 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
           </div>
         )}
         {err && (
-          <div className="hint warn" role="alert">
+          <div className="hint warn" role="alert" ref={errRef}>
             {err}
           </div>
         )}
@@ -463,10 +519,34 @@ export function NotebookImport({ at, go, onClose }: { at: { subjectId?: string; 
   );
 }
 
-/** Страница: фото рядом с текстом; неуверенное слово — кнопка, нажал → поправил. */
-function PageCheck({ n, page, onChange }: { n: number; page: Page; onChange: (md: string) => void }) {
+/** Страница: фото рядом с текстом (как в конспекте: заголовки, формулы, выноски); неуверенное слово подсвечено —
+ *  нажал → под текстом поле, поправил или «Так и есть». */
+function PageCheck({ n, page, onChange, onRetry }: { n: number; page: Page; onChange: (md: string) => void; onRetry?: () => void }) {
   const [edit, setEdit] = useState(false);
-  const [fix, setFix] = useState<{ i: number; word: string } | null>(null);
+  const [fix, setFix] = useState<{ i: number; word: string; was: string } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  // Подсветку рисует Markdown (span[data-unsure]); здесь она становится кнопкой. Номер — порядок меток в тексте.
+  useEffect(() => {
+    box.current?.querySelectorAll<HTMLElement>('[data-unsure]').forEach((el, i) => {
+      el.classList.add('nb-unsure');
+      el.classList.toggle('on', fix?.i === i);
+      el.setAttribute('role', 'button');
+      el.tabIndex = 0;
+      el.title = 'ИИ не уверен — нажми, чтобы поправить';
+    });
+  });
+  const pick = (t: EventTarget | null) => {
+    const el = (t as HTMLElement | null)?.closest?.('[data-unsure]');
+    if (!el || !box.current) return false;
+    const i = [...box.current.querySelectorAll('[data-unsure]')].indexOf(el);
+    const word = unsurePieces(page.md).find((p) => 'unsure' in p && p.i === i);
+    if (word && 'unsure' in word) setFix({ i, word: word.unsure, was: word.unsure });
+    return true;
+  };
+  const apply = (word: string) => {
+    if (fix) onChange(fixUnsure(page.md, fix.i, word));
+    setFix(null);
+  };
   return (
     <div className="nb-page" data-page={n}>
       <img className="nb-photo" src={page.photo.url} alt={`Страница ${n}`} />
@@ -474,45 +554,61 @@ function PageCheck({ n, page, onChange }: { n: number; page: Page; onChange: (md
         <div className="row gap8">
           <strong className="grow small">Страница {n}</strong>
           {!page.error && !page.empty && (
-            <button className="btn small ghost" onClick={() => setEdit(!edit)}>
+            <button className="btn small ghost" onClick={() => (setEdit(!edit), setFix(null))}>
               {edit ? 'Готово' : 'Править текст'}
             </button>
           )}
         </div>
         {page.error ? (
-          <div className="hint warn small">{page.error}</div>
+          <div className="hint warn small stack gap6">
+            <span>Эту страницу ИИ не прочитал: {page.error}</span>
+            {onRetry && (
+              <div>
+                <button type="button" className="btn small" onClick={onRetry}>
+                  Прочитать ещё раз
+                </button>
+              </div>
+            )}
+          </div>
         ) : page.empty ? (
           <span className="small muted">На этой странице записей нет.</span>
         ) : edit ? (
           <textarea className="input mono" rows={10} value={page.md} onChange={(e) => onChange(e.target.value)} aria-label={`Текст страницы ${n}`} />
-        ) : unsureCount(page.md) ? (
-          <div className="nb-read">
-            {unsurePieces(page.md).map((p, k) =>
-              'text' in p ? (
-                <span key={k}>{p.text}</span>
-              ) : fix?.i === p.i ? (
+        ) : (
+          <>
+            {unsureCount(page.md) > 0 && !fix && <span className="small muted">Жёлтым — слова, в которых ИИ не уверен. Нажми, чтобы поправить.</span>}
+            <div
+              ref={box}
+              className="nb-read"
+              onClick={(e) => pick(e.target)}
+              onKeyDown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && pick(e.target)) e.preventDefault();
+              }}
+            >
+              <Markdown text={page.md} />
+            </div>
+            {fix && (
+              <div className="row gap8 wrap nb-fixbar">
                 <input
-                  key={k}
-                  className="input nb-fix"
+                  className="input nb-fix grow"
                   autoFocus
                   value={fix.word}
-                  onChange={(e) => setFix({ i: p.i, word: e.target.value })}
-                  onBlur={() => (onChange(fixUnsure(page.md, p.i, fix.word)), setFix(null))}
+                  onChange={(e) => setFix({ ...fix, word: e.target.value })}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') (onChange(fixUnsure(page.md, p.i, fix.word)), setFix(null));
+                    if (e.key === 'Enter') (e.preventDefault(), apply(fix.word));
                     if (e.key === 'Escape') setFix(null);
                   }}
                   aria-label="Правильное слово"
                 />
-              ) : (
-                <button key={k} type="button" className="nb-unsure" title="ИИ не уверен — нажми, чтобы поправить" onClick={() => setFix({ i: p.i, word: p.unsure })}>
-                  {p.unsure}
+                <button type="button" className="btn small primary" onClick={() => apply(fix.word)}>
+                  Поправить
                 </button>
-              )
+                <button type="button" className="btn small" onClick={() => apply(fix.was)}>
+                  Так и есть
+                </button>
+              </div>
             )}
-          </div>
-        ) : (
-          <Markdown text={page.md} />
+          </>
         )}
       </div>
     </div>

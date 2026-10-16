@@ -14,7 +14,6 @@ import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
 import { CloudDialog } from '../components/CloudDialog';
 import { AiSettings } from '../components/AiSettings';
-import { PromptsSettings } from '../components/PromptsSettings';
 import { FEATURES, MODS_AVAILABLE } from '../featureList';
 import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
@@ -191,15 +190,8 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
   else if (current === 'reminders') pane = <RemindersPane desktop={desktop} android={android} />;
   else if (current === 'ai') pane = (
     <div className="stack gap16">
-      <PaneHead title="ИИ-помощник" text="Какой ИИ помогает объяснять, распознавать формулы и страницы учебника." />
-      <div className="sgroup-body pad">
-        <AiSettings />
-      </div>
-      {window.mnemaApi?.aiGetConfig && (
-        <div className="sgroup-body pad">
-          <PromptsSettings />
-        </div>
-      )}
+      <PaneHead title="ИИ-помощник" text="Делает конспект по фото, читает тетрадь, предлагает карточки и объясняет непонятное." />
+      <AiSettings />
     </div>
   );
   else if (current === 'keys') pane = (

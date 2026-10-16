@@ -11,7 +11,7 @@ import { CreateHost, openCreate } from './components/CreateMenu';
 import { Trash } from './screens/Trash';
 import { hidesTabBar, TabBar } from './components/TabBar';
 import { sessionPrefs } from './session';
-import { fillBack, getPlace, testBack } from './studyBack';
+import { exactPlace, fillBack, getPlace, testBack } from './studyBack';
 import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
 import { RuleView } from './components/Rules';
@@ -571,7 +571,7 @@ export function App() {
       {mobile && <TabBar route={route} go={go} dueAll={dueAll} />}
 
       {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
-      <RefrainHost go={go} />
+      <RefrainHost go={go} where={() => exactPlace(routeRef.current)} />
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
           <span>{toast || lastToast.current}</span>

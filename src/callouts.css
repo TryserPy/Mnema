@@ -33,20 +33,35 @@
 :is(.md, .note-doc) [data-callout-body] > :first-child { margin-top: 0; }
 :is(.md, .note-doc) [data-callout-body] > :last-child { margin-bottom: 0; }
 
-/* Редактор: шапка выноски — значок, тип, заголовок (поле), «убрать выноску». */
-.note-doc [data-callout] .callout-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; min-width: 0; flex-wrap: wrap; user-select: none; }
-.note-doc .callout-head .callout-kind {
-  font: inherit;
-  font-size: 0.82em;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--co) 72%, var(--ink));
-  background: color-mix(in srgb, var(--co) 14%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--co) 35%, transparent);
-  border-radius: 999px;
-  padding: 2px 8px;
-  max-width: 100%;
+/* Редактор: шапка выноски — как при чтении (значок и заголовок). Вид меняется нажатием на значок; название вида и «✕»
+   появляются, только когда курсор в выноске (или над ней мышь), — в покое ничего лишнего. */
+.note-doc [data-callout] .callout-head { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; min-width: 0; user-select: none; }
+.note-doc .callout-head .callout-pick {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 4px;
+  margin-left: -4px;
+  border-radius: 8px;
   cursor: pointer;
 }
+.note-doc .callout-head .callout-ico { font-weight: 400; line-height: 1; }
+.note-doc .callout-head .callout-kname {
+  display: none;
+  font-size: 0.78em;
+  font-weight: 600;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--co) 72%, var(--ink));
+}
+.note-doc .callout-head .callout-kind { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font: inherit; border: 0; padding: 0; }
+.note-doc .callout-head .callout-kind:disabled { cursor: default; }
+.note-doc [data-callout]:focus-within .callout-pick,
+.note-doc [data-callout] .callout-pick:hover { background: color-mix(in srgb, var(--co) 14%, var(--surface)); }
+.note-doc [data-callout]:focus-within .callout-kname { display: inline; }
+.note-doc .callout-head .callout-pick:has(.callout-kind:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
 .note-doc .callout-head .callout-title {
   flex: 1 1 120px;
   min-width: 0;
@@ -61,9 +76,12 @@
 }
 .note-doc .callout-head .callout-title::placeholder { color: color-mix(in srgb, var(--co) 55%, var(--muted)); opacity: 1; }
 .note-doc .callout-head .callout-title:focus { border-bottom-color: color-mix(in srgb, var(--co) 60%, transparent); }
-.note-doc .callout-head .callout-off { font: inherit; font-size: 0.85em; line-height: 1; color: var(--muted); background: none; border: 0; border-radius: 6px; padding: 3px 6px; cursor: pointer; }
+.note-doc .callout-head .callout-off { flex: none; font: inherit; font-size: 0.85em; line-height: 1; color: var(--muted); background: none; border: 0; border-radius: 6px; padding: 3px 6px; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.note-doc [data-callout]:hover .callout-off,
+.note-doc [data-callout]:focus-within .callout-off { opacity: 1; }
 .note-doc .callout-head .callout-off:hover { color: var(--ink); background: color-mix(in srgb, var(--co) 14%, transparent); }
-.note-doc .callout-head :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.note-doc .callout-head .callout-title:focus-visible, .note-doc .callout-head .callout-off:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.note-doc .callout-head .callout-off:focus-visible { opacity: 1; }
 .note-doc [data-callout] .callout-body > :first-child { margin-top: 0; }
 .note-doc [data-callout] .callout-body > :last-child { margin-bottom: 0; }
 

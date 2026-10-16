@@ -5,6 +5,7 @@ import type { AiConfig } from '../store';
 import { refrainApi, type DeviceInfo, type Quota } from '../refrainBridge';
 import { quotaLines, refrainMessage } from '../refrain';
 import type { RefrainFail, RefrainStatus } from '../../shared/refrainClient.mjs';
+import { Fold } from './Fold';
 import { Modal } from './ui';
 
 export type Step = 'refrain' | 'key' | 'local';
@@ -36,7 +37,7 @@ export function QuotaMeter({ quota }: { quota: Quota }) {
   );
 }
 
-export function RefrainSettings({ cfg, onConfig }: { cfg: AiConfigOrder; onConfig: (c: AiConfigOrder) => void }) {
+export function RefrainSettings({ cfg }: { cfg: AiConfigOrder }) {
   const api = refrainApi();
   const [st, setSt] = useState<RefrainStatus | null>(null);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -65,20 +66,10 @@ export function RefrainSettings({ cfg, onConfig }: { cfg: AiConfigOrder; onConfi
   }, []);
 
   if (!api || !cfg.refrain || !st) return null;
-  const order = cfg.order ?? ['refrain', 'key', 'local'];
-  const move = async (i: number, d: -1 | 1) => {
-    const next = [...order];
-    [next[i], next[i + d]] = [next[i + d], next[i]];
-    const c = (await window.mnemaApi!.aiSetConfig!({ order: next } as Partial<AiConfig>)) as AiConfigOrder;
-    onConfig(c);
-  };
 
   return (
     <div className="stack gap12 rf-settings" data-part="refrain">
-      <div className="stack gap4">
-        <strong>Refrain ИИ</strong>
-        <span className="small muted">Бесплатные страницы в день без ключа. На сервер уходят только фото или текст задачи — без истории и других конспектов.</span>
-      </div>
+      <span className="small muted">Каждый день — бесплатные страницы. Ключ не нужен, только почта. Уходит только то фото или текст, с которым ты попросил помочь.</span>
       {msg && <div className={'hint ' + msg.kind} role="status">{msg.text}</div>}
       {!st.signedIn ? (
         st.secure ? (
@@ -116,58 +107,36 @@ export function RefrainSettings({ cfg, onConfig }: { cfg: AiConfigOrder; onConfi
           </div>
           {st.quota && <QuotaMeter quota={st.quota} />}
           {closed && <InviteForm onDone={(text) => { setMsg({ kind: 'ok', text }); void refresh(); }} />}
-          {devices.length > 0 && (
-            <div className="stack gap4">
-              <span className="small muted">Устройства</span>
-              {devices.map((d) => (
-                <div key={d.id} className="row gap8 rf-device">
-                  <span className="grow small">
-                    {d.name} · {PLATFORM_NAME[d.platform] ?? d.platform}
-                    {d.current && ' · это устройство'}
-                  </span>
-                  {!d.current && (
-                    <button
-                      className="btn small ghost"
-                      onClick={() =>
-                        void api.unbind(d.id).then((r) => {
-                          setMsg(r.ok ? { kind: 'ok', text: `«${d.name}» отвязано.` } : { kind: 'warn', text: failText(r) });
-                          void refresh();
-                        })
-                      }
-                    >
-                      Отвязать
-                    </button>
-                  )}
-                </div>
-              ))}
+          <Fold id="refrain-account" title="Аккаунт и устройства" hint={devices.length ? `Устройств: ${devices.length}` : undefined}>
+            {devices.map((d) => (
+              <div key={d.id} className="row gap8 rf-device">
+                <span className="grow small">
+                  {d.name} · {PLATFORM_NAME[d.platform] ?? d.platform}
+                  {d.current && ' · это устройство'}
+                </span>
+                {!d.current && (
+                  <button
+                    className="btn small ghost"
+                    onClick={() =>
+                      void api.unbind(d.id).then((r) => {
+                        setMsg(r.ok ? { kind: 'ok', text: `«${d.name}» отвязано.` } : { kind: 'warn', text: failText(r) });
+                        void refresh();
+                      })
+                    }
+                  >
+                    Отвязать
+                  </button>
+                )}
+              </div>
+            ))}
+            <div>
+              <button className="btn small ghost danger" onClick={() => setConfirm('delete')}>
+                Удалить аккаунт Refrain ИИ
+              </button>
             </div>
-          )}
-          <div>
-            <button className="btn small ghost danger" onClick={() => setConfirm('delete')}>
-              Удалить аккаунт Refrain ИИ
-            </button>
-          </div>
+          </Fold>
         </div>
       )}
-
-      <div className="stack gap4">
-        <span className="small muted">Кого спрашивать по очереди: если первый недоступен или кончились страницы — следующего</span>
-        <ol className="rf-order">
-          {order.map((s, i) => (
-            <li key={s} className="row gap8">
-              <span className="grow small">
-                {i + 1}. {STEP_NAME[s]}
-              </span>
-              <button className="icon-btn small" aria-label={`${STEP_NAME[s]} выше`} disabled={i === 0} onClick={() => void move(i, -1)}>
-                ↑
-              </button>
-              <button className="icon-btn small" aria-label={`${STEP_NAME[s]} ниже`} disabled={i === order.length - 1} onClick={() => void move(i, 1)}>
-                ↓
-              </button>
-            </li>
-          ))}
-        </ol>
-      </div>
 
       {confirm === 'delete' && (
         <Modal title="Удалить аккаунт Refrain ИИ?" onClose={() => setConfirm(null)}>
@@ -193,6 +162,38 @@ export function RefrainSettings({ cfg, onConfig }: { cfg: AiConfigOrder; onConfi
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+/** «Если не получилось — спросить следующего»: порядок Refrain ИИ, своего ключа и модели без интернета. */
+export function ProviderOrder({ cfg, onConfig }: { cfg: AiConfigOrder; onConfig: (c: AiConfigOrder) => void }) {
+  const order = (cfg.order ?? ['refrain', 'key', 'local']).filter((s) => s !== 'refrain' || cfg.refrain);
+  const move = async (i: number, d: -1 | 1) => {
+    const next = [...order];
+    [next[i], next[i + d]] = [next[i + d], next[i]];
+    const full = cfg.refrain ? next : [...next, 'refrain' as Step];
+    onConfig((await window.mnemaApi!.aiSetConfig!({ order: full } as Partial<AiConfig>)) as AiConfigOrder);
+  };
+  return (
+    <div className="stack gap4">
+      <strong className="small">Если первый не ответил</strong>
+      <span className="small muted">Кого спрашивать по очереди: если первый недоступен или кончились страницы — следующего.</span>
+      <ol className="rf-order">
+        {order.map((s, i) => (
+          <li key={s} className="row gap8">
+            <span className="grow small">
+              {i + 1}. {STEP_NAME[s]}
+            </span>
+            <button className="icon-btn small" aria-label={`${STEP_NAME[s]} выше`} disabled={i === 0} onClick={() => void move(i, -1)}>
+              ↑
+            </button>
+            <button className="icon-btn small" aria-label={`${STEP_NAME[s]} ниже`} disabled={i === order.length - 1} onClick={() => void move(i, 1)}>
+              ↓
+            </button>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

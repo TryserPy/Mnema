@@ -13,7 +13,35 @@ export interface LlmUsage {
 }
 export type LlmResult = { ok: true; text: string; usage: LlmUsage; model: string } | { ok: false; status: number; usage: LlmUsage | null };
 
+/** Сколько ждать модель: фото страницы с рассуждением у Polza идёт до пары минут. Клиент ждёт 240 с — сервер укладывается раньше. */
+const LLM_TIMEOUT = 150000;
+const TOTAL_BUDGET = 210000;
+
 export async function callOpenAI(env: Env, spec: TaskSpec, system: string, user: string, image?: { mime: string; data: string }): Promise<LlmResult> {
+  const started = Date.now();
+  const first = await callOnce(env, spec, system, user, image, spec.reasoning, LLM_TIMEOUT);
+  // Рассуждение съело весь потолок ответа и текста нет — ещё раз без рассуждения, если время есть. Расход обеих попыток — в учёт.
+  const left = TOTAL_BUDGET - (Date.now() - started);
+  if (first.ok || !first.cut || spec.reasoning === 'none' || left < 30000) return first.result;
+  const second = await callOnce(env, spec, system, user, image, 'none', left);
+  return addUsage(second.result, first.result.usage);
+}
+
+function addUsage(r: LlmResult, extra: LlmUsage | null): LlmResult {
+  if (!extra) return r;
+  const u = r.usage;
+  const sum: LlmUsage = u
+    ? {
+        inputTokens: u.inputTokens + extra.inputTokens,
+        cachedInputTokens: u.cachedInputTokens + extra.cachedInputTokens,
+        outputTokens: u.outputTokens + extra.outputTokens,
+        ...(u.costMicro !== undefined || extra.costMicro !== undefined ? { costMicro: (u.costMicro ?? 0) + (extra.costMicro ?? 0) } : {})
+      }
+    : extra;
+  return { ...r, usage: sum } as LlmResult;
+}
+
+async function callOnce(env: Env, spec: TaskSpec, system: string, user: string, image: { mime: string; data: string } | undefined, reasoning: TaskSpec['reasoning'], timeout: number): Promise<{ ok: boolean; cut: boolean; result: LlmResult }> {
   const content = image ? [{ type: 'text', text: user }, { type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.data}`, detail: 'high' } }] : user;
   const body = {
     model: env.OPENAI_MODEL,
@@ -22,7 +50,7 @@ export async function callOpenAI(env: Env, spec: TaskSpec, system: string, user:
       { role: 'user', content }
     ],
     max_completion_tokens: spec.maxTokens,
-    reasoning_effort: spec.reasoning,
+    reasoning_effort: reasoning,
     store: false,
     ...(spec.id === 'cards' ? { response_format: { type: 'json_schema', json_schema: CARDS_SCHEMA } } : {})
   };
@@ -32,10 +60,10 @@ export async function callOpenAI(env: Env, spec: TaskSpec, system: string, user:
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${env.OPENAI_API_KEY}` },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120000)
+      signal: AbortSignal.timeout(timeout)
     });
   } catch {
-    return { ok: false, status: 0, usage: null };
+    return { ok: false, cut: false, result: { ok: false, status: 0, usage: null } };
   }
   let data: { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; cost_rub?: number; cost?: number }; model?: string } | null = null;
   try {
@@ -49,10 +77,10 @@ export async function callOpenAI(env: Env, spec: TaskSpec, system: string, user:
   const usage = u
     ? { inputTokens: u.prompt_tokens ?? 0, cachedInputTokens: u.prompt_tokens_details?.cached_tokens ?? 0, outputTokens: u.completion_tokens ?? 0, ...(rub !== undefined && Number.isFinite(rub) && rub >= 0 ? { costMicro: Math.ceil(rub * 1e6) } : {}) }
     : null;
-  if (!res.ok || !data) return { ok: false, status: res.status, usage };
+  if (!res.ok || !data) return { ok: false, cut: false, result: { ok: false, status: res.status, usage } };
   const text = String(data.choices?.[0]?.message?.content ?? '').trim();
-  if (!text || !usage) return { ok: false, status: 502, usage };
-  return { ok: true, text, usage, model: String(data.model ?? env.OPENAI_MODEL) };
+  if (!text || !usage) return { ok: false, cut: !text && data.choices?.[0]?.finish_reason === 'length', result: { ok: false, status: 502, usage } };
+  return { ok: true, cut: false, result: { ok: true, text, usage, model: String(data.model ?? env.OPENAI_MODEL) } };
 }
 
 /** Для сверки: сколько токенов проекта насчитал OpenAI за окно (Usage API, админ-ключ). null — данные недоступны. */

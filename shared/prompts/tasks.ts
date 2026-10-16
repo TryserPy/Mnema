@@ -13,7 +13,7 @@ export interface TaskSpec {
   promptVersion: string;
   /** Оценка длины промта в токенах (вместе с разметкой), без фото и текста ученика. */
   promptTokens: number;
-  /** Потолок ответа (max_completion_tokens). Задаёт сервер, приложение не меняет. */
+  /** Потолок ответа (max_completion_tokens) — вместе с рассуждением, поэтому с запасом. Задаёт сервер, приложение не меняет. */
   maxTokens: number;
   reasoning: Reasoning;
   format: AnswerFormat;
@@ -26,14 +26,14 @@ export interface TaskSpec {
 }
 
 export const TASK_SPECS: Record<TaskId, TaskSpec> = {
-  'textbook.summary': { id: 'textbook.summary', title: 'Конспект с фото', promptVersion: 's1', promptTokens: 850, maxTokens: 1800, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1 },
-  'textbook.brief': { id: 'textbook.brief', title: 'Кратко с фото', promptVersion: 'b1', promptTokens: 700, maxTokens: 900, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1 },
+  'textbook.summary': { id: 'textbook.summary', title: 'Конспект с фото', promptVersion: 's1', promptTokens: 850, maxTokens: 3000, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1 },
+  'textbook.brief': { id: 'textbook.brief', title: 'Кратко с фото', promptVersion: 'b1', promptTokens: 700, maxTokens: 2000, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1 },
   'textbook.verbatim': { id: 'textbook.verbatim', title: 'Дословно', promptVersion: 'v1', promptTokens: 600, maxTokens: 3000, reasoning: 'none', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1 },
-  'textbook.merge': { id: 'textbook.merge', title: 'Свести параграф', promptVersion: 'm1', promptTokens: 700, maxTokens: 3500, reasoning: 'low', format: 'markdown', image: 'forbidden', textMax: 28000, pagesEstimate: 0.6 },
-  'notebook.read': { id: 'notebook.read', title: 'Тетрадь', promptVersion: 'n2', promptTokens: 650, maxTokens: 2000, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1.2 },
+  'textbook.merge': { id: 'textbook.merge', title: 'Свести параграф', promptVersion: 'm1', promptTokens: 700, maxTokens: 5000, reasoning: 'low', format: 'markdown', image: 'forbidden', textMax: 28000, pagesEstimate: 0.6 },
+  'notebook.read': { id: 'notebook.read', title: 'Тетрадь', promptVersion: 'n3', promptTokens: 750, maxTokens: 3500, reasoning: 'low', format: 'markdown', image: 'required', textMax: 0, pagesEstimate: 1.2 },
   cards: { id: 'cards', title: 'Карточки', promptVersion: 'c1', promptTokens: 400, maxTokens: 1200, reasoning: 'none', format: 'json', image: 'forbidden', textMax: 6000, pagesEstimate: 0.3 },
   explain: { id: 'explain', title: 'Объяснить иначе', promptVersion: 'e1', promptTokens: 150, maxTokens: 350, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 2500, pagesEstimate: 0.05 },
-  style: { id: 'style', title: 'Стиль с ИИ', promptVersion: 'y2', promptTokens: 2500, maxTokens: 3000, reasoning: 'low', format: 'json', image: 'forbidden', textMax: 12000, pagesEstimate: 1.5 },
+  style: { id: 'style', title: 'Стиль с ИИ', promptVersion: 'y2', promptTokens: 2500, maxTokens: 4500, reasoning: 'low', format: 'json', image: 'forbidden', textMax: 12000, pagesEstimate: 1.5 },
   formula: { id: 'formula', title: 'Формула от руки', promptVersion: 'f1', promptTokens: 120, maxTokens: 200, reasoning: 'none', format: 'latex', image: 'required', textMax: 0, pagesEstimate: 0.05 },
   'file.split': { id: 'file.split', title: 'Разбить файл по темам', promptVersion: 'p1', promptTokens: 150, maxTokens: 600, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 12000, pagesEstimate: 0.3 }
 };

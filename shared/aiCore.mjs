@@ -100,7 +100,8 @@ function publicConfig(c, refrain) {
  */
 export function createAiService({ http, store, refrain = null }) {
   const offline = (msg) => Object.assign(new Error(msg), { network: true });
-  async function fetchJson(url, init, timeout = 150000) {
+  // Ответ модели с «размышлениями» (o-серия, DeepSeek R1, Gemini 2.5, Claude с thinking) на фото страницы идёт минуту и дольше.
+  async function fetchJson(url, init, timeout = 240000) {
     const res = await http(url, { ...init, timeout });
     if (!res.status) {
       const code = String(res.error || res.text || '');
@@ -142,10 +143,13 @@ export function createAiService({ http, store, refrain = null }) {
       headers: { 'content-type': 'application/json', ...authHeaders(p, key), ...extraFor(p), ...parseHeaders(p.headers) },
       body: JSON.stringify({ model: p.model || undefined, ...openRouterFallback(p), messages, max_tokens: maxTokens, temperature: 0.3 })
     });
-    const msg = body.choices && body.choices[0] && body.choices[0].message;
+    const choice = body.choices && body.choices[0];
+    const msg = choice && choice.message;
     let text = msg ? msg.content : '';
     if (Array.isArray(text)) text = text.map((x) => (typeof x === 'string' ? x : x.text || '')).join('');
-    return String(text || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    const out = String(text || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    if (!out && choice && choice.finish_reason === 'length') throw cutOff();
+    return out;
   }
 
   async function callAnthropic(p, key, req, maxTokens) {
@@ -159,7 +163,9 @@ export function createAiService({ http, store, refrain = null }) {
       headers: { 'content-type': 'application/json', 'anthropic-version': '2023-06-01', ...auth, ...parseHeaders(p.headers) },
       body: JSON.stringify({ model: p.model, max_tokens: maxTokens, system: req.system || undefined, messages: [{ role: 'user', content }] })
     });
-    return (body.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    const out = (body.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    if (!out && body.stop_reason === 'max_tokens') throw cutOff();
+    return out;
   }
 
   async function callGemini(p, key, req, maxTokens) {
@@ -178,7 +184,9 @@ export function createAiService({ http, store, refrain = null }) {
       })
     });
     const cand = body.candidates && body.candidates[0];
-    return ((cand && cand.content && cand.content.parts) || []).map((x) => x.text || '').join('').trim();
+    const out = ((cand && cand.content && cand.content.parts) || []).filter((x) => !x.thought).map((x) => x.text || '').join('').trim();
+    if (!out && cand && cand.finishReason === 'MAX_TOKENS') throw cutOff();
+    return out;
   }
 
   function resolve(c, id) {
@@ -234,12 +242,19 @@ export function createAiService({ http, store, refrain = null }) {
     return callOpenAI(p, key, req, maxTokens);
   }
 
+  /** Модель «думала» весь потолок ответа и не успела написать ответ — пустой текст с причиной «длина». */
+  function cutOff() {
+    return Object.assign(new Error('ИИ слишком долго думал и не успел ответить. Попробуй ещё раз или выбери модель без «размышлений».'), { cut: true });
+  }
+
   async function run(p, key, req) {
     const maxTokens = Math.min(Math.max(Number(req.maxTokens) || 600, 32), 6000);
     if (!p.model && (p.format !== 'openai' || isOpenRouter(p))) throw new Error(`Не выбрана модель для «${p.name}». Нажми «Найти модели».`);
     try {
       return await runOnce(p, key, req, maxTokens);
     } catch (e) {
+      // Размышления съели весь потолок — ещё раз с потолком вдвое выше (рассуждение входит в него у всех поставщиков).
+      if (e.cut) return runOnce(p, key, req, Math.min(maxTokens * 2 + 1000, 16000));
       // Перегрузка или короткий сбой: одна повторная попытка через пару секунд.
       if (![429, 502, 503, 529].includes(e.status) || req.noRetry) throw e;
       await new Promise((r) => setTimeout(r, e.status === 429 ? 2500 : 1500));

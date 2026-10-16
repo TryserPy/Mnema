@@ -2,9 +2,12 @@
 .nb-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .nb-photo { width: 100%; max-height: 520px; object-fit: contain; border-radius: 8px; background: #fff; }
 .nb-text { min-width: 0; }
-.nb-read { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.nb-read { overflow-wrap: anywhere; line-height: 1.55; min-width: 0; }
+.nb-read .md > :first-child { margin-top: 0; }
 .nb-unsure { font: inherit; color: inherit; background: color-mix(in srgb, #e5c063 28%, transparent); border: 0; border-bottom: 2px dotted #c9a227; border-radius: 4px; padding: 0 3px; cursor: pointer; }
-.nb-fix { display: inline-block; width: 9em; padding: 2px 6px; height: auto; }
+.nb-unsure.on, .nb-unsure:focus-visible { outline: 2px solid #c9a227; outline-offset: 1px; }
+.nb-fixbar { position: sticky; bottom: 0; padding: 6px 0; background: var(--surface); }
+.nb-fix { min-width: 8em; }
 .nb-row { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
 .nb-row.off { opacity: 0.6; }
 .nb-row-opts { margin: 6px 0 0 26px; }

@@ -46,6 +46,77 @@ export function spreadCuts(w: number, h: number, spine?: { a: number; b: number 
 }
 
 /**
+ * Выравнивание света: тень от руки, блик лампы и тёмный угол снимка → ровная белая бумага, записи не трогаются.
+ * Яркость бумаги оценивается по клеткам (светлый край гистограммы — бумага, тёмный — чернила), сглаживается и делится:
+ * пиксель / бумага рядом. Так порог белизны потом одинаков по всему листу. RGBA меняется на месте.
+ */
+export function levelLight(rgba: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
+  if (w < 2 || h < 2 || rgba.length < w * h * 4) return rgba;
+  const B = Math.max(8, Math.round(Math.max(w, h) / 40));
+  const gw = Math.ceil(w / B);
+  const gh = Math.ceil(h / B);
+  let grid = new Float32Array(gw * gh);
+  const hist = new Uint32Array(64);
+  for (let gy = 0; gy < gh; gy++)
+    for (let gx = 0; gx < gw; gx++) {
+      hist.fill(0);
+      let n = 0;
+      const x1 = Math.min(w, (gx + 1) * B);
+      const y1 = Math.min(h, (gy + 1) * B);
+      for (let y = gy * B; y < y1; y += 2)
+        for (let x = gx * B; x < x1; x += 2) {
+          const i = (y * w + x) * 4;
+          hist[(rgba[i] * 0.3 + rgba[i + 1] * 0.59 + rgba[i + 2] * 0.11) >> 2]++;
+          n++;
+        }
+      // 85-й перцентиль: в клетке почти всегда больше бумаги, чем чернил.
+      let need = n * 0.15;
+      let k = 63;
+      while (k > 0 && need > hist[k]) need -= hist[k--];
+      grid[gy * gw + gx] = k * 4 + 2;
+    }
+  // Плотный текст занимает клетку целиком — берём самую светлую соседнюю, потом сглаживаем.
+  const pass = (src: Float32Array, f: (vals: number[]) => number) => {
+    const out = new Float32Array(src.length);
+    for (let gy = 0; gy < gh; gy++)
+      for (let gx = 0; gx < gw; gx++) {
+        const vals: number[] = [];
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const x = gx + dx;
+            const y = gy + dy;
+            if (x >= 0 && y >= 0 && x < gw && y < gh) vals.push(src[y * gw + x]);
+          }
+        out[gy * gw + gx] = f(vals);
+      }
+    return out;
+  };
+  const avg = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+  grid = pass(grid, (v) => Math.max(...v));
+  grid = pass(pass(grid, avg), avg);
+  for (let y = 0; y < h; y++) {
+    const fy = Math.min(gh - 1, Math.max(0, y / B - 0.5));
+    const y0 = Math.floor(fy);
+    const y1 = Math.min(gh - 1, y0 + 1);
+    const ty = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.min(gw - 1, Math.max(0, x / B - 0.5));
+      const x0 = Math.floor(fx);
+      const x1 = Math.min(gw - 1, x0 + 1);
+      const tx = fx - x0;
+      const top = grid[y0 * gw + x0] * (1 - tx) + grid[y0 * gw + x1] * tx;
+      const bot = grid[y1 * gw + x0] * (1 - tx) + grid[y1 * gw + x1] * tx;
+      const k = 255 / Math.max(48, top * (1 - ty) + bot * ty);
+      const i = (y * w + x) * 4;
+      rgba[i] = rgba[i] * k;
+      rgba[i + 1] = rgba[i + 1] * k;
+      rgba[i + 2] = rgba[i + 2] * k;
+    }
+  }
+  return rgba;
+}
+
+/**
  * Клетка, линейка и поля — светлые цветные линии, а ручка и карандаш темнее. После выравнивания света всё светлее порога
  * становится белым: на фото остаются только записи. RGBA меняется на месте.
  */
@@ -130,6 +201,7 @@ export function parseNotebookAnswer(raw: string): NotebookPage {
   });
   md = md.replace(/\[\[[^\]\n]{0,80}\]\]/g, '');
   md = md.replace(/\\\(([\s\S]+?)\\\)/g, (_m, t: string) => `$${t.trim()}$`).replace(/\\\[([\s\S]+?)\\\]/g, (_m, t: string) => `$$${t.trim()}$$`);
+  md = unsureInMath(md);
   md = normalizeAiBlocks(md);
   md = fixFormulas(md).md;
   md = md.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -137,6 +209,20 @@ export function parseNotebookAnswer(raw: string): NotebookPage {
 }
 
 // ---------- Неуверенные слова ----------
+
+/**
+ * Метки {?…?} в формулах ломают и формулу, и подсветку: внутри $…$ метки снимаются (формула остаётся), а «{?=\frac{a}{4}?}»
+ * вне $…$ (ИИ пометил целую формулу) становится формулой $…$ без метки. Обычные {?слово?} не трогаются.
+ */
+export function unsureInMath(md: string): string {
+  const strip = (t: string) => t.replace(/\{\?|\?\}/g, '');
+  let out = md.replace(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g, (_all, block: string | undefined, inline: string | undefined) => (block !== undefined ? `$$${strip(block)}$$` : `$${strip(inline ?? '')}$`));
+  out = out.replace(/\{\?([^\n]{1,200}?)\?\}/g, (all, inner: string) => {
+    if (/^[^{}?\n]{1,60}$/.test(inner)) return all;
+    return /\\[a-zA-Z]+|[\^_]/.test(inner) ? `$${inner.trim()}$` : inner;
+  });
+  return out;
+}
 
 export type Piece = { text: string } | { unsure: string; i: number };
 

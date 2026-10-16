@@ -471,7 +471,8 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
       const hit = cached(key, body.task);
       if (hit) return { ok: true, text: hit.text, format: hit.format, cached: true, charged: 0, quota: session()?.quota ?? null };
       if (!session()) return fail('signed_out');
-      const r = await signed('POST', '/task', body, 150000);
+      // Сервер ждёт модель до ~3 минут (с повтором, если рассуждение съело ответ) — клиент ждёт дольше сервера.
+      const r = await signed('POST', '/task', body, 240000);
       if (r.quota) saveQuota(r.quota);
       if (r.ok === false) return r;
       remember(key, body.task, r.promptVersion, r.text, r.format);

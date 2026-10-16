@@ -159,19 +159,19 @@ export function AddonsPane({ onGo }: { onGo?: (section: SettingsSection) => void
     const mine = originOf(m) !== 'builtin';
     const hasSettings = (m.settings?.length ?? 0) > 0;
     return (
-      <div key={m.id} className="st-item addon-row" data-set={'addon-' + m.id}>
+      <div key={m.id} className={'st-item addon-row' + (enabled ? ' on' : '')} data-set={'addon-' + m.id}>
         <div className="st-item-head">
           <span className="st-item-ico" aria-hidden="true">
             {m.icon ?? '🧩'}
           </span>
-          <span className="addon-text">
+          <button type="button" className="addon-text" tabIndex={-1} onClick={() => toggleAddon(m.id, !enabled)}>
             <span className="st-item-name">{m.name}</span>
             {m.description && (
               <span className="addon-desc small muted" title={m.description}>
                 {m.description}
               </span>
             )}
-          </span>
+          </button>
           {enabled && hasSettings && (
             <button className={'icon-btn small' + (open === m.id ? ' on' : '')} aria-expanded={open === m.id} aria-label={`Настройки «${m.name}»`} title="Настройки" onClick={() => setOpen(open === m.id ? null : m.id)}>
               <Icon name="sliders" size={16} />
@@ -229,7 +229,7 @@ export function AddonsPane({ onGo }: { onGo?: (section: SettingsSection) => void
 
   return (
     <div className="stack gap12">
-      <span className="small muted">Дополнение меняет что-то одно: клетку в конспекте, размер кнопок, ширину колонки. Включай сколько угодно — они лежат поверх стиля, следующее перекрывает предыдущее.</span>
+      <span className="small muted">Дополнения — маленькие добавки к стилю: клетка в конспекте, крупные кнопки, стикеры. Включай любые — просто нажми на строку.</span>
       <div className="row gap8 wrap">
         <button className="btn small" onClick={() => setEditing({ mod: { ...blankStyle(), name: 'Моё дополнение', role: 'addon' } as Mod131, isNew: true })}>
           <Icon name="plus" size={16} /> Новое дополнение

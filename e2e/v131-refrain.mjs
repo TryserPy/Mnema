@@ -124,7 +124,7 @@ for (const [theme, width] of [
   await page.locator('[data-part="report"]').getByRole('button', { name: 'Отправить' }).click();
   await page.locator('.modal', { hasText: 'Отправлено, номер #42. Спасибо!' }).waitFor();
   const bug = (await page.evaluate(() => window.__rf.calls)).find((c) => c[0] === 'bug')?.[1];
-  check(Boolean(bug && bug.context?.error && bug.text === 'Не работает проверка' && !JSON.stringify(bug).includes('u@example.com')), `${tag}: отчёт ушёл с ошибкой, без почты`);
+  check(Boolean(bug && bug.context?.error && /^Экран: .+\nНе работает проверка$/.test(bug.text) && !JSON.stringify(bug).includes('u@example.com')), `${tag}: отчёт ушёл с ошибкой, без почты`);
   await page.close();
 }
 

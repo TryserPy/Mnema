@@ -4,15 +4,18 @@ import { useEffect, useRef, useState } from 'react';
 import { categoryFor, onRefrainAnswer, onReportProblem, openReportProblem, type RefrainNotice, type ReportContext } from '../refrain';
 import { refrainApi } from '../refrainBridge';
 import type { Route } from '../types';
+import { categoryOfRoute, whereLabel } from '../where';
 import { LimitScreen, type LimitCode } from './LimitScreen';
 import { ReportProblem } from './ReportProblem';
 
 const LIMIT_CODES: string[] = ['limit_day', 'limit_month', 'access_closed'];
 
-export function RefrainHost({ go }: { go: (r: Route) => void }) {
+export function RefrainHost({ go, where }: { go: (r: Route) => void; where?: () => Route }) {
   const [limit, setLimit] = useState<RefrainNotice | null>(null);
   const [failed, setFailed] = useState<RefrainNotice | null>(null);
-  const [report, setReport] = useState<{ ctx: ReportContext; shot: string | null } | null>(null);
+  const [report, setReport] = useState<{ ctx: ReportContext; shot: string | null; where: string } | null>(null);
+  const whereRef = useRef(where);
+  whereRef.current = where;
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -26,8 +29,10 @@ export function RefrainHost({ go }: { go: (r: Route) => void }) {
     });
     const off2 = onReportProblem((ctx) => {
       setFailed(null);
+      const r = whereRef.current?.();
+      const full = { ...ctx, category: ctx.category ?? (ctx.task || ctx.error ? undefined : categoryOfRoute(r)) };
       // Снимок — до открытия формы, чтобы на нём было окно, а не сама форма.
-      void (refrainApi()?.screenshot() ?? Promise.resolve(null)).catch(() => null).then((shot) => setReport({ ctx, shot }));
+      void (refrainApi()?.screenshot() ?? Promise.resolve(null)).catch(() => null).then((shot) => setReport({ ctx: full, shot, where: whereLabel(r) }));
     });
     return () => {
       off1();
@@ -63,7 +68,7 @@ export function RefrainHost({ go }: { go: (r: Route) => void }) {
           </button>
         </div>
       )}
-      {report && <ReportProblem ctx={report.ctx} shot={report.shot} onClose={() => setReport(null)} />}
+      {report && <ReportProblem ctx={report.ctx} shot={report.shot} where={report.where} onClose={() => setReport(null)} />}
     </>
   );
 }

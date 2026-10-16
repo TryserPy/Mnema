@@ -1,7 +1,8 @@
-// «Из тетради → Фото» в окне: снимок или скан PDF → страницы (разворот делится на две), светлая клетка убирается,
-// длинная сторона — не больше 1600 px, JPEG для ИИ. Чистая часть (где резать, что белить) — в notebook.ts.
+// «Из тетради → Фото» в окне: снимок или скан PDF → страницы (разворот делится на две), свет выравнивается (тень и блик
+// уходят), длинная сторона — не больше 1600 px. ИИ получает выровненное фото (порог белизны мог бы стереть бледный
+// карандаш), а рядом с текстом показывается фото без клетки. Чистая часть (где резать, что белить) — в notebook.ts.
 import type { PdfImage } from './fileImportPdf';
-import { isSpreadShape, spreadCuts, whitenPaper, type Cut } from './notebook';
+import { isSpreadShape, levelLight, spreadCuts, whitenPaper, type Cut } from './notebook';
 import { fitSide, REFRAIN_SIDE } from './refrain';
 
 export interface PagePhoto {
@@ -25,17 +26,21 @@ function render(src: CanvasImageSource, cut: Cut, whiten: boolean): PagePhoto {
   const c = document.createElement('canvas');
   c.width = size.w;
   c.height = size.h;
-  const ctx = c.getContext('2d', { willReadFrequently: whiten })!;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, size.w, size.h);
   ctx.drawImage(src, cut.x, cut.y, cut.w, cut.h, 0, 0, size.w, size.h);
+  const img = ctx.getImageData(0, 0, size.w, size.h);
+  levelLight(img.data, size.w, size.h);
+  ctx.putImageData(img, 0, 0);
+  const forAi = c.toDataURL('image/jpeg', 0.88);
+  let url = forAi;
   if (whiten) {
-    const img = ctx.getImageData(0, 0, size.w, size.h);
     whitenPaper(img.data);
     ctx.putImageData(img, 0, 0);
+    url = c.toDataURL('image/jpeg', 0.85);
   }
-  const url = c.toDataURL('image/jpeg', 0.85);
-  return { mime: 'image/jpeg', data: url.slice(url.indexOf(',') + 1), url };
+  return { mime: 'image/jpeg', data: forAi.slice(forAi.indexOf(',') + 1), url };
 }
 
 /** Снимок → одна или две страницы. split: 'auto' — делить, если снимок похож на разворот. */

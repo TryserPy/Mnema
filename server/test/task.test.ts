@@ -17,7 +17,7 @@ describe('POST /v1/task', () => {
     expect(r.body).toMatchObject({ ok: true, format: 'markdown', promptVersion: 's1', charged: 1 });
     expect(r.body.quota).toMatchObject({ day: { used: 1, limit: 10 }, group: 'newbie' });
     expect(sent.model).toBe('openai/gpt-6-luna');
-    expect(sent.max_completion_tokens).toBe(1800);
+    expect(sent.max_completion_tokens).toBe(3000);
     expect(sent.reasoning_effort).toBe('low');
     expect(sent.store).toBe(false);
     expect(sent.messages[0].content).toContain('РАЗМЕТКА REFRAIN');
@@ -30,6 +30,23 @@ describe('POST /v1/task', () => {
     const dump = JSON.stringify(await h.env.DB.prepare('SELECT * FROM usage, events').all());
     expect(dump).not.toContain('8 классе');
     expect(dump).not.toContain('## Тема');
+  });
+
+  it('рассуждение съело потолок и текста нет — повтор без рассуждения, в учёт идут обе попытки', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const d = await h.login('think@example.com');
+    const efforts: unknown[] = [];
+    h.openai = (b) => {
+      efforts.push(b.reasoning_effort);
+      if (efforts.length === 1) return new Response(JSON.stringify({ choices: [{ message: { content: '' }, finish_reason: 'length' }], usage: { prompt_tokens: 2000, completion_tokens: 3000 } }), { headers: { 'content-type': 'application/json' } });
+      return openAiOk();
+    };
+    const r = await d.task();
+    expect(r.status).toBe(200);
+    expect(efforts).toEqual(['low', 'none']);
+    const row = await h.env.DB.prepare('SELECT * FROM usage').first<Record<string, unknown>>();
+    expect(row).toMatchObject({ input_tokens: 4000, output_tokens: 3900, ok: 1 });
   });
 
   it('Polza.ai: адрес из LLM_BASE_URL; бюджету — цена из ответа (usage.cost_rub), ученику — страницы по прайсу', async () => {
@@ -102,16 +119,16 @@ describe('POST /v1/task', () => {
   it('бюджет: резерв не влезает — пауза для всех, кроме владельца; тревоги 50/80/100 %', async () => {
     const h = new Harness();
     await h.setting('mode', 'all');
-    await h.setting('budget', { monthRub: 0.178, dayRub: 0.178, alertAt: [0.5, 0.8, 1], spikeFactor: 3, spikeMinRub: 100, greedyShare: 1, signupWaveHour: 30, signupWavePerIp: 5, upstreamErrorShare: 0.2 });
+    await h.setting('budget', { monthRub: 0.2, dayRub: 0.2, alertAt: [0.5, 0.8, 1], spikeFactor: 3, spikeMinRub: 100, greedyShare: 1, signupWaveHour: 30, signupWavePerIp: 5, upstreamErrorShare: 0.2 });
     const d = await h.login('poor@example.com');
     const owner = await h.login('owner@example.com');
-    expect((await d.task()).status).toBe(200); // 38 554 µ₽ из 178 000; резерв конспекта 72 068 µ₽
+    expect((await d.task()).status).toBe(200); // 38 554 µ₽ из 200 000; резерв конспекта 107 660 µ₽
     h.clock += 61000;
     expect((await d.task()).status).toBe(200);
     h.clock += 61000;
-    expect((await d.task()).status).toBe(200); // 115 662 µ₽ — 65 %
+    expect((await d.task()).status).toBe(200); // 115 662 µ₽ — 58 %
     h.clock += 61000;
-    expect((await d.task()).status).toBe(503); // 115 662 + 72 068 > 178 000: резерв не влезает
+    expect((await d.task()).status).toBe(503); // 115 662 + 107 660 > 200 000: резерв не влезает
     expect((await owner.task()).status).toBe(200);
     const texts = h.telegram().map((m) => m.text);
     expect(texts.some((t) => t.includes('Бюджет 50 %'))).toBe(true);

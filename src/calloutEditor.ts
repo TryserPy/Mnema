@@ -170,7 +170,8 @@ export const Callout = Node.create({
     };
   },
 
-  // Шапка выноски: тип (выбор), заголовок (поле), «убрать». Сам текст выноски редактируется как обычный конспект.
+  // Шапка выноски: значок (под ним — выбор вида), заголовок (поле), «убрать». В покое шапка выглядит как при чтении —
+  // значок и заголовок; название вида и «✕» видны, только когда курсор в выноске или над ней мышь.
   addNodeView() {
     return ({ node, getPos, editor }) => {
       let cur = node;
@@ -178,9 +179,19 @@ export const Callout = Node.create({
       const head = document.createElement('div');
       head.className = 'callout-head';
       head.contentEditable = 'false';
+      const pick = document.createElement('span');
+      pick.className = 'callout-pick';
+      pick.title = 'Поменять вид выноски';
+      const ico = document.createElement('span');
+      ico.className = 'callout-ico';
+      ico.setAttribute('aria-hidden', 'true');
+      const kname = document.createElement('span');
+      kname.className = 'callout-kname';
+      kname.setAttribute('aria-hidden', 'true');
       const kind = document.createElement('select');
       kind.className = 'callout-kind';
       kind.setAttribute('aria-label', 'Вид выноски');
+      pick.append(ico, kname, kind);
       const title = document.createElement('input');
       title.className = 'callout-title';
       title.type = 'text';
@@ -192,7 +203,7 @@ export const Callout = Node.create({
       off.textContent = '✕';
       off.title = 'Убрать выноску (текст останется)';
       off.setAttribute('aria-label', 'Убрать выноску');
-      head.append(kind, title, off);
+      head.append(pick, title, off);
       const body = document.createElement('div');
       body.className = 'callout-body';
       dom.append(head, body);
@@ -221,6 +232,8 @@ export const Callout = Node.create({
           kind.value = look.kind;
         }
         title.placeholder = look.title;
+        ico.textContent = look.icon || '❝';
+        kname.textContent = `${look.title} ▾`;
         if (title.value !== cur.attrs.title && document.activeElement !== title) title.value = cur.attrs.title;
         title.disabled = kind.disabled = off.disabled = !editor.isEditable;
       };

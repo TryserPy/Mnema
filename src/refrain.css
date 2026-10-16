@@ -7,3 +7,5 @@
 .rf-failed { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); width: min(460px, calc(100vw - 32px)); display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-pop); z-index: 99; }
 .rf-log { max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--sunken); padding: 8px; border-radius: 8px; margin: 4px 0 0; }
 .rf-shot { max-width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); }
+.rf-shot-canvas { width: 100%; max-height: none; height: auto; cursor: crosshair; touch-action: none; display: block; }
+.rf-lab { min-width: 52px; }

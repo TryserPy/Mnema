@@ -3,7 +3,10 @@ import { humanError, testConnection } from '../ai';
 import type { AiAuth, AiConfig, AiFormat, AiModelInfo, AiProvider, CustomAi, CustomAiDraft } from '../store';
 import { Icon, Modal, Segmented, Switch, Collapse } from './ui';
 import { AiNotes } from './AiNotes';
-import { RefrainSettings, type AiConfigOrder } from './RefrainSettings';
+import { ProviderOrder, RefrainSettings, type AiConfigOrder } from './RefrainSettings';
+import { Fold } from './Fold';
+import { PromptsSettings } from './PromptsSettings';
+import { refrainApi } from '../refrainBridge';
 
 type ConfigPatch = Partial<Omit<AiConfig, 'hasKey' | 'custom'>> & { key?: { provider: 'anthropic' | 'gemini'; value: string } };
 type Status = { kind: 'ok' | 'warn' | 'info'; text: string } | null;
@@ -86,169 +89,242 @@ export function AiSettings() {
   ];
   const current = providers.find((x) => x.id === p);
   const visionChoices = providers.filter((x) => x.vision && x.id !== p);
+  const ordered = cfg as AiConfigOrder;
+  const refrainOn = Boolean(refrainApi() && ordered.refrain);
+  const localOk = api.platform !== 'android';
+  const mode = modeOf(ordered, refrainOn);
+  const keyProviders = providers.filter((x) => x.id !== 'local');
+
+  /** Выбор «кто помогает»: выбранный — первым, остальные остаются запасными по порядку. */
+  async function choose(m: Mode) {
+    setStatus(null);
+    setKey('');
+    if (m === 'refrain') return void save({ order: ['refrain', 'key', 'local'] } as ConfigPatch);
+    if (m === 'local') return void save({ provider: 'local', order: ['local', 'refrain', 'key'] } as ConfigPatch);
+    const ready = keyProviders.find((x) => (x.custom ? x.custom.hasKey || x.custom.auth === 'none' : cfg!.hasKey[x.id as 'anthropic' | 'gemini']));
+    await save({ ...(p === 'local' ? { provider: ready?.id ?? 'anthropic' } : {}), order: ['key', 'refrain', 'local'] } as ConfigPatch);
+  }
+
+  const modes: { id: Mode; icon: string; title: string; text: string; tag?: string }[] = [
+    ...(refrainOn ? [{ id: 'refrain' as Mode, icon: '✨', title: 'Refrain ИИ', text: 'Бесплатно, каждый день. Нужна только почта.', tag: 'Проще всего' }] : []),
+    { id: 'key', icon: '🔑', title: 'Свой ИИ', text: 'ChatGPT, Claude, Gemini и другие — по своему ключу.' },
+    ...(localOk ? [{ id: 'local' as Mode, icon: '💻', title: 'Без интернета', text: 'Модель прямо на компьютере (LM Studio, Ollama).' }] : [])
+  ];
 
   return (
-    <div className="stack gap12">
+    <div className="stack gap16" data-part="ai-settings">
       {keysPlain && (
         <div className="hint warn" role="note">
           Ключи ИИ на этом компьютере хранятся не зашифрованными: в системе нет хранилища паролей (GNOME Keyring или KWallet). Их защищают только права на файл (доступ у одного тебя). Установи хранилище паролей и введи ключи заново — тогда они будут зашифрованы.
         </div>
       )}
-      <RefrainSettings cfg={cfg as AiConfigOrder} onConfig={setCfg} />
-      <div className="ai-list" role="radiogroup" aria-label="Какой ИИ">
-        {providers.map((x) => (
-          <div key={x.id} className={'ai-item' + (x.id === p ? ' on' : '')}>
-            <button
-              role="radio"
-              aria-checked={x.id === p}
-              className="ai-pick"
-              onClick={() => {
-                setStatus(null);
-                setKey('');
-                void save({ provider: x.id });
-              }}
-            >
-              <span className="ai-radio" />
-              <span className="grow stack">
-                <strong>{x.name}</strong>
-                <span className="small muted">
-                  {x.sub}
-                  {!x.vision && ' · без картинок'}
-                </span>
+      <div className="stack gap8">
+        <strong>Кто тебе помогает</strong>
+        <div className="ai-modes" role="radiogroup" aria-label="Кто помогает">
+          {modes.map((m) => (
+            <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} className={'ai-mode' + (mode === m.id ? ' on' : '')} onClick={() => void choose(m.id)}>
+              <span className="ai-mode-ico" aria-hidden="true">
+                {m.icon}
               </span>
+              <strong>{m.title}</strong>
+              <span className="small muted">{m.text}</span>
+              {m.tag && <span className="ai-mode-tag">{m.tag}</span>}
             </button>
-            {x.custom && (
-              <button className="icon-btn small" aria-label={`Изменить ${x.name}`} title="Изменить" onClick={() => setEditing(x.custom!)}>
-                <Icon name="edit" size={16} />
-              </button>
-            )}
-          </div>
-        ))}
-        <button className="ai-add" onClick={() => setEditing('new')}>
-          <Icon name="plus" size={18} /> Добавить свой ИИ — любой сервис по API
-        </button>
+          ))}
+        </div>
       </div>
 
-      {(p === 'anthropic' || p === 'gemini') && (
-        <div className="stack gap8">
-          <span className="small muted">
-            Нужен ключ API — его можно получить на{' '}
-            <a href={LINKS[p].url} target="_blank" rel="noreferrer">
-              {LINKS[p].name}
-            </a>
-            . Использование платное или ограничено бесплатным лимитом сервиса.
-          </span>
-          {cfg.hasKey[p] ? (
+      {mode === 'refrain' && (
+        <div className="ai-step">
+          <RefrainSettings cfg={ordered} />
+        </div>
+      )}
+
+      {mode === 'key' && (
+        <div className="ai-step">
+          <span className="ai-step-title">Какой ИИ</span>
+          <div className="ai-list" role="radiogroup" aria-label="Какой ИИ">
+            {keyProviders.map((x) => (
+              <div key={x.id} className={'ai-item' + (x.id === p ? ' on' : '')}>
+                <button
+                  role="radio"
+                  aria-checked={x.id === p}
+                  className="ai-pick"
+                  onClick={() => {
+                    setStatus(null);
+                    setKey('');
+                    void save({ provider: x.id });
+                  }}
+                >
+                  <span className="ai-radio" />
+                  <span className="grow stack">
+                    <strong>{x.name}</strong>
+                    <span className="small muted">
+                      {x.sub}
+                      {!x.vision && ' · без картинок'}
+                    </span>
+                  </span>
+                </button>
+                {x.custom && (
+                  <button className="icon-btn small" aria-label={`Изменить ${x.name}`} title="Изменить" onClick={() => setEditing(x.custom!)}>
+                    <Icon name="edit" size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button className="ai-add" onClick={() => setEditing('new')}>
+              <Icon name="plus" size={18} /> Другой ИИ (ChatGPT, DeepSeek, OpenRouter…)
+            </button>
+          </div>
+          {(p === 'anthropic' || p === 'gemini') && (
+            <div className="stack gap8">
+              <span className="small muted">
+                Нужен ключ — его выдают на сайте{' '}
+                <a href={LINKS[p].url} target="_blank" rel="noreferrer">
+                  {LINKS[p].name}
+                </a>
+                . Обычно это платно или с бесплатным лимитом.
+              </span>
+              {cfg.hasKey[p] ? (
+                <div className="row gap8">
+                  <span className="grow small">Ключ сохранён и зашифрован на этом устройстве ✓</span>
+                  <button className="btn small ghost danger" onClick={() => void save({ key: { provider: p, value: '' } })}>
+                    Удалить ключ
+                  </button>
+                </div>
+              ) : (
+                <form
+                  className="row gap8"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!key.trim()) return;
+                    void save({ key: { provider: p, value: key } }).then(() => {
+                      setKey('');
+                      void check();
+                    });
+                  }}
+                >
+                  <input className="input grow" type="password" autoComplete="off" placeholder="Вставь ключ" value={key} onChange={(e) => setKey(e.target.value)} aria-label="Ключ API" />
+                  <button className="btn primary" type="submit" disabled={!key.trim()}>
+                    Сохранить
+                  </button>
+                </form>
+              )}
+              <div className="row gap8">
+                <span className="grow small muted">Модель: {cfg.models[p] || 'по умолчанию'}</span>
+                <button className="btn small" disabled={busy || !cfg.hasKey[p]} onClick={() => void check()}>
+                  Проверить
+                </button>
+              </div>
+            </div>
+          )}
+          {custom && (
             <div className="row gap8">
-              <span className="grow small">Ключ сохранён и зашифрован на этом устройстве ✓</span>
-              <button className="btn small ghost danger" onClick={() => void save({ key: { provider: p, value: '' } })}>
-                Удалить ключ
+              <span className="grow small muted">
+                {custom.model || 'модель не выбрана'} · {custom.hasKey ? 'ключ сохранён ✓' : custom.auth === 'none' ? 'без ключа' : 'ключ не указан'}
+              </span>
+              <button className="btn small" disabled={busy} onClick={() => void check()}>
+                Проверить
               </button>
             </div>
-          ) : (
-            <form
-              className="row gap8"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!key.trim()) return;
-                void save({ key: { provider: p, value: key } }).then(() => {
-                  setKey('');
-                  void check();
-                });
-              }}
-            >
-              <input className="input grow" type="password" autoComplete="off" placeholder="Вставь ключ API" value={key} onChange={(e) => setKey(e.target.value)} aria-label="Ключ API" />
-              <button className="btn primary" type="submit" disabled={!key.trim()}>
-                Сохранить
-              </button>
-            </form>
           )}
         </div>
       )}
-      {p === 'local' && (
-        <div className="stack gap8">
+
+      {mode === 'local' && (
+        <div className="ai-step">
           <span className="small muted">
-            Модель работает прямо на твоём компьютере через LM Studio: без ключа и интернета. В LM Studio загрузи модель (для рукописных формул и фото нужна модель, которая понимает картинки) и включи сервер.
+            Модель работает прямо на компьютере: без ключа и без интернета. Установи LM Studio, скачай в нём модель (для фото и формул от руки — ту, что понимает картинки) и включи сервер.
           </span>
           <label className="row gap8">
-            <span className="small muted nowrap">Адрес сервера</span>
-            <input className="input grow" value={cfg.endpoint} onChange={(e) => setCfg({ ...cfg, endpoint: e.target.value })} onBlur={(e) => void save({ endpoint: e.target.value })} />
+            <span className="small muted nowrap">Адрес</span>
+            <input className="input grow" value={cfg.endpoint} onChange={(e) => setCfg({ ...cfg, endpoint: e.target.value })} onBlur={(e) => void save({ endpoint: e.target.value })} aria-label="Адрес сервера LM Studio" />
             <button className="btn small" onClick={() => void findLocal()}>
               Найти модели
             </button>
           </label>
+          <label className="row gap8">
+            <span className="small muted nowrap">Модель</span>
+            {localModels.length > 0 ? (
+              <select className="input grow" value={cfg.models.local} onChange={(e) => void save({ models: { ...cfg.models, local: e.target.value } })}>
+                <option value="">— выбери —</option>
+                {localModels.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="input grow mono"
+                value={cfg.models.local}
+                placeholder="название модели в LM Studio"
+                onChange={(e) => setCfg({ ...cfg, models: { ...cfg.models, local: e.target.value } })}
+                onBlur={(e) => void save({ models: { ...cfg.models, local: e.target.value } })}
+              />
+            )}
+            <button className="btn small" disabled={busy} onClick={() => void check()}>
+              Проверить
+            </button>
+          </label>
         </div>
       )}
-      {!custom && (
-        <label className="row gap8">
-          <span className="small muted nowrap">Модель</span>
-          {p === 'local' && localModels.length > 0 ? (
-            <select className="input grow" value={cfg.models.local} onChange={(e) => void save({ models: { ...cfg.models, local: e.target.value } })}>
-              <option value="">— выбери —</option>
-              {localModels.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          ) : (
+
+      {status && <div className={'hint ' + (status.kind === 'ok' ? 'ok' : status.kind === 'warn' ? 'warn' : '')}>{status.text}</div>}
+
+      <Fold id="ai-notes" icon="💬" title="Как объяснять" hint="Твои пожелания к ИИ: «объясняй проще», «я в 7 классе»">
+        <AiNotes cfg={cfg} part="notes" />
+      </Fold>
+
+      <Fold id="ai-advanced" icon="⚙️" title="Для продвинутых" hint="Модели, запасной ИИ, промты">
+        {(p === 'anthropic' || p === 'gemini') && (
+          <label className="row gap8">
+            <span className="small muted nowrap">Модель {current?.name}</span>
             <input
               className="input grow mono"
-              value={cfg.models[p as 'anthropic' | 'gemini' | 'local']}
-              placeholder={p === 'local' ? 'название модели в LM Studio' : ''}
+              value={cfg.models[p]}
               onChange={(e) => setCfg({ ...cfg, models: { ...cfg.models, [p]: e.target.value } })}
               onBlur={(e) => void save({ models: { ...cfg.models, [p]: e.target.value } })}
+              aria-label="Модель"
             />
-          )}
-          <button className="btn small" disabled={busy || ((p === 'anthropic' || p === 'gemini') && !cfg.hasKey[p])} onClick={() => void check()}>
-            Проверить
-          </button>
-        </label>
-      )}
-      {custom && (
-        <div className="row gap8">
-          <span className="grow small muted">
-            {custom.baseUrl} · {custom.hasKey ? 'ключ сохранён ✓' : custom.auth === 'none' ? 'без ключа' : 'ключ не указан'}
-          </span>
-          <button className="btn small" disabled={busy} onClick={() => void check()}>
-            Проверить
-          </button>
-        </div>
-      )}
-      {current && !current.vision && (
-        <label className="row gap8 small">
-          <span className="grow">«{current.name}» не понимает картинки. Для фото учебника и формул от руки использовать:</span>
-          <select className="input" value={cfg.visionProvider} onChange={(e) => void save({ visionProvider: e.target.value as AiProvider | '' })} aria-label="ИИ для картинок">
-            <option value="">— не выбран —</option>
-            {visionChoices.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {api.aiTranscribe && api.platform !== 'android' && (
-        <label className="row gap8 small">
-          <span className="grow">Для ответа голосом (распознать речь) использовать:</span>
-          <select className="input" value={cfg.speechProvider} onChange={(e) => void save({ speechProvider: e.target.value as AiProvider | '' })} aria-label="ИИ для речи">
-            <option value="">{current && !/Claude|Anthropic/.test(current.sub + current.name) ? 'тот же' : '— выбери —'}</option>
-            {providers
-              .filter((x) => x.id !== 'anthropic' && x.custom?.format !== 'anthropic')
-              .map((x) => (
+          </label>
+        )}
+        {ordered.order && <ProviderOrder cfg={ordered} onConfig={setCfg} />}
+        {current && !current.vision && (
+          <label className="row gap8 small">
+            <span className="grow">«{current.name}» не понимает картинки. Для фото учебника и формул от руки использовать:</span>
+            <select className="input" value={cfg.visionProvider} onChange={(e) => void save({ visionProvider: e.target.value as AiProvider | '' })} aria-label="ИИ для картинок">
+              <option value="">— не выбран —</option>
+              {visionChoices.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
                 </option>
               ))}
-          </select>
-        </label>
-      )}
-      {status && <div className={'hint ' + (status.kind === 'ok' ? 'ok' : status.kind === 'warn' ? 'warn' : '')}>{status.text}</div>}
-      <p className="small muted">
-        ИИ получает текст карточки, рисунок, фото страницы или запись голоса только когда ты сам нажимаешь кнопку («Объясни иначе», «Распознать», «Из учебника», «Ответить голосом»). Ответы ИИ могут ошибаться — сверяй с учебником.
-      </p>
+            </select>
+          </label>
+        )}
+        {api.aiTranscribe && api.platform !== 'android' && (
+          <label className="row gap8 small">
+            <span className="grow">Для ответа голосом (распознать речь) использовать:</span>
+            <select className="input" value={cfg.speechProvider} onChange={(e) => void save({ speechProvider: e.target.value as AiProvider | '' })} aria-label="ИИ для речи">
+              <option value="">{current && !/Claude|Anthropic/.test(current.sub + current.name) ? 'тот же' : '— выбери —'}</option>
+              {providers
+                .filter((x) => x.id !== 'anthropic' && x.custom?.format !== 'anthropic')
+                .map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
+        <AiNotes cfg={cfg} part="routing" />
+        <PromptsSettings />
+      </Fold>
 
-      <AiNotes cfg={cfg} />
+      <p className="small muted">
+        ИИ получает текст карточки, фото страницы или запись голоса, только когда ты сам нажимаешь кнопку. ИИ может ошибаться — сверяй с учебником.
+      </p>
 
       {editing && (
         <CustomAiEditor
@@ -268,6 +344,16 @@ export function AiSettings() {
       )}
     </div>
   );
+}
+
+type Mode = 'refrain' | 'key' | 'local';
+
+/** Кто помогает сейчас: первый в очереди (Refrain ИИ — только если он есть), модель на компьютере — если выбрана основной. */
+export function modeOf(cfg: AiConfigOrder, refrainOn: boolean): Mode {
+  const order = cfg.order ?? ['refrain', 'key', 'local'];
+  const first = order.find((s) => refrainOn || s !== 'refrain') ?? 'key';
+  if (first === 'refrain') return 'refrain';
+  return cfg.provider === 'local' || first === 'local' ? 'local' : 'key';
 }
 
 function CustomAiEditor({ initial, onClose, onSaved, onDeleted }: { initial: CustomAi | null; onClose: () => void; onSaved: (c: AiConfig) => void; onDeleted: (c: AiConfig) => void }) {

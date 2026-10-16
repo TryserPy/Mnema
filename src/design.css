@@ -749,10 +749,22 @@ html[data-touch] .bubble .bubble-sep { display: none; }
 .note-doc td > p, .note-doc th > p { margin: 0; }
 .note-doc .tableWrapper { overflow-x: auto; max-width: 100%; }
 .note-doc .selectedCell { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.table-tools { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--shadow-pop); z-index: 39; }
-.table-tools button { min-height: 30px; padding: 0 9px; border: none; border-radius: 7px; background: transparent; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; font-size: 0.84rem; white-space: nowrap; }
+.table-tools { display: flex; align-items: center; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: var(--shadow-pop); z-index: 39; }
+.table-tools button { min-height: 30px; min-width: 30px; padding: 0 6px; border: none; border-radius: 8px; background: transparent; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 1px; font-size: 0.84rem; white-space: nowrap; cursor: pointer; }
 .table-tools button:hover { background: var(--sunken); }
-.table-tools button.danger { color: var(--again-ink); }
+.table-tools button.danger, .table-tools button.tt-del:hover { color: var(--again-ink); }
+.table-tools .tt-group { display: inline-flex; align-items: center; gap: 1px; padding: 0 2px 0 8px; border-radius: 9px; background: var(--surface-2, var(--sunken)); }
+.table-tools .tt-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-right: 3px; }
+.table-tools .tt-dir { font-size: 0.8rem; line-height: 1; color: var(--muted); }
+.table-tools button.tt-del { color: var(--muted); }
+/* Большие «+» у правого и нижнего края таблицы. */
+.table-edge { z-index: 38; }
+.table-edge button { display: grid; place-items: center; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--line-2)); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--accent-text, var(--accent)); border-radius: 8px; cursor: pointer; opacity: 0.75; transition: opacity 0.15s, background 0.15s; }
+.table-edge button:hover, .table-edge button:focus-visible { opacity: 1; background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.table-edge.col button { width: 22px; height: 44px; }
+.table-edge.row button { width: 44px; height: 22px; }
+html[data-touch] .table-edge.col button { width: 30px; height: 52px; }
+html[data-touch] .table-edge.row button { width: 52px; height: 30px; }
 @media (max-width: 720px), (pointer: coarse) {
   .table-tools { flex-wrap: wrap; max-width: calc(100vw - 56px); }
   .table-tools button { padding: 0 7px; }

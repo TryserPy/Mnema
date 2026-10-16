@@ -1,7 +1,7 @@
 import '../katexCache';
 // Редактор конспекта «как в Word»: без значков разметки на экране, но хранится всё в Markdown.
 import { registerNote } from '../noteRegistry';
-import { Extension, InputRule } from '@tiptap/core';
+import { Extension, findParentNode, InputRule } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
 import { renderTableToMarkdown, Table, TableKit } from '@tiptap/extension-table';
 import { BlockMath, InlineMath } from '@tiptap/extension-mathematics';
@@ -134,6 +134,8 @@ type DrawingTarget = { mode: 'new' } | { mode: 'edit'; pos: number; data: Drawin
 
 export interface NoteApi {
   showText: (text: string) => void;
+  /** Вставить Markdown там, где курсор (или в конец, если курсора не было). */
+  insertMarkdown: (md: string) => void;
 }
 
 interface Props {
@@ -144,6 +146,8 @@ interface Props {
   onPage?: (n: number) => void;
   tools?: ReactNode;
   onReady?: (api: NoteApi) => void;
+  /** «Вставить → Фото тетради»: окно чтения тетради открывает тот, кто показывает редактор. */
+  onNotebook?: () => void;
   /** Слова-подсказки правил предмета: подчёркиваются, при наведении всплывает правило. */
   rules?: RuleMatcher | null;
   onRuleHover?: (id: string | null, el: HTMLElement | null) => void;
@@ -173,7 +177,29 @@ function markLong(ed: Editor) {
   else dom.removeAttribute('data-long');
 }
 
-export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, onPage, tools, onReady, rules = null, onRuleHover, onAddRule, onLinkHover, topicId }: Props) {
+/** Таблица с курсором — опора для кнопок над ней и у её краёв. */
+function tableRect(editor: Editor) {
+  const cell = editor.view.domAtPos(editor.state.selection.from).node as HTMLElement;
+  const table = (cell.nodeType === 3 ? cell.parentElement : cell)?.closest?.('table');
+  return table ? { getBoundingClientRect: () => table.getBoundingClientRect(), getClientRects: () => [table.getBoundingClientRect()] as unknown as DOMRectList } : null;
+}
+
+/** «+» у края таблицы: строка — после последней строки, столбец — после последнего столбца (откуда бы ни стоял курсор). */
+function addAtEdge(editor: Editor, what: 'row' | 'col') {
+  const table = findParentNode((n) => n.type.name === 'table')(editor.state.selection);
+  if (!table) return;
+  const rows = table.node.childCount;
+  if (!rows) return;
+  let rowPos = table.pos + 1;
+  for (let i = 0; i < (what === 'row' ? rows - 1 : 0); i++) rowPos += table.node.child(i).nodeSize;
+  const row = table.node.child(what === 'row' ? rows - 1 : 0);
+  let cellPos = rowPos + 1;
+  for (let i = 0; i < row.childCount - 1; i++) cellPos += row.child(i).nodeSize;
+  const chain = editor.chain().focus().setTextSelection(cellPos + 2);
+  (what === 'row' ? chain.addRowAfter() : chain.addColumnAfter()).run();
+}
+
+export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, onPage, tools, onReady, onNotebook, rules = null, onRuleHover, onAddRule, onLinkHover, topicId }: Props) {
   const linkHoverRef = useRef(onLinkHover);
   linkHoverRef.current = onLinkHover;
   const linkEl = useRef<HTMLElement | null>(null);
@@ -182,6 +208,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   const bubbleAt = useRef<{ from: number; to: number } | null>(null);
   const bubbleKey = useRef(new PluginKey('noteBubble')).current;
   const tableKey = useRef(new PluginKey('noteTable')).current;
+  const tableColKey = useRef(new PluginKey('noteTableCol')).current;
+  const tableRowKey = useRef(new PluginKey('noteTableRow')).current;
   const hlRef = useRef(highlight);
   hlRef.current = highlight;
   const rulesRef = useRef(rules);
@@ -377,6 +405,12 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   useEffect(() => {
     if (!editor || !onReady) return;
     onReady({
+      insertMarkdown: (md) => {
+        if (editor.isDestroyed || !md.trim()) return;
+        const text = md.trim() + '\n';
+        if (!editor.isFocused && editor.state.selection.from <= 1 && editor.state.doc.textContent.trim()) editor.chain().focus('end').insertContent(text, { contentType: 'markdown' }).run();
+        else editor.chain().focus().insertContent(text, { contentType: 'markdown' }).run();
+      },
       showText: (text) => {
         const r = findTextRange(editor.state.doc, text);
         if (!r) return;
@@ -687,6 +721,11 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
             <button role="menuitem" onClick={insert(() => setVideoAsk(true))}>
               <span className="menu-ico">▶</span> Видео по ссылке
             </button>
+            {onNotebook && (
+              <button role="menuitem" onClick={insert(onNotebook)}>
+                <span className="menu-ico">📓</span> Фото тетради — текст с почерка
+              </button>
+            )}
             <button role="menuitem" onClick={insert(() => editor.chain().focus().toggleHeading({ level: 2 }).run())}>
               <span className="menu-ico">H</span> Заголовок
             </button>
@@ -734,34 +773,69 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
         </div>
       )}
 
-      {/* Курсор в таблице — кнопки строк и столбцов над ней. */}
+      {/* Курсор в таблице: над ней — «Строка» и «Столбец» (добавить с любой стороны, убрать), у краёв — большие «+». */}
       <BubbleMenu
         editor={editor}
         pluginKey={tableKey}
         className="table-tools"
         options={{ placement: 'top-start', offset: 8, flip: { padding: 12 }, shift: { padding: 8 } }}
         shouldShow={({ editor: ed, from, to }) => from === to && ed.isEditable && ed.isActive('table')}
-        getReferencedVirtualElement={() => {
-          const cell = editor.view.domAtPos(editor.state.selection.from).node as HTMLElement;
-          const table = (cell.nodeType === 3 ? cell.parentElement : cell)?.closest?.('table');
-          return table ? { getBoundingClientRect: () => table.getBoundingClientRect(), getClientRects: () => [table.getBoundingClientRect()] as unknown as DOMRectList } : null;
-        }}
+        getReferencedVirtualElement={() => tableRect(editor)}
       >
-        <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} title="Добавить строку ниже">
-          <Icon name="plus" size={14} /> Строка
-        </button>
-        <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} title="Добавить столбец справа">
-          <Icon name="plus" size={14} /> Столбец
-        </button>
-        <span className="bubble-sep" />
-        <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} title="Убрать строку с курсором">
-          − Строка
-        </button>
-        <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} title="Убрать столбец с курсором">
-          − Столбец
-        </button>
-        <button type="button" className="danger" onClick={() => editor.chain().focus().deleteTable().run()} title="Удалить всю таблицу">
+        <span className="tt-group" role="group" aria-label="Строка">
+          <span className="tt-label">Строка</span>
+          <button type="button" onClick={() => editor.chain().focus().addRowBefore().run()} title="Добавить строку выше" aria-label="Добавить строку выше">
+            <Icon name="plus" size={13} />
+            <span className="tt-dir">↑</span>
+          </button>
+          <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} title="Добавить строку ниже" aria-label="Добавить строку ниже">
+            <Icon name="plus" size={13} />
+            <span className="tt-dir">↓</span>
+          </button>
+          <button type="button" className="tt-del" onClick={() => editor.chain().focus().deleteRow().run()} title="Убрать строку с курсором" aria-label="Убрать строку">
+            <Icon name="x" size={13} />
+          </button>
+        </span>
+        <span className="tt-group" role="group" aria-label="Столбец">
+          <span className="tt-label">Столбец</span>
+          <button type="button" onClick={() => editor.chain().focus().addColumnBefore().run()} title="Добавить столбец слева" aria-label="Добавить столбец слева">
+            <Icon name="plus" size={13} />
+            <span className="tt-dir">←</span>
+          </button>
+          <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} title="Добавить столбец справа" aria-label="Добавить столбец справа">
+            <Icon name="plus" size={13} />
+            <span className="tt-dir">→</span>
+          </button>
+          <button type="button" className="tt-del" onClick={() => editor.chain().focus().deleteColumn().run()} title="Убрать столбец с курсором" aria-label="Убрать столбец">
+            <Icon name="x" size={13} />
+          </button>
+        </span>
+        <button type="button" className="danger" onClick={() => editor.chain().focus().deleteTable().run()} title="Удалить всю таблицу" aria-label="Удалить таблицу">
           <Icon name="trash" size={14} />
+        </button>
+      </BubbleMenu>
+      <BubbleMenu
+        editor={editor}
+        pluginKey={tableColKey}
+        className="table-edge col"
+        options={{ placement: 'right', offset: 4, flip: false, shift: { padding: 8 } }}
+        shouldShow={({ editor: ed, from, to }) => from === to && ed.isEditable && ed.isActive('table')}
+        getReferencedVirtualElement={() => tableRect(editor)}
+      >
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addAtEdge(editor, 'col')} title="Добавить столбец в конец" aria-label="Добавить столбец в конец">
+          <Icon name="plus" size={16} />
+        </button>
+      </BubbleMenu>
+      <BubbleMenu
+        editor={editor}
+        pluginKey={tableRowKey}
+        className="table-edge row"
+        options={{ placement: 'bottom', offset: 4, flip: false, shift: { padding: 8 } }}
+        shouldShow={({ editor: ed, from, to }) => from === to && ed.isEditable && ed.isActive('table')}
+        getReferencedVirtualElement={() => tableRect(editor)}
+      >
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addAtEdge(editor, 'row')} title="Добавить строку в конец" aria-label="Добавить строку в конец">
+          <Icon name="plus" size={16} />
         </button>
       </BubbleMenu>
 

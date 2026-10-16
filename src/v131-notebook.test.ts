@@ -311,3 +311,37 @@ describe('файл: PDF без сторонних библиотек', () => {
     expect(() => pdfToMarkdown(strToU8('<html></html>'))).toThrow(/не похож на PDF/);
   });
 });
+
+describe('тетрадь: выравнивание света и метки в формулах', () => {
+  it('тень и блик → ровная бумага, чернила остаются тёмными', async () => {
+    const { levelLight, whitenPaper } = await import('./notebook');
+    const w = 200;
+    const h = 120;
+    const px = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        // Бумага: слева тень (120), справа блик (250); чернила — тонкая линия по середине.
+        const paper = 120 + (130 * x) / w;
+        const ink = y === 60 || y === 61;
+        const v = ink ? paper * 0.3 : paper;
+        px[i] = px[i + 1] = px[i + 2] = v;
+        px[i + 3] = 255;
+      }
+    levelLight(px, w, h);
+    const at = (x: number, y: number) => px[(y * w + x) * 4];
+    expect(at(10, 20)).toBeGreaterThan(225); // тень посветлела
+    expect(at(190, 20)).toBeGreaterThan(225); // блик не пересвечен в «дыру»
+    expect(at(10, 60)).toBeLessThan(110); // чернила в тени
+    expect(at(190, 60)).toBeLessThan(110); // чернила на блике
+    whitenPaper(px);
+    expect(at(10, 20)).toBe(255);
+    expect(at(100, 60)).toBeLessThan(110);
+  });
+  it('метки внутри формул снимаются, помеченная формула становится формулой', async () => {
+    const { unsureInMath, parseNotebookAnswer } = await import('./notebook');
+    expect(unsureInMath('$\\frac{a+b}{4}$ {?=\\frac{a+b-4a+4b}{4}?}')).toBe('$\\frac{a+b}{4}$ $=\\frac{a+b-4a+4b}{4}$');
+    expect(unsureInMath('$a {?+?} b$ и {?слово?}')).toBe('$a + b$ и {?слово?}');
+    expect(parseNotebookAnswer('д) $x$ {?=\\frac{1}{2}?}').markdown).not.toMatch(/\{\?/);
+  });
+});
