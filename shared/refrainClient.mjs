@@ -4,8 +4,8 @@
 // Токены и ключи никуда не пишутся, кроме переданного хранилища (оно шифрует), и не попадают в тексты ошибок.
 import { API_PREFIX, FIELD_LIMITS, H, TASKS, TASK_FIELDS, canonicalString, powOk } from './refrain/api.mjs';
 
-/** Адрес сервера Refrain ИИ. Заглушка: ЗАМЕНИТЬ на настоящий адрес Worker при запуске (docs/refrain-1.31/launch.md). */
-export const REFRAIN_API = 'https://refrain-ai.example.workers.dev';
+/** Адрес сервера Refrain ИИ (Cloudflare Worker, docs/refrain-1.31/launch.md). Один на всё приложение. */
+export const REFRAIN_API = 'https://refrain-ai.mnema-ai.workers.dev';
 
 /** Ответы Refrain ИИ помнятся на устройстве 7 дней: повтор того же фото или текста бесплатный. */
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
