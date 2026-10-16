@@ -1,4 +1,5 @@
-// API панели: сайт admin/ и мини-приложение tg/. Вход — initData Telegram или код на почту владельца + PIN. Токен 15 минут.
+// API панели: сайт admin/ и мини-приложение tg/. Вход — initData Telegram, одноразовая ссылка из бота (для браузера, когда
+// мини-приложение не открывается — например, Telegram Desktop на Linux без WebKitGTK) или код на почту владельца + PIN. Токен 15 минут.
 // Опасные действия — с PIN; 5 неверных PIN — панель закрыта на час и критическая тревога. Всё пишется в журнал.
 import { PAGE_MICRO } from '../../shared/prompts/tasks';
 import { ACCESS_MODES, DEFAULT_BUDGET, INVITE_RE, type AccessMode, type BudgetConfig, type GroupLimits } from '../../shared/refrain/policy';
@@ -18,14 +19,28 @@ import { loadSettings, saveSetting, type Settings } from './settings';
 import { verifyInitData } from './telegram';
 
 const SESSION_MS = 15 * 60000;
+/** Ссылка входа из бота живёт столько же, сколько initData мини-приложения. */
+const LINK_MS = 5 * 60000;
+const LINK_RE = /^l1\.(\d{13})\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
 type Actor = 'owner:tg' | 'owner:web';
 
-async function startSession(env: Env, via: 'tg' | 'web'): Promise<Response> {
+/**
+ * Одноразовая ссылка входа в панель для браузера: «l1.<до когда>.<nonce>.<подпись>». Её присылает только бот и только владельцу,
+ * поэтому она равна входу из мини-приложения (тот тоже без PIN). Подпись — TOKEN_SECRET; повтор запрещён по nonce.
+ */
+export async function mintPanelLink(env: Env): Promise<string> {
+  const exp = String(now(env) + LINK_MS);
+  const nonce = randomToken(16);
+  const link = `l1.${exp}.${nonce}.${await tagged(env.TOKEN_SECRET, 'panel-link', `${exp}.${nonce}`)}`;
+  return `${env.ADMIN_URL}#link=${link}`;
+}
+
+async function startSession(env: Env, via: 'tg' | 'web', how = via === 'tg' ? 'Telegram' : 'Сайт'): Promise<Response> {
   const token = randomToken(32);
   const t = now(env);
   await env.DB.prepare('INSERT INTO admin_sessions (token_hash, expires_at, via) VALUES (?1, ?2, ?3)').bind(await tagged(env.TOKEN_SECRET, 'admin', token), t + SESSION_MS, via).run();
-  await journal(env, { actor: via === 'tg' ? 'owner:tg' : 'owner:web', action: 'panel.login' });
-  const a = await raiseAlert(env, { level: 'info', kind: 'panel_login', title: '🔐 Вход в панель', text: `${via === 'tg' ? 'Telegram' : 'Сайт'} · ${new Date(t).toISOString().slice(11, 16)} UTC`, groupKey: `panel_login:${t}` });
+  await journal(env, { actor: via === 'tg' ? 'owner:tg' : 'owner:web', action: 'panel.login', ...(how === 'Telegram' || how === 'Сайт' ? {} : { reason: how }) });
+  const a = await raiseAlert(env, { level: 'info', kind: 'panel_login', title: '🔐 Вход в панель', text: `${how} · ${new Date(t).toISOString().slice(11, 16)} UTC`, groupKey: `panel_login:${t}` });
   await a.deliver;
   return Response.json({ ok: true, token, expiresAt: new Date(t + SESSION_MS).toISOString() });
 }
@@ -69,6 +84,16 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
     const once = await env.DB.prepare('INSERT INTO pow_used (id, expires_at) VALUES (?1, ?2) ON CONFLICT(id) DO NOTHING RETURNING id').bind('tg:' + (new URLSearchParams(initData).get('hash') ?? ''), t + 600000).first();
     if (!once) fail('device_unknown');
     return startSession(env, 'tg');
+  }
+  if (method === 'POST' && path === '/v1/admin/login/link') {
+    if (await lockedUntil(env, cfg)) fail('blocked', { until: new Date(cfg.pinLock.until).toISOString() });
+    const { body } = await readJson(req, 1024);
+    const m = LINK_RE.exec(String((body as { link?: unknown }).link ?? ''));
+    const exp = m ? Number(m[1]) : 0;
+    if (!m || exp < t || exp > t + LINK_MS + 60000 || !safeEqual(await tagged(env.TOKEN_SECRET, 'panel-link', `${m[1]}.${m[2]}`), m[3])) fail('device_unknown');
+    const once = await env.DB.prepare('INSERT INTO pow_used (id, expires_at) VALUES (?1, ?2) ON CONFLICT(id) DO NOTHING RETURNING id').bind('link:' + m![2], exp + 60000).first();
+    if (!once) fail('device_unknown');
+    return startSession(env, 'tg', 'Ссылка из бота, браузер');
   }
   if (method === 'POST' && path === '/v1/admin/login/email/start') {
     if ((await bump(env, 'admin:code', 3600000)) > 5) fail('too_fast', { retryAfter: 3600 });

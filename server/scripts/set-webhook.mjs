@@ -1,6 +1,6 @@
 // Подключить бота к серверу одной командой: node scripts/set-webhook.mjs [адрес сервера]
-// Спрашивает токен бота (ввод не виден), задаёт секреты TELEGRAM_BOT_TOKEN и новый TELEGRAM_WEBHOOK_SECRET через wrangler
-// и ставит вебхук в Telegram с тем же секретом. Токен не выводится и не попадает в историю терминала.
+// Спрашивает токен бота (ввод не виден), задаёт секреты TELEGRAM_BOT_TOKEN и новый TELEGRAM_WEBHOOK_SECRET через wrangler,
+// ставит вебхук в Telegram с тем же секретом и меню команд (/panel, /status, /pause). Токен не выводится и не попадает в историю терминала.
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline';
@@ -52,4 +52,11 @@ if (!res.ok) {
   console.error(`Telegram не поставил вебхук: ${res.description}`);
   process.exit(1);
 }
-console.error(`Готово: вебхук → ${server}/v1/tg/webhook. Напиши боту /status.`);
+// Меню команд в Telegram: видно по кнопке «/» в чате с ботом.
+const commands = [
+  { command: 'panel', description: 'Открыть панель (и ссылка для браузера)' },
+  { command: 'status', description: 'Режим и расход' },
+  { command: 'pause', description: 'Пауза: Refrain ИИ только у меня' }
+];
+await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ commands }) }).catch(() => null);
+console.error(`Готово: вебхук → ${server}/v1/tg/webhook. Напиши боту /panel.`);

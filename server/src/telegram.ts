@@ -5,6 +5,8 @@ import { outbound, type Env } from './env';
 export interface TgButton {
   text: string;
   url: string;
+  /** 'app' (по умолчанию) — мини-приложение внутри Telegram; 'url' — обычная ссылка, откроется в браузере. */
+  kind?: 'app' | 'url';
 }
 
 /** Сообщение владельцу. Возвращает id сообщения или null, если Telegram не ответил. */
@@ -19,7 +21,7 @@ export async function tgSend(env: Env, text: string, o: { silent: boolean; butto
         text,
         disable_notification: o.silent,
         link_preview_options: { is_disabled: true },
-        ...(o.buttons?.length ? { reply_markup: { inline_keyboard: o.buttons.map((row) => row.map((b) => ({ text: b.text, web_app: { url: b.url } }))) } } : {})
+        ...(o.buttons?.length ? { reply_markup: { inline_keyboard: o.buttons.map((row) => row.map((b) => (b.kind === 'url' ? { text: b.text, url: b.url } : { text: b.text, web_app: { url: b.url } }))) } } : {})
       })
     });
     if (!res.ok) return null;

@@ -158,6 +158,49 @@ describe('бот', () => {
   });
 });
 
+describe('ссылка входа из бота (браузер, когда мини-приложение не открывается)', () => {
+  const hdr = { 'x-telegram-bot-api-secret-token': 'test-webhook-secret' };
+  const msg = (text: string) => ({ message: { from: { id: 777 }, chat: { id: 777 }, text } });
+  /** Последняя ссылка «В браузере» из ответа бота. */
+  const lastLink = (h: Harness): string => {
+    const sent = h.calls.filter((c) => c.url.includes('/sendMessage')).map((c) => JSON.parse(c.body));
+    const btn = sent.at(-1).reply_markup.inline_keyboard[0].find((b: { url?: string }) => b.url);
+    expect(btn.url).toMatch(/\/admin\/#link=l1\./);
+    return decodeURIComponent(btn.url.split('#link=')[1]);
+  };
+
+  it('/panel: кнопка мини-приложения и одноразовая ссылка на 5 минут', async () => {
+    const h = new Harness();
+    await h.json('POST', '/v1/tg/webhook', msg('/panel'), hdr);
+    const sent = JSON.parse(h.calls.filter((c) => c.url.includes('/sendMessage')).at(-1)!.body);
+    expect(sent.reply_markup.inline_keyboard[0][0].web_app.url).toContain('/tg/');
+    const link = lastLink(h);
+    const r = await h.json('POST', '/v1/admin/login/link', { link });
+    expect(r.status).toBe(200);
+    expect(typeof r.body.token).toBe('string');
+    expect((await h.json('GET', '/v1/admin/overview', undefined, { authorization: `Bearer ${r.body.token}` })).status).toBe(200);
+    // второй раз та же ссылка не пускает
+    expect((await h.json('POST', '/v1/admin/login/link', { link })).status).toBe(401);
+    expect(h.telegram().some((x) => x.text.includes('Ссылка из бота'))).toBe(true);
+  });
+
+  it('просроченная, подделанная или чужая ссылка не пускает', async () => {
+    const h = new Harness();
+    await h.json('POST', '/v1/tg/webhook', msg('/status'), hdr);
+    const link = lastLink(h);
+    const [, exp, nonce, sig] = link.split('.');
+    expect((await h.json('POST', '/v1/admin/login/link', { link: `l1.${Number(exp) + 3600000}.${nonce}.${sig}` })).status).toBe(401);
+    expect((await h.json('POST', '/v1/admin/login/link', { link: `l1.${exp}.${'A'.repeat(22)}.${sig}` })).status).toBe(401);
+    expect((await h.json('POST', '/v1/admin/login/link', { link: 'мусор' })).status).toBe(401);
+    h.clock += 6 * 60000;
+    expect((await h.json('POST', '/v1/admin/login/link', { link })).status).toBe(401);
+    // чужие сообщения боту ссылку не выдают
+    const before = h.calls.length;
+    await h.json('POST', '/v1/tg/webhook', { message: { from: { id: 12345 }, chat: { id: 12345 }, text: '/panel' } }, hdr);
+    expect(h.calls.length).toBe(before);
+  });
+});
+
 describe('баги', () => {
   it('без входа, с PoW; почты и пути вычищены; в issue нет почты и снимка; 90 дней', async () => {
     const h = new Harness();
