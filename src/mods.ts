@@ -1,12 +1,13 @@
 // Моды: наборы стилей, которые меняют вид Refrain. Только оформление (CSS и настройки вида),
 // никаких программ — поэтому моды из файлов от друзей безопасны.
 import { cleanModName, sanitizeCss } from './safeCss';
+import type { Mod131 } from './styleModel';
 import type { Mod } from './types';
 
 /** Прежнее расширение файлов стилей (читается по-прежнему); новые стили сохраняются как .refrainstyle (см. styleSystem.ts). */
 export const MOD_EXT = '.mnemamod';
 
-export const CATALOG: Mod[] = [
+export const CATALOG: Mod131[] = [
   {
     id: 'notebook',
     icon: '📓',
@@ -147,8 +148,9 @@ export const CATALOG: Mod[] = [
   },
   {
     id: 'glass',
-    icon: '🪟',
+    icon: '🫧',
     name: 'Стекло',
+    role: 'style', // задаёт вид целиком (фон, панели, карточки) — в 1.31 это стиль, остальное в каталоге — дополнения
     where: 'везде',
     description: 'Полупрозрачные панели, карточки и окна с размытием поверх мягкого цветного фона.',
     settings: [
@@ -163,6 +165,8 @@ export const CATALOG: Mod[] = [
 for (const m of CATALOG) {
   m.author ??= 'Refrain';
   m.version ??= '1.0';
+  m.role ??= 'addon';
+  m.origin = 'builtin';
 }
 
 export function isMod(x: unknown): x is Mod & { kind: 'mnema-mod' } {
@@ -172,9 +176,19 @@ export function isMod(x: unknown): x is Mod & { kind: 'mnema-mod' } {
 
 export { sanitizeCss };
 
-export function allMods(custom: Mod[]): Mod[] {
+export function allMods(custom: Mod[]): Mod131[] {
   return [...CATALOG, ...custom];
 }
+
+/** Откуда стиль. У своих стилей 1.30 поля нет — догадываемся по прежней подписи (where). */
+export function originOf(m: Mod131): NonNullable<Mod131['origin']> {
+  if (m.origin) return m.origin;
+  if (CATALOG.some((c) => c.id === m.id)) return 'builtin';
+  return m.where === 'ИИ' ? 'ai' : m.where === 'из файла' ? 'file' : 'mine';
+}
+
+/** Подпись в плитке: откуда стиль (а не где он меняет вид). */
+export const ORIGIN_LABEL: Record<NonNullable<Mod131['origin']>, string> = { builtin: 'Встроенный', file: 'Мой · из файла', ai: 'Мой · от ИИ', mine: 'Мой' };
 
 /** Итоговые стили всех включённых модов и своего CSS. */
 export function modsCss(on: string[], custom: Mod[], userCss: string): string {

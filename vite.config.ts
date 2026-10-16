@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { configDefaults } from 'vitest/config';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { mnemaWeb } from './web/vite-plugin';
@@ -25,5 +26,6 @@ export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [react(), sqlWasm(), ...(mode === 'web' ? [mnemaWeb()] : [])],
   build: { outDir: mode === 'web' ? 'dist-web' : 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1500 },
-  test: { environment: 'node' }
+  // server/ тестируется отдельно, в среде Workers (cd server && npm test).
+  test: { environment: 'node', exclude: [...configDefaults.exclude, 'server/**'] }
 })) as any;

@@ -5,9 +5,10 @@ import { addCard, addTopic, sortedSubjects, useData } from '../store';
 import type { Route } from '../types';
 import { openChanges } from './ChangesDialog';
 import { openExamDialog } from './ExamDialog';
+import { NotebookImport } from './NotebookImport';
 import { Icon, Modal, toast } from './ui';
 
-type Sheet = null | 'menu' | 'card' | 'topic';
+type Sheet = null | 'menu' | 'card' | 'topic' | 'notebook';
 let opener: ((s: Sheet) => void) | null = null;
 /** Открыть «Создать» из любого места (кнопки оболочки, поиск). */
 export const openCreate = () => opener?.('menu');
@@ -36,10 +37,12 @@ export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: 
   const at = here(route, data);
   if (sheet === 'card') return <QuickCardDialog at={at} onClose={close} />;
   if (sheet === 'topic') return <QuickTopicDialog at={at} go={go} onClose={close} />;
+  if (sheet === 'notebook') return <NotebookImport at={at} go={go} onClose={close} />;
 
   const items: { icon: string; title: string; hint: string; run: () => void; hidden?: boolean }[] = [
     { icon: 'cardPlus', title: 'Быстрая карточка', hint: 'Вопрос и ответ — в любую тему', run: () => setSheet('card'), hidden: data.topics.length === 0 },
     { icon: 'book', title: 'Новая тема', hint: 'Название — конспект допишешь потом', run: () => setSheet('topic'), hidden: data.subjects.length === 0 },
+    { icon: 'pen', title: 'Из тетради', hint: 'Фото записей или файл: Word, PDF, Markdown, Notion', run: () => setSheet('notebook'), hidden: data.subjects.length === 0 },
     { icon: 'folderPlus', title: 'Новый предмет', hint: 'Например, «Биология»', run: () => (close(), onNewSubject()) },
     { icon: 'folder', title: 'Новая папка', hint: 'Собрать предметы вместе, например «Естественные науки»', run: () => (close(), onNewSubject({ as: 'folder' })) },
     { icon: 'homework', title: 'Домашка', hint: 'Что задали и к какому сроку', run: () => (close(), go({ name: 'homework' })), hidden: !data.settings.features.homework },

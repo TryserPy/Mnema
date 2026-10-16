@@ -1,0 +1,13 @@
+# Скопируй в .dev.vars (он в .gitignore) для `wrangler dev`. Настоящие значения — только через `wrangler secret put`.
+OPENAI_API_KEY=sk-test-not-a-real-key
+OPENAI_ADMIN_KEY=
+OPENAI_PROJECT_ID=
+TOKEN_SECRET=dev-only-change-me-32-bytes-minimum!!
+OWNER_EMAIL=owner@example.com
+OWNER_TELEGRAM_ID=1
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_WEBHOOK_SECRET=dev-webhook-secret
+ADMIN_PIN_HASH=
+BREVO_API_KEY=
+MAIL_FROM=noreply@example.com
+GITHUB_ISSUE_TOKEN=

@@ -307,10 +307,26 @@ export type AiNotes = Partial<Record<AiNoteKey, string>>;
 /** Задачи ИИ, для которых можно выбрать свой ИИ (из настроенных). */
 export type AiTask = Exclude<AiNoteKey, 'all'>;
 
+/** Свой шаблон промта (Настройки → ИИ → Промты): для своего ключа и ИИ без интернета. «Формат ответа» приложение дописывает само. */
+export interface MyPromptTemplate {
+  id: string;
+  name: string;
+  /** Задача из shared/prompts/templates.ts (TEMPLATE_TASKS). */
+  task: string;
+  text: string;
+}
+
+/** Шаблоны промтов: выбор для задачи ('auto' или нет — по имени модели; 'gpt' | 'claude' | … — встроенный; 'my:<id>' — свой) и свои шаблоны. */
+export interface PromptTemplates {
+  pick?: Record<string, string>;
+  mine?: MyPromptTemplate[];
+}
+
 export interface Settings {
   look: Look;
   aiNotes?: AiNotes; // свои указания для ИИ: общие и для каждой задачи (короткие, до 400 знаков)
   aiTaskProvider?: Partial<Record<AiTask, string>>; // какой из настроенных ИИ брать для задачи ('anthropic' | 'gemini' | 'local' | 'custom:<id>'); нет — основной
+  promptTemplates?: PromptTemplates; // шаблоны промтов для своего ключа и ИИ без интернета (1.31); Refrain ИИ их не использует
   aiAuto?: { cards?: boolean }; // подсказки с ИИ — выключены, пока ученик не включит; ИИ спрашивается только по нажатию
   studyPick?: Record<string, string>; // что учить в теме/предмете/папке: ключ 't:<id>' | 's:<id>' | 'f:<id>' → 'all' | 'cards' | 'lists' | 'list:<id>'
   styleBackup?: Record<string, { look: Look; accent: string; density?: Density; fontScale?: number; bgImage?: BgImage | null }>; // оформление до включения стиля — чтобы вернуть (плотность, размер текста и фон — только если стиль их меняет)
@@ -319,6 +335,8 @@ export interface Settings {
   update: { owner: string; repo: string; auto: boolean; lastCheck?: string }; // где искать новые версии (GitHub)
   appIcon?: string; // значок на рабочем столе телефона: 'default', 'theme' (под тему) или id темы (свой выбор)
   bgImage?: BgImage; // свой фон картинкой (data:image); до 1.30 было { src, fade }, переносится при загрузке (см. bgImage.ts)
+  /** Оформление 1.31: стиль + дополнения + мои правки (styleModel.ts). Поля выше и ниже (look, accent, modsOn, myStyle…) — его проекция, для окна и отката на 1.30. */
+  appearance?: import('./styleModel').Appearance;
   myStyle?: Mod; // «Мой вид» (1.30): правки из «Настроить текущий» — переменные, раскладка, CSS; применяются последними, после включённых стилей
   cardTemplates: CardTemplate[]; // свои шаблоны карточек
   modsOn: string[]; // включённые моды

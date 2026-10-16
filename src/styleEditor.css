@@ -93,3 +93,20 @@
   .style-editor.peek .se-body, .style-editor.peek .se-tabs, .style-editor.peek .se-tools, .style-editor.peek .se-meta, .style-editor.peek .se-saveas, .style-editor.peek .se-sub { display: none; }
   .style-editor.peek .se-head > .grow > .small { display: none; }
 }
+
+/* «Выбрать на экране»: подсветка части интерфейса. */
+.se-part-hl { outline: 2px dashed var(--accent) !important; outline-offset: 2px; }
+.se-part-btn { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; }
+.se-part-btn:hover code { text-decoration: underline; }
+
+/* «Оформление → Дополнения»: значок, название над описанием (две строки), справа — кнопки и переключатель. Строка нажимается целиком. */
+.addon-row .st-item-head { flex-wrap: nowrap; gap: 10px; padding: 10px 12px; }
+.addon-row .st-item-ico { width: 36px; height: 36px; font-size: 1.15rem; }
+.addon-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.addon-text .st-item-name { flex: none; }
+.addon-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; overflow-wrap: anywhere; }
+.addon-row .st-item-head > .switch, .addon-row .st-item-head > .icon-btn { flex: none; }
+.addon-row.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+@media (max-width: 520px) { .addon-desc { -webkit-line-clamp: 3; } }
+.se-kind { color: var(--muted); font-weight: 600; letter-spacing: 0.01em; }
+.style-editor.addon .se-kind { color: var(--accent-text, var(--accent)); }

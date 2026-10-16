@@ -138,6 +138,18 @@ export const API_VARS: ApiGroup[] = [
     ]
   },
   {
+    id: 'colors-callouts',
+    title: 'Конспект → Выноски',
+    kind: 'color',
+    vars: [
+      { name: '--co-def', label: 'Определение', doc: 'Цвет выноски «Определение» ([!def]): рамка, заголовок, бледный фон.', def: '#3d6fd1' },
+      { name: '--co-rule', label: 'Правило', doc: 'Цвет выноски «Правило» ([!rule]).', def: '#2f8f5b' },
+      { name: '--co-tip', label: 'Запомни', doc: 'Цвет выноски «Запомни» ([!tip]).', def: 'главный цвет' },
+      { name: '--co-ex', label: 'Пример', doc: 'Цвет выноски «Пример» ([!ex]).', def: '#7a6a58' },
+      { name: '--co-warn', label: 'Внимание', doc: 'Цвет выноски «Внимание» ([!warn]).', def: '#c8553d' }
+    ]
+  },
+  {
     id: 'shapes',
     title: 'Формы и тени',
     vars: [

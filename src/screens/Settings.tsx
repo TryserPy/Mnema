@@ -3,7 +3,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Logo } from '../components/Logo';
 import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
-import { LookPane } from '../components/LookSettings';
+import { LookPane, lookTabFor } from '../components/LookSettings';
+import { setAppearanceTab } from '../styleActions';
+import { recall, remember } from '../uiMemory';
+import { setPlace } from '../studyBack';
+import { clampMinutes, startFocus } from '../focusTimer';
 import { FeaturesPane } from '../components/FeaturesPane';
 import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
@@ -24,6 +28,8 @@ import { WebGroup } from '../components/WebInstall';
 import { openBackups } from '../components/BackupsHost';
 import { startTutorial } from '../components/Tutorial';
 import { openChanges } from '../components/ChangesDialog';
+import { canReport } from '../components/ReportProblem';
+import { openReportProblem } from '../refrain';
 import { emptyData, exportJson, getData, neutralizeForeign, normalizeData, replaceData, restoreData, setFeature, updateSettings, useData } from '../store';
 
 export const VERSION = APP_VERSION;
@@ -44,7 +50,10 @@ interface IndexItem {
 
 // Поиск по настройкам: что где лежит.
 const INDEX: IndexItem[] = [
-  { label: 'Стиль: современный или классический', section: 'look', anchor: 'style', words: 'вид дизайн' },
+  { label: 'Стиль: современный, классический, схемы', section: 'look', anchor: 'style', words: 'вид дизайн кофе океан лес' },
+  { label: 'Дополнения к стилю', section: 'look', anchor: 'addons', words: 'моды поверх клетка кнопки колонка' },
+  { label: 'Инструкция для ИИ (стиль через чат-бот)', section: 'look', anchor: 'ai-guide', words: 'chatgpt claude deepseek без ключа md' },
+  { label: 'Сбросить мои правки оформления', section: 'look', anchor: 'look-summary', words: 'правки поверх сохранить как стиль' },
   { label: 'Светлая или тёмная тема', section: 'look', anchor: 'theme', words: 'ночь темный светлый система' },
   { label: 'Цвета темы', section: 'look', anchor: 'theme', words: 'палитра воздух бумага графит' },
   { label: 'Главный цвет', section: 'look', anchor: 'accent', words: 'акцент кнопки' },
@@ -58,6 +67,7 @@ const INDEX: IndexItem[] = [
   { label: 'Простые кнопки «Не помню / Помню»', section: 'study', anchor: 'simple', words: 'оценки две' },
   { label: 'Насколько надёжно запоминать', section: 'study', anchor: 'retention', words: 'fsrs интервалы' },
   { label: 'Новый день начинается в', section: 'study', anchor: 'dayStart', words: 'полночь' },
+  { label: 'Фокус (помодоро): минуты учёбы и перерыва', section: 'study', anchor: 'focus', words: 'таймер помидор перерыв фокус-режим' },
   { label: 'Напоминания о домашке', section: 'reminders', anchor: 'hw', words: 'уведомления дз' },
   { label: 'Напоминание повторить каждый день', section: 'reminders', anchor: 'daily', words: 'уведомления' },
   { label: 'Вечером — о завтрашних уроках', section: 'reminders', anchor: 'lessons', words: 'расписание урок подготовиться' },
@@ -102,7 +112,11 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
     { id: 'about', title: 'О Refrain', icon: 'info' }
   ];
   const visible = sections.filter((x) => !x.hidden);
-  const [section, setSection] = useState<SettingsSection | null>(initial ?? (narrow ? null : 'look'));
+  const [section, setSectionState] = useState<SettingsSection | null>(initial ?? recall<SettingsSection | null>('settings-section', null) ?? (narrow ? null : 'look'));
+  const setSection = (id: SettingsSection | null) => {
+    setSectionState(id);
+    remember('settings-section', id ?? undefined);
+  };
   const [query, setQuery] = useState('');
   const [flash, setFlash] = useState<string | null>(null);
   const paneRef = useRef<HTMLDivElement>(null);
@@ -111,10 +125,17 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
   }, [initial]);
   // Раздел скрыт (например, выключили ИИ) — вернуться к первому.
   const current = section && visible.some((x) => x.id === section) ? section : narrow ? null : 'look';
+  // Точное место для «назад» и для отчёта о проблеме: раздел живёт внутри экрана.
+  useEffect(() => {
+    setPlace(current ? { name: 'settings', section: current } : { name: 'settings' });
+    return () => setPlace(null);
+  }, [current]);
 
   const open = (id: string, anchor?: string) => {
     setQuery('');
     setSection(sectionId(id) ?? null);
+    const tab = sectionId(id) === 'look' ? lookTabFor(anchor) : null;
+    if (tab) setAppearanceTab(tab);
     setFlash(anchor ?? null);
     (document.querySelector('.main') as HTMLElement | null)?.scrollTo({ top: 0 });
   };
@@ -176,16 +197,14 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
   );
 
   let pane: ReactNode = null;
-  if (current === 'look') pane = <LookPane dark={dark} onGo={(id) => open(id)} />;
+  if (current === 'look') pane = <LookPane dark={dark} onGo={(id) => open(id)} focus={flash} />;
   else if (current === 'features') pane = <FeaturesPane openSection={open} />;
   else if (current === 'study') pane = <StudyPane />;
   else if (current === 'reminders') pane = <RemindersPane desktop={desktop} android={android} />;
   else if (current === 'ai') pane = (
     <div className="stack gap16">
-      <PaneHead title="ИИ-помощник" text="Какой ИИ помогает объяснять, распознавать формулы и страницы учебника." />
-      <div className="sgroup-body pad">
-        <AiSettings />
-      </div>
+      <PaneHead title="ИИ-помощник" text="Делает конспект по фото, читает тетрадь, предлагает карточки и объясняет непонятное." />
+      <AiSettings />
     </div>
   );
   else if (current === 'keys') pane = (
@@ -233,6 +252,31 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
         </div>
       </div>
     </div>
+  );
+}
+
+/** Минуты фокуса: печатаешь свободно, в настройки уходит по выходу из поля или Enter (в рамках 1–180 / 1–60). */
+function MinutesField({ value, kind, onChange, label }: { value: number; kind: 'work' | 'break'; onChange: (v: number) => void; label: string }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = () => {
+    const v = clampMinutes(text, kind);
+    setText(String(v));
+    if (v !== value) onChange(v);
+  };
+  return (
+    <input
+      className="input num"
+      type="number"
+      inputMode="numeric"
+      min={1}
+      max={kind === 'work' ? 180 : 60}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && commit()}
+      aria-label={label}
+    />
   );
 }
 
@@ -306,24 +350,27 @@ function StudyPane() {
             ))}
           </select>
         </SRow>
-        <SRow label="Фокус-режим: заниматься" hint={touchUI() ? 'Запуск — в поиске (лупа сверху): «Фокус». Потом перерыв.' : 'Запуск — в поиске (Ctrl+P): «Фокус». Потом перерыв.'}>
-          <select className="input" value={s.focusMinutes} onChange={(e) => updateSettings({ focusMinutes: Number(e.target.value) })} aria-label="Сколько минут заниматься в фокус-режиме">
-            {[10, 15, 20, 25, 30, 45].map((m) => (
-              <option key={m} value={m}>
-                {m} мин
-              </option>
-            ))}
-          </select>
+        <SRow label="Фокус (помодоро): учёба, минут" hint={touchUI() ? 'Таймер идёт на любом экране. Запуск — кнопкой справа или в поиске (лупа сверху): «Фокус».' : 'Таймер идёт на любом экране. Запуск — кнопкой ниже или в поиске (Ctrl+P): «Фокус».'} id="focus">
+          <MinutesField value={s.focusMinutes} kind="work" onChange={(v) => updateSettings({ focusMinutes: v })} label="Сколько минут заниматься в фокус-режиме" />
         </SRow>
-        <SRow label="Фокус-режим: перерыв">
-          <select className="input" value={s.breakMinutes} onChange={(e) => updateSettings({ breakMinutes: Number(e.target.value) })} aria-label="Сколько минут длится перерыв">
-            {[3, 5, 10, 15].map((m) => (
-              <option key={m} value={m}>
-                {m} мин
-              </option>
-            ))}
-          </select>
+        <SRow label="Фокус: перерыв, минут">
+          <MinutesField value={s.breakMinutes} kind="break" onChange={(v) => updateSettings({ breakMinutes: v })} label="Сколько минут длится перерыв" />
         </SRow>
+        <div className="row gap8 wrap">
+          {[
+            [25, 5],
+            [45, 10],
+            [15, 3]
+          ].map(([w, b]) => (
+            <button key={w} type="button" className={'chip-btn' + (s.focusMinutes === w && s.breakMinutes === b ? ' on' : '')} onClick={() => updateSettings({ focusMinutes: w, breakMinutes: b })}>
+              {w}/{b}
+            </button>
+          ))}
+          <span className="grow" />
+          <button type="button" className="btn small primary" onClick={() => startFocus(s.focusMinutes)}>
+            Начать фокус
+          </button>
+        </div>
       </Group>
     </div>
   );
@@ -701,6 +748,19 @@ function DataPane({ go }: { go: (r: Route) => void }) {
 
 /** Что нового — по версиям. Показывается в «О Refrain» одной панелью с переключателем версий. */
 const WHATS_NEW: { v: string; items: { t: string; desk?: boolean }[] }[] = [
+  {
+    v: '1.31.0',
+    items: [
+      { t: 'Refrain ИИ без ключа: вход по почте — и каждый день бесплатные страницы для конспекта по фото, тетради, карточек и объяснений' },
+      { t: 'Настройки ИИ стали проще: «Кто тебе помогает» — Refrain ИИ, свой ИИ или без интернета' },
+      { t: 'Тетрадь по фото: ИИ переписывает почерк, неуверенные слова подсвечены — нажми и поправь; фото тетради прямо в конспект — «Вставить → Фото тетради»' },
+      { t: 'Из файла: Word, PDF, Markdown и Notion раскладываются по темам, похожее на ДЗ — в домашку' },
+      { t: 'Выноски в конспекте: определение, правило, «Запомни», пример, внимание; таблицы — «+» у края' },
+      { t: 'Оформление: стиль и сколько угодно дополнений; у своего дополнения — свой редактор' },
+      { t: 'Фокус (помодоро) на любом экране со своими минутами; второе нажатие на кнопку экрана — назад; Refrain открывается там, где его закрыли' },
+      { t: '«Сообщить о проблеме»: обведи место на снимке или приложи своё изображение' }
+    ]
+  },
   {
     v: '1.30.0',
     items: [
@@ -1084,6 +1144,13 @@ function AboutPane({ go }: { go: (r: Route) => void }) {
             Пройти знакомство
           </button>
         </SRow>
+        {canReport() && (
+          <SRow label="Сообщить о проблеме" hint="Что сломалось — придёт разработчикам; номер обращения покажу">
+            <button className="btn small" onClick={() => openReportProblem()}>
+              Написать
+            </button>
+          </SRow>
+        )}
         <SRow label="Подсказки" hint="Те, что закрыл крестиком, появятся снова">
           <button className="btn small" disabled={!getData().settings.hiddenTips?.length} onClick={() => updateSettings({ hiddenTips: [] })}>
             Показать снова

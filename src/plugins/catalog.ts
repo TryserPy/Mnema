@@ -41,7 +41,7 @@ export const CATALOG_PLUGINS: { id: string; name: string; description: string; c
   {
     id: 'pomodoro',
     name: 'Помодоро',
-    description: 'Таймер «25 минут учёбы — 5 минут отдыха» со своим экраном и кнопкой в левой панели.',
+    description: 'Пример мода: таймер 25/5 со своим экраном. Встроенный фокус-таймер со своими минутами — «Настройки → Учёба → Фокус».',
     code: `// @id pomodoro
 // @icon 🍅
 // @name Помодоро

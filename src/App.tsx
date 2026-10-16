@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { RefrainHost } from './components/RefrainHost';
+import { FocusTimer } from './components/FocusTimer';
 import { BackupsHost } from './components/BackupsHost';
 import { TutorialHost } from './components/Tutorial';
 import { ShowMeHost } from './components/ShowMe';
@@ -10,7 +12,8 @@ import { CreateHost, openCreate } from './components/CreateMenu';
 import { Trash } from './screens/Trash';
 import { hidesTabBar, TabBar } from './components/TabBar';
 import { sessionPrefs } from './session';
-import { fillBack, getPlace, testBack } from './studyBack';
+import { exactPlace, fillBack, getPlace, testBack } from './studyBack';
+import { saveRoute, startRoute, toggleBack, withTab } from './navMemory';
 import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
 import { RuleView } from './components/Rules';
@@ -75,7 +78,10 @@ function useSystemDark() {
 
 export function App() {
   const data = useData();
-  const [route, setRoute] = useState<Route>({ name: 'today' });
+  const [route, setRoute] = useState<Route>(() => startRoute(getData()));
+  // Откуда пришли на экран-«кнопку» (для второго нажатия) и где была прокрутка на прошлых экранах.
+  const lastRef = useRef<Route | null>(null);
+  const scrollMem = useRef(new Map<string, number>());
   const [palette, setPalette] = useState(false);
   const [addingSubject, setAddingSubject] = useState<false | { folderId?: string; as?: 'subject' | 'folder' }>(false);
   const [toast, setToast] = useState('');
@@ -327,10 +333,22 @@ export function App() {
       if (t?.kind === 'glossary') r = { name: 'subject', id: t.subjectId, view: 'terms', filter: 'general' };
     }
     setRuleOpen(null);
+    const cur = routeRef.current;
+    const main = document.querySelector('.main');
+    // Второе нажатие на кнопку экрана, где уже стоишь, — назад, туда же, где была прокрутка.
+    const back = toggleBack(r, cur, lastRef.current);
+    r = back ?? withTab(r);
+    if (r.name !== cur.name) {
+      const here = exactPlace(cur);
+      if (main) scrollMem.current.set(JSON.stringify(here), main.scrollTop);
+      lastRef.current = here;
+    }
     // Повторение и контрольная помнят, откуда их запустили (с вкладкой), — туда и вернёмся.
-    setRoute(fillBack(r, routeRef.current, getPlace()));
+    setRoute(fillBack(r, cur, getPlace()));
     setDrawer(false);
-    document.querySelector('.main')?.scrollTo(0, 0);
+    const y = back ? (scrollMem.current.get(JSON.stringify(back)) ?? 0) : 0;
+    main?.scrollTo(0, 0);
+    if (y) requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector('.main')?.scrollTo(0, y)));
   };
 
   // Файл Refrain, открытый двойным щелчком из файлового менеджера (.mnema — тема, .refrainstyle/.mnemamod — стиль).
@@ -353,6 +371,8 @@ export function App() {
   // Горячие клавиши, которые работают везде (кроме повторения — там свои).
   const routeRef = useRef(route);
   routeRef.current = route;
+  // Где ученик — чтобы после перезапуска открыть там же (и вкладку темы).
+  useEffect(() => saveRoute(route), [route]);
 
   // Кнопка «Назад» на Android: закрыть окно, меню, выйти из повторения, вернуться на «Сегодня».
   const drawerRef = useRef(false);
@@ -570,6 +590,8 @@ export function App() {
       {mobile && <TabBar route={route} go={go} dueAll={dueAll} />}
 
       {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
+      <RefrainHost go={go} where={() => exactPlace(routeRef.current)} />
+      <FocusTimer />
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
           <span>{toast || lastToast.current}</span>

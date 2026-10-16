@@ -8,6 +8,8 @@ import { drawingBgOf, inlineDrawing } from './Drawing';
 import { safeStyleAttr } from '../safeCss';
 import { safeClassList } from '../katexClasses';
 import { registry, runPostProcessors } from '../plugins/host';
+import { calloutLook, calloutStart, matchCallout, PAGE_CHIP_AT, pageChipStart, UNSURE_AT } from '../callout';
+import '../callouts.css';
 
 export function renderTex(tex: string, display: boolean): string {
   return katexHtml(tex, { displayMode: display, output: 'htmlAndMathml', strict: false });
@@ -81,22 +83,62 @@ const highlight: TokenizerAndRendererExtension = {
 const pageRef: TokenizerAndRendererExtension = {
   name: 'pageRef',
   level: 'inline',
-  start: (src) => {
-    const i = src.search(/\\?\[стр\./);
-    return i < 0 ? undefined : i;
-  },
+  start: pageChipStart,
   tokenizer(src) {
-    const m = /^\\?\[стр\.\s*(\d{1,4})\\?\]/.exec(src);
-    if (m) return { type: 'pageRef', raw: m[0], text: m[1] };
+    const m = PAGE_CHIP_AT.exec(src);
+    if (m) return { type: 'pageRef', raw: m[0], text: m[1] ?? m[2] };
     return undefined;
   },
   renderer: (t) => `<span class="page-ref" data-page="${Number(t.text)}">стр. ${Number(t.text)}</span>`
 };
 
+/** {?слово?} — неуверенно прочитанное слово «Тетради»: само слово с подсветкой. */
+const unsure: TokenizerAndRendererExtension = {
+  name: 'unsure',
+  level: 'inline',
+  start: (src) => {
+    const i = src.indexOf('{?');
+    return i < 0 ? undefined : i;
+  },
+  tokenizer(src) {
+    const m = UNSURE_AT.exec(src);
+    if (m) return { type: 'unsure', raw: m[0], text: m[1], tokens: this.lexer.inlineTokens(m[1]) };
+    return undefined;
+  },
+  renderer(t) {
+    return `<span data-unsure="" title="Неуверенно прочитано">${this.parser.parseInline(t.tokens ?? [])}</span>`;
+  }
+};
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** Выноска Obsidian «> [!def] Термин»: значок и заголовок по умолчанию — из справочника разметки; неизвестный тип — обычная рамка. */
+const callout: TokenizerAndRendererExtension = {
+  name: 'callout',
+  level: 'block',
+  start: calloutStart,
+  tokenizer(src) {
+    const m = matchCallout(src);
+    if (!m) return undefined;
+    return { type: 'callout', raw: m.raw, kind: m.kind, fold: m.fold, title: m.title, titleTokens: this.lexer.inlineTokens(m.title), tokens: this.lexer.blockTokens(m.body, []).map((x) => (x.type === 'text' && 'tokens' in x ? { ...x, type: 'paragraph' } : x)) };
+  },
+  childTokens: ['titleTokens', 'tokens'],
+  renderer(t) {
+    const look = calloutLook(t.kind as string);
+    const title = t.title ? this.parser.parseInline(t.titleTokens as never) : escapeHtml(look.title);
+    const head = `${look.icon ? `<span data-callout-icon="" aria-hidden="true">${look.icon}</span>` : ''}<span>${title}</span>`;
+    const body = t.tokens?.length ? `<div data-callout-body="">${this.parser.parse(t.tokens)}</div>` : '';
+    const attrs = `data-callout="${escapeHtml(look.kind)}"${look.known ? '' : ' data-callout-other=""'}`;
+    // «-» — свёрнута, «+» — сворачивается, но открыта (как в Obsidian).
+    if (t.fold) return `<details ${attrs}${t.fold === '+' ? ' open' : ''}><summary data-callout-title="">${head}</summary>${body}</details>`;
+    return `<div ${attrs}><div data-callout-title="">${head}</div>${body}</div>`;
+  }
+};
+
 const md = new Marked({
   gfm: true,
   breaks: true,
-  extensions: [blockMath, inlineMath, highlight, pageRef],
+  extensions: [callout, blockMath, inlineMath, highlight, pageRef, unsure],
   renderer: {
     // Ссылка Refrain на тему или термин — кнопка-ссылка (переход через событие приложения)
     link({ href, tokens }) {
@@ -162,7 +204,7 @@ export function renderMarkdown(src: string): string {
   markdownPass = true;
   try {
     return DOMPurify.sanitize(html, {
-      ADD_ATTR: ['aria-hidden', 'data-page', 'data-src', 'data-mlink'],
+      ADD_ATTR: ['aria-hidden', 'data-page', 'data-src', 'data-mlink', 'data-callout', 'data-callout-other', 'data-callout-title', 'data-callout-icon', 'data-callout-body', 'data-unsure'],
       FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select', 'option', 'video', 'audio', 'source', 'track', 'object', 'embed', 'link', 'meta', 'base', 'iframe', 'frame', 'dialog']
     });
   } finally {

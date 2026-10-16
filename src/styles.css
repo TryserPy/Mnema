@@ -1485,3 +1485,29 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .dismiss-x:hover { opacity: 1; }
 .subtopic-chip { max-width: 100%; }
 .subtopic-chip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Свёрнутые разделы (Fold) и выбор «кто помогает» в «ИИ-помощнике» (1.31) */
+.fold { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.fold-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; background: none; color: var(--ink); text-align: left; border-radius: 14px; cursor: pointer; }
+.fold-head:hover .chev { color: var(--accent-text, var(--accent)); }
+.fold-ico { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--sunken); font-size: 1.1rem; }
+.fold-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fold-body { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.ai-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.ai-mode { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); text-align: left; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.ai-mode:hover { border-color: var(--line-2); }
+.ai-mode.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ai-mode-ico { font-size: 1.5rem; line-height: 1; margin-bottom: 4px; }
+.ai-mode-tag { position: absolute; top: 10px; right: 10px; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-text, var(--accent)); }
+.ai-step { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--surface); }
+.ai-step-title { font-weight: 650; }
+
+/* Фокус-таймер поверх экранов */
+.focus-pill { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 98; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow-pop); max-width: calc(100vw - 32px); }
+.focus-pill.work { border-color: color-mix(in srgb, var(--accent) 50%, var(--line-2)); }
+.focus-pill.break { border-color: color-mix(in srgb, #2f8f5b 55%, var(--line-2)); }
+.focus-pill.paused .focus-time { opacity: 0.55; }
+.focus-ico { font-size: 1.1rem; }
+.focus-text { display: flex; flex-direction: column; line-height: 1.1; margin-right: 2px; }
+.focus-time { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.app.has-tabbar .focus-pill { bottom: calc(80px + env(safe-area-inset-bottom)); }

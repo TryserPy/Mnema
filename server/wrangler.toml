@@ -1,0 +1,50 @@
+# Сервер Refrain ИИ (1.31). Выкладка — только вручную (workflow «Сервер Refrain ИИ», запуск по кнопке).
+# Секреты задаются командой `wrangler secret put <ИМЯ>` и в репозиторий не попадают (список — docs/refrain-1.31/launch.md).
+name = "refrain-ai"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+# Модель и адрес API (формат OpenAI). Polza.ai: openai/gpt-6-luna; напрямую OpenAI: gpt-6-luna и https://api.openai.com/v1.
+OPENAI_MODEL = "openai/gpt-6-luna"
+LLM_BASE_URL = "https://polza.ai/api/v1"
+# Сайт, с которого открываются панель и мини-приложение (CORS только для /v1/admin/*).
+ADMIN_ORIGIN = "https://tryserpy.github.io"
+ADMIN_URL = "https://tryserpy.github.io/Mnema-site/admin/"
+TG_APP_URL = "https://tryserpy.github.io/Mnema-site/tg/"
+# Выпуски приложения, которые бывают на самом деле (правило «версия не существует»). Дополняется при выпуске.
+APP_VERSIONS = "1.31.0"
+POW_DIFFICULTY = "20"
+MAIL_FROM_NAME = "Refrain"
+# Почта по SMTP ящика (секреты MAIL_FROM и SMTP_PASSWORD). Mail.ru: smtp.mail.ru.
+SMTP_HOST = "smtp.yandex.ru"
+SMTP_PORT = "465"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "refrain"
+# id базы из `wrangler d1 create refrain` (не секрет)
+database_id = "c3048c65-0729-4155-86a2-612086b7d2e6"
+migrations_dir = "migrations"
+
+[[durable_objects.bindings]]
+name = "STUDENT"
+class_name = "StudentCounter"
+
+[[durable_objects.bindings]]
+name = "BUDGET"
+class_name = "BudgetCounter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StudentCounter", "BudgetCounter"]
+
+[triggers]
+# Тревоги (повторы), сверка с OpenAI, скачок расхода, чистка старых записей.
+crons = ["*/5 * * * *"]
+
+[observability]
+enabled = true
+# В журнал Worker не пишутся тела запросов и ответов: только коды ошибок (см. src/http.ts).

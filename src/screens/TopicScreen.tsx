@@ -7,6 +7,7 @@ import { exportForAi } from '../components/ChangesDialog';
 import { ImportantPanel, NoteToCards } from '../components/ImportantPanel';
 import { PageViewer } from '../components/PageViewer';
 import { TextbookImport } from '../components/lazy';
+import { NotebookImport } from '../components/NotebookImport';
 import { findImportant } from '../important';
 import { CardEditor } from '../components/CardEditor';
 import { Markdown } from '../components/Markdown';
@@ -484,6 +485,7 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
     }
   };
   const [full, setFull] = useState(false);
+  const [nbOpen, setNbOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (matches(e, data.settings, 'noteFull')) {
@@ -552,6 +554,7 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
           onPage={setPage}
           tools={tools}
           onReady={(a) => (api.current = a)}
+          onNotebook={() => setNbOpen(true)}
           rules={ruleMatcher}
           onRuleHover={onRuleHover}
           onAddRule={rulesOn ? setRuleFrom : undefined}
@@ -584,6 +587,17 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
       {ruleTip}
       {linkTip}
       {ruleFrom && <AddToRule subjectId={topic.subjectId} text={ruleFrom} onClose={() => setRuleFrom(null)} />}
+      {nbOpen && (
+        <NotebookImport
+          at={{ subjectId: topic.subjectId, topicId }}
+          go={go}
+          onClose={() => setNbOpen(false)}
+          onInsert={(md) => {
+            if (api.current) api.current.insertMarkdown(md);
+            else updateTopic(topicId, { note: topic.note.trim() ? `${topic.note.trimEnd()}\n\n${md}` : md });
+          }}
+        />
+      )}
       {importOpen && (
         <TextbookImport
           initialFiles={droppedFiles ?? undefined}

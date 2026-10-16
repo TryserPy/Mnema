@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Collapse, Icon, Segmented, selHow, touchUI } from '../components/ui';
+import { canReport } from '../components/ReportProblem';
+import { openReportProblem } from '../refrain';
 import { IlluMake, IlluMix, IlluNote, IlluRecall, IlluSpaced, IlluTree } from '../components/Illustrations';
 import { byText, createBtn, startTutorial } from '../components/Tutorial';
 import { showWhere, type WhereStep } from '../components/ShowMe';
@@ -271,9 +273,16 @@ export function Help({ section: wanted = 'learn', go }: { section?: Section; go:
     <div className="page narrow">
       <div className="row between gap8 wrap">
         <h1 className="display">Справка</h1>
-        <button className="btn small" onClick={startTutorial}>
-          Пройти знакомство
-        </button>
+        <div className="row gap8 wrap">
+          {canReport() && (
+            <button className="btn small ghost" onClick={() => openReportProblem()}>
+              Сообщить о проблеме
+            </button>
+          )}
+          <button className="btn small" onClick={startTutorial}>
+            Пройти знакомство
+          </button>
+        </div>
       </div>
       <Segmented
         ariaLabel="Раздел справки"

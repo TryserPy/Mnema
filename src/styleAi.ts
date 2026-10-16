@@ -341,7 +341,7 @@ export async function aiReady(data: AppData): Promise<AiReady> {
 export async function askStyle(wish: string, opts: { id: string; base: BaseAppearance; current?: Mod }): Promise<AiStyleResult> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
-  const r = await api.aiAsk(aiRequest('style', { system: styleSystemPrompt(), text: styleUserText(wish, opts.current), maxTokens: 4000 }));
+  const r = await api.aiAsk(aiRequest('style', { system: styleSystemPrompt(), text: styleUserText(wish, opts.current), maxTokens: 4000, refrain: { task: 'style', text: styleUserText(wish, opts.current) } }));
   if (!r.ok) throw new Error(humanError(r.error));
   if (!r.text?.trim()) throw new Error('Модель вернула пустой ответ. Попробуй ещё раз.');
   return parseAiStyle(r.text, { id: opts.id, fallbackName: opts.current?.name ?? wish.slice(0, 40), base: opts.base });

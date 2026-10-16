@@ -4,10 +4,11 @@
 // Точный режим — ИИ с зрением; если он не справился, страница читается без интернета.
 import { humanError } from './ai';
 import { aiRequest } from './aiTasks';
+import { noteAnswer, REFRAIN_SIDE, type RefrainFields } from './refrain';
 import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
 import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
 import { refineFigureBox, remapFigureMarks, tidyFigures } from './textbookFigures';
-import { mergeInput, mergeSystem, pageSystem, parseMerged, READ_SYSTEM, type NoteStyle } from './textbookNote';
+import { mergeInput, mergeSystem, pageSystem, parseMerged, readSystem, type NoteStyle } from './textbookNote';
 import { analyzeRegions, strokeStat } from './textbookRegions';
 import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
 import type { Quad } from './textbookImage';
@@ -461,11 +462,13 @@ function photoTrouble(prep: Prepared): string {
   return a.length ? ' ' + a.map((x) => x.text).join(' ') : ' Проверь, что страница видна целиком, резкая и хорошо освещена.';
 }
 
-async function askAi(system: string, text: string, photoUri: string | null, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+/** refrain — та же задача для Refrain ИИ (фото уже уменьшено до 1600 px или текст страниц). */
+async function askAi(system: string, text: string, photoUri: string | null, maxTokens: number, refrain?: RefrainFields): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) return { ok: false, error: 'ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.' };
   try {
-    const r = await api.aiAsk(aiRequest('textbook', { system, text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens }));
+    const r = await api.aiAsk(aiRequest('textbook', { system, text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens, refrain }));
+    noteAnswer(r, refrain?.task);
     if (!r.ok) return { ok: false, error: humanError(r.error) };
     return { ok: true, text: r.text };
   } catch (e) {
@@ -511,7 +514,9 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
       const r = await readUpright(p, part, onProgress, span);
       return { ...r.page, n, note: `${why} Страница прочитана без интернета — проверь её внимательнее.` };
     };
-    const ans = await askAi(direct ? pageSystem(o.style) : READ_SYSTEM, `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000);
+    // Refrain ИИ: «Конспект»/«Кратко» сразу по странице или «Дословно» (чтение для свода), фото — 1600 px.
+    const refrain: RefrainFields = { task: direct ? (o.style === 'brief' ? 'textbook.brief' : 'textbook.summary') : 'textbook.verbatim', image: { mime: 'image/jpeg', data: canvasToJpeg(scaleCanvas(canvas, REFRAIN_SIDE), 0.85).split(',')[1] }, ...(n ? { page: n } : {}) };
+    const ans = await askAi(direct ? pageSystem(o.style) : readSystem(), `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000, refrain);
     if (!ans.ok) {
       pages.push(await fallback(ans.error));
       continue;
@@ -617,7 +622,7 @@ async function mergeWithAi(pages: PageResult[], style: Exclude<NoteStyle, 'verba
   const parts: string[] = [];
   for (let k = 0; k < chunks.length; k++) {
     if (chunks.length > 1) onStep(`ИИ составляет конспект, часть ${k + 1} из ${chunks.length}…`);
-    const ans = await askAi(mergeSystem(style), chunks[k].text, null, 7000);
+    const ans = await askAi(mergeSystem(style), chunks[k].text, null, 7000, { task: 'textbook.merge', text: chunks[k].text });
     if (!ans.ok) return { ok: false, why: ans.error };
     const v = parseMerged(ans.text, pages, chunks[k].chars);
     if (!v.ok) return { ok: false, why: v.why };

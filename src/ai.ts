@@ -1,20 +1,33 @@
 // ИИ-помощник: обёртки над запросами к модели (сами запросы и ключи — в главном процессе).
 import { aiRequest, type AiTask } from './aiTasks';
 import { cardsPrompt, noteForAi, parseAiCards, type AiCardDraft } from './aiCards';
+import { noteAnswer, refrainFields, shrinkImage } from './refrain';
+import { promptSystem } from './prompts';
+import type { AiRequest } from './store';
 import type { AppData } from './types';
 
 export function aiAvailable(data: AppData): boolean {
   return data.settings.features.ai && Boolean(window.mnemaApi?.aiAsk);
 }
 
-/** Один запрос к ИИ. `task` — для чего (тогда добавятся свои указания ученика и выбранный для задачи ИИ); без задачи запрос уходит как есть. */
-async function ask(task: AiTask | null, req: { system?: string; text: string; image?: { mime: string; data: string }; maxTokens?: number }): Promise<string> {
+/**
+ * Один запрос к ИИ. `task` — для чего (тогда добавятся свои указания ученика и выбранный для задачи ИИ); без задачи запрос уходит как есть.
+ * req.refrain — та же задача для Refrain ИИ (без промта); без него запрос идёт мимо Refrain ИИ.
+ */
+async function ask(task: AiTask | null, req: AiRequest): Promise<string> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows и Linux.');
-  const r = await api.aiAsk(task ? aiRequest(task, req) : req);
+  const sent = task ? aiRequest(task, req) : { ...req, refrain: refrainFields(req.refrain) };
+  const r = await api.aiAsk(sent);
+  noteAnswer(r, sent.refrain?.task);
   if (!r.ok) throw new Error(humanError(r.error));
   if (!r.text) throw new Error('Модель вернула пустой ответ.');
   return r.text;
+}
+
+/** Запрос по готовому AiRequest (тетрадь, файлы): указания ученика, Refrain ИИ и ошибки — как у остальных задач. */
+export function askAi(task: AiTask | null, req: AiRequest): Promise<string> {
+  return ask(task, req);
 }
 
 function resetLocal(): string {
@@ -56,11 +69,11 @@ export function cleanLatex(s: string): string {
 export async function recognizeFormula(pngBase64: string): Promise<string> {
   // Распознавание формул — строгий формат ответа, поэтому свои указания ученика сюда не добавляем.
   const text = await ask(null, {
-    system:
-      'Ты распознаёшь рукописные формулы по математике, физике и химии, написанные школьником. Верни ТОЛЬКО код формулы в LaTeX, без знаков $, без ``` и без пояснений. Химические формулы пиши с индексами: H_2O. Если строк несколько — раздели их \\\\. Если формулу разобрать нельзя, верни одно слово: НЕРАЗБОРЧИВО.',
+    system: promptSystem('formula'),
     text: 'Распознай формулу на картинке.',
     image: { mime: 'image/png', data: pngBase64 },
-    maxTokens: 300
+    maxTokens: 300,
+    refrain: { task: 'formula', image: await shrinkImage({ mime: 'image/png', data: pngBase64 }).catch(() => ({ mime: 'image/png' as const, data: pngBase64 })) }
   });
   const latex = cleanLatex(text);
   if (/НЕРАЗБОРЧИВО/i.test(latex)) throw new Error('Не получилось разобрать. Попробуй написать крупнее и чётче.');
@@ -79,11 +92,25 @@ export async function explainDifferently(p: { subject?: string; topic?: string; 
     .filter(Boolean)
     .join('\n');
   return ask('explain', {
-    system:
-      'Ты — доброжелательный репетитор для школьника. Ученик не может запомнить карточку. Объясни ответ ИНАЧЕ, чем в карточке: простыми словами, через один понятный пример или аналогию из жизни, и в конце дай короткую подсказку, как это запомнить. Не больше 110 слов. Пиши по-русски, на «ты». Формулы оформляй в $...$. Опирайся на школьную программу и материалы ученика; не выдумывай фактов и дат. Без вступлений вроде «Конечно!».',
+    system: promptSystem('explain', { vars: { subject: p.subject, topic: p.topic } }),
     text: context,
-    maxTokens: 500
+    maxTokens: 500,
+    refrain: { task: 'explain', text: context.slice(0, 2500) }
   });
+}
+
+/** Refrain ИИ отвечает карточками в JSON {cards:[{q,a,why}]}; разбор черновиков ждёт строки «вопрос :: ответ». Не JSON — как есть. */
+export function cardsJsonToLines(answer: string): string {
+  try {
+    const j = JSON.parse(answer.trim()) as { cards?: { q?: unknown; a?: unknown }[] };
+    if (!j || !Array.isArray(j.cards)) return answer;
+    return j.cards
+      .filter((c) => c && typeof c.q === 'string' && typeof c.a === 'string')
+      .map((c) => `${String(c.q).replace(/::/g, ':').replace(/\s+/g, ' ')} :: ${String(c.a).replace(/\s+/g, ' ')}`)
+      .join('\n');
+  } catch {
+    return answer;
+  }
 }
 
 export async function testConnection(): Promise<string> {
@@ -95,8 +122,8 @@ export async function draftCards(p: { subject?: string; topic: string; note: str
   const note = noteForAi(p.note);
   if (!note) throw new Error('В конспекте пока нет текста.');
   const { system, text } = cardsPrompt({ subject: p.subject, topic: p.topic, note, have: p.have });
-  const answer = await ask('cards', { system, text, maxTokens: 1500 });
-  const drafts = parseAiCards(answer, p.have);
+  const answer = await ask('cards', { system, text, maxTokens: 1500, refrain: { task: 'cards', text: note, subject: p.subject, topic: p.topic } });
+  const drafts = parseAiCards(cardsJsonToLines(answer), p.have);
   if (!drafts.length) throw new Error('ИИ ответил не так, как просили, — карточек из ответа не получилось. Попробуй ещё раз.');
   return drafts;
 }

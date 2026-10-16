@@ -21,7 +21,7 @@ export function fillBack(r: Route, current: Route, place?: Route | null): Route 
 }
 
 /** Это то же самое окно (тот же предмет, та же тема…), просто с подробностями? */
-function samePage(a: Route, b: Route): boolean {
+export function samePage(a: Route, b: Route): boolean {
   if (a.name !== b.name) return false;
   const ida = 'id' in a ? a.id : undefined;
   const idb = 'id' in b ? b.id : undefined;
@@ -29,7 +29,7 @@ function samePage(a: Route, b: Route): boolean {
 }
 
 /** Есть ли ещё то, куда хотим вернуться (тему могли удалить, пока шло занятие). */
-function exists(data: AppData, r: Route): boolean {
+export function exists(data: AppData, r: Route): boolean {
   switch (r.name) {
     case 'topic':
       return data.topics.some((t) => t.id === r.id);
@@ -98,4 +98,9 @@ export function setPlace(r: Route | null) {
 }
 export function getPlace(): Route | null {
   return place;
+}
+
+/** Точное место на экране r: запись экрана, если она про него, иначе сам r. */
+export function exactPlace(r: Route): Route {
+  return place && samePage(place, r) ? place : r;
 }

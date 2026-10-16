@@ -1,0 +1,133 @@
+# Refrain ИИ 1.31 — запуск (пошагово, со ссылками)
+
+Делает только владелец. Секреты вводятся командой `npx wrangler secret put <ИМЯ>` (она сама спрашивает значение) и больше нигде не записываются: ни в репозиторий, ни в чат, ни в заметки.
+Все команды — в терминале, в папке `server` репозитория Mnema (ветка `claude/wizardly-volta-879gpb`). На Windows — PowerShell или Git Bash.
+
+## 0. Что понадобится
+
+- Node.js 22 — https://nodejs.org (LTS). Проверка: `node -v`.
+- Репозиторий: `git clone https://github.com/TryserPy/Mnema && cd Mnema && git checkout claude/wizardly-volta-879gpb && cd server && npm ci`.
+- Аккаунты: Polza.ai (с балансом), Cloudflare (бесплатный), отдельный ящик Яндекса, Telegram, GitHub.
+
+## 1. Polza.ai — ключ и баланс
+
+Модель `openai/gpt-6-luna` вызывается через Polza.ai (https://polza.ai): формат OpenAI, оплата в рублях с баланса.
+1. Войди в личный кабинет Polza.ai и пополни баланс. **Баланс — главный предохранитель**: больше, чем лежит на счёте, не потратится. Держи на нём немного (например, месячный бюджет из панели).
+2. Создай отдельный API-ключ для Refrain (раздел ключей API в кабинете). Скопируй его целиком.
+3. Проверь ключ в своём терминале (ключ никуда не присылай):
+   ```bash
+   curl -sS https://polza.ai/api/v1/chat/completions \
+     -H "Authorization: Bearer ВСТАВЬ_КЛЮЧ" -H "Content-Type: application/json" \
+     -d '{"model":"openai/gpt-6-luna","messages":[{"role":"user","content":"Скажи: ок"}],"max_completion_tokens":50,"reasoning_effort":"low"}'
+   ```
+   Ключ вставляется **вместо** `ВСТАВЬ_КЛЮЧ`, без угловых скобок и пробелов. `UNAUTHORIZED` — ключ неверный или скопирован не целиком. В ответе должны быть `choices` и `usage` (с `cost_rub` или `cost`).
+4. Модель и адрес уже вписаны в `server/wrangler.toml`: `OPENAI_MODEL = "openai/gpt-6-luna"`, `LLM_BASE_URL = "https://polza.ai/api/v1"`.
+
+Сверка расхода для поиска утечки ключа работает только с ключом напрямую от OpenAI (Usage API организации). С Polza она отключена — `OPENAI_PROJECT_ID` и `OPENAI_ADMIN_KEY` не задавай.
+
+## 2. Почта для кодов входа — ящик Яндекса (без домена)
+
+Коды уходят с отдельного ящика на Яндексе по SMTP (`smtp.yandex.ru:465`). Бесплатно, домен не нужен. У бесплатного ящика есть суточный лимит писем (обычно несколько сотен) — на старте хватает.
+
+1. Заведи отдельный ящик: https://passport.yandex.ru (например, `refrain.kod@yandex.ru`).
+2. В Почте: Все настройки → **Почтовые программы** → включи доступ по протоколу IMAP и «Пароли приложений и OAuth-токены».
+3. Пароль приложения: https://id.yandex.ru/security/app-passwords → **Почта** → назови «Refrain» → скопируй пароль (показывается один раз).
+4. Секреты: `MAIL_FROM` — адрес ящика, `SMTP_PASSWORD` — пароль приложения (не обычный пароль от ящика).
+
+Mail.ru — так же, но в `server/wrangler.toml` поменяй `SMTP_HOST` на `smtp.mail.ru`. Если ящик ограничат за рассылку — запасной путь: Resend и свой домен (`RESEND_API_KEY`, код уже есть; https://resend.com).
+
+## 3. Telegram — бот для тревог и мини-приложения
+
+1. Открой @BotFather (https://t.me/BotFather) → `/newbot` → имя и username бота → получишь **токен**.
+2. Свой Telegram ID: напиши @userinfobot (https://t.me/userinfobot) → он ответит числом `Id`.
+3. Кнопка мини-приложения: @BotFather → `/mybots` → твой бот → Bot Settings → **Menu Button** → Configure → адрес `https://tryserpy.github.io/Mnema-site/tg/` → название «Панель».
+   Мини-приложение и панель появятся на сайте после слияния ветки Mnema-site в `main` (GitHub Pages берёт `main`).
+
+## 4. GitHub — токен для багов
+
+https://github.com/settings/personal-access-tokens/new → **Fine-grained token**:
+- Repository access → Only select repositories → `TryserPy/Mnema`;
+- Permissions → Repository → **Issues: Read and write** (остальное — No access);
+- срок — по желанию (год). Скопируй токен.
+
+## 5. Cloudflare — база и выкладка
+
+1. Аккаунт: https://dash.cloudflare.com/sign-up. Адрес вида `<имя>.workers.dev` выбирается при первом заходе в Workers & Pages (https://dash.cloudflare.com/?to=/:account/workers-and-pages).
+2. Вход из терминала (откроется браузер):
+   ```bash
+   npx wrangler login
+   ```
+3. База D1 (https://developers.cloudflare.com/d1/get-started/):
+   ```bash
+   npx wrangler d1 create refrain
+   ```
+   Команда выведет `database_id = "…"` — впиши его в `server/wrangler.toml` вместо `00000000-0000-0000-0000-000000000000` (это не секрет; можно прислать мне — впишу и запушу).
+4. Таблицы:
+   ```bash
+   npx wrangler d1 migrations apply refrain --remote
+   ```
+5. Первая выкладка (из терминала — кнопка в GitHub Actions появится только после слияния в `main`):
+   ```bash
+   npx wrangler deploy
+   ```
+   В конце будет адрес `https://refrain-ai.<имя>.workers.dev` — **пришли его мне**: впишу в приложение (`REFRAIN_API`) и в панель на сайте.
+
+## 6. Секреты сервера
+
+Каждый — отдельной командой в папке `server`, значение вставляешь, когда спросит:
+
+| Команда | Что вставить |
+| --- | --- |
+| `npx wrangler secret put OPENAI_API_KEY` | ключ Polza.ai (шаг 1.2) — имя секрета историческое |
+| `npx wrangler secret put TOKEN_SECRET` | случайная строка: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` |
+| `npx wrangler secret put OWNER_EMAIL` | твоя почта (ты — группа «Ты», сюда коды панели и резервные тревоги) |
+| `npx wrangler secret put OWNER_TELEGRAM_ID` | число из @userinfobot (шаг 3.2) |
+| `npx wrangler secret put TELEGRAM_BOT_TOKEN` | токен бота (шаг 3.1) |
+| `npx wrangler secret put TELEGRAM_WEBHOOK_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — сохрани, нужен в шаге 7 |
+| `npx wrangler secret put ADMIN_PIN_HASH` | строка из `node scripts/pin-hash.mjs` (спросит PIN из 6 цифр; PIN запомни) |
+| `npx wrangler secret put MAIL_FROM` | адрес ящика Яндекса (шаг 2.1) |
+| `npx wrangler secret put SMTP_PASSWORD` | пароль приложения (шаг 2.3) |
+| `npx wrangler secret put GITHUB_ISSUE_TOKEN` | токен GitHub (шаг 4) |
+
+Проверка списка: `npx wrangler secret list`. `TOKEN_SECRET` потом не меняй без нужды — смена разлогинит всех.
+
+## 7. Вебхук Telegram
+
+В папке `server` (после выкладки):
+```bash
+node scripts/set-webhook.mjs
+```
+Скрипт спросит токен бота (ввод не виден, вставка с лишними пробелами и служебными символами терминала — не страшна), проверит его в Telegram, задаст секреты `TELEGRAM_BOT_TOKEN` и новый `TELEGRAM_WEBHOOK_SECRET` и подключит вебхук с тем же секретом. Его же запускай после смены токена бота. Потом напиши боту `/status`.
+
+## 8. Выкладка из GitHub (после слияния в `main`)
+
+1. Токен Cloudflare: https://dash.cloudflare.com/profile/api-tokens → Create Token → шаблон **Edit Cloudflare Workers** → добавь право **Account → D1 → Edit** → Create.
+2. Account ID: Cloudflare → Workers & Pages → справа «Account ID» (https://developers.cloudflare.com/fundamentals/setup/find-account-and-zone-ids/).
+3. Секреты репозитория: https://github.com/TryserPy/Mnema/settings/secrets/actions → New repository secret: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
+4. По желанию — ручное подтверждение выкладки: https://github.com/TryserPy/Mnema/settings/environments → `production` → Required reviewers.
+5. Выкладка: https://github.com/TryserPy/Mnema/actions → «Сервер Refrain ИИ» → Run workflow → отметить **deploy** → Run.
+
+## 9. Проверка после выкладки
+
+- Бот: `/status` отвечает.
+- Панель: кнопка «Панель» в боте → вход приходит сообщением в чат; на сайте https://tryserpy.github.io/Mnema-site/admin/ — вход по коду на почту и PIN.
+- Приложение 1.31 (после того как я впишу адрес): Настройки → ИИ-помощник → Refrain ИИ → почта → код → конспект страницы. Ты (OWNER_EMAIL) входишь и в режиме «Тестировщики».
+- Тревога: в панели «Пауза» → «Вернуть режим» — оба действия видны в «Журнале».
+
+## 10. Порядок запуска
+
+1. Сервер (шаги 1–9), режим «Тестировщики» — по умолчанию.
+2. Тестировщики: панель → «Тестировщики и приглашения» → добавить почты или выдать приглашения `RFN-…`.
+3. Выпуск приложения 1.31.0 — как обычно.
+4. Открыть всем: панель → Доступ → «Все» (с PIN). Новая версия приложения не нужна.
+
+## Если ключ ИИ мог утечь
+
+Признаки: баланс Polza тает быстрее, чем «Расход» в панели, или в истории запросов Polza есть чужие модели. Отозвать ключ сервер не может.
+
+1. В кабинете Polza.ai создай новый ключ.
+2. `npx wrangler secret put OPENAI_API_KEY` — вставь новый.
+3. В Polza удали старый ключ.
+4. В панели: «Ключ заменён» (PIN) → «Вернуть режим» (если пауза включалась).
+
+Подробности о Workers и wrangler: https://developers.cloudflare.com/workers/wrangler/commands/ · секреты: https://developers.cloudflare.com/workers/configuration/secrets/
