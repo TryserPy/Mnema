@@ -93,14 +93,11 @@ https://github.com/settings/personal-access-tokens/new → **Fine-grained token*
 
 ## 7. Вебхук Telegram
 
-Один раз, после выкладки (https://core.telegram.org/bots/api#setwebhook). Токен и секрет набери в своём терминале, никуда не копируй:
+В папке `server` (после выкладки):
 ```bash
-curl -sS "https://api.telegram.org/bot<ТОКЕН>/setWebhook" \
-  -d url="https://refrain-ai.<имя>.workers.dev/v1/tg/webhook" \
-  -d secret_token="<TELEGRAM_WEBHOOK_SECRET>" \
-  -d allowed_updates='["message"]'
+node scripts/set-webhook.mjs
 ```
-Ответ `{"ok":true,…}`. Напиши боту `/status` — он должен ответить.
+Скрипт спросит токен бота (ввод не виден, вставка с лишними пробелами и служебными символами терминала — не страшна), проверит его в Telegram, задаст секреты `TELEGRAM_BOT_TOKEN` и новый `TELEGRAM_WEBHOOK_SECRET` и подключит вебхук с тем же секретом. Его же запускай после смены токена бота. Потом напиши боту `/status`.
 
 ## 8. Выкладка из GitHub (после слияния в `main`)
 
