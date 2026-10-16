@@ -1501,3 +1501,13 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .ai-mode-tag { position: absolute; top: 10px; right: 10px; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-text, var(--accent)); }
 .ai-step { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--surface); }
 .ai-step-title { font-weight: 650; }
+
+/* Фокус-таймер поверх экранов */
+.focus-pill { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 98; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow-pop); max-width: calc(100vw - 32px); }
+.focus-pill.work { border-color: color-mix(in srgb, var(--accent) 50%, var(--line-2)); }
+.focus-pill.break { border-color: color-mix(in srgb, #2f8f5b 55%, var(--line-2)); }
+.focus-pill.paused .focus-time { opacity: 0.55; }
+.focus-ico { font-size: 1.1rem; }
+.focus-text { display: flex; flex-direction: column; line-height: 1.1; margin-right: 2px; }
+.focus-time { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.app.has-tabbar .focus-pill { bottom: calc(80px + env(safe-area-inset-bottom)); }

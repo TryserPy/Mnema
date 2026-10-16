@@ -231,7 +231,7 @@ export function AddonsPane({ onGo }: { onGo?: (section: SettingsSection) => void
     <div className="stack gap12">
       <span className="small muted">Дополнения — маленькие добавки к стилю: клетка в конспекте, крупные кнопки, стикеры. Включай любые — просто нажми на строку.</span>
       <div className="row gap8 wrap">
-        <button className="btn small" onClick={() => setEditing({ mod: { ...blankStyle(), name: 'Моё дополнение', role: 'addon' } as Mod131, isNew: true })}>
+        <button className="btn small" onClick={() => setEditing({ mod: { ...blankStyle(), name: 'Моё дополнение', icon: '🧩', role: 'addon' } as Mod131, isNew: true })}>
           <Icon name="plus" size={16} /> Новое дополнение
         </button>
         <button className="btn small ghost" onClick={imp.open}>

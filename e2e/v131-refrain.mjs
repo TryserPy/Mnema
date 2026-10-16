@@ -93,7 +93,7 @@ for (const [theme, width] of [
 
   // Лимит → «Без интернета»
   await page.evaluate(() => (window.__rf.answer = { ok: false, code: 'limit_day', error: 'На сегодня бесплатные страницы Refrain ИИ закончились.', quota: { day: { used: 30, limit: 30 }, month: { used: 160, limit: 400 }, resetsAt: '', group: 'student' } }));
-  await page.locator('.ai-pick', { hasText: 'На компьютере' }).click();
+  await page.locator('.ai-mode', { hasText: 'Без интернета' }).click();
   await page.getByRole('button', { name: 'Проверить' }).first().click();
   await page.locator('[data-part="limit"]').waitFor({ timeout: 5000 });
   check(await page.locator('.modal', { hasText: 'На сегодня бесплатные страницы закончились' }).isVisible(), `${tag}: экран лимита`);
@@ -101,7 +101,7 @@ for (const [theme, width] of [
   await page.locator('.rf-choices .btn', { hasText: 'Без интернета' }).click();
   await page.waitForTimeout(400);
   check((await page.evaluate(() => window.__rf.set)).some((p) => p.provider === 'local'), `${tag}: «Без интернета» выбрал ИИ на компьютере`);
-  check(await page.locator('[data-part="refrain"]').isVisible(), `${tag}: после выбора — настройки ИИ`);
+  check(await page.locator('[data-part="ai-settings"]').isVisible(), `${tag}: после выбора — настройки ИИ`);
 
   // Закрытый тест → приглашение
   await page.evaluate(() => (window.__rf.answer = { ok: false, code: 'access_closed', error: 'Refrain ИИ сейчас в закрытом тесте.' }));

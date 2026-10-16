@@ -29,7 +29,7 @@ export function samePage(a: Route, b: Route): boolean {
 }
 
 /** Есть ли ещё то, куда хотим вернуться (тему могли удалить, пока шло занятие). */
-function exists(data: AppData, r: Route): boolean {
+export function exists(data: AppData, r: Route): boolean {
   switch (r.name) {
     case 'topic':
       return data.topics.some((t) => t.id === r.id);

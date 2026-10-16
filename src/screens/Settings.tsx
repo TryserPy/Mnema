@@ -5,6 +5,9 @@ import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
 import { LookPane, lookTabFor } from '../components/LookSettings';
 import { setAppearanceTab } from '../styleActions';
+import { recall, remember } from '../uiMemory';
+import { setPlace } from '../studyBack';
+import { clampMinutes, startFocus } from '../focusTimer';
 import { FeaturesPane } from '../components/FeaturesPane';
 import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
@@ -64,6 +67,7 @@ const INDEX: IndexItem[] = [
   { label: 'Простые кнопки «Не помню / Помню»', section: 'study', anchor: 'simple', words: 'оценки две' },
   { label: 'Насколько надёжно запоминать', section: 'study', anchor: 'retention', words: 'fsrs интервалы' },
   { label: 'Новый день начинается в', section: 'study', anchor: 'dayStart', words: 'полночь' },
+  { label: 'Фокус (помодоро): минуты учёбы и перерыва', section: 'study', anchor: 'focus', words: 'таймер помидор перерыв фокус-режим' },
   { label: 'Напоминания о домашке', section: 'reminders', anchor: 'hw', words: 'уведомления дз' },
   { label: 'Напоминание повторить каждый день', section: 'reminders', anchor: 'daily', words: 'уведомления' },
   { label: 'Вечером — о завтрашних уроках', section: 'reminders', anchor: 'lessons', words: 'расписание урок подготовиться' },
@@ -108,7 +112,11 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
     { id: 'about', title: 'О Refrain', icon: 'info' }
   ];
   const visible = sections.filter((x) => !x.hidden);
-  const [section, setSection] = useState<SettingsSection | null>(initial ?? (narrow ? null : 'look'));
+  const [section, setSectionState] = useState<SettingsSection | null>(initial ?? recall<SettingsSection | null>('settings-section', null) ?? (narrow ? null : 'look'));
+  const setSection = (id: SettingsSection | null) => {
+    setSectionState(id);
+    remember('settings-section', id ?? undefined);
+  };
   const [query, setQuery] = useState('');
   const [flash, setFlash] = useState<string | null>(null);
   const paneRef = useRef<HTMLDivElement>(null);
@@ -117,6 +125,11 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
   }, [initial]);
   // Раздел скрыт (например, выключили ИИ) — вернуться к первому.
   const current = section && visible.some((x) => x.id === section) ? section : narrow ? null : 'look';
+  // Точное место для «назад» и для отчёта о проблеме: раздел живёт внутри экрана.
+  useEffect(() => {
+    setPlace(current ? { name: 'settings', section: current } : { name: 'settings' });
+    return () => setPlace(null);
+  }, [current]);
 
   const open = (id: string, anchor?: string) => {
     setQuery('');
@@ -242,6 +255,31 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
   );
 }
 
+/** Минуты фокуса: печатаешь свободно, в настройки уходит по выходу из поля или Enter (в рамках 1–180 / 1–60). */
+function MinutesField({ value, kind, onChange, label }: { value: number; kind: 'work' | 'break'; onChange: (v: number) => void; label: string }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = () => {
+    const v = clampMinutes(text, kind);
+    setText(String(v));
+    if (v !== value) onChange(v);
+  };
+  return (
+    <input
+      className="input num"
+      type="number"
+      inputMode="numeric"
+      min={1}
+      max={kind === 'work' ? 180 : 60}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && commit()}
+      aria-label={label}
+    />
+  );
+}
+
 /** Узко — когда в области справа от левой панели не помещаются две колонки (разделы + раздел). */
 function useNarrow() {
   const measure = () => {
@@ -312,24 +350,27 @@ function StudyPane() {
             ))}
           </select>
         </SRow>
-        <SRow label="Фокус-режим: заниматься" hint={touchUI() ? 'Запуск — в поиске (лупа сверху): «Фокус». Потом перерыв.' : 'Запуск — в поиске (Ctrl+P): «Фокус». Потом перерыв.'}>
-          <select className="input" value={s.focusMinutes} onChange={(e) => updateSettings({ focusMinutes: Number(e.target.value) })} aria-label="Сколько минут заниматься в фокус-режиме">
-            {[10, 15, 20, 25, 30, 45].map((m) => (
-              <option key={m} value={m}>
-                {m} мин
-              </option>
-            ))}
-          </select>
+        <SRow label="Фокус (помодоро): учёба, минут" hint={touchUI() ? 'Таймер идёт на любом экране. Запуск — кнопкой справа или в поиске (лупа сверху): «Фокус».' : 'Таймер идёт на любом экране. Запуск — кнопкой ниже или в поиске (Ctrl+P): «Фокус».'} id="focus">
+          <MinutesField value={s.focusMinutes} kind="work" onChange={(v) => updateSettings({ focusMinutes: v })} label="Сколько минут заниматься в фокус-режиме" />
         </SRow>
-        <SRow label="Фокус-режим: перерыв">
-          <select className="input" value={s.breakMinutes} onChange={(e) => updateSettings({ breakMinutes: Number(e.target.value) })} aria-label="Сколько минут длится перерыв">
-            {[3, 5, 10, 15].map((m) => (
-              <option key={m} value={m}>
-                {m} мин
-              </option>
-            ))}
-          </select>
+        <SRow label="Фокус: перерыв, минут">
+          <MinutesField value={s.breakMinutes} kind="break" onChange={(v) => updateSettings({ breakMinutes: v })} label="Сколько минут длится перерыв" />
         </SRow>
+        <div className="row gap8 wrap">
+          {[
+            [25, 5],
+            [45, 10],
+            [15, 3]
+          ].map(([w, b]) => (
+            <button key={w} type="button" className={'chip-btn' + (s.focusMinutes === w && s.breakMinutes === b ? ' on' : '')} onClick={() => updateSettings({ focusMinutes: w, breakMinutes: b })}>
+              {w}/{b}
+            </button>
+          ))}
+          <span className="grow" />
+          <button type="button" className="btn small primary" onClick={() => startFocus(s.focusMinutes)}>
+            Начать фокус
+          </button>
+        </div>
       </Group>
     </div>
   );

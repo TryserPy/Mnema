@@ -2,6 +2,8 @@
 // Два режима: «стиль» (сохранённый или новый — правки в черновике, потом «Сохранить») и «текущее оформление» (current: правки сразу
 // попадают в настройки, а «Отменить» возвращает всё, как было при открытии). Вкладки: Цвета, Текст, Форма, Раскладка, Фон,
 // Анимации, CSS, Настройки (что сможет менять человек), Справка. Кнопка «Изменить с ИИ» просит ИИ поправить стиль словами.
+// Дополнение (role: 'addon') меняет что-то одно, поэтому у него свои вкладки: «Что меняет» (список правок и с чего начать),
+// CSS, Настройки, Справка; разделы стиля (цвета, текст, форма…) — по кнопке «Все разделы».
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { currentAsMod, modToCurrent, resetCurrentPatch } from '../appearance';
@@ -16,6 +18,7 @@ import { API_CLASSES, API_PARTS, API_ROOT_ATTRS, API_VARS } from '../styleApi';
 import { setStylePreview } from '../styleApply';
 import { cleanMod, cleanSetting, MINE_ID, newStyleId, OLD_STYLE_EXT, parseStyleFile, STYLE_ATTRS, STYLE_EXT, styleToFile } from '../styleSystem';
 import { FONTS } from '../themes';
+import { CATALOG } from '../mods';
 import type { Mod, StyleSetting, StyleSettingType, StyleValue } from '../types';
 import { BackgroundTab, ColorsTab, LayoutTab, MotionTab, ShapeTab, TextTab } from './StyleTabs';
 import type { EditCtx } from './StyleControls';
@@ -25,7 +28,87 @@ import { StyleAiPanel } from './StyleAiPanel';
 import { ConfirmButton, Icon, toast } from './ui';
 import '../styleEditor.css';
 
-type Tab = 'colors' | 'text' | 'shape' | 'layout' | 'bg' | 'motion' | 'code' | 'settings' | 'help';
+type Tab = 'what' | 'colors' | 'text' | 'shape' | 'layout' | 'bg' | 'motion' | 'code' | 'settings' | 'help';
+
+const ADDON_TABS: { id: Tab; label: string }[] = [
+  { id: 'what', label: 'Что меняет' },
+  { id: 'code', label: 'CSS' },
+  { id: 'settings', label: 'Настройки' },
+  { id: 'help', label: 'Справка' }
+];
+
+/** «Что меняет» у дополнения: что в нём уже есть (с «Убрать») и с чего начать — с CSS встроенного дополнения. */
+function AddonPane({ m, set, go }: { m: Mod; set: (m: Mod) => void; go: (t: Tab) => void }) {
+  const cssLines = (m.css ?? '').split('\n').filter((l) => l.trim()).length;
+  const vars = Object.keys({ ...(m.vars?.light ?? {}), ...(m.vars?.dark ?? {}) }).length;
+  const attrs = Object.keys(m.attrs ?? {}).length;
+  const whole = Boolean(m.look || m.accent || m.font || m.bg || m.density || m.fontScale);
+  const rows: { title: string; hint: string; edit?: Tab; drop: () => void }[] = [
+    ...(cssLines ? [{ title: 'Свой CSS', hint: `строк кода: ${cssLines}`, edit: 'code' as Tab, drop: () => set({ ...m, css: '' }) }] : []),
+    ...(m.settings?.length ? [{ title: 'Настройки для тебя', hint: `ползунков, цветов и переключателей: ${m.settings.length}`, edit: 'settings' as Tab, drop: () => set({ ...m, settings: undefined }) }] : []),
+    ...(vars ? [{ title: 'Цвета и размеры', hint: `переменных: ${vars}`, drop: () => set({ ...m, vars: undefined }) }] : []),
+    ...(attrs ? [{ title: 'Раскладка', hint: Object.keys(m.attrs ?? {}).join(', '), drop: () => set({ ...m, attrs: undefined }) }] : []),
+    ...(whole ? [{ title: 'Весь вид (тема, шрифт, фон)', hint: 'такое лучше делать стилем, а не дополнением', drop: () => set({ ...m, look: undefined, accent: undefined, font: undefined, bg: undefined, density: undefined, fontScale: undefined }) }] : [])
+  ];
+  const starts = CATALOG.filter((c) => c.role !== 'style' && (c.css || c.attrs));
+  return (
+    <div className="se-pane stack gap12">
+      <span className="small muted">Дополнение меняет что-то одно и включается поверх любого стиля. Здесь видно, что именно оно меняет.</span>
+      {rows.length ? (
+        <div className="st-stack">
+          {rows.map((r) => (
+            <div key={r.title} className="st-item">
+              <div className="st-item-head">
+                <span className="grow stack">
+                  <strong className="small">{r.title}</strong>
+                  <span className="small muted">{r.hint}</span>
+                </span>
+                {r.edit && (
+                  <button type="button" className="btn small" onClick={() => go(r.edit!)}>
+                    Изменить
+                  </button>
+                )}
+                <button type="button" className="btn small ghost" onClick={r.drop}>
+                  Убрать
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="hint">Пока дополнение ничего не меняет. Начни с готового ниже, напиши CSS или попроси ИИ.</div>
+      )}
+      <div className="row gap8 wrap">
+        <button type="button" className="btn small" onClick={() => go('code')}>
+          <Icon name="code" size={15} /> Написать CSS
+        </button>
+        <button type="button" className="btn small" onClick={() => go('settings')}>
+          <Icon name="sliders" size={15} /> Добавить ползунок или цвет
+        </button>
+      </div>
+      <div className="stack gap6">
+        <strong className="small">С чего начать</strong>
+        <span className="small muted">Возьми код встроенного дополнения и поменяй под себя (можно вернуть кнопкой «Назад»).</span>
+        <div className="row gap6 wrap">
+          {starts.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className="chip-btn"
+              title={c.description}
+              onClick={() => {
+                set({ ...m, css: c.css ?? '', settings: c.settings, vars: c.vars, attrs: c.attrs });
+                toast(`Взят код «${c.name}»`);
+              }}
+            >
+              {c.icon} {c.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const TABS: { id: Tab; label: string; styleOnly?: boolean }[] = [
   { id: 'colors', label: 'Цвета' },
@@ -375,7 +458,9 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
   const settings = data.settings;
   const [local, setLocal] = useState<Mod>(() => initial ?? currentAsMod(settings));
   const [values, setValues] = useState<Record<string, StyleValue>>(() => ({ ...(initial ? (getData().settings.styleValues[initial.id] ?? {}) : {}) }));
-  const [tab, setTab] = useState<Tab>('colors');
+  const addon = !current && (initial as Mod131 | undefined)?.role === 'addon';
+  const [tab, setTab] = useState<Tab>(addon ? 'what' : 'colors');
+  const [allTabs, setAllTabs] = useState(false);
   const [asking, setAsking] = useState(false);
   const [ai, setAi] = useState(false);
   const [peek, setPeek] = useState(false); // на телефоне «Посмотреть»: окно сворачивается до шапки и кнопок, видно настоящий интерфейс
@@ -443,13 +528,13 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
   function save(enable: boolean) {
     if (current) return;
     const clean = cleanMod(local, local.id, initial?.where ?? 'свой');
-    if (!clean) return toast('Дай стилю название');
+    if (!clean) return toast(addon ? 'Дай дополнению название' : 'Дай стилю название');
     setStylePreview(null);
     const role = (initial as Mod131 | undefined)?.role ?? classifyRole(clean as Mod131);
     saveStyle({ ...clean, role, origin: (initial as Mod131 | undefined)?.origin ?? 'mine' } as Mod131, { enable });
     for (const [k, v] of Object.entries(values ?? {})) setAppearanceValue(clean.id, k, v);
     start.current = JSON.stringify([local, values]);
-    toast(`Стиль «${clean.name}» сохранён`);
+    toast(addon ? `Дополнение «${clean.name}» сохранено` : `Стиль «${clean.name}» сохранён`);
     onClose();
   }
   /** Текущее оформление → «Мои стили» (копия всего, что сейчас стоит). */
@@ -483,7 +568,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
     }
     hist.current.stack = [];
   }
-  const tabs = TABS.filter((t) => !(current && t.styleOnly));
+  const tabs = addon ? (allTabs ? [ADDON_TABS[0], ...TABS] : ADDON_TABS) : TABS.filter((t) => !(current && t.styleOnly));
   const canUndo = hist.current.stack.length > 0;
   const hasImage = Boolean(m.bg?.src && m.bg.src.length < MAX_BG_SRC_FILE);
   const exportRow = (
@@ -500,7 +585,7 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
   );
 
   return createPortal(
-    <aside className={'style-editor' + (peek ? ' peek' : '')} role="dialog" aria-label={current ? 'Настроить текущее оформление' : 'Редактор стиля'}>
+    <aside className={'style-editor' + (peek ? ' peek' : '') + (addon ? ' addon' : '')} role="dialog" aria-label={current ? 'Настроить текущее оформление' : addon ? 'Редактор дополнения' : 'Редактор стиля'}>
       <header className="se-head">
         <span className="se-icon">{m.icon ?? '🎨'}</span>
         {current ? (
@@ -510,7 +595,8 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
           </div>
         ) : (
           <div className="grow stack gap4">
-            <input className="se-title" aria-label="Название стиля" value={m.name} maxLength={50} onChange={(e) => set({ ...m, name: e.target.value })} />
+            <span className="se-kind small">{addon ? 'Дополнение' : 'Стиль'}</span>
+            <input className="se-title" aria-label={addon ? 'Название дополнения' : 'Название стиля'} value={m.name} maxLength={50} onChange={(e) => set({ ...m, name: e.target.value })} />
             <input className="se-sub" aria-label="Описание" placeholder="Коротко: что меняет" value={m.description} maxLength={240} onChange={(e) => set({ ...m, description: e.target.value })} />
           </div>
         )}
@@ -555,8 +641,14 @@ export function StyleEditor({ initial, isNew = false, onClose, current = false }
             {t.label}
           </button>
         ))}
+        {addon && (
+          <button type="button" className="se-tab" aria-expanded={allTabs} onClick={() => (setAllTabs(!allTabs), allTabs && !ADDON_TABS.some((t) => t.id === tab) && setTab('what'))} title="Цвета, текст, форма, раскладка, фон, анимации — как у стиля">
+            {allTabs ? 'Меньше разделов' : 'Все разделы…'}
+          </button>
+        )}
       </div>
       <div className="se-body">
+        {tab === 'what' && <AddonPane m={m} set={set} go={setTab} />}
         {tab === 'colors' && <ColorsTab ctx={ctx} />}
         {tab === 'text' && <TextTab ctx={ctx} />}
         {tab === 'shape' && <ShapeTab ctx={ctx} />}

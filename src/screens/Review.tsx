@@ -1,3 +1,4 @@
+import { focusState, startFocus } from '../focusTimer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { aiAvailable, explainDifferently } from '../ai';
@@ -30,11 +31,6 @@ const CONF = ['Угадываю', 'Думаю, что знаю', 'Точно з�
 interface Waiting {
   item: QueueItem;
   due: number;
-}
-
-function fmtClock(ms: number) {
-  const s = Math.max(0, Math.round(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 export function Review({ route, go }: { route: Extract<Route, { name: 'review' }>; go: (r: Route) => void }) {
@@ -79,20 +75,10 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const exitRef = useRef<() => void>(() => undefined);
   const typedRef = useRef<HTMLInputElement>(null);
 
-  // Фокус-режим: таймер сессии и перерыв.
-  const focusMs = settings.focusMinutes * MINUTE;
-  const [focusStart] = useState(Date.now());
-  const [now, setNow] = useState(Date.now());
-  const [onBreak, setOnBreak] = useState<number | null>(null);
+  // Фокус-режим: общий таймер (плашка поверх экранов) — перерыв он объявит сам и на любом экране.
   useEffect(() => {
-    if (!route.focus) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [route.focus]);
-  const focusLeft = focusStart + focusMs - now;
-  useEffect(() => {
-    if (route.focus && focusLeft <= 0 && onBreak === null) setOnBreak(Date.now());
-  }, [route.focus, focusLeft, onBreak]);
+    if (route.focus && focusState()?.phase !== 'work') startFocus(settings.focusMinutes);
+  }, [route.focus, route.run]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const card = current ? data.cards.find((c) => c.id === current.cardId) : undefined;
   const topic = card ? data.topics.find((t) => t.id === card.topicId) : undefined;
@@ -191,7 +177,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
     [current, revealed, card, confidence, waiting, queue, cram, advance, settings, state, route.mini]
   );
 
-  const blocked = Boolean(leechCard) || onBreak !== null || pageView !== null || whyAsk !== null;
+  const blocked = Boolean(leechCard) || pageView !== null || whyAsk !== null;
 
   const explainRef = useRef<() => void>(() => undefined);
   const voiceToggleRef = useRef<() => void>(() => undefined);
@@ -310,31 +296,6 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const canRepeatMore = !cram && !route.mini && !route.cardIds;
   exitRef.current = exit;
 
-  // Перерыв в фокус-режиме.
-  if (onBreak !== null) {
-    const left = onBreak + settings.breakMinutes * MINUTE - now;
-    return (
-      <div className="page narrow center-page">
-        <div className="card stack gap12 done-card center">
-          <Icon name="timer" size={32} />
-          <h1 className="display">Перерыв</h1>
-          <p className="lead">
-            {settings.focusMinutes} минут позади — ответов: {stats.done}. Встань, подвигайся, попей воды.
-          </p>
-          <div className="big-clock">{left > 0 ? fmtClock(left) : 'Можно продолжать'}</div>
-          <div className="row gap8 center-row wrap">
-            <button className="btn" onClick={exit}>
-              Закончить
-            </button>
-            <button className="btn primary" disabled={!current} onClick={() => go({ ...route, focus: true, run: Date.now() })}>
-              Ещё {settings.focusMinutes} минут
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (!current || !card || !prompt) {
     const correct = stats.done ? Math.round(((stats.done - stats.again) / stats.done) * 100) : 0;
     return (
@@ -403,15 +364,9 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         <div className="progress full">
           <span style={{ width: `${(stats.done / Math.max(1, total)) * 100}%` }} />
         </div>
-        {route.focus ? (
-          <span className="pill small-pill" title="Фокус-режим">
-            <Icon name="timer" size={16} /> {fmtClock(focusLeft)}
-          </span>
-        ) : (
-          <span className="small muted nowrap">
-            <AnimText value={`${stats.done + 1} из ${total}`} />
-          </span>
-        )}
+        <span className="small muted nowrap">
+          <AnimText value={`${stats.done + 1} из ${total}`} />
+        </span>
       </div>
 
       <div className="review-card" data-part="review-card" key={current?.key}>

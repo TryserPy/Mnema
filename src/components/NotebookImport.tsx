@@ -8,6 +8,7 @@ import { acceptUnsure, asInNotebook, cardDrafts, fixUnsure, hasAbbreviations, no
 import { pdfImageBlob, photoPages, type PagePhoto } from '../notebookPhoto';
 import { promptSystem } from '../prompts';
 import { logLine } from '../refrain';
+import { useRemembered } from '../uiMemory';
 import { addCard, addHomework, addTopic, getData, sortedSubjects, updateTopic, useData } from '../store';
 import type { Route } from '../types';
 import { Markdown } from './Markdown';
@@ -41,11 +42,11 @@ export function NotebookImport({ at, go, onClose, onInsert }: { at: { subjectId?
   const [err, setErr] = useState('');
   // Фото
   const [pages, setPages] = useState<Page[]>([]);
-  const [split, setSplit] = useState<'auto' | 'yes' | 'no'>('auto');
-  const [whiten, setWhiten] = useState(true);
+  const [split, setSplit] = useRemembered<'auto' | 'yes' | 'no'>('nb-split', 'auto');
+  const [whiten, setWhiten] = useRemembered('nb-whiten', true);
   const [topicId, setTopicId] = useState(at.topicId && data.topics.find((t) => t.id === at.topicId)?.subjectId === subjectId ? at.topicId : '');
   const [topicName, setTopicName] = useState('');
-  const [how, setHow] = useState<'verbatim' | 'tidy'>('verbatim');
+  const [how, setHow] = useRemembered<'verbatim' | 'tidy'>('nb-how', 'verbatim');
   const [drafts, setDrafts] = useState<(CardDraft & { on: boolean })[] | null>(null);
   const [tidyFailed, setTidyFailed] = useState(false);
   const errRef = useRef<HTMLDivElement>(null);
