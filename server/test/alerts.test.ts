@@ -158,6 +158,53 @@ describe('бот', () => {
   });
 });
 
+describe('баланс Polza', () => {
+  it('в обзоре: остаток, прогноз в днях и «мало»; ошибка Polza — последний известный', async () => {
+    const h = new Harness();
+    const admin = await h.admin();
+    h.polzaBalance = 812.5;
+    let ov = (await admin('GET', 'overview')).body;
+    expect(ov.balance).toMatchObject({ rub: 812.5, low: false, daysLeft: null });
+    expect(ov.balance.topUpUrl).toContain('polza.ai');
+    // расход 100 ₽ за неделю → ~14,3 ₽ в сутки
+    await h.env.DB.prepare("INSERT INTO usage (at, account_id, grp, task, input_tokens, cached_tokens, output_tokens, cost_micro, ok, ms) VALUES (?1, 'acc_x', 'student', 'note', 0, 0, 0, ?2, 1, 1)").bind(h.clock - 86400000, 100e6).run();
+    h.polzaBalance = 20;
+    h.clock += 3 * 60000;
+    ov = (await admin('GET', 'overview')).body;
+    expect(ov.balance.rub).toBe(20);
+    expect(ov.balance.daysLeft).toBe(1.4);
+    expect(ov.balance.low).toBe(true);
+    h.polzaBalance = null;
+    h.clock += 3 * 60000;
+    expect((await admin('GET', 'overview')).body.balance.rub).toBe(20);
+  });
+
+  it('по расписанию: мало денег — тревога, не чаще раза в 6 часов; /status показывает баланс', async () => {
+    const h = new Harness();
+    h.polzaBalance = 40;
+    await h.cron();
+    expect(h.telegram().filter((x) => x.text.includes('Мало денег на Polza')).length).toBe(1);
+    h.clock += 20 * 60000;
+    await h.cron();
+    expect(h.telegram().filter((x) => x.text.includes('Мало денег на Polza')).length).toBe(1);
+    await h.json('POST', '/v1/tg/webhook', { message: { from: { id: 777 }, chat: { id: 777 }, text: '/status' } }, { 'x-telegram-bot-api-secret-token': 'test-webhook-secret' });
+    expect(h.telegram().at(-1)!.text).toContain('Баланс Polza: 40.00 ₽');
+    // ключ Polza не уходит никуда, кроме Polza
+    expect(h.calls.filter((c) => c.url.includes('/balance')).every((c) => c.url.startsWith('https://polza.ai/'))).toBe(true);
+  });
+
+  it('порог из панели', async () => {
+    const h = new Harness();
+    const admin = await h.admin();
+    const b = (await admin('GET', 'budget')).body.budget;
+    expect(b.balanceAlertRub).toBe(150);
+    await admin('PUT', 'budget', { ...b, balanceAlertRub: 10, balanceAlertDays: 0 });
+    h.polzaBalance = 40;
+    await h.cron();
+    expect(h.telegram().some((x) => x.text.includes('Polza'))).toBe(false);
+  });
+});
+
 describe('ссылка входа из бота (браузер, когда мини-приложение не открывается)', () => {
   const hdr = { 'x-telegram-bot-api-secret-token': 'test-webhook-secret' };
   const msg = (text: string) => ({ message: { from: { id: 777 }, chat: { id: 777 }, text } });

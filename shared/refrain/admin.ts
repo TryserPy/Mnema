@@ -32,6 +32,11 @@ export interface Overview {
   unreadAlerts: number;
   newBugs: number;
   activeBlocks: number;
+  /**
+   * Остаток на счёте поставщика ИИ (Polza.ai, GET /balance). null — поставщик не сообщает баланс (напрямую OpenAI).
+   * rub — null, если спросить не вышло; daysLeft — на сколько дней хватит при среднем расходе за 7 дней (null — расхода не было).
+   */
+  balance: { rub: number | null; at: string | null; daysLeft: number | null; low: boolean; topUpUrl: string } | null;
 }
 
 export interface AccountRow {

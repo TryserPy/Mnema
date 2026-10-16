@@ -161,6 +161,7 @@ export type AlertKind =
   | 'greedy'
   | 'signup_wave'
   | 'upstream'
+  | 'balance_low' // на счёте поставщика ИИ мало денег
   | 'panel_login'
   | 'pin_wrong'
   | 'pin_locked'

@@ -69,6 +69,10 @@ export interface BudgetConfig {
   signupWavePerIp: number;
   /** «Сбои OpenAI»: доля ошибок за 10 минут. */
   upstreamErrorShare: number;
+  /** Остаток на счёте поставщика ИИ (Polza.ai): тревога, когда денег меньше этого, ₽… */
+  balanceAlertRub: number;
+  /** …или когда при нынешнем расходе их хватит меньше чем на столько дней. */
+  balanceAlertDays: number;
 }
 
 export const DEFAULT_BUDGET: BudgetConfig = {
@@ -80,7 +84,9 @@ export const DEFAULT_BUDGET: BudgetConfig = {
   greedyShare: 0.05,
   signupWaveHour: 30,
   signupWavePerIp: 5,
-  upstreamErrorShare: 0.2
+  upstreamErrorShare: 0.2,
+  balanceAlertRub: 150,
+  balanceAlertDays: 3
 };
 
 export function dayBudgetRub(b: BudgetConfig, daysInMonth: number): number {

@@ -23,6 +23,8 @@ export interface Settings {
   budgetBase: number;
   /** Последняя сверка с OpenAI. */
   leakCheck: { at: number; suspected: boolean };
+  /** Последний известный баланс у поставщика ИИ (src/balance.ts). */
+  balance: { rub: number | null; at: number };
 }
 
 const DEFAULTS: Settings = {
@@ -35,7 +37,8 @@ const DEFAULTS: Settings = {
   newbieZeroUntil: 0,
   pinLock: { fails: 0, until: 0 },
   budgetBase: DEFAULT_BUDGET.monthRub,
-  leakCheck: { at: 0, suspected: false }
+  leakCheck: { at: 0, suspected: false },
+  balance: { rub: null, at: 0 }
 };
 
 /** Infinity в JSON не живёт: guardFactor владельца хранится как null. */

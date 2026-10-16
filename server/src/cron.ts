@@ -1,7 +1,8 @@
-// Раз в 5 минут: повторы тревог, сверка с OpenAI, скачок расхода, чистка старых записей.
+// Раз в 5 минут: повторы тревог, сверка с OpenAI, скачок расхода, остаток денег у поставщика ИИ, чистка старых записей.
 import { PAGE_MICRO } from '../../shared/prompts/tasks';
 import { retryAlerts, raiseAlert } from './alerts';
 import { bump } from './auth';
+import { balanceCheck } from './balance';
 import { now, type Env } from './env';
 import { leakCheck } from './guard/leak';
 import { journal } from './journal';
@@ -12,6 +13,7 @@ export async function scheduled(env: Env): Promise<void> {
   const cfg = await loadSettings(env);
   await leakCheck(env, cfg).catch(() => null);
   await spikeCheck(env);
+  await balanceCheck(env).catch(() => null);
   await cleanup(env);
 }
 

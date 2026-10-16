@@ -8,6 +8,7 @@ import type { AccountRow, BlockRow, BugRow, DayStat, Overview } from '../../shar
 import { FOREVER, budget, effectiveGroup, normEmail, revokeSessions, type Account } from './accounts';
 import { listAlerts, raiseAlert } from './alerts';
 import { bump } from './auth';
+import { readBalance } from './balance';
 import { bugToGithub } from './bugs';
 import { checkPin, randomDigits, randomToken, safeEqual, tagged } from './crypto';
 import { now, type Env } from './env';
@@ -338,7 +339,9 @@ function cleanBudget(b: BudgetConfig): BudgetConfig {
     greedyShare: num(b?.greedyShare, 0.001, 1, d.greedyShare),
     signupWaveHour: num(b?.signupWaveHour, 1, 100000, d.signupWaveHour),
     signupWavePerIp: num(b?.signupWavePerIp, 1, 1000, d.signupWavePerIp),
-    upstreamErrorShare: num(b?.upstreamErrorShare, 0.01, 1, d.upstreamErrorShare)
+    upstreamErrorShare: num(b?.upstreamErrorShare, 0.01, 1, d.upstreamErrorShare),
+    balanceAlertRub: num(b?.balanceAlertRub, 0, 1000000, d.balanceAlertRub),
+    balanceAlertDays: num(b?.balanceAlertDays, 0, 365, d.balanceAlertDays)
   };
 }
 
@@ -418,7 +421,8 @@ async function overview(env: Env, cfg: Settings): Promise<Overview> {
     lastHourRub: (hour?.c ?? 0) / 1e6,
     unreadAlerts: counts?.al ?? 0,
     newBugs: counts?.bg ?? 0,
-    activeBlocks: counts?.bl ?? 0
+    activeBlocks: counts?.bl ?? 0,
+    balance: await readBalance(env, cfg, 2 * 60000)
   };
 }
 
