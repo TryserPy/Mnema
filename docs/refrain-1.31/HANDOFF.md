@@ -1,6 +1,15 @@
 # Refrain 1.31 — передача
 
-Ветка в обоих репозиториях: `claude/wizardly-volta-879gpb` (TryserPy/Mnema и TryserPy/Mnema-site). PR не создан, сервер не выложен.
+Ветка в обоих репозиториях: `claude/wizardly-volta-879gpb` (TryserPy/Mnema и TryserPy/Mnema-site). PR не создан, в `main` не влито.
+
+## Запуск (сделано владельцем, 16.10.2026)
+
+- Сервер выложен: **https://refrain-ai.mnema-ai.workers.dev** (Cloudflare Workers, база D1 `refrain`, id в `server/wrangler.toml`). Выкладка — из папки `server`: `npx wrangler deploy` (кнопка в GitHub Actions появится после слияния в `main`).
+- Все секреты заданы (`npx wrangler secret list`): OPENAI_API_KEY (ключ Polza.ai), TOKEN_SECRET, OWNER_EMAIL, OWNER_TELEGRAM_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, ADMIN_PIN_HASH, MAIL_FROM, SMTP_PASSWORD, GITHUB_ISSUE_TOKEN.
+- Бот подключён (`node scripts/set-webhook.mjs`), `/status` отвечает.
+- `REFRAIN_API` в приложении и адрес по умолчанию в панели — этот адрес.
+- Секреты и токены в чат не присылаются; если владелец показал токен на снимке — просить заменить его (`set-webhook.mjs` для бота).
+- Из облачной среды Claude сервер, polza.ai и api.telegram.org недоступны: живые проверки делает владелец и присылает вывод.
 
 ## Что готово
 
@@ -20,8 +29,8 @@
 
 ## Проверки (итог)
 
-- `npx tsc --noEmit` — чисто; `npx vitest run` — 66 файлов / 1121 тест; `npx vite build` и `npx vite build --mode web` — собираются.
-- `cd server && npx tsc --noEmit && npx vitest run` — 65 тестов.
+- `npx tsc --noEmit` — чисто; `npx vitest run` — 66 файлов / 1122 теста; `npx vite build` и `npx vite build --mode web` — собираются.
+- `cd server && npx tsc --noEmit && npx vitest run` — 70 тестов.
 - e2e против `npx vite preview --mode web --outDir dist-web --port 4174` (Playwright глобальный, Chromium `/opt/pw-browsers/chromium-1194`):
   - `e2e/v131-refrain.mjs` — вход, счётчик, лимит → «Без интернета», закрытый тест → приглашение, «Сообщить о проблеме» (22 ✓);
   - `e2e/v131-callouts.mjs` — выноски, светлая/тёмная × 1280/380 (89 ✓);
@@ -32,7 +41,9 @@
 
 ## Осталось
 
-- Ручные шаги запуска сервера и адрес `REFRAIN_API` (сейчас `https://refrain-ai.example.workers.dev`) — `docs/refrain-1.31/launch.md`.
+- Проверка владельцем в приложении: вход по почте (код с ящика Яндекса), конспект с фото через Polza, карточки (`json_schema`). Если что-то упадёт — чинить по снимку ошибки.
+- PR в Mnema-site → merge в `main` (тогда заработают `admin/` и `tg/` на GitHub Pages) → @BotFather Menu Button на `https://tryserpy.github.io/Mnema-site/tg/`.
+- Выпуск: поднять версию до 1.31.0 (`src/update.ts` `APP_VERSION`, `package.json`), PR в Mnema; после выпуска — панель → Доступ → «Все».
 - Справочник стилей для ИИ ≈ 11 тыс. знаков — больше оценки `promptTokens: 2500` у задачи `style` (резерв занижен, списание по факту). Решить: сжать справочник или поднять оценку в контракте.
 - «Тетрадь»: корешок разворота не ищется по картинке — режется посередине.
 - Перед слиянием удалить рабочие заметки `progress/`.
