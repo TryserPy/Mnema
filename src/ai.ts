@@ -20,7 +20,7 @@ async function ask(task: AiTask | null, req: AiRequest): Promise<string> {
   const sent = task ? aiRequest(task, req) : { ...req, refrain: refrainFields(req.refrain) };
   const r = await api.aiAsk(sent);
   noteAnswer(r, sent.refrain?.task);
-  if (!r.ok) throw new Error(humanError(r.error));
+  if (!r.ok) throw new Error(humanError(r.error) + (r.signIn ? ' Или войди в Refrain ИИ: Настройки → ИИ-помощник — тогда свой ключ не нужен.' : ''));
   if (!r.text) throw new Error('Модель вернула пустой ответ.');
   return r.text;
 }

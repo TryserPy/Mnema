@@ -472,8 +472,13 @@ export function createAiService({ http, store, refrain = null }) {
       let why = '';
       let lastError = '';
       let triedAfterRefrain = false;
+      // Свой ключ не сработал (неверный, отключён, кончились деньги), а Refrain ИИ дальше по порядку — спрашиваем его, остальное пропускаем.
+      let keyFailed = false;
+      let signIn = false;
+      const refrainReady = Boolean(refrain && req.refrain && typeof req.refrain === 'object' && refrain.signedIn());
       for (let i = 0; i < c.order.length; i++) {
         const step = c.order[i];
+        if (keyFailed && step !== 'refrain') continue;
         if (step === 'refrain') {
           if (!refrain || !req.refrain || typeof req.refrain !== 'object' || !refrain.signedIn()) continue;
           let r;
@@ -503,7 +508,14 @@ export function createAiService({ http, store, refrain = null }) {
         } catch (e) {
           lastError = e.message || String(e);
           // Без сети свой ключ не поможет — пробуем модель на компьютере, если она следующая.
-          if (!(e.network && step === 'key')) break;
+          if (e.network && step === 'key') continue;
+          if (step === 'key' && !e.cut && refrainReady && c.order.indexOf('refrain') > i) {
+            keyFailed = true;
+            continue;
+          }
+          // Свой ключ не подошёл, а в Refrain ИИ не вошли — подсказка в приложении (src/ai.ts), чтобы не смешивать с ответом сервиса.
+          if (step === 'key' && refrain && req.refrain && !refrain.signedIn()) signIn = true;
+          break;
         }
       }
       if (!lastError) {
@@ -511,7 +523,7 @@ export function createAiService({ http, store, refrain = null }) {
         if (refrain && req.refrain && !refrain.signedIn()) lastError += ' Или войди в Refrain ИИ: Настройки → ИИ-помощник.';
       }
       const code = refrainFail && !triedAfterRefrain && Object.prototype.hasOwnProperty.call(ERRORS, refrainFail.code) ? refrainFail.code : undefined;
-      return { ok: false, error: lastError, ...(code ? { code } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
+      return { ok: false, error: lastError, ...(code ? { code } : {}), ...(signIn ? { signIn: true } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
     },
     async transcribe(req) {
       if (!req || typeof req.data !== 'string' || req.data.length > 20 * 1024 * 1024) return { ok: false, error: 'Запись слишком длинная' };

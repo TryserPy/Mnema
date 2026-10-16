@@ -71,8 +71,11 @@ export interface AiRequest {
   refrain?: Omit<TaskRequest, 'wishes'>;
 }
 
-/** Ответ aiAsk (1.31): кто ответил и, для Refrain ИИ, остаток лимита; при ошибке Refrain ИИ — её код (экраны лимита, паузы, блока). */
-export type AiAnswer = { ok: true; text: string; via?: 'refrain' | 'key' | 'local'; quota?: Quota } | { ok: false; error: string; code?: ErrorCode; quota?: Quota };
+/**
+ * Ответ aiAsk (1.31): кто ответил и, для Refrain ИИ, остаток лимита; при ошибке Refrain ИИ — её код (экраны лимита, паузы, блока).
+ * signIn — свой ключ не подошёл, а в Refrain ИИ не вошли: подсказать вход.
+ */
+export type AiAnswer = { ok: true; text: string; via?: 'refrain' | 'key' | 'local'; quota?: Quota } | { ok: false; error: string; code?: ErrorCode; quota?: Quota; signIn?: boolean };
 
 export interface Vault {
   root: string;

@@ -275,6 +275,29 @@ describe('порядок поставщиков', () => {
     expect(await keyFirst.s.ask(req)).toMatchObject({ via: 'key' });
   });
 
+  it('свой ключ первым не подошёл (401) — спрашивается Refrain ИИ; не вошёл — подсказка войти', async () => {
+    let cfg: unknown = { provider: 'anthropic', keys: { anthropic: 'e:sk-bad' }, order: ['key', 'local', 'refrain'], models: { local: 'qwen' } };
+    const sent: string[] = [];
+    let signed = true;
+    let asked = 0;
+    const s = createAiService({
+      http: async (url) => (sent.push(url), { status: 401, text: JSON.stringify({ error: { message: 'invalid x-api-key' } }) }),
+      store: { read: () => cfg, write: (c) => (cfg = c), encrypt: (x) => 'e:' + x, decrypt: (x) => (x ? x.slice(2) : ''), newId: () => 'p1' },
+      refrain: { signedIn: () => signed, task: async () => (asked++, { ok: true, text: 'refrain' }) } as never
+    });
+    expect(await s.ask(req)).toMatchObject({ ok: true, text: 'refrain', via: 'refrain' });
+    expect(sent).toHaveLength(1); // модель на компьютере между ними не спрашивается
+    signed = false;
+    const r = await s.ask(req);
+    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({ error: '401: invalid x-api-key', signIn: true });
+    expect(asked).toBe(1);
+    // проверка ключа (без refrain) — по-прежнему только ключ
+    signed = true;
+    expect((await s.ask({ text: 'проверка' })).ok).toBe(false);
+    expect(asked).toBe(1);
+  });
+
   it('моды зовут aiAsk без поля refrain', () => {
     const src = readFileSync(join(__dirname, 'plugins', 'host.ts'), 'utf8');
     expect(src).not.toMatch(/refrain/);
