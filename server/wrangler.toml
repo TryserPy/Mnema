@@ -25,8 +25,8 @@ SMTP_PORT = "465"
 [[d1_databases]]
 binding = "DB"
 database_name = "refrain"
-# id появится после `wrangler d1 create refrain` (см. docs/refrain-1.31/launch.md)
-database_id = "00000000-0000-0000-0000-000000000000"
+# id базы из `wrangler d1 create refrain` (не секрет)
+database_id = "c3048c65-0729-4155-86a2-612086b7d2e6"
 migrations_dir = "migrations"
 
 [[durable_objects.bindings]]
