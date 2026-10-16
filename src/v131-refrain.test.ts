@@ -224,7 +224,7 @@ describe('кэш ответов', () => {
 
 describe('порядок поставщиков', () => {
   function service(refrain: { signedIn: () => boolean; task: (f: unknown) => Promise<unknown> } | null, order?: string[]) {
-    let cfg: unknown = { provider: 'anthropic', keys: { anthropic: 'e:sk-test' }, ...(order ? { order } : {}) };
+    let cfg: unknown = { provider: 'anthropic', keys: { anthropic: 'e:sk-test' }, order: order ?? ['refrain', 'key', 'local'] }; // порядок 1.31: Refrain ИИ первым (без order — миграция: свой ключ первым)
     const sent: string[] = [];
     const s = createAiService({
       http: async (url) => (sent.push(url), { status: 200, text: JSON.stringify({ content: [{ type: 'text', text: 'ответ ключа' }] }) }),

@@ -14,6 +14,8 @@ import { hidesTabBar, TabBar } from './components/TabBar';
 import { sessionPrefs } from './session';
 import { exactPlace, fillBack, getPlace, testBack } from './studyBack';
 import { setAppearanceTab } from './styleActions';
+import { openReportProblem } from './refrain';
+import { canReport } from './components/ReportProblem';
 import { forgetScreen, repress, saveRoute, startRoute, withTab } from './navMemory';
 import { NewSubjectDialog } from './components/SubjectDialogs';
 import { CommandPalette } from './components/CommandPalette';
@@ -440,6 +442,9 @@ export function App() {
       } else if (matches(e, st, 'goSettings')) {
         e.preventDefault();
         go({ name: 'settings' });
+      } else if (matches(e, st, 'reportProblem') && canReport()) {
+        e.preventDefault();
+        openReportProblem();
       } else if (matches(e, st, 'learnToday')) {
         e.preventDefault();
         go({ name: 'review', run: Date.now() });

@@ -1,6 +1,8 @@
 // «Профиль»: сверху «Мой прогресс» — три числа и ссылка на подробности, ниже всё остальное (настройки, возможности, корзина, копии, справка).
 import { useMemo } from 'react';
 import { openBackups } from '../components/BackupsHost';
+import { canReport } from '../components/ReportProblem';
+import { openReportProblem } from '../refrain';
 import { Icon, plural } from '../components/ui';
 import { periodStats } from '../progress';
 import { dayStart, DAY, streak } from '../srs';
@@ -12,7 +14,8 @@ export const profileLinks = (trashCount: number): { icon: string; title: string;
   { icon: 'grid', title: 'Возможности', hint: 'Что включено в Refrain', to: { name: 'features' } },
   { icon: 'repeat', title: 'Автокопии', hint: 'Копии твоих данных — можно вернуть вчерашнее', run: openBackups },
   { icon: 'trash', title: 'Корзина', hint: trashCount ? `Удалённое можно вернуть (${trashCount})` : 'Пока пусто — удалённое можно вернуть', to: { name: 'trash' } },
-  { icon: 'help', title: 'Справка', hint: 'Как учиться и как пользоваться', to: { name: 'help' } }
+  { icon: 'help', title: 'Справка', hint: 'Как учиться и как пользоваться', to: { name: 'help' } },
+  ...(canReport() ? [{ icon: 'flag', title: 'Сообщить о проблеме', hint: 'Что-то сломалось или неудобно — снимок экрана приложится сам', run: () => openReportProblem() }] : [])
 ];
 
 export function Profile({ go }: { go: (r: Route) => void }) {

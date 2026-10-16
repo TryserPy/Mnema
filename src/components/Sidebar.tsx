@@ -12,6 +12,8 @@ import { addTopic, childTopics, deleteMany, getData, type PastePlace, setSubject
 import type { AppData, Folder, Route, Subject, Topic } from '../types';
 import { DeleteFolder, DeleteSubject, deleteTopicWithUndo, EditFolder, EditSubject } from './SubjectDialogs';
 import { Collapse, Icon, Modal, SubjectMark, toast, usePresence } from './ui';
+import { canReport } from './ReportProblem';
+import { openReportProblem } from '../refrain';
 
 type Drop = { id: string; where: 'before' | 'after' | 'inside' } | null;
 type Drag = { kind: 'topic' | 'subject'; id: string } | null;
@@ -545,6 +547,11 @@ export function Sidebar({
         <button className={'foot-btn' + nav('help')} title="Справка" aria-label="Справка" onClick={() => go({ name: 'help' })}>
           <Icon name="help" />
         </button>
+        {canReport() && (
+          <button className="foot-btn" data-part="report-btn" title={`Сообщить о проблеме — снимок этого экрана уже будет в форме (${prettyCombo(keyFor(s, 'reportProblem')).join('+') || 'без клавиши'})`} aria-label="Сообщить о проблеме" onClick={() => openReportProblem()}>
+            <Icon name="flag" />
+          </button>
+        )}
       </>
     );
   }

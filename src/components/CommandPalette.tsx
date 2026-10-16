@@ -15,6 +15,8 @@ import { openExamDialog } from './ExamDialog';
 import { openRepeatDialog } from './RepeatDialog';
 import { openCreate } from './CreateMenu';
 import { examsOf } from '../examList';
+import { canReport } from './ReportProblem';
+import { openReportProblem } from '../refrain';
 
 interface Item {
   id: string;
@@ -97,6 +99,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
       ['Настройки', 'sliders', () => go({ name: 'settings' })],
       ['Возможности', 'puzzle', () => go({ name: 'features' })],
       ['Справка', 'help', () => go({ name: 'help' })],
+      ...(canReport() ? ([['Сообщить о проблеме (ошибка, баг, неудобно)', 'flag', () => setTimeout(() => openReportProblem(), 200)]] as [string, string, () => void][]) : []),
       ['Тёмная тема', 'sliders', () => updateSettings({ theme: 'dark' })],
       ['Светлая тема', 'sliders', () => updateSettings({ theme: 'light' })],
       ['Анимации: выключить', 'sliders', () => updateSettings({ motion: 'off' })],
