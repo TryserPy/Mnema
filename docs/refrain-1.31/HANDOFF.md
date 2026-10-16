@@ -39,7 +39,7 @@
 
 ## Решения владельца
 
-- Почта — Resend и свой домен (Brevo требует организацию и сайт на домене); Brevo в коде остался запасным (`BREVO_API_KEY`). Адрес сервера — `*.workers.dev`.
+- Почта — отдельный ящик Яндекса по SMTP (`MAIL_FROM`, `SMTP_PASSWORD`, `smtp.yandex.ru:465`), без домена; запасные — Resend со своим доменом (`RESEND_API_KEY`) и Brevo (`BREVO_API_KEY`). Адрес сервера — `*.workers.dev`.
 - Лимиты групп — из документа (`DEFAULT_GROUPS` в `shared/refrain/policy.ts`), меняются в панели: «Лимиты групп» (повышение — с PIN).
 - Старт в режиме «Тестировщики» (`DEFAULT_ACCESS`).
 - Возраст учеников и 152-ФЗ/GDPR — в `privacy/` не добавляем.

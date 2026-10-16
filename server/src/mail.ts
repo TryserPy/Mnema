@@ -1,5 +1,7 @@
-// Письма: Resend (секрет RESEND_API_KEY) или Brevo (BREVO_API_KEY) — какой ключ задан; отправитель — MAIL_FROM.
+// Письма: Resend (RESEND_API_KEY), ящик Яндекса или Mail.ru по SMTP (SMTP_PASSWORD) или Brevo (BREVO_API_KEY) — что задано, в этом порядке.
+// Отправитель — MAIL_FROM (для SMTP — сам ящик).
 import { outbound, type Env } from './env';
+import { sendSmtp } from './smtp';
 
 export async function sendMail(env: Env, to: string, subject: string, text: string): Promise<boolean> {
   if (!env.MAIL_FROM) return false;
@@ -15,6 +17,7 @@ export async function sendMail(env: Env, to: string, subject: string, text: stri
       return false;
     }
   }
+  if (env.SMTP_PASSWORD) return sendSmtp(env, to, subject, text);
   if (!env.BREVO_API_KEY) return false;
   try {
     const res = await outbound(env)('https://api.brevo.com/v3/smtp/email', {

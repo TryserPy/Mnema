@@ -18,6 +18,9 @@ TG_APP_URL = "https://tryserpy.github.io/Mnema-site/tg/"
 APP_VERSIONS = "1.31.0"
 POW_DIFFICULTY = "20"
 MAIL_FROM_NAME = "Refrain"
+# Почта по SMTP ящика (секреты MAIL_FROM и SMTP_PASSWORD). Mail.ru: smtp.mail.ru.
+SMTP_HOST = "smtp.yandex.ru"
+SMTP_PORT = "465"
 
 [[d1_databases]]
 binding = "DB"

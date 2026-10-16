@@ -29,10 +29,15 @@ export interface Env {
   BREVO_API_KEY?: string;
   /** Resend (resend.com) — вместо Brevo, если задан. */
   RESEND_API_KEY?: string;
+  /** Пароль приложения почтового ящика MAIL_FROM (SMTP); сервер и порт — SMTP_HOST / SMTP_PORT (по умолчанию smtp.yandex.ru:465). */
+  SMTP_PASSWORD?: string;
+  SMTP_HOST?: string;
+  SMTP_PORT?: string;
   MAIL_FROM?: string;
   GITHUB_ISSUE_TOKEN?: string;
   /** Только для тестов: подмена сети наружу и часов. Переменные wrangler — строки, поэтому в выкладке задать их нельзя. */
   TEST_FETCH?: typeof fetch;
+  TEST_CONNECT?: () => import('./smtp').SmtpSocket;
   TEST_NOW?: () => number;
 }
 

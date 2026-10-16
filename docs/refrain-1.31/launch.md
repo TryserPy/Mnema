@@ -7,7 +7,7 @@
 
 - Node.js 22 — https://nodejs.org (LTS). Проверка: `node -v`.
 - Репозиторий: `git clone https://github.com/TryserPy/Mnema && cd Mnema && git checkout claude/wizardly-volta-879gpb && cd server && npm ci`.
-- Аккаунты: Polza.ai (с балансом), Cloudflare (бесплатный), Resend (бесплатный) и свой домен, Telegram, GitHub.
+- Аккаунты: Polza.ai (с балансом), Cloudflare (бесплатный), отдельный ящик Яндекса, Telegram, GitHub.
 
 ## 1. Polza.ai — ключ и баланс
 
@@ -25,16 +25,16 @@
 
 Сверка расхода для поиска утечки ключа работает только с ключом напрямую от OpenAI (Usage API организации). С Polza она отключена — `OPENAI_PROJECT_ID` и `OPENAI_ADMIN_KEY` не задавай.
 
-## 2. Почта для кодов входа — Resend и свой домен
+## 2. Почта для кодов входа — ящик Яндекса (без домена)
 
-Brevo требует данные организации и сайт на своём домене, поэтому письма — через Resend (https://resend.com). Ему тоже нужен **свой домен** — без него письма не дойдут до учеников (бесплатно Resend шлёт только на твою почту).
+Коды уходят с отдельного ящика на Яндексе по SMTP (`smtp.yandex.ru:465`). Бесплатно, домен не нужен. У бесплатного ящика есть суточный лимит писем (обычно несколько сотен) — на старте хватает.
 
-1. Домен: купи любой недорогой, например `.ru` у российского регистратора (обычно несколько сотен рублей в год). Хватит домена вида `refrain-app.ru`.
-2. Регистрация в Resend: https://resend.com/signup (почта или GitHub, организация не нужна). Бесплатно — около 100 писем в день и 3 000 в месяц (проверь на https://resend.com/pricing); для кодов входа на старте хватает.
-3. Домен в Resend: https://resend.com/domains → Add Domain → введи домен → Resend покажет DNS-записи (TXT для SPF и DKIM, MX) → добавь их у регистратора в настройках DNS → Verify. Проверка занимает от нескольких минут до суток.
-   Можно перенести DNS домена в Cloudflare (бесплатно, https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/) — там же потом и почта для ответов (Email Routing).
-4. Ключ: https://resend.com/api-keys → Create API Key → права **Sending access**, домен — твой → скопируй (начинается с `re_`).
-5. Адрес отправителя — на этом домене, например `code@refrain-app.ru` (ящик заводить не нужно).
+1. Заведи отдельный ящик: https://passport.yandex.ru (например, `refrain.kod@yandex.ru`).
+2. В Почте: Все настройки → **Почтовые программы** → включи доступ по протоколу IMAP и «Пароли приложений и OAuth-токены».
+3. Пароль приложения: https://id.yandex.ru/security/app-passwords → **Почта** → назови «Refrain» → скопируй пароль (показывается один раз).
+4. Секреты: `MAIL_FROM` — адрес ящика, `SMTP_PASSWORD` — пароль приложения (не обычный пароль от ящика).
+
+Mail.ru — так же, но в `server/wrangler.toml` поменяй `SMTP_HOST` на `smtp.mail.ru`. Если ящик ограничат за рассылку — запасной путь: Resend и свой домен (`RESEND_API_KEY`, код уже есть; https://resend.com).
 
 ## 3. Telegram — бот для тревог и мини-приложения
 
@@ -85,8 +85,8 @@ https://github.com/settings/personal-access-tokens/new → **Fine-grained token*
 | `npx wrangler secret put TELEGRAM_BOT_TOKEN` | токен бота (шаг 3.1) |
 | `npx wrangler secret put TELEGRAM_WEBHOOK_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — сохрани, нужен в шаге 7 |
 | `npx wrangler secret put ADMIN_PIN_HASH` | строка из `node scripts/pin-hash.mjs` (спросит PIN из 6 цифр; PIN запомни) |
-| `npx wrangler secret put RESEND_API_KEY` | ключ Resend (шаг 2.4) |
-| `npx wrangler secret put MAIL_FROM` | адрес отправителя на твоём домене (шаг 2.5) |
+| `npx wrangler secret put MAIL_FROM` | адрес ящика Яндекса (шаг 2.1) |
+| `npx wrangler secret put SMTP_PASSWORD` | пароль приложения (шаг 2.3) |
 | `npx wrangler secret put GITHUB_ISSUE_TOKEN` | токен GitHub (шаг 4) |
 
 Проверка списка: `npx wrangler secret list`. `TOKEN_SECRET` потом не меняй без нужды — смена разлогинит всех.
