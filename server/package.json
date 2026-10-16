@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --config wrangler.toml",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "migrate:local": "wrangler d1 migrations apply refrain --local",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy --config wrangler.toml"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.22.0",

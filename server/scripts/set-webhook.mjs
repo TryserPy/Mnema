@@ -4,6 +4,11 @@
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
+
+// Всегда настройки сервера (server/wrangler.toml), откуда бы ни запустили: иначе wrangler может взять чужой
+// файл настроек выше по папкам и создать лишний Worker с секретами бота.
+const config = fileURLToPath(new URL('../wrangler.toml', import.meta.url));
 
 const server = (process.argv[2] || 'https://refrain-ai.mnema-ai.workers.dev').replace(/\/+$/, '');
 
@@ -22,7 +27,7 @@ function askHidden(q) {
 }
 
 function putSecret(name, value) {
-  execFileSync('npx', ['wrangler', 'secret', 'put', name], { input: value, stdio: ['pipe', 'inherit', 'inherit'], shell: process.platform === 'win32' });
+  execFileSync('npx', ['wrangler', 'secret', 'put', name, '--config', config], { input: value, stdio: ['pipe', 'inherit', 'inherit'], shell: process.platform === 'win32' });
 }
 
 // При вставке терминал бывает добавляет служебные коды (\e[200~ … \e[201~), пробелы и переводы строк — убираем.
