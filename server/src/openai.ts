@@ -11,7 +11,8 @@ export interface LlmUsage {
   /** Цена запроса от поставщика, µ₽ (Polza присылает usage.cost_rub). Нет — считаем по токенам. */
   costMicro?: number;
 }
-export type LlmResult = { ok: true; text: string; usage: LlmUsage; model: string } | { ok: false; status: number; usage: LlmUsage | null };
+/** error — что ответил поставщик (код и его сообщение, без ключа и без текста задачи): для /status и /check в боте. */
+export type LlmResult = { ok: true; text: string; usage: LlmUsage; model: string } | { ok: false; status: number; usage: LlmUsage | null; error?: string };
 
 /** Сколько ждать модель: фото страницы с рассуждением у Polza идёт до пары минут. Клиент ждёт 240 с — сервер укладывается раньше. */
 const LLM_TIMEOUT = 150000;
@@ -41,33 +42,55 @@ function addUsage(r: LlmResult, extra: LlmUsage | null): LlmResult {
   return { ...r, usage: sum } as LlmResult;
 }
 
+/** Напрямую в OpenAI (а не через посредника вроде Polza.ai). */
+const directOpenAI = (env: Env): boolean => /^https:\/\/api\.openai\.com(\/|$)/.test(env.LLM_BASE_URL || 'https://api.openai.com/v1');
+
+/** Ключ из `wrangler secret put` бывает вставлен с пробелом, переводом строки или словом «Bearer» — убираем. */
+export const llmKey = (env: Env): string => String(env.OPENAI_API_KEY || '').trim().replace(/^Bearer\s+/i, '').trim();
+
+/** Сообщение об ошибке поставщика — коротко и без ключа. */
+function upstreamError(env: Env, status: number, data: unknown, raw: string): string {
+  const d = data as { error?: { message?: unknown } | string; message?: unknown; detail?: unknown } | null;
+  let msg: unknown = (d && typeof d.error === 'object' && d.error?.message) || d?.error || d?.message || d?.detail || raw;
+  if (typeof msg !== 'string') msg = JSON.stringify(msg);
+  const key = llmKey(env);
+  let text = String(msg).replace(/\s+/g, ' ').trim();
+  if (key) text = text.split(key).join('***');
+  return `${status || 'нет связи'}${text ? ': ' + text.slice(0, 300) : ''}`;
+}
+
 async function callOnce(env: Env, spec: TaskSpec, system: string, user: string, image: { mime: string; data: string } | undefined, reasoning: TaskSpec['reasoning'], timeout: number): Promise<{ ok: boolean; cut: boolean; result: LlmResult }> {
   const content = image ? [{ type: 'text', text: user }, { type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.data}`, detail: 'high' } }] : user;
   const body = {
     model: env.OPENAI_MODEL,
     messages: [
-      { role: 'developer', content: system },
+      // Роль developer понимает только OpenAI напрямую; посредники (Polza.ai) и их поставщики — system (OpenAI считает её тем же).
+      { role: directOpenAI(env) ? 'developer' : 'system', content: system },
       { role: 'user', content }
     ],
     max_completion_tokens: spec.maxTokens,
     reasoning_effort: reasoning,
-    store: false,
+    ...(directOpenAI(env) ? { store: false } : {}),
     ...(spec.id === 'cards' ? { response_format: { type: 'json_schema', json_schema: CARDS_SCHEMA } } : {})
   };
+  if (!llmKey(env)) return { ok: false, cut: false, result: { ok: false, status: 0, usage: null, error: 'ключ ИИ не задан (секрет OPENAI_API_KEY)' } };
   let res: Response;
   try {
     res = await outbound(env)(`${(env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${env.OPENAI_API_KEY}` },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${llmKey(env)}` },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeout)
     });
-  } catch {
-    return { ok: false, cut: false, result: { ok: false, status: 0, usage: null } };
+  } catch (e) {
+    const why = e instanceof Error && e.name === 'TimeoutError' ? 'ИИ не ответил вовремя' : 'нет связи с поставщиком ИИ';
+    return { ok: false, cut: false, result: { ok: false, status: 0, usage: null, error: why } };
   }
+  let raw = '';
   let data: { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; cost_rub?: number; cost?: number }; model?: string } | null = null;
   try {
-    data = await res.json();
+    raw = await res.text();
+    data = JSON.parse(raw);
   } catch {
     data = null;
   }
@@ -77,9 +100,10 @@ async function callOnce(env: Env, spec: TaskSpec, system: string, user: string, 
   const usage = u
     ? { inputTokens: u.prompt_tokens ?? 0, cachedInputTokens: u.prompt_tokens_details?.cached_tokens ?? 0, outputTokens: u.completion_tokens ?? 0, ...(rub !== undefined && Number.isFinite(rub) && rub >= 0 ? { costMicro: Math.ceil(rub * 1e6) } : {}) }
     : null;
-  if (!res.ok || !data) return { ok: false, cut: false, result: { ok: false, status: res.status, usage } };
+  if (!res.ok || !data) return { ok: false, cut: false, result: { ok: false, status: res.status, usage, error: upstreamError(env, res.status, data, raw.slice(0, 300)) } };
   const text = String(data.choices?.[0]?.message?.content ?? '').trim();
-  if (!text || !usage) return { ok: false, cut: !text && data.choices?.[0]?.finish_reason === 'length', result: { ok: false, status: 502, usage } };
+  const finish = data.choices?.[0]?.finish_reason;
+  if (!text || !usage) return { ok: false, cut: !text && finish === 'length', result: { ok: false, status: 502, usage, error: !text ? `пустой ответ модели${finish ? ` (finish_reason: ${finish})` : ''}` : 'в ответе нет usage' } };
   return { ok: true, cut: false, result: { ok: true, text, usage, model: String(data.model ?? env.OPENAI_MODEL) } };
 }
 

@@ -25,6 +25,8 @@ export interface Settings {
   leakCheck: { at: number; suspected: boolean };
   /** Последний известный баланс у поставщика ИИ (src/balance.ts). */
   balance: { rub: number | null; at: number };
+  /** Последняя ошибка поставщика ИИ (код и его сообщение, без ключа и текста задачи) — для /status в боте. */
+  llmError: { at: number; task: string; error: string } | null;
 }
 
 const DEFAULTS: Settings = {
@@ -38,7 +40,8 @@ const DEFAULTS: Settings = {
   pinLock: { fails: 0, until: 0 },
   budgetBase: DEFAULT_BUDGET.monthRub,
   leakCheck: { at: 0, suspected: false },
-  balance: { rub: null, at: 0 }
+  balance: { rub: null, at: 0 },
+  llmError: null
 };
 
 /** Infinity в JSON не живёт: guardFactor владельца хранится как null. */

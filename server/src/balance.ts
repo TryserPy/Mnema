@@ -5,6 +5,7 @@ import type { Overview } from '../../shared/refrain/admin';
 import { raiseAlert } from './alerts';
 import { bump } from './auth';
 import { now, outbound, type Env } from './env';
+import { llmKey } from './openai';
 import { loadSettings, saveSetting, type Settings } from './settings';
 
 export const TOP_UP_URL = 'https://polza.ai/dashboard';
@@ -14,9 +15,9 @@ export const hasBalance = (env: Env): boolean => /(^|\.)polza\.ai(\/|$)/.test((e
 
 /** Спросить баланс у поставщика. null — не вышло (сеть, ключ, неожиданный ответ). */
 export async function fetchBalance(env: Env): Promise<number | null> {
-  if (!hasBalance(env) || !env.OPENAI_API_KEY) return null;
+  if (!hasBalance(env) || !llmKey(env)) return null;
   try {
-    const res = await outbound(env)(`${(env.LLM_BASE_URL || '').replace(/\/+$/, '')}/balance`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(6000) });
+    const res = await outbound(env)(`${(env.LLM_BASE_URL || '').replace(/\/+$/, '')}/balance`, { headers: { authorization: `Bearer ${llmKey(env)}` }, signal: AbortSignal.timeout(6000) });
     if (!res.ok) return null;
     const body = (await res.json()) as { amount?: unknown };
     const rub = typeof body.amount === 'string' || typeof body.amount === 'number' ? Number(body.amount) : NaN;

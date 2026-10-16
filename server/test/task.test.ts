@@ -19,7 +19,9 @@ describe('POST /v1/task', () => {
     expect(sent.model).toBe('openai/gpt-6-luna');
     expect(sent.max_completion_tokens).toBe(3000);
     expect(sent.reasoning_effort).toBe('low');
-    expect(sent.store).toBe(false);
+    // через Polza: роль system (developer понимает только OpenAI напрямую), без store
+    expect(sent.messages[0].role).toBe('system');
+    expect('store' in sent).toBe(false);
     expect(sent.messages[0].content).toContain('РАЗМЕТКА REFRAIN');
     const user = sent.messages[1].content[0].text as string;
     expect(user).toContain('Предмет: Биология.');
@@ -59,6 +61,67 @@ describe('POST /v1/task', () => {
     expect(r.body.charged).toBe(1); // 2 000 на вход и 900 на выход — одна страница, как ни округлила бы Polza
     const row = await h.env.DB.prepare('SELECT cost_micro, cached_tokens FROM usage').first<Record<string, unknown>>();
     expect(row).toMatchObject({ cost_micro: 20000, cached_tokens: 1500 });
+  });
+
+  it('напрямую в OpenAI: роль developer и store: false', async () => {
+    const h = new Harness();
+    h.env.LLM_BASE_URL = 'https://api.openai.com/v1';
+    await h.setting('mode', 'all');
+    const d = await h.login('direct@example.com');
+    let sent: Record<string, any> = {};
+    h.openai = (b) => {
+      sent = b;
+      return openAiOk();
+    };
+    expect((await d.task()).status).toBe(200);
+    expect(sent.messages[0].role).toBe('developer');
+    expect(sent.store).toBe(false);
+  });
+
+  it('ключ с пробелами, переводом строки или «Bearer» из wrangler secret put — уходит чистым', async () => {
+    const h = new Harness();
+    h.env.OPENAI_API_KEY = '  Bearer sk-test-fake\r\n';
+    await h.setting('mode', 'all');
+    const d = await h.login('trim@example.com');
+    expect((await d.task()).status).toBe(200);
+    const auth = h.calls.filter((c) => c.url.includes('/chat/completions')).map((c) => c.auth);
+    expect(auth).toEqual(['Bearer sk-test-fake']);
+  });
+
+  it('ошибка Polza запоминается (код и сообщение, без ключа и задачи) и видна в /status', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const d = await h.login('err@example.com');
+    h.openai = () => Response.json({ error: { message: 'Invalid API key sk-test-fake', code: 'UNAUTHORIZED' } }, { status: 401 });
+    expect((await d.task(summaryTask({ wishes: 'секретное пожелание' }))).body.error.code).toBe('upstream');
+    await h.json('POST', '/v1/tg/webhook', { message: { from: { id: 777 }, chat: { id: 777 }, text: '/status' } }, { 'x-telegram-bot-api-secret-token': 'test-webhook-secret' });
+    const text = h.telegram().at(-1)!.text;
+    expect(text).toContain('Последняя ошибка ИИ');
+    expect(text).toContain('textbook.summary): 401: Invalid API key ***');
+    expect(text).not.toContain('sk-test-fake');
+    expect(text).not.toContain('секретное');
+  });
+
+  it('/check в боте: ответ модели и баланс; при ошибке — код, сообщение Polza и что делать', async () => {
+    const h = new Harness();
+    const hdr = { 'x-telegram-bot-api-secret-token': 'test-webhook-secret' };
+    const check = { message: { from: { id: 777 }, chat: { id: 777 }, text: '/check' } };
+    h.openai = () => openAiOk('готово', { prompt_tokens: 20, completion_tokens: 5, cost_rub: 0.0012 });
+    await h.json('POST', '/v1/tg/webhook', check, hdr);
+    expect(h.telegram().at(-1)!.text).toMatch(/✅ ИИ отвечает \(https:\/\/polza\.ai\/api\/v1, модель openai\/gpt-6-luna\): «готово», цена 0,?\.?0012 ₽\.\nБаланс Polza: 1000\.00 ₽\./);
+    expect(await h.env.DB.prepare('SELECT COUNT(*) AS n FROM usage').first<{ n: number }>()).toMatchObject({ n: 0 });
+
+    h.openai = () => Response.json({ error: { message: 'Unsupported value: messages[0].role' } }, { status: 400 });
+    await h.json('POST', '/v1/tg/webhook', check, hdr);
+    expect(h.telegram().at(-1)!.text).toContain('❌ ИИ не ответил');
+    expect(h.telegram().at(-1)!.text).toContain('Ошибка: 400: Unsupported value: messages[0].role');
+
+    h.openai = () => Response.json({ error: { message: 'Unauthorized' } }, { status: 401 });
+    h.polzaBalance = null;
+    await h.json('POST', '/v1/tg/webhook', check, hdr);
+    const last = h.telegram().at(-1)!.text;
+    expect(last).toContain('wrangler secret put OPENAI_API_KEY');
+    expect(last).toContain('Баланс Polza: не отдаёт');
   });
 
   it('ключ OpenAI не попадает в ответы, даже при ошибке OpenAI; страницы при ошибке не списаны', async () => {

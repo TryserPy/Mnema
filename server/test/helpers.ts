@@ -12,6 +12,8 @@ const sha256hex = async (d: Uint8Array | string) => [...new Uint8Array(await cry
 export interface Call {
   url: string;
   body: string;
+  /** Заголовок authorization (проверка, каким ушёл ключ). */
+  auth?: string;
 }
 
 export interface Where {
@@ -46,14 +48,14 @@ export class Harness {
       TEST_FETCH: (async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input instanceof Request ? input.url : input);
         const body = typeof init?.body === 'string' ? init.body : init?.body instanceof FormData ? '[form]' : '';
-        this.calls.push({ url, body });
+        this.calls.push({ url, body, auth: new Headers(init?.headers).get('authorization') ?? undefined });
         if (url.startsWith('https://api.telegram.org/')) {
           if (!this.telegramUp) return new Response('bad gateway', { status: 502 });
           return Response.json({ ok: true, result: { message_id: this.tgId++ } });
         }
         if (url.startsWith('https://api.brevo.com/')) return Response.json({ messageId: 'x' }, { status: 201 });
         if (url.startsWith('https://api.resend.com/')) return Response.json({ id: 'x' });
-        if (url.startsWith('https://polza.ai/api/v1/chat/completions')) return this.openai(JSON.parse(body));
+        if (url.startsWith('https://polza.ai/api/v1/chat/completions') || url.startsWith('https://api.openai.com/v1/chat/completions')) return this.openai(JSON.parse(body));
         if (url.startsWith('https://polza.ai/api/v1/balance')) return this.polzaBalance === null ? new Response('{}', { status: 500 }) : Response.json({ amount: String(this.polzaBalance) });
         if (url.startsWith('https://api.openai.com/v1/organization/usage/')) return this.usageApi();
         if (url.startsWith('https://api.github.com/')) return Response.json({ number: 42 }, { status: 201 });

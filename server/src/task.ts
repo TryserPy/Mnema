@@ -16,7 +16,7 @@ import { checkTaskBody, imageInfo } from './guard/rules';
 import { recordEvent, windowRules } from './guard/windows';
 import { bump } from './auth';
 import { callOpenAI } from './openai';
-import { loadSettings, type Settings } from './settings';
+import { loadSettings, saveSetting, type Settings } from './settings';
 import { verifySigned } from './sign';
 
 export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: ExecutionContext): Promise<Response> {
@@ -109,6 +109,7 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
     await env.DB.prepare('UPDATE usage SET input_tokens = ?2, cached_tokens = ?3, output_tokens = ?4, cost_micro = ?5, ok = ?6, ms = ?7 WHERE id = ?1')
       .bind(row!.id, llm.usage?.inputTokens ?? 0, llm.usage?.cachedInputTokens ?? 0, llm.usage?.outputTokens ?? 0, spent, llm.ok ? 1 : 0, Date.now() - started)
       .run();
+    if (!llm.ok) ctx.waitUntil(saveSetting(env, 'llmError', { at: now(env), task: spec.id, error: llm.error || String(llm.status) }));
     ctx.waitUntil(afterTask(env, cfg, totals.month, limits, s.account.id, s.account.email, usage.day, !llm.ok));
     return { llm, cost, usage };
   })();
