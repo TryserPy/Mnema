@@ -345,7 +345,11 @@ export function App() {
       if (again.name === 'settings') setAppearanceTab('style');
       setFresh((n) => n + 1);
       r = again;
-    } else r = withTab(r);
+    } else {
+      // Телефон: «Профиль» из настроек, справки или статистики — это корень вкладки: внутри всё тоже с нуля.
+      if (r.name === 'profile' && ['settings', 'features', 'help', 'stats', 'trash'].includes(cur.name)) forgetScreen({ name: 'settings' });
+      r = withTab(r);
+    }
     // Повторение и контрольная помнят, откуда их запустили (с вкладкой), — туда и вернёмся.
     setRoute(fillBack(r, cur, getPlace()));
     setDrawer(false);
