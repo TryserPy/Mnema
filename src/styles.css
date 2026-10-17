@@ -1677,3 +1677,27 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .solve-photo img { max-width: 100%; max-height: 260px; border-radius: 12px; border: 1px solid var(--line); object-fit: contain; background: #fff; }
 .solve-result { padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); overflow-wrap: anywhere; }
 .solve-result .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+/* 1.32, N5: «Закрыть часть картинки» */
+.occl-view { width: 100%; max-height: 62dvh; display: flex; justify-content: center; }
+.occl-view svg { max-width: 100%; max-height: 62dvh; height: auto; border-radius: 12px; background: #fff; touch-action: pinch-zoom pan-y; }
+.occl-view.small { max-height: 140px; justify-content: flex-start; }
+.occl-view.small svg { max-height: 140px; }
+.occl-view[aria-busy='true'] { min-height: 120px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.occl-mask { fill: #ffeba2; stroke: #3b3b3b; stroke-width: 0.25%; vector-effect: non-scaling-stroke; }
+.occl-mask.target { fill: #ff8e8e; stroke-width: 2px; }
+.occl-mask.target.open { fill: transparent; stroke: #e5484d; stroke-width: 3px; stroke-dasharray: 8 5; }
+.occl-mask.other { fill: #ffeba2; }
+.occl-q { fill: #7a1414; font-weight: 700; pointer-events: none; font-family: var(--display, sans-serif); }
+.occl-pill rect { fill: #c62828; }
+.occl-pill text { fill: #fff; font-weight: 700; pointer-events: none; }
+.occl-canvas { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; }
+.occl-canvas svg { display: block; width: 100%; height: auto; max-height: 60dvh; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+.occl-mask.edit { fill: color-mix(in srgb, #ffeba2 88%, transparent); stroke: #3b3b3b; stroke-width: 2px; cursor: move; }
+.occl-mask.edit.sel { stroke: var(--accent); stroke-width: 3px; }
+.occl-mask.draft { fill: color-mix(in srgb, var(--accent) 25%, transparent); stroke: var(--accent); stroke-width: 2px; stroke-dasharray: 6 4; }
+.occl-num { fill: #3b3b3b; font-weight: 700; pointer-events: none; }
+.occl-handle { fill: var(--accent); stroke: #fff; stroke-width: 2px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
+.occl-sel { padding: 8px 10px; border-radius: 12px; background: var(--surface-2, var(--sunken)); }
+.occl-sel .input { min-width: 0; min-height: 44px; }
+.occl-empty { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1.5px dashed var(--line-2, var(--line)); border-radius: 14px; }
+@media (prefers-color-scheme: dark) { .occl-q { fill: #5a0d0d; } }

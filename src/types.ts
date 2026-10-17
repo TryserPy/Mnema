@@ -1,4 +1,5 @@
-export type CardType = 'basic' | 'reverse' | 'cloze' | 'typing' | 'problem';
+/** occlusion (1.32) — «закрыть часть картинки»: картинка в front, рамки в Card.occl. */
+export type CardType = 'basic' | 'reverse' | 'cloze' | 'typing' | 'problem' | 'occlusion';
 
 export type ImportantType = 'bold' | 'definition' | 'date' | 'name' | 'formula' | 'term' | 'box' | 'mine';
 
@@ -132,6 +133,7 @@ export interface Card {
   leechSeen?: boolean; // уже предлагали переписать «трудную» карточку
   page?: number; // страница учебника, откуда карточка
   listId?: string; // строка списка (словаря) темы
+  occl?: import('./occlusion').Occlusion; // рамки карточки «закрыть часть картинки» (type: 'occlusion')
   createdAt: string;
   updatedAt: string;
 }

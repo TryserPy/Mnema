@@ -6,6 +6,8 @@ import { CardEditor } from '../components/CardEditor';
 import { SketchPad, type Stroke } from '../components/Drawing';
 import { canSpeak, speak, stopSpeaking, useSpeaking } from '../speak';
 import { Markdown } from '../components/Markdown';
+import { OcclusionView } from '../components/Occlusion';
+import { occlImage } from '../occlusion';
 import { PageViewer } from '../components/PageViewer';
 import { Icon, Modal, AnimText, Skeleton, haptic, touchUI } from '../components/ui';
 import { checkNumber } from '../problems';
@@ -392,6 +394,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
           {route.only && !route.cardIds && <span className="chip neutral">{REPEAT_TEXT[route.only].short}</span>}
           {route.ahead && <span className="chip neutral">заранее — слабые места</span>}
         </div>
+        {prompt.occlusion !== undefined && card.occl && occlImage(card.front) && <OcclusionView img={occlImage(card.front)!} occl={card.occl} ord={prompt.occlusion} revealed={revealed} />}
         <div className="q-row">
           <Markdown text={prompt.question} className="question" />
           {listInfo?.lang && current?.ord === 0 && canSpeak() && <SpeakBtn text={card.front} lang={listInfo.lang} />}

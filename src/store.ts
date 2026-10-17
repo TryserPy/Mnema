@@ -20,6 +20,7 @@ import { cleanCustomMods, cleanMyStyle, cleanSnippets, cleanStyleBackup, cleanSt
 import { migrateAppearance } from './styleMigrate';
 import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
 import { cleanFitParams } from './fsrsFit';
+import { cleanOcclusion } from './occlusion';
 import { cleanStudyPick } from './studyPick';
 import { cleanExam, cleanNoteHistory, cleanSchedule, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
@@ -258,7 +259,8 @@ export function normalizeData(raw: unknown): AppData {
     subjects: cleanColors(cleanIconImgs(r.subjects)),
     ...(Array.isArray(r.trash) && r.trash.length ? { trash: cleanTrash(r.trash) } : {}),
     topics: cleanTopics(r.topics),
-    cards: r.cards,
+    // Рамки «закрыть часть картинки» из чужой копии — только проверенные (occlusion.ts).
+    cards: r.cards.map((c) => (c && c.type === 'occlusion' ? { ...c, occl: cleanOcclusion(c.occl) } : c)),
     states: r.states && typeof r.states === 'object' ? r.states : {},
     logs: Array.isArray(r.logs) ? r.logs : [],
     tests: Array.isArray(r.tests) ? r.tests : [],
@@ -1172,7 +1174,7 @@ export function importTopics(
     subjectIcon?: string; // значок нового предмета (эмодзи) и/или своя картинка — только если предмет создаётся
     subjectIconImg?: string;
     topic: Pick<Topic, 'name' | 'note'> & Partial<Pick<Topic, 'examDate' | 'source' | 'lists' | 'kind' | 'poems'>>;
-    cards?: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId'>> & {
+    cards?: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId' | 'occl'>> & {
       states?: Record<number, ItemState>;
       logs?: { ord: number; rating: 1 | 2 | 3 | 4; prevState: number; at: string; ms: number }[];
     })[];
@@ -1200,7 +1202,8 @@ export function importTopics(
     const states: Record<string, ItemState> = {};
     const logs: ReviewLogEntry[] = [];
     for (const c of it.cards ?? []) {
-      const card: Card = { type: c.type, front: c.front, back: c.back, why: c.why, ...(c.listId && it.topic.lists?.some((l) => l.id === c.listId) ? { listId: c.listId } : {}), id: uid(), topicId: t.id, createdAt: nowIso(), updatedAt: nowIso() };
+      const occl = c.type === 'occlusion' ? cleanOcclusion(c.occl) : undefined;
+      const card: Card = { type: c.type, front: c.front, back: c.back, why: c.why, ...(c.listId && it.topic.lists?.some((l) => l.id === c.listId) ? { listId: c.listId } : {}), ...(occl ? { occl } : {}), id: uid(), topicId: t.id, createdAt: nowIso(), updatedAt: nowIso() };
       newCards.push(card);
       for (const [ord, st] of Object.entries(c.states ?? {})) states[itemKey(card.id, Number(ord))] = st;
       for (const l of c.logs ?? []) logs.push({ key: itemKey(card.id, l.ord), cardId: card.id, topicId: t.id, rating: l.rating, prevState: l.prevState, at: l.at, ms: l.ms });

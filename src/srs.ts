@@ -1,5 +1,6 @@
 // Интервальные повторения на FSRS (ts-fsrs) и всё, что связано с «элементами» карточек.
 import { createEmptyCard, fsrs, Rating, type Card as FCard, type Grade } from 'ts-fsrs';
+import { occlAnswer, occlGroups } from './occlusion';
 import { instantiate } from './problems';
 import type { AppData, Card, ItemState, Settings } from './types';
 import { examsOf } from './examList';
@@ -70,6 +71,7 @@ export function itemOrds(card: Card): number[] {
   // Строка словаря без ответа («просто термин») не учится, пока не допишешь определение.
   if (card.listId && !card.back.trim()) return [];
   if (card.type === 'reverse') return [0, 1];
+  if (card.type === 'occlusion') return card.occl ? occlGroups(card.occl).map((_, i) => i) : [];
   if (card.type === 'cloze') {
     const n = clozeCount(card.front);
     return n > 0 ? Array.from({ length: n }, (_, i) => i) : [];
@@ -84,6 +86,8 @@ export interface Prompt {
   answer: string; // Markdown
   typed?: string; // для карточки с вводом — эталон
   numeric?: number[]; // для задачи — числа, которые надо получить
+  /** Карточка «закрыть часть картинки»: какой элемент (группу рамок) спрашиваем. */
+  occlusion?: number;
 }
 
 export function buildPrompt(card: Card, ord: number, seed = 1): Prompt {
@@ -103,6 +107,11 @@ export function buildPrompt(card: Card, ord: number, seed = 1): Prompt {
     return { question: q, answer: card.back ? `${a}\n\n${card.back}` : a };
   }
   if (card.type === 'typing') return { question: card.front, answer: card.back, typed: card.back };
+  if (card.type === 'occlusion') {
+    // Картинку с рамками рисует OcclusionView; здесь — текст вопроса и подписи рамок для ответа.
+    const label = card.occl ? occlAnswer(card.occl, ord) : '';
+    return { question: 'Что под рамкой?', answer: [label, card.back].filter(Boolean).join('\n\n') || 'Сверь с картинкой.', occlusion: ord };
+  }
   return { question: card.front, answer: card.back };
 }
 

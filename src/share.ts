@@ -11,7 +11,7 @@ interface TopicPackage {
   exportedAt: string;
   subject: { name: string; color: string; icon?: string; iconImg?: string };
   topic: Pick<Topic, 'name' | 'note'> & Partial<Pick<Topic, 'lists' | 'kind' | 'poems'>>;
-  cards: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId'>>)[];
+  cards: (Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId' | 'occl'>>)[];
 }
 
 /** Сохранить двоичный файл (колода Anki и т. п.). */
@@ -52,13 +52,13 @@ export function isTopicPackage(x: unknown): x is TopicPackage {
   return Boolean(p && p.kind === 'mnema-topic' && p.topic && typeof p.topic.name === 'string' && Array.isArray(p.cards));
 }
 
-const TYPES = new Set(['basic', 'reverse', 'cloze', 'typing', 'problem']);
+const TYPES = new Set(['basic', 'reverse', 'cloze', 'typing', 'problem', 'occlusion']);
 
 /** Добавляет тему из файла. Предмет ищется по названию, иначе создаётся. */
 export function importTopicPackage(pkg: TopicPackage) {
   const cards = pkg.cards
     .filter((c) => c && TYPES.has(c.type) && typeof c.front === 'string')
-    .map((c) => ({ type: c.type, front: String(c.front), back: String(c.back ?? ''), why: c.why ? String(c.why) : undefined, listId: typeof c.listId === 'string' ? c.listId : undefined }));
+    .map((c) => ({ type: c.type, front: String(c.front), back: String(c.back ?? ''), why: c.why ? String(c.why) : undefined, listId: typeof c.listId === 'string' ? c.listId : undefined, occl: c.occl }));
   const lists = Array.isArray(pkg.topic.lists) ? pkg.topic.lists.filter((l) => l && typeof l.id === 'string' && typeof l.title === 'string' && Array.isArray(l.cols)) : undefined;
   return importTopics([{ subjectName: String(pkg.subject?.name ?? 'Без предмета'), subjectColor: pkg.subject?.color, subjectIcon: typeof pkg.subject?.icon === 'string' ? [...pkg.subject.icon].slice(0, 4).join('') : undefined, subjectIconImg: cleanIconImg(pkg.subject?.iconImg), topic: { name: pkg.topic.name, note: String(pkg.topic.note ?? ''), lists, kind: pkg.topic.kind === 'rule' ? 'rule' : undefined, poems: Array.isArray(pkg.topic.poems) ? pkg.topic.poems.filter((p) => p && typeof p.text === 'string').map((p) => ({ id: String(p.id || Math.random().toString(36).slice(2, 10)), title: String(p.title ?? ''), author: p.author ? String(p.author) : undefined, text: p.text, chunk: Number(p.chunk) || 0, learned: 0, createdAt: String(p.createdAt ?? new Date().toISOString()), updatedAt: new Date().toISOString() })) : undefined }, cards }]);
 }

@@ -7,13 +7,16 @@ import { EDITOR_TIPS, wordCount } from '../tips';
 import type { Card, CardTemplate, CardType } from '../types';
 import { FormulaEditor } from './lazy';
 import { Markdown } from './Markdown';
+import { OcclusionEditor } from './Occlusion';
+import { occlFront, occlImage, type Occlusion } from '../occlusion';
 
 const TYPES: { value: CardType; label: string; hint: string }[] = [
   { value: 'basic', label: 'Вопрос — ответ', hint: 'Обычная карточка: вопрос спереди, ответ сзади.' },
   { value: 'reverse', label: 'В обе стороны', hint: 'Спросит и «термин → значение», и «значение → термин».' },
   { value: 'cloze', label: 'С пропуском', hint: 'Скрывает слово в предложении — нужно вспомнить его.' },
   { value: 'typing', label: 'Ввести ответ', hint: 'Нужно напечатать точный ответ: дату, число, слово.' },
-  { value: 'problem', label: 'Задача с числами', hint: 'Каждый раз новые числа — запоминаешь способ решения, а не ответ.' }
+  { value: 'problem', label: 'Задача с числами', hint: 'Каждый раз новые числа — запоминаешь способ решения, а не ответ.' },
+  { value: 'occlusion', label: 'Закрыть часть картинки', hint: 'Схема или карта: закрой подписи рамками — каждая рамка спросит отдельно.' }
 ];
 
 interface Props {
@@ -31,6 +34,9 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
   const [front, setFront] = useState(card?.front ?? initial?.front ?? '');
   const [back, setBack] = useState(card?.back ?? initial?.back ?? '');
   const [why, setWhy] = useState(card?.why ?? initial?.why ?? '');
+  // «Закрыть часть картинки»: картинка (в front) и рамки.
+  const [occImg, setOccImg] = useState(() => (card?.type === 'occlusion' ? (occlImage(card.front) ?? '') : ''));
+  const [occl, setOccl] = useState<Occlusion>(card?.occl ?? { masks: [], all: true });
   const [showWhy, setShowWhy] = useState(Boolean(card?.why || initial?.why));
   const [saved, setSaved] = useState(false);
   const [formulaFor, setFormulaFor] = useState<Field | null>(null);
@@ -46,7 +52,7 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
 
   const clozes = type === 'cloze' ? clozeCount(front) : 0;
   const probErrors = type === 'problem' ? problemErrors(front, back) : [];
-  const canSave = front.trim().length > 0 && (type === 'cloze' ? clozes > 0 : back.trim().length > 0) && probErrors.length === 0;
+  const canSave = type === 'occlusion' ? Boolean(occImg) && occl.masks.length > 0 : front.trim().length > 0 && (type === 'cloze' ? clozes > 0 : back.trim().length > 0) && probErrors.length === 0;
   const example = type === 'problem' && probErrors.length === 0 && front.trim() ? instantiate(front, back, exampleSeed) : null;
   const longAnswer = type !== 'cloze' && wordCount(back) > 25;
   const hasMath = /\$[^$]+\$/.test(front + back + why);
@@ -79,7 +85,7 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
 
   function save() {
     if (!canSave) return;
-    const payload = { type, front: front.trim(), back: back.trim(), why: why.trim() || undefined, ...(initial?.page && !card ? { page: initial.page } : {}) };
+    const payload = type === 'occlusion' ? { type, front: occlFront(occImg), back: back.trim(), why: why.trim() || undefined, occl } : { type, front: front.trim(), back: back.trim(), why: why.trim() || undefined, occl: undefined, ...(initial?.page && !card ? { page: initial.page } : {}) };
     if (card) {
       updateCard(card.id, payload);
       onDone?.();
@@ -88,6 +94,8 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
       setFront('');
       setBack('');
       setWhy('');
+      setOccImg('');
+      setOccl({ masks: [], all: occl.all });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       refs.front.current?.focus();
@@ -181,6 +189,8 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
         <span className="small muted grow">{typeInfo.hint}</span>
       </label>
 
+      {type === 'occlusion' && <OcclusionEditor img={occImg} occl={occl} onImage={setOccImg} onChange={setOccl} />}
+      {type !== 'occlusion' && (
       <label className="field">
         <span>{type === 'cloze' ? 'Предложение' : type === 'reverse' ? 'Термин' : 'Вопрос'}</span>
         <textarea
@@ -193,6 +203,7 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
         />
         {type === 'problem' && <span className="small muted">Изменяемые числа пиши так: {'{U=10..220}'} — от 10 до 220; с шагом: {'{m=0.5..5:0.5}'}.</span>}
       </label>
+      )}
       {type === 'cloze' && (
         <div className="row gap8 small muted wrap">
           <button type="button" className="btn small" onMouseDown={(e) => e.preventDefault()} onClick={makeCloze}>
@@ -203,7 +214,7 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
       )}
       {type !== 'cloze' && (
         <label className="field">
-          <span>{type === 'typing' ? 'Точный ответ' : type === 'reverse' ? 'Значение' : type === 'problem' ? 'Решение и ответ' : 'Ответ'}</span>
+          <span>{type === 'typing' ? 'Точный ответ' : type === 'reverse' ? 'Значение' : type === 'problem' ? 'Решение и ответ' : type === 'occlusion' ? 'Пояснение к ответу (необязательно)' : 'Ответ'}</span>
           <textarea ref={refs.back} rows={type === 'typing' ? 1 : 3} value={back} onFocus={() => (lastField.current = 'back')} onChange={(e) => setBack(e.target.value)} placeholder={type === 'typing' ? 'кислород' : type === 'problem' ? 'I = U / R = {=U/R} А' : ''} />
           {type === 'problem' && <span className="small muted">Ответ считай формулой в фигурных скобках со знаком =: {'{=U/R}'}. Можно: + − * / ^, скобки, sqrt(), sin() в градусах, pi, g = 9,8.</span>}
           {type === 'typing' && <span className="small muted">Несколько верных вариантов пиши через | например: кислород|O2</span>}

@@ -8,7 +8,7 @@ import type { CardType, HighlightSettings, ImportantType } from '../types';
 import { CardEditor } from './CardEditor';
 import { Icon, Modal, plural, Segmented, Switch, Collapse, toast } from './ui';
 
-const TYPE_NAMES: Record<CardType, string> = { basic: 'Вопрос — ответ', reverse: 'В обе стороны', cloze: 'С пропуском', typing: 'Ввести ответ', problem: 'Задача' };
+const TYPE_NAMES: Record<CardType, string> = { basic: 'Вопрос — ответ', reverse: 'В обе стороны', cloze: 'С пропуском', typing: 'Ввести ответ', problem: 'Задача', occlusion: 'Закрыть часть картинки' };
 
 export function ImportantPanel({ topicId, onShow, onPage, onClose }: { topicId: string; onShow: (text: string) => void; onPage: (n: number) => void; onClose: () => void }) {
   const data = useData();

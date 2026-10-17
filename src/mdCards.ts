@@ -205,7 +205,7 @@ export function parsePoems(body: string): { poems: { title: string; author?: str
 
 // ---------- Все карточки одним файлом ----------
 
-export const TYPE_LABEL: Record<CardType, string> = { basic: 'Вопрос — ответ', reverse: 'В обе стороны', cloze: 'С пропуском', typing: 'Ввод ответа', problem: 'Задача' };
+export const TYPE_LABEL: Record<CardType, string> = { basic: 'Вопрос — ответ', reverse: 'В обе стороны', cloze: 'С пропуском', typing: 'Ввод ответа', problem: 'Задача', occlusion: 'Закрыть часть картинки' };
 
 export interface FlatCard extends PlainCard {
   subject: string;

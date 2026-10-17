@@ -131,7 +131,7 @@ export function AnkiImport({ file, onClose, onOpenTopic }: { file?: File; onClos
     if (r.images) notes.push(`картинок: ${r.images}`);
     if (r.sounds) notes.push(`звук не переносится (${r.sounds})`);
     if (r.missingMedia) notes.push(`не нашлось картинок: ${r.missingMedia}`);
-    if (r.skipped) notes.push(`пропущено заметок: ${r.skipped} (например, Image Occlusion)`);
+    if (r.skipped) notes.push(`пропущено заметок: ${r.skipped} (без текста или картинки)`);
     return (
       <div className="stack gap12">
         <div className="row gap8">

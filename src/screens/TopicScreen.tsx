@@ -39,6 +39,8 @@ import { openExamDialog } from '../components/ExamDialog';
 import { NoteHistoryDialog } from '../components/NoteHistory';
 import { AiCardDrafts } from '../components/AiCardDrafts';
 import { aiAvailable } from '../ai';
+import { OcclusionView } from '../components/Occlusion';
+import { occlImage } from '../occlusion';
 
 // Карточки из источника и решение по шагам (1.32) — грузятся при открытии.
 const SourceCards = lazy(() => import('../components/SourceCards').then((m) => ({ default: m.SourceCards })));
@@ -52,7 +54,8 @@ const TYPE_LABEL: Record<CardType, string> = {
   reverse: 'В обе стороны',
   cloze: 'С пропуском',
   typing: 'Ввести ответ',
-  problem: 'Задача с числами'
+  problem: 'Задача с числами',
+  occlusion: 'Закрыть часть картинки'
 };
 
 export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r: Route) => void }) {
@@ -796,7 +799,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
               </span>
               <span>{nextDue(c)}</span>
             </span>
-            <Markdown className="card-row-q" text={c.type === 'cloze' ? buildPrompt(c, 0).question.replace(/\*\*/g, '') : c.front} />
+            {c.type === 'occlusion' && c.occl && occlImage(c.front) ? <OcclusionView img={occlImage(c.front)!} occl={c.occl} small /> : <Markdown className="card-row-q" text={c.type === 'cloze' ? buildPrompt(c, 0).question.replace(/\*\*/g, '') : c.front} />}
             {c.type !== 'cloze' && <Markdown className="muted small clamp" text={c.type === 'typing' ? c.back.split('|').join(' или ') : c.back} />}
           </button>
         ))}

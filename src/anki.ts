@@ -5,6 +5,7 @@ import { unzipSync } from 'fflate';
 import { Decompress as ZstdStream } from 'fzstd';
 import type { Database, SqlJsStatic } from 'sql.js';
 import { clozeOrdForAnki, gradeItem } from './srs';
+import { fromAnkiOcclusion, occlFront, occlGroups, occlImage, type Occlusion } from './occlusion';
 import type { CardType, ItemState, Settings } from './types';
 
 export interface AnkiLog {
@@ -21,6 +22,8 @@ export interface AnkiCard {
   back: string; // Markdown
   states: Record<number, ItemState>;
   logs: AnkiLog[];
+  /** Рамки заметки Image Occlusion (type: 'occlusion'). */
+  occl?: Occlusion;
 }
 
 export interface AnkiDeck {
@@ -35,7 +38,7 @@ export interface AnkiReport {
   images: number;
   sounds: number; // звук не переносится
   missingMedia: number;
-  skipped: number; // заметки, которые не удалось превратить в карточки (например, Image Occlusion)
+  skipped: number; // заметки, которые не удалось превратить в карточки (например, Image Occlusion без картинки)
   withProgress: number; // карточки с историей ответов
 }
 
@@ -310,7 +313,17 @@ interface NoteIn {
 function noteToCard(n: NoteIn, media: MediaCtx): { card: AnkiCard; ankiToOrd: (ord: number) => number } | null {
   const md = n.fields.map((f) => ankiHtmlToMarkdown(f, media));
   const joinedHtml = n.fields.join(' ');
-  if (/image-occlusion:/i.test(joinedHtml)) return null;
+  // Image Occlusion (Anki 23.10+): поле с рамками {{cN::image-occlusion:…}} и поле с картинкой → «закрыть часть картинки».
+  if (/image-occlusion:/i.test(joinedHtml)) {
+    const oi = n.fields.findIndex((f) => /image-occlusion:/i.test(f));
+    const occl = fromAnkiOcclusion(n.fields[oi]);
+    const ii = md.findIndex((f, i) => i !== oi && occlImage(f));
+    const img = ii >= 0 ? occlImage(md[ii]) : null;
+    if (!occl || !img) return null;
+    const extra = md.filter((f, i) => i !== oi && i !== ii && f.trim() && !/(^|\s)comments?$/i.test(n.fieldNames[i] ?? '')).join('\n\n');
+    const groups = occlGroups(occl);
+    return { card: { type: 'occlusion', front: occlFront(img), back: extra, occl, states: {}, logs: [] }, ankiToOrd: (ord) => groups.indexOf(ord) };
+  }
   const hasCloze = /\{\{c\d+::/i.test(joinedHtml);
   if (n.kind === 'cloze' || hasCloze) {
     const idx = md.findIndex((f) => /\{\{c\d+::/i.test(f));
@@ -341,6 +354,13 @@ function makeMedia(files: Map<string, () => Uint8Array | null>, report: AnkiRepo
         const hit = cache.get(name)!;
         if (hit) report.images++;
         return hit;
+      }
+      // Картинка прямо в поле (так выгружает сам Refrain): только картинки, только base64, в пределах размера.
+      if (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(name) && name.length * 0.75 <= MAX_IMAGE && total + name.length <= MAX_ALL_IMAGES) {
+        total += name.length;
+        report.images++;
+        cache.set(name, name);
+        return name;
       }
       const ext = name.split('.').pop()?.toLowerCase() ?? '';
       const get = files.get(name);

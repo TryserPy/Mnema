@@ -23,7 +23,7 @@ export function groupOf(type: ImportantType): SetGroup {
 }
 
 export interface DraftLike {
-  type: 'basic' | 'reverse' | 'cloze' | 'typing' | 'problem';
+  type: import('./types').CardType;
   front: string;
   back: string;
 }

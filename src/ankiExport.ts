@@ -4,6 +4,7 @@ import type { SqlJsStatic } from 'sql.js';
 import { itemKey } from './srs';
 import { sortedSubjects } from './store';
 import type { AppData, Card } from './types';
+import { ANKI_IO_BACK, ANKI_IO_CSS, ANKI_IO_FRONT, occlGroups, occlImage, toAnkiOcclusion } from './occlusion';
 
 const SCHEMA = `
 CREATE TABLE col (id integer primary key, crt integer not null, mod integer not null, scm integer not null, ver integer not null, dty integer not null, usn integer not null, ls integer not null, conf text not null, models text not null, decks text not null, dconf text not null, tags text not null);
@@ -42,7 +43,9 @@ function models(now: number) {
       ]
     },
     typing: { ...base, id: 1700000000003, name: 'Refrain: ввести ответ', type: 0, flds: [field('Front', 0), field('Back', 1)], tmpls: [tmpl('Card 1', 0, '{{Front}}\n\n{{type:Back}}', '{{Front}}\n\n<hr id=answer>\n\n{{type:Back}}')], req: [[0, 'any', [0]]] },
-    cloze: { ...base, id: 1700000000004, name: 'Refrain: с пропуском', type: 1, flds: [field('Text', 0), field('Back Extra', 1)], tmpls: [tmpl('Cloze', 0, '{{cloze:Text}}', '{{cloze:Text}}<br>\n{{Back Extra}}')], req: [[0, 'any', [0]]] }
+    cloze: { ...base, id: 1700000000004, name: 'Refrain: с пропуском', type: 1, flds: [field('Text', 0), field('Back Extra', 1)], tmpls: [tmpl('Cloze', 0, '{{cloze:Text}}', '{{cloze:Text}}<br>\n{{Back Extra}}')], req: [[0, 'any', [0]]] },
+    // «Закрыть часть картинки» (1.32) — как родная заметка Image Occlusion Anki 23.10+ (originalStockKind 6): Anki сам рисует рамки.
+    occlusion: { ...base, id: 1700000000005, name: 'Image Occlusion', type: 1, css: ANKI_IO_CSS, originalStockKind: 6, flds: [field('Occlusion', 0), field('Image', 1), field('Header', 2), field('Back Extra', 3), field('Comments', 4)], tmpls: [tmpl('Image Occlusion', 0, ANKI_IO_FRONT, ANKI_IO_BACK)], req: [[0, 'any', [0]]] }
   };
 }
 
@@ -187,7 +190,11 @@ export async function buildApkg(data: AppData, SQL: SqlJsStatic, opts: AnkiExpor
         let mid: number;
         let flds: string[];
         let ords: number[];
-        if (c.type === 'cloze') {
+        if (c.type === 'occlusion' && c.occl && occlImage(c.front)) {
+          mid = M.occlusion.id;
+          flds = [toAnkiOcclusion(c.occl), `<img src="${occlImage(c.front)}">`, '', toAnkiHtml(c.back || '') + why, ''];
+          ords = occlGroups(c.occl).map((_, i) => i);
+        } else if (c.type === 'cloze') {
           mid = M.cloze.id;
           const text = toAnkiHtml(toAnkiCloze(c.front));
           flds = [text, toAnkiHtml(c.back || '') + why];

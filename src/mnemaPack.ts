@@ -15,7 +15,7 @@ const MAX_ITEMS = 5000;
 const MAX_CARDS = 200000;
 
 type PackTopic = Pick<Topic, 'name' | 'note'> & Partial<Pick<Topic, 'lists' | 'kind' | 'poems'>>;
-type PackCard = Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId'>>;
+type PackCard = Pick<Card, 'type' | 'front' | 'back' | 'why'> & Partial<Pick<Card, 'listId' | 'occl'>>;
 
 export interface PackItem {
   subject: { name: string; color: string; icon?: string; iconImg?: string };
@@ -52,7 +52,7 @@ function itemOf(data: AppData, t: Topic): PackItem {
       ...(t.kind ? { kind: t.kind } : {}),
       ...(t.poems?.length ? { poems: t.poems.map((p) => ({ id: p.id, title: p.title, author: p.author, text: p.text, chunk: p.chunk, learned: 0, createdAt: p.createdAt, updatedAt: p.updatedAt })) } : {})
     },
-    cards: data.cards.filter((c) => c.topicId === t.id).map(({ type, front, back, why, listId }) => ({ type, front, back, why, ...(listId ? { listId } : {}) }))
+    cards: data.cards.filter((c) => c.topicId === t.id).map(({ type, front, back, why, listId, occl }) => ({ type, front, back, why, ...(listId ? { listId } : {}), ...(occl ? { occl } : {}) }))
   };
 }
 
@@ -143,7 +143,7 @@ export async function readPack(text: string, password = ''): Promise<ReadPack> {
 export function importPack(items: PackItem[]): { topics: number; cards: number; firstTopicId?: string } {
   if (items.length === 1) return importTopicPackage({ kind: 'mnema-topic', version: 1, exportedAt: '', ...items[0] });
   // Каждую тему проверяет та же функция, что и файл версии 1 (типы карточек, словари, стихи) — через importTopics одним изменением.
-  const TYPES = new Set(['basic', 'reverse', 'cloze', 'typing', 'problem']);
+  const TYPES = new Set(['basic', 'reverse', 'cloze', 'typing', 'problem', 'occlusion']);
   return importTopics(
     items.map((it) => ({
       subjectName: String(it.subject?.name ?? 'Без предмета'),
@@ -161,7 +161,7 @@ export function importPack(items: PackItem[]): { topics: number; cards: number; 
       },
       cards: it.cards
         .filter((c) => c && TYPES.has(c.type) && typeof c.front === 'string')
-        .map((c) => ({ type: c.type, front: String(c.front), back: String(c.back ?? ''), why: c.why ? String(c.why) : undefined, listId: typeof c.listId === 'string' ? c.listId : undefined }))
+        .map((c) => ({ type: c.type, front: String(c.front), back: String(c.back ?? ''), why: c.why ? String(c.why) : undefined, listId: typeof c.listId === 'string' ? c.listId : undefined, occl: c.occl }))
     }))
   );
 }
