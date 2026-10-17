@@ -7,13 +7,15 @@ import { SketchPad, type Stroke } from '../components/Drawing';
 import { canSpeak, speak, stopSpeaking, useSpeaking } from '../speak';
 import { Markdown } from '../components/Markdown';
 import { PageViewer } from '../components/PageViewer';
-import { Icon, Modal, AnimText, haptic, touchUI } from '../components/ui';
+import { Icon, Modal, AnimText, Skeleton, haptic, touchUI } from '../components/ui';
 import { checkNumber } from '../problems';
 import { compareSpoken, startVoice, voiceSupported, type VoiceSession } from '../voice';
 import { buildSession } from '../session';
 import { buildRepeatQueue, REPEAT_TEXT } from '../repeat';
 import { backLabel, reviewBack } from '../studyBack';
 import { openRepeatDialog, repeatAtOf } from '../components/RepeatDialog';
+import { useCardSwipe } from '../components/cardSwipe';
+import { Dismissible } from '../components/Dismissible';
 import '../session.css';
 import { buildPrompt, buildQueue, cardLapses, checkTyped, formatInterval, GRADES, MINUTE, previewIntervals, type QueueItem } from '../srs';
 import { getData, markLeechSeen, recordReview, tagLastAnswer, updateCard, useData } from '../store';
@@ -180,6 +182,15 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   );
 
   const blocked = Boolean(leechCard) || pageView !== null || whyAsk !== null;
+
+  // Палец: нажать на карточку — ответ, смахнуть вправо — «Помню», влево — «Снова».
+  const swipe = useCardSwipe({
+    enabled: !blocked && !handOpen && Boolean(current),
+    revealed,
+    tapReveal: !wantsInput,
+    onReveal: () => setRevealed(true),
+    onGrade: (v) => grade(v === 'good' ? Rating.Good : Rating.Again)
+  });
 
   const explainRef = useRef<() => void>(() => undefined);
   const voiceToggleRef = useRef<() => void>(() => undefined);
@@ -371,7 +382,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         </span>
       </div>
 
-      <div className="review-card" data-part="review-card" key={current?.key}>
+      <div className="review-card" data-part="review-card" key={current?.key} data-good={settings.simpleButtons ? 'Помню' : 'Хорошо'} data-again={settings.simpleButtons ? 'Не помню' : 'Снова'} {...swipe}>
         <div className="review-meta small muted">
           <span className="review-where">
             <span className="dot" style={{ background: subject?.color }} />
@@ -492,7 +503,12 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
                 ✦ Объясни иначе
               </button>
             )}
-            {explain.state === 'loading' && <div className="ai-box muted">Думаю, как объяснить проще…</div>}
+            {explain.state === 'loading' && (
+              <div className="ai-box stack gap8">
+                <span className="label">Думаю, как объяснить проще…</span>
+                <Skeleton lines={3} label="ИИ готовит объяснение" />
+              </div>
+            )}
             {explain.state === 'error' && <div className="hint warn">{explain.text}</div>}
             {explain.state === 'done' && (
               <div className="ai-box">
@@ -546,6 +562,13 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               </button>
             ))}
           </div>
+        )}
+        {revealed && touchUI() && (
+          <Dismissible id="review-swipe" className="swipe-tip small muted">
+            <span>
+              Можно смахнуть карточку: вправо — «{settings.simpleButtons ? 'Помню' : 'Хорошо'}», влево — «{settings.simpleButtons ? 'Не помню' : 'Снова'}».
+            </span>
+          </Dismissible>
         )}
         {revealed && cram && <p className="small muted center grade-note">Расписание не меняется — это повторение «сверх плана»</p>}
         {revealed && !cram && (

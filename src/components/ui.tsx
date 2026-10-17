@@ -1034,6 +1034,23 @@ export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align 
   );
 }
 
+// ---------- Скелетон: серые полоски вместо крутящегося кружка ----------
+
+/**
+ * Заглушка на время загрузки (1.32, п.10): показывает, какой формы будет содержимое, — экран не «прыгает»,
+ * когда оно появится. Для чтения с экрана — одна фраза «label». При «Анимации: выкл.» и «Уменьшить движение» не мерцает.
+ */
+export function Skeleton({ lines = 3, label = 'Загружаю…', block = false, className = '' }: { lines?: number; label?: string; block?: boolean; className?: string }) {
+  return (
+    <div className={'skel' + (className ? ' ' + className : '')} role="status" aria-live="polite" aria-label={label}>
+      {block && <div className="skel-block" />}
+      {Array.from({ length: lines }, (_, i) => (
+        <div key={i} className="skel-line" style={{ width: i === lines - 1 && lines > 1 ? '62%' : undefined }} />
+      ))}
+    </div>
+  );
+}
+
 // ---------- Телефон или компьютер ----------
 
 /** Сенсорный экран (телефон, планшет): нет мыши и клавиатуры — не показываем подсказки про них. */

@@ -254,3 +254,16 @@ export async function cloudSync(c: CloudSettings, secret: string, encPass: strin
 
 /** Имя секрета для входа в облако: пароль WebDAV или токен Яндекса. */
 export const cloudSecretName = (c: Pick<CloudSettings, 'kind'>): string => (c.kind === 'yandex' ? 'cloud-yandex' : 'cloud-pass');
+
+/**
+ * Синхронизировать с облаком по сохранённым настройкам и паролям (автосинхронизация и «потянуть вниз» на «Сегодня»).
+ * null — облако не настроено или пароль не сохранён: синхронизировать нечего.
+ */
+export async function cloudSyncSaved(): Promise<CloudResult | null> {
+  const c = getData().settings.cloud;
+  const api = window.mnemaApi;
+  if (!c || !api?.secretGet) return null;
+  const [pass, encPass] = await Promise.all([api.secretGet(cloudSecretName(c)), api.secretGet('cloud-enc')]);
+  if (!pass) return null;
+  return cloudSync(c, pass, c.encrypt ? (encPass ?? '') : '');
+}

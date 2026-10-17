@@ -5,7 +5,7 @@ import { formatCode, nonce, normCode, open, seal, syncKey } from '../../shared/s
 import { forSync, getData, normalizeData, replaceData } from '../store';
 import { mergeData, reportText, type MergeReport } from '../sync';
 import { warnTrashed } from '../cloud';
-import { Icon, Modal, Segmented } from './ui';
+import { Icon, Modal, Segmented, Skeleton } from './ui';
 
 interface Target {
   hosts: string[];
@@ -155,7 +155,7 @@ function ServePanel() {
   return (
     <div className="stack gap12 center">
       <p className="muted">На телефоне открой Refrain → «Настройки» → «Синхронизация» и наведи камеру на код.</p>
-      {qr ? <img className="sync-qr" src={qr} alt="QR-код для синхронизации" /> : <div className="spinner" />}
+      {qr ? <img className="sync-qr" src={qr} alt="QR-код для синхронизации" /> : <Skeleton block lines={0} className="sync-qr" label="Готовлю QR-код…" />}
       <div className="sync-code">
         <span className="small muted">или введи вручную</span>
         <span className="mono big-code">{s.hosts[0]}:{s.port}</span>

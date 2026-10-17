@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { backupDay, dayLabel, sizeLabel } from '../backups';
 import { normalizeData } from '../store';
-import { Modal, plural } from './ui';
+import { Modal, plural, Skeleton } from './ui';
 
 type Parsed = ReturnType<typeof normalizeData>;
 
@@ -34,7 +34,7 @@ export function BackupsDialog({ onClose, onRestore }: { onClose: () => void; onR
       <div className="stack gap12">
         <p className="small muted">Каждый день Refrain сам сохраняет копию — какими данные были в начале дня, до первых изменений. Хранятся 8 последних дней, только на этом устройстве.</p>
         {list === null ? (
-          <span className="small muted">Загружаю…</span>
+          <Skeleton lines={4} label="Загружаю список копий…" />
         ) : list.length === 0 ? (
           <p>Копий пока нет — первая появится, когда ты завтра откроешь Refrain.</p>
         ) : (
@@ -52,7 +52,7 @@ export function BackupsDialog({ onClose, onRestore }: { onClose: () => void; onR
                   {isOpen && (
                     <div className="bk-body">
                       {d === 'loading' || !d ? (
-                        <span className="small muted">Открываю…</span>
+                        <Skeleton lines={2} label="Открываю копию…" />
                       ) : d === 'bad' ? (
                         <span className="small bk-bad">Эта копия повреждена — её не открыть.</span>
                       ) : (

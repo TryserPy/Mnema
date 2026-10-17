@@ -8,7 +8,7 @@ import { finalNote, isNoteStyle, NOTE_STYLES, type NoteStyle } from '../textbook
 import type { PagePhoto } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { Markdown } from './Markdown';
-import { Icon, Modal, plural, Segmented, AnimText, touchUI } from './ui';
+import { Icon, Modal, plural, Segmented, AnimText, Skeleton, touchUI } from './ui';
 
 type Step = 'pages' | 'reading' | 'review';
 let uidN = 0;
@@ -217,7 +217,7 @@ export function TextbookImport({
               <div className="tb-pages">
                 {pages.map((p, i) => (
                   <div key={p.id} className="tb-page" style={{ animationDelay: i * 50 + 'ms' }}>
-                    <div className="tb-thumb">{thumbs[p.id] ? <img src={thumbs[p.id]} alt={`Страница ${p.n}`} /> : <div className="spinner" />}</div>
+                    <div className="tb-thumb">{thumbs[p.id] ? <img src={thumbs[p.id]} alt={`Страница ${p.n}`} /> : <Skeleton className="thumb" block lines={0} label={`Готовлю страницу ${p.n}…`} />}</div>
                     <div className="row gap4 center-row">
                       <span className="small muted">стр.</span>
                       <input className="input tiny num" type="number" value={p.n} onChange={(e) => patch(p.id, { n: Number(e.target.value) || p.n })} aria-label="Номер страницы" />

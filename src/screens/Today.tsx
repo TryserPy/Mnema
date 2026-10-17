@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Logo } from '../components/Logo';
-import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark } from '../components/ui';
+import { Collapse, Icon, Modal, plural, AnimatedNumber, SubjectMark, toast } from '../components/ui';
+import { PullToRefresh } from '../components/PullToRefresh';
 import { openRepeatDialog } from '../components/RepeatDialog';
 import { WeekCard } from './Stats';
 import { HomeworkToday } from '../components/Homework';
@@ -21,7 +22,19 @@ const WEEKDAY_FULL = ['Воскресенье', 'Понедельник', 'Вт�
 
 export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubject: () => void }) {
   const data = useData();
-  const now = useMemo(() => new Date(), [data]);
+  // «Потяни вниз»: пересчитать план (телефон мог пролежать открытым с вечера) и синхронизировать облако, если оно настроено.
+  const [tick, setTick] = useState(0);
+  const now = useMemo(() => new Date(), [data, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const refresh = async () => {
+    setTick(Date.now());
+    if (!data.settings.cloud) return toast('План на сегодня обновлён');
+    try {
+      const { cloudSyncSaved } = await import('../cloud');
+      toast((await cloudSyncSaved()) ? 'Облако: всё синхронизировано' : 'План обновлён. Чтобы синхронизировать облако, войди в него в «Настройках → Данные».');
+    } catch (e) {
+      toast('Облако: ' + (e as Error).message);
+    }
+  };
   const f = data.settings.features;
   const counts = todayCounts(data, now);
   const total = counts.learning + counts.review + counts.newCount;
@@ -81,7 +94,8 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   }
 
   return (
-    <div className="page narrow today-page">
+    <div className="page narrow today-page ptr-host">
+      <PullToRefresh onRefresh={refresh} />
       <div className="row between end-align">
         <div>
           <div className="muted">

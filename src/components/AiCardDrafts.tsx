@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { draftCards } from '../ai';
 import type { AiCardDraft } from '../aiCards';
 import { addCard, useData } from '../store';
-import { Icon, Modal, plural, toast } from './ui';
+import { Icon, Modal, Skeleton, plural, toast } from './ui';
 
 /** Сколько черновиков отмечено сразу: 40 новых карточек за раз — долг на недели, лучше начать с малого. */
 const PRESET = 10;
@@ -54,6 +54,13 @@ export function AiCardDrafts({ topicId, onClose }: { topicId: string; onClose: (
               <Icon name="sparkle" size={18} /> ИИ читает конспект и придумывает вопросы…
             </p>
             <p className="small muted">Текст конспекта (без картинок) отправлен ИИ-помощнику, которого ты настроил. Карточки он только предложит — добавишь ты сам.</p>
+            <div className="bulk-list" aria-hidden>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="bulk-row">
+                  <Skeleton lines={2} label="" />
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {phase.name === 'error' && (
