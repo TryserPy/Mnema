@@ -151,6 +151,47 @@ export function emitFrontmatter(meta: Record<string, unknown>): string {
   return lines.length ? `---\n${lines.join('\n')}\n---\n` : '';
 }
 
+/**
+ * Дата для свойств Obsidian: «ГГГГ-ММ-ДДTЧЧ:ММ» по местному времени (тип «Дата и время» в Obsidian).
+ * Дата из будущего (сбитые часы) не пишется дальше «сейчас».
+ */
+export function obsidianDate(iso: string | undefined, now = Date.now()): string | undefined {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return undefined;
+  const d = new Date(Math.min(t, now));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// ---------- Служебные данные Refrain (скрытый блок в конце заметки) ----------
+
+/** Служебные данные Refrain: невидимы в Obsidian (%% … %%) и в обычном Markdown (<!-- … -->), нужны только для возврата в Refrain. */
+const HIDDEN_RE = /\n*(?:%%|<!--)\s*refrain\s+(\{[^\n]*\})\s*(?:%%|-->)\s*$/;
+
+export function emitHiddenMeta(meta: Record<string, unknown>, flavor: 'obsidian' | 'plain'): string {
+  const clean = Object.fromEntries(Object.entries(meta).filter(([, v]) => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && !v.length)));
+  if (!Object.keys(clean).length) return '';
+  // %, < и > — экранами JSON: внутри не появится ни «%%», ни «-->», и блок не закроется раньше времени.
+  const json = JSON.stringify(clean).replace(/%/g, '\\u0025').replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+  return flavor === 'obsidian' ? `%% refrain ${json} %%` : `<!-- refrain ${json} -->`;
+}
+
+/** Достать скрытый блок из конца заметки. Нет блока или он испорчен — пустые данные, текст как есть. */
+export function takeHiddenMeta(body: string): { meta: Record<string, unknown>; body: string } {
+  const m = HIDDEN_RE.exec(body);
+  if (!m) return { meta: {}, body };
+  try {
+    const raw = JSON.parse(m[1]) as unknown;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { meta: {}, body };
+    // Только свои ключи с безопасными именами — без __proto__ и прочего.
+    const meta: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) if (/^[a-z][a-z0-9-]{0,40}$/.test(k)) meta[k] = v;
+    return { meta, body: body.slice(0, m.index).replace(/\s+$/, '\n') };
+  } catch {
+    return { meta: {}, body };
+  }
+}
+
 function yamlScalar(raw: string): unknown {
   const s = raw.trim();
   if (!s || s === '~' || s === 'null') return '';

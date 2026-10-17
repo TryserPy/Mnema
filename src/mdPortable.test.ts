@@ -208,7 +208,9 @@ describe('Всё в папку Markdown', () => {
     expect(ohm).toContain('$I=U/R$');
     expect(ohm).toContain('==важно==');
     expect(ohm.startsWith('---\n')).toBe(true);
-    expect(ohm).toContain('refrain-id: t1');
+    // 1.32: служебное — не в свойствах, а в скрытом блоке в конце.
+    expect(ohm).toContain('"refrain-id":"t1"');
+    expect(ohm.split('\n---\n')[0]).not.toMatch(/refrain-/);
     const sub = files.find((f) => f.path.endsWith('Сопротивление.md'))!.content;
     expect(sub).toContain('](../%D0%97%D0%B0%D0%BA%D0%BE%D0%BD%20%D0%9E%D0%BC%D0%B0.md)');
   });
@@ -356,7 +358,7 @@ describe('zip: защита и лимиты', () => {
 import { applyImportPlan } from './mdApply';
 
 describe('полный круг в данные приложения', () => {
-  const strip = (md: string) => md.replace(/^(refrain-id|created|updated): .*\n/gm, '').replace(/mnema:\/\/[a-z]+\/[\w-]+/g, 'mnema://x').replace(/"id":"[^"]*"/g, '"id":"-"');
+  const strip = (md: string) => md.replace(/^(refrain-id|created|updated): .*\n/gm, '').replace(/"(refrain-id|created|updated)":"[^"]*",?/g, '').replace(/mnema:\/\/[a-z]+\/[\w-]+/g, 'mnema://x').replace(/"id":"[^"]*"/g, '"id":"-"');
   it('после импорта экспорт даёт тот же набор файлов и те же тексты', async () => {
     let n = 0;
     const uid = () => 'n' + ++n;

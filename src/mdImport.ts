@@ -6,7 +6,7 @@
 // значки предметов проходят validIconImg.
 import { validIconImg } from './iconImage';
 import { parseCards, parseListTable, parsePoems, type PlainCard } from './mdCards';
-import { b64ToBytes, bytesToB64, bytesToImageUri, cleanPath, isDrawingSvg, MIME_BY_EXT, metaStr, parseFrontmatter, resolveRel, safeSvgText, sanitizeImportedMarkdown } from './mdPortable';
+import { b64ToBytes, bytesToB64, bytesToImageUri, cleanPath, isDrawingSvg, MIME_BY_EXT, metaStr, parseFrontmatter, resolveRel, takeHiddenMeta, safeSvgText, sanitizeImportedMarkdown } from './mdPortable';
 import { calloutsToLegacyFrames } from './callout';
 import { validExamDate } from './safeData';
 import type { CardType, ListKind, ListMode, PagePhoto, StudyList } from './types';
@@ -240,8 +240,10 @@ export function planImport(pack: Pack, opts: { fallbackName?: string } = {}): Im
   for (const path of names.slice(0, LIMITS.notes)) {
     if (ours && (path === 'README.md' || path === 'Карточки.md')) continue;
     const text = new TextDecoder('utf-8').decode(pack.files.get(path)!);
-    const { meta, body } = parseFrontmatter(text);
-    parsed.push({ path, meta, body });
+    const fm = parseFrontmatter(text);
+    // 1.32: служебное — в скрытом блоке в конце (он главнее); до 1.32 — прямо в свойствах, это тоже читается.
+    const hidden = takeHiddenMeta(fm.body);
+    parsed.push({ path, meta: { ...fm.meta, ...hidden.meta }, body: hidden.body });
   }
 
   // Ключи и указатель для ссылок

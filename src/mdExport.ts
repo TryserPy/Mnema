@@ -12,7 +12,7 @@
 // flavor 'obsidian' — ещё и ссылки между темами [[вики]] и видео ![](ссылка).
 import { legacyFramesToCallouts } from './callout';
 import { cardsToCsv, cardsToMarkdown, emitCards, emitList, emitPoems, type FlatCard, type PlainCard } from './mdCards';
-import { b64ToBytes, bytesToB64, EXT_BY_MIME, emitFrontmatter, linkPath, parseImageUri, relPath, safeFileName, uniquePath } from './mdPortable';
+import { b64ToBytes, bytesToB64, EXT_BY_MIME, emitFrontmatter, emitHiddenMeta, linkPath, obsidianDate, parseImageUri, relPath, safeFileName, uniquePath } from './mdPortable';
 import { hashText } from './noteText';
 import { byOrder, childTopics, sortedFolders, subjectGlossaries, subjectRules } from './store';
 import type { AppData, Subject, Topic } from './types';
@@ -155,27 +155,35 @@ export function buildMarkdownExport(data: AppData, opts: { flavor?: Flavor } = {
     });
     const siblings = p.topic.parentId ? planned.get(p.topic.parentId)?.kids : roots.filter((r) => r.subject.id === s.id && !r.topic.kind);
     const tags = ['refrain', safeFileName(s.name, 'предмет').replace(/\s+/g, '_').toLowerCase(), ...(t.important ? ['важное'] : [])];
+    // Видимые свойства — только то, что полезно человеку в Obsidian; служебное (id, словари, порядок, цвета) — в скрытом блоке в конце.
     const fm = emitFrontmatter({
       title: t.name,
       subject: s.name,
-      'subject-color': s.color,
-      'subject-icon': s.icon,
-      'subject-icon-image': iconPath(s.iconImg, s.name),
-      folder: folder?.name,
-      'folder-color': folder?.color,
-      'folder-icon': folder?.icon,
-      'folder-icon-image': iconPath(folder?.iconImg, folder?.name ?? ''),
       tags,
-      created: t.createdAt,
-      updated: t.updatedAt,
-      exam: t.examDate,
-      important: t.important ? true : undefined,
-      kind: t.kind,
-      order: siblings && siblings.length > 1 ? siblings.findIndex((x) => x === p) + 1 : undefined,
-      'refrain-id': t.id,
-      'refrain-lists': t.lists?.length ? t.lists.map(({ id, kind, title, cols, mode, lang }) => ({ id, kind, title, cols, mode, ...(lang ? { lang } : {}) })) : undefined,
-      'refrain-pages': pages.length ? pages : undefined
+      created: obsidianDate(t.createdAt),
+      updated: obsidianDate(t.updatedAt),
+      exam: t.examDate
     });
+    const hidden = emitHiddenMeta(
+      {
+        'refrain-id': t.id,
+        created: t.createdAt,
+        updated: t.updatedAt,
+        'subject-color': s.color,
+        'subject-icon': s.icon,
+        'subject-icon-image': iconPath(s.iconImg, s.name),
+        folder: folder?.name,
+        'folder-color': folder?.color,
+        'folder-icon': folder?.icon,
+        'folder-icon-image': iconPath(folder?.iconImg, folder?.name ?? ''),
+        important: t.important ? true : undefined,
+        kind: t.kind,
+        order: siblings && siblings.length > 1 ? siblings.findIndex((x) => x === p) + 1 : undefined,
+        'refrain-lists': t.lists?.length ? t.lists.map(({ id, kind, title, cols, mode, lang }) => ({ id, kind, title, cols, mode, ...(lang ? { lang } : {}) })) : undefined,
+        'refrain-pages': pages.length ? pages : undefined
+      },
+      flavor
+    );
     const parts: string[] = [fm, `# ${t.name}`, '', convertBody(t.note, p)];
     const cards = cardsOf(t);
     for (const l of t.lists ?? []) {
@@ -186,6 +194,7 @@ export function buildMarkdownExport(data: AppData, opts: { flavor?: Flavor } = {
     const plain: PlainCard[] = cards.filter((c) => !c.listId).map(({ type, front, back, why }) => ({ type, front, back, why }));
     if (plain.length) parts.push('', emitCards(plain));
     if (p.kids.length) parts.push('', '## Подтемы', '', ...p.kids.map((k) => (flavor === 'obsidian' ? `- [[${wikiTarget(k)}]]` : `- [${k.topic.name}](${linkPath(relPath(here, k.path))})`)));
+    if (hidden) parts.push('', hidden);
     files.push({ path: p.path, content: parts.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n' });
   }
   for (const p of planned.values()) emitTopic(p);
@@ -216,7 +225,7 @@ function readme(flavor: Flavor, topics: number, cards: number, hasCards: boolean
 
 - **Папки** — папки предметов, затем предметы, затем темы: \`Папка/Предмет/Тема.md\`. Подтемы лежат в папке с названием темы, правила — в «Правила», общие термины — в «Термины».
 - **Картинки и рисунки** — отдельные файлы в \`attachments/\`. Рисунки — SVG: открываются в браузере и любом редакторе.
-- **Свойства** сверху каждой темы (между \`---\`): название, предмет, теги, даты, контрольная. Начинающиеся с \`refrain-\` нужны Refrain, чтобы вернуть всё как было, — другим программам они не мешают.
+- **Свойства** сверху каждой темы (между \`---\`): название, предмет, теги, даты, контрольная. Служебные данные Refrain (порядок тем, цвета, словари) — в невидимой строке в самом конце заметки (\`%% refrain … %%\` или \`<!-- refrain … -->\`): по ней Refrain вернёт всё как было; её можно не трогать.
 - **Формулы** — \`$x^2$\` в строке и \`$$ … $$\` отдельным блоком (LaTeX). **Выделение маркером** — \`==текст==\`.
 - **Ссылки между темами** — ${flavor === 'obsidian' ? 'вики-ссылки \\[\\[Тема]]' : 'обычные относительные ссылки \\[текст](путь/Тема.md)'}.
 - **Видео** — ${flavor === 'obsidian' ? 'картинка-ссылка, Obsidian показывает плеер' : 'ссылка «▶ Видео»'}.
