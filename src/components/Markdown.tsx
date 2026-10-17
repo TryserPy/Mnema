@@ -171,6 +171,11 @@ if (DOMPurify.isSupported) DOMPurify.addHook('afterSanitizeAttributes', (node) =
     if (v != null && !SAFE_URL.test(v.trim()) && !LOCAL_REL.test(v.trim())) node.removeAttribute(a);
   }
   node.removeAttribute('srcset');
+  // Ссылка в новой вкладке (веб-версия) не должна получить доступ к окну Refrain через window.opener.
+  if (node.tagName === 'A' && node.hasAttribute('href')) {
+    if (node.hasAttribute('target')) node.setAttribute('target', '_blank');
+    node.setAttribute('rel', 'noopener noreferrer');
+  }
   // Метка формулы: принимаем только свою (текущую) и сразу снимаем атрибут; чужие значения вычищаем.
   let trusted = false;
   if (markdownPass && node.hasAttribute(MARK_ATTR)) {

@@ -4,23 +4,9 @@
 import { createAiService } from '../../shared/aiCore.mjs';
 import { initStorage, listBackups, loadData, readBackup, requestPersistence, saveData, saveDataSync } from './webStorage';
 import { listenInstall } from './webInstall';
+import { initVault, legacyDecode, migrateLegacySecrets, vaultGet, vaultPrune, vaultSet } from './webVault';
 
 type Api = NonNullable<Window['mnemaApi']>;
-
-const b64 = {
-  enc: (s: string) => {
-    let bin = '';
-    for (const b of new TextEncoder().encode(s)) bin += String.fromCharCode(b);
-    return btoa(bin);
-  },
-  dec: (s: string) => {
-    try {
-      return new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
-    } catch {
-      return '';
-    }
-  }
-};
 
 const ls = {
   get: (k: string) => {
@@ -61,22 +47,41 @@ async function http(url: string, init: HttpInit = {}): Promise<HttpRes> {
   }
 }
 
+/** Положить ключ ИИ в хранилище секретов; в настройки ИИ идёт только ссылка на него. */
+function sealKey(value: string): string {
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
+  vaultSet('ai:' + id, value);
+  return 'kv:' + id;
+}
+
 function createApi(): Api {
   const ai = createAiService({
     http,
     store: {
       read: () => {
+        let c: { keys?: Record<string, string> } = {};
         try {
-          return JSON.parse(ls.get('mnema-ai') || '{}');
+          c = JSON.parse(ls.get('mnema-ai') || '{}');
         } catch {
           return {};
         }
+        // До 1.32 ключи лежали прямо здесь в base64 («ks:…») — переносим в зашифрованное хранилище (webVault).
+        const keys = c.keys && typeof c.keys === 'object' ? c.keys : {};
+        const old = Object.entries(keys).filter(([, v]) => typeof v === 'string' && v.startsWith('ks:'));
+        if (old.length) {
+          for (const [k, v] of old) keys[k] = sealKey(legacyDecode(v.slice(3)));
+          ls.set('mnema-ai', JSON.stringify(c));
+        }
+        return c;
       },
-      write: (c) => ls.set('mnema-ai', JSON.stringify(c)),
-      // Это не шифрование (в браузере нечем хранить ключ отдельно от данных), а защита от случайного подсмотра:
-      // ключ лежит только в хранилище этого сайта в этом браузере и никуда, кроме выбранного ИИ-сервиса, не уходит.
-      encrypt: (s) => 'ks:' + b64.enc(s),
-      decrypt: (s) => (s && s.startsWith('ks:') ? b64.dec(s.slice(3)) : ''),
+      write: (c) => {
+        ls.set('mnema-ai', JSON.stringify(c));
+        const refs = Object.values((c as { keys?: Record<string, string> }).keys ?? {}).filter((v) => typeof v === 'string' && v.startsWith('kv:'));
+        vaultPrune('ai:', new Set(refs.map((v) => 'ai:' + v.slice(3))));
+      },
+      // Ключ ИИ — в зашифрованном хранилище (webVault: AES-GCM, неизвлекаемый ключ в IndexedDB); в настройках — только ссылка «kv:…».
+      encrypt: (s) => sealKey(s),
+      decrypt: (s) => (s && s.startsWith('kv:') ? vaultGet('ai:' + s.slice(3)) : s && s.startsWith('ks:') ? legacyDecode(s.slice(3)) : ''),
       newId: () => Math.random().toString(16).slice(2, 14)
     }
   });
@@ -100,9 +105,9 @@ function createApi(): Api {
       const res = await http(r.url, { method: r.method, headers: r.headers, body: r.body, timeout: r.timeout });
       return { status: res.status, text: res.text || res.error || '' };
     },
-    secretGet: async (name) => b64.dec(ls.get('mnema-secret:' + name) ?? ''),
+    secretGet: async (name) => vaultGet(name),
     secretSet: async (name, value) => {
-      ls.set('mnema-secret:' + name, value ? b64.enc(value) : '');
+      vaultSet(name, value);
       return true;
     },
     // В браузере нет «выбора папки», поэтому экспорт для Obsidian — один zip-архив, как на телефоне.
@@ -251,6 +256,8 @@ export async function initWeb(): Promise<boolean> {
     return false;
   }
   await initStorage();
+  await initVault();
+  migrateLegacySecrets();
   window.mnemaApi = createApi();
   void requestPersistence();
   registerWorker();

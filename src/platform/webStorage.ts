@@ -51,6 +51,19 @@ function tx<T>(store: string, mode: IDBTransactionMode, run: (s: IDBObjectStore)
 const get = <T>(store: string, key: string) => tx<T>(store, 'readonly', (s) => s.get(key));
 const put = (store: string, key: string, value: string) => tx(store, 'readwrite', (s) => void s.put(value, key));
 const del = (store: string, key: string) => tx(store, 'readwrite', (s) => void s.delete(key));
+/** Ключ шифрования секретов (CryptoKey, неизвлекаемый) — в той же базе; IndexedDB хранит его как объект, а не как байты. */
+export async function vaultKey(): Promise<CryptoKey | null> {
+  if (!db || typeof crypto === 'undefined' || !crypto.subtle) return null;
+  try {
+    const have = await tx<CryptoKey>(KV, 'readonly', (s) => s.get('vault-key'));
+    if (have) return have;
+    const k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    await tx(KV, 'readwrite', (s) => void s.put(k, 'vault-key'));
+    return k;
+  } catch {
+    return null;
+  }
+}
 const keys = (store: string) => tx<IDBValidKey[]>(store, 'readonly', (s) => s.getAllKeys()).then((k) => (k ?? []).map(String));
 
 function ls(op: 'get' | 'set' | 'remove', key: string, value?: string): string | null | boolean {
