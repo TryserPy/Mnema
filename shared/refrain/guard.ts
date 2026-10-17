@@ -167,7 +167,8 @@ export type AlertKind =
   | 'pin_locked'
   | 'bug';
 
-export type AlertButton = 'block' | 'unblock' | 'pause' | 'restore_mode' | 'open_panel';
+/** trust_device / kill_device — кнопки бота прямо в сообщении («Это я» / «Это не я, завершить сеанс»), не мини-приложение. */
+export type AlertButton = 'block' | 'unblock' | 'pause' | 'restore_mode' | 'open_panel' | 'trust_device' | 'kill_device';
 
 /** Тревога владельцу. Хранится в базе, пока не прочитана; уходит в Telegram, после 3 неудач — письмом. */
 export interface Alert {

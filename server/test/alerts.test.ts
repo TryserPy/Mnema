@@ -285,3 +285,58 @@ describe('удаление аккаунта', () => {
     expect((await again.call('GET', '/v1/me')).body.quota.day.used).toBe(0);
   });
 });
+
+describe('1.32: вход в панель — тревога только с нового устройства', () => {
+  const hdr = { 'x-telegram-bot-api-secret-token': 'test-webhook-secret' };
+  const msg = (text: string) => ({ message: { from: { id: 777 }, chat: { id: 777 }, text } });
+  const link = async (h: Harness) => {
+    await h.json('POST', '/v1/tg/webhook', msg('/panel'), hdr);
+    const sent = h.calls.filter((c) => c.url.includes('/sendMessage')).map((c) => JSON.parse(c.body));
+    const btn = sent.at(-1).reply_markup.inline_keyboard[0].find((b: { url?: string }) => b.url);
+    return decodeURIComponent(btn.url.split('#link=')[1]);
+  };
+  const device = { id: 'Zx3k9Q2mT7vB1nC5dF8hJ0', name: 'Chrome · Windows' };
+
+  it('из мини-приложения Telegram — без тревоги; новый браузер — тревога с кнопками «Это я» / «Это не я»', async () => {
+    const h = new Harness();
+    await h.admin();
+    expect(h.telegram().some((m) => m.text.includes('Вход в панель'))).toBe(false);
+    const r = await h.json('POST', '/v1/admin/login/link', { link: await link(h), device });
+    expect(r.status).toBe(200);
+    const alert = h.calls.filter((c) => c.url.includes('/sendMessage')).map((c) => JSON.parse(c.body)).find((b) => b.text.includes('нового устройства'));
+    expect(alert.text).toContain('Chrome · Windows');
+    expect(alert.text).toMatch(/Когда: .* МСК/);
+    const kb = alert.reply_markup.inline_keyboard.flat();
+    const ok = kb.find((b: { callback_data?: string }) => b.callback_data?.startsWith('pl:ok:'));
+    const kill = kb.find((b: { callback_data?: string }) => b.callback_data?.startsWith('pl:kill:'));
+    expect(ok && kill).toBeTruthy();
+
+    // «Это я» — со следующего входа с этого браузера тревог нет
+    await h.json('POST', '/v1/tg/webhook', { callback_query: { id: 'q1', from: { id: 777 }, data: ok.callback_data, message: { message_id: 5, text: alert.text } } }, hdr);
+    const before = h.telegram().filter((m) => m.text.includes('нового устройства')).length;
+    expect((await h.json('POST', '/v1/admin/login/link', { link: await link(h), device })).status).toBe(200);
+    expect(h.telegram().filter((m) => m.text.includes('нового устройства')).length).toBe(before);
+
+    // «Это не я» с чужого устройства — его сеанс закрыт
+    const other = { id: 'Aa1Bb2Cc3Dd4Ee5Ff6Gg7H', name: 'Firefox · Linux' };
+    const r2 = await h.json('POST', '/v1/admin/login/link', { link: await link(h), device: other });
+    const alert2 = h.calls.filter((c) => c.url.includes('/sendMessage')).map((c) => JSON.parse(c.body)).filter((b) => b.text.includes('Firefox')).at(-1);
+    const kill2 = alert2.reply_markup.inline_keyboard.flat().find((b: { callback_data?: string }) => b.callback_data?.startsWith('pl:kill:'));
+    expect((await h.json('GET', '/v1/admin/overview', undefined, { authorization: `Bearer ${r2.body.token}` })).status).toBe(200);
+    await h.json('POST', '/v1/tg/webhook', { callback_query: { id: 'q2', from: { id: 777 }, data: kill2.callback_data, message: { message_id: 6, text: alert2.text } } }, hdr);
+    expect((await h.json('GET', '/v1/admin/overview', undefined, { authorization: `Bearer ${r2.body.token}` })).status).not.toBe(200);
+    // чужой пользователь Telegram кнопку нажать не может
+    const r3 = await h.json('POST', '/v1/admin/login/link', { link: await link(h), device: { id: 'Qq1Ww2Ee3Rr4Tt5Yy6Uu7I', name: 'X' } });
+    expect(r3.status).toBe(200);
+  });
+
+  it('/start — приветствие с командами, /logout — закрывает все сеансы', async () => {
+    const h = new Harness();
+    await h.json('POST', '/v1/tg/webhook', msg('/start'), hdr);
+    expect(h.telegram().at(-1)!.text).toMatch(/Привет[\s\S]*\/logout/);
+    const r = await h.json('POST', '/v1/admin/login/link', { link: await link(h), device });
+    await h.json('POST', '/v1/tg/webhook', msg('/logout'), hdr);
+    expect(h.telegram().at(-1)!.text).toContain('Все сеансы панели завершены');
+    expect((await h.json('GET', '/v1/admin/overview', undefined, { authorization: `Bearer ${r.body.token}` })).status).not.toBe(200);
+  });
+});

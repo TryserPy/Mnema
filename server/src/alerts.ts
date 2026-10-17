@@ -40,14 +40,20 @@ const BUTTON_TEXT: Record<AlertButton, string> = {
   unblock: 'Разблокировать',
   pause: 'Пауза',
   restore_mode: 'Вернуть режим',
-  open_panel: 'Открыть панель'
+  open_panel: 'Открыть панель',
+  trust_device: '✅ Это я',
+  kill_device: '⛔ Это не я — завершить сеанс'
 };
+
+/** «17.10, 15:32 МСК» — время для сообщений бота. */
+export const mskTime = (ms: number): string => new Date(ms).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' МСК';
 
 const ICON = { info: 'ℹ️', warn: '⚠️', critical: '🚨' } as const;
 
 /** Текст сообщения. Только маски и цифры: без секретов, полных почт и содержимого запросов. */
-export function alertText(a: { level: Alert['level']; title: string; text: string; rules?: RuleId[]; who?: Alert['who']; done: ReactionKind[]; count: number }): string {
+export function alertText(a: { level: Alert['level']; title: string; text: string; rules?: RuleId[]; who?: Alert['who']; done: ReactionKind[]; count: number; at?: number }): string {
   const lines = [`${ICON[a.level]} ${a.title}`, a.text];
+  if (a.at) lines.push(`Когда: ${mskTime(a.at)}`);
   if (a.rules?.length) lines.push(`Правила: ${a.rules.join(', ')}`);
   const who = [a.who?.email, a.who?.ip && `IP ${a.who.ip}`, a.who?.asn && `AS${a.who.asn}`, a.who?.device && `устройство «${a.who.device}»`].filter(Boolean);
   if (who.length) lines.push(`Кто: ${who.join(' · ')}`);
@@ -58,8 +64,10 @@ export function alertText(a: { level: Alert['level']; title: string; text: strin
 
 function buttonsFor(env: Env, id: number, buttons: AlertButton[], target?: string): TgButton[][] {
   const url = (b: AlertButton) => `${env.TG_APP_URL}#alert=${id}&do=${b}${target ? `&t=${encodeURIComponent(target)}` : ''}`;
-  const all = buttons.map((b) => ({ text: BUTTON_TEXT[b], url: b === 'open_panel' ? env.TG_APP_URL : url(b) }));
-  return [all.slice(0, 2), all.slice(2)].filter((r) => r.length);
+  // «Это я» / «Это не я» — ответ прямо в боте, без панели; каждая — своей строкой (длинные подписи).
+  const inBot = buttons.filter((b) => (b === 'trust_device' || b === 'kill_device') && target).map((b): TgButton => ({ text: BUTTON_TEXT[b], kind: 'callback', data: `pl:${b === 'trust_device' ? 'ok' : 'kill'}:${target}` }));
+  const all = buttons.filter((b) => b !== 'trust_device' && b !== 'kill_device').map((b) => ({ text: BUTTON_TEXT[b], url: b === 'open_panel' ? env.TG_APP_URL : url(b) }));
+  return [...inBot.map((b) => [b]), all.slice(0, 2), all.slice(2)].filter((r) => r.length);
 }
 
 /** Поднять тревогу. Возвращает id записи. Отправка — сразу, но не ломает ответ ученику (ctx.waitUntil у вызывающего). */
@@ -74,7 +82,7 @@ export async function raiseAlert(env: Env, input: AlertInput): Promise<{ id: num
       .first<{ id: number; count: number; tg_status: string; tg_message_id: number | null }>();
     if (prev) {
       await env.DB.prepare('UPDATE alerts SET count = count + 1, read_at = NULL WHERE id = ?1').bind(prev.id).run();
-      const merged = { ...input, level, done: input.done ?? [], count: prev.count + 1 };
+      const merged = { ...input, level, done: input.done ?? [], count: prev.count + 1, at: t };
       const deliver = prev.tg_status === 'sent' && prev.tg_message_id ? tgEdit(env, prev.tg_message_id, alertText(merged)) : Promise.resolve();
       return { id: prev.id, deliver };
     }
@@ -91,6 +99,8 @@ export async function raiseAlert(env: Env, input: AlertInput): Promise<{ id: num
 
 interface AlertRow {
   id: number;
+  at: number;
+  group_key: string;
   level: Alert['level'];
   kind: AlertKind;
   title: string;
@@ -109,8 +119,10 @@ interface AlertRow {
 export async function deliverAlert(env: Env, id: number, target?: string): Promise<void> {
   const a = await env.DB.prepare('SELECT * FROM alerts WHERE id = ?1').bind(id).first<AlertRow>();
   if (!a || a.tg_status !== 'pending') return;
-  const text = alertText({ level: a.level, title: a.title, text: a.text, rules: JSON.parse(a.rules), who: JSON.parse(a.who), done: JSON.parse(a.done), count: a.count });
-  const msgId = await tgSend(env, text, { silent: a.level !== 'critical', buttons: buttonsFor(env, a.id, JSON.parse(a.buttons), target) });
+  const text = alertText({ level: a.level, title: a.title, text: a.text, rules: JSON.parse(a.rules), who: JSON.parse(a.who), done: JSON.parse(a.done), count: a.count, at: a.at });
+  // Цель кнопок в боте при повторной отправке (cron) — из ключа склейки «panel_login:<устройство>».
+  const tgt = target ?? (a.group_key.startsWith('panel_login:') ? a.group_key.slice(12) : undefined);
+  const msgId = await tgSend(env, text, { silent: a.level !== 'critical', buttons: buttonsFor(env, a.id, JSON.parse(a.buttons), tgt) });
   const t = now(env);
   if (msgId !== null) {
     await env.DB.prepare("UPDATE alerts SET tg_status = 'sent', tg_attempts = tg_attempts + 1, tg_message_id = ?2, next_try_at = NULL WHERE id = ?1").bind(id, msgId).run();

@@ -4,10 +4,13 @@ import { outbound, type Env } from './env';
 
 export interface TgButton {
   text: string;
-  url: string;
-  /** 'app' (по умолчанию) — мини-приложение внутри Telegram; 'url' — обычная ссылка, откроется в браузере. */
-  kind?: 'app' | 'url';
+  url?: string;
+  /** 'app' (по умолчанию) — мини-приложение внутри Telegram; 'url' — обычная ссылка; 'callback' — ответ прямо в боте (data). */
+  kind?: 'app' | 'url' | 'callback';
+  data?: string;
 }
+
+const keyboard = (rows: TgButton[][]) => ({ inline_keyboard: rows.map((row) => row.map((b) => (b.kind === 'callback' ? { text: b.text, callback_data: b.data } : b.kind === 'url' ? { text: b.text, url: b.url } : { text: b.text, web_app: { url: b.url } }))) });
 
 /** Сообщение владельцу. Возвращает id сообщения или null, если Telegram не ответил. */
 export async function tgSend(env: Env, text: string, o: { silent: boolean; buttons?: TgButton[][] }): Promise<number | null> {
@@ -21,7 +24,7 @@ export async function tgSend(env: Env, text: string, o: { silent: boolean; butto
         text,
         disable_notification: o.silent,
         link_preview_options: { is_disabled: true },
-        ...(o.buttons?.length ? { reply_markup: { inline_keyboard: o.buttons.map((row) => row.map((b) => (b.kind === 'url' ? { text: b.text, url: b.url } : { text: b.text, web_app: { url: b.url } }))) } } : {})
+        ...(o.buttons?.length ? { reply_markup: keyboard(o.buttons) } : {})
       })
     });
     if (!res.ok) return null;
@@ -32,16 +35,27 @@ export async function tgSend(env: Env, text: string, o: { silent: boolean; butto
   }
 }
 
-export async function tgEdit(env: Env, messageId: number, text: string): Promise<void> {
+/** Поправить сообщение. buttons — новые кнопки (пустой список — убрать кнопки); не задано — как было. */
+export async function tgEdit(env: Env, messageId: number, text: string, buttons?: TgButton[][]): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) return;
   try {
     await outbound(env)(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: env.OWNER_TELEGRAM_ID, message_id: messageId, text })
+      body: JSON.stringify({ chat_id: env.OWNER_TELEGRAM_ID, message_id: messageId, text, ...(buttons ? { reply_markup: keyboard(buttons) } : {}) })
     });
   } catch {
     /* счётчик в сообщении не обновился — не страшно, в панели он верный */
+  }
+}
+
+/** Ответ на нажатие кнопки в сообщении (короткая всплывашка в Telegram). */
+export async function tgAnswer(env: Env, callbackId: string, text: string): Promise<void> {
+  if (!env.TELEGRAM_BOT_TOKEN) return;
+  try {
+    await outbound(env)(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ callback_query_id: callbackId, text: text.slice(0, 190) }) });
+  } catch {
+    /* всплывашка необязательна */
   }
 }
 

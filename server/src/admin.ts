@@ -12,7 +12,7 @@ import { readBalance } from './balance';
 import { bugToGithub } from './bugs';
 import { checkPin, randomDigits, randomToken, safeEqual, tagged } from './crypto';
 import { now, type Env } from './env';
-import { fail, maskEmail, readJson } from './http';
+import { clientInfo, fail, maskEmail, readJson } from './http';
 import { confirmBlock, forgetHistory, liftBlock, scoreOf } from './guard';
 import { journal, journalList } from './journal';
 import { sendMail } from './mail';
@@ -36,13 +36,48 @@ export async function mintPanelLink(env: Env): Promise<string> {
   return `${env.ADMIN_URL}#link=${link}`;
 }
 
-async function startSession(env: Env, via: 'tg' | 'web', how = via === 'tg' ? 'Telegram' : 'Сайт'): Promise<Response> {
+/** Устройство панели из тела входа: случайный id браузера (хранится у него) и подпись «Chrome · Windows». */
+function panelDevice(body: unknown): { id: string; name: string } | null {
+  const d = (body as { device?: { id?: unknown; name?: unknown } } | null)?.device;
+  if (!d || typeof d.id !== 'string' || !/^[A-Za-z0-9_-]{16,64}$/.test(d.id)) return null;
+  const name = typeof d.name === 'string' ? d.name.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60) : '';
+  return { id: d.id, name: name || 'Браузер' };
+}
+
+/**
+ * Сеанс панели. Тревога «вход» — только с нового устройства: вход из мини-приложения Telegram уже подтверждён самим
+ * Telegram (это твой аккаунт), а знакомое устройство (было «Это я») не тревожит. Раньше тревога шла на каждый вход.
+ */
+async function startSession(env: Env, req: Request, via: 'tg' | 'web', how: string, body: unknown): Promise<Response> {
   const token = randomToken(32);
   const t = now(env);
-  await env.DB.prepare('INSERT INTO admin_sessions (token_hash, expires_at, via) VALUES (?1, ?2, ?3)').bind(await tagged(env.TOKEN_SECRET, 'admin', token), t + SESSION_MS, via).run();
+  const dev = panelDevice(body);
+  const devHash = dev ? await tagged(env.TOKEN_SECRET, 'panel-dev', dev.id) : null;
+  await env.DB.prepare('INSERT INTO admin_sessions (token_hash, expires_at, via, device_hash) VALUES (?1, ?2, ?3, ?4)').bind(await tagged(env.TOKEN_SECRET, 'admin', token), t + SESSION_MS, via, devHash).run();
   await journal(env, { actor: via === 'tg' ? 'owner:tg' : 'owner:web', action: 'panel.login', ...(how === 'Telegram' || how === 'Сайт' ? {} : { reason: how }) });
-  const a = await raiseAlert(env, { level: 'info', kind: 'panel_login', title: '🔐 Вход в панель', text: `${how} · ${new Date(t).toISOString().slice(11, 16)} UTC`, groupKey: `panel_login:${t}` });
-  await a.deliver;
+  const viaTelegram = how === 'Telegram';
+  let known = viaTelegram;
+  if (devHash && dev) {
+    const row = await env.DB.prepare('SELECT trusted FROM panel_devices WHERE hash = ?1').bind(devHash).first<{ trusted: number }>();
+    known ||= Boolean(row?.trusted);
+    await env.DB.prepare('INSERT INTO panel_devices (hash, name, first_seen, last_seen, trusted) VALUES (?1, ?2, ?3, ?3, ?4) ON CONFLICT(hash) DO UPDATE SET name = excluded.name, last_seen = excluded.last_seen, trusted = MAX(panel_devices.trusted, excluded.trusted)')
+      .bind(devHash, dev.name, t, viaTelegram ? 1 : 0)
+      .run();
+  }
+  if (!known) {
+    const info = await clientInfo(req, env);
+    const where = [`IP ${info.ipMask}`, info.country].filter(Boolean).join(', ');
+    const a = await raiseAlert(env, {
+      level: 'warn',
+      kind: 'panel_login',
+      title: '🔐 Вход в панель с нового устройства',
+      text: `Устройство: ${dev?.name ?? 'неизвестно'}\nКак: ${how}\nОткуда: ${where}\nЕсли это ты — нажми «Это я», и с этого устройства тревог больше не будет. Если нет — «Это не я»: сеанс закроется сразу.`,
+      buttons: devHash ? ['trust_device', 'kill_device', 'open_panel'] : ['open_panel'],
+      groupKey: `panel_login:${devHash ? devHash.slice(0, 16) : t}`,
+      target: devHash ? devHash.slice(0, 16) : undefined
+    });
+    await a.deliver;
+  }
   return Response.json({ ok: true, token, expiresAt: new Date(t + SESSION_MS).toISOString() });
 }
 
@@ -84,7 +119,7 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
     // initData одноразовая: перехваченную строку нельзя повторить в течение её 5 минут.
     const once = await env.DB.prepare('INSERT INTO pow_used (id, expires_at) VALUES (?1, ?2) ON CONFLICT(id) DO NOTHING RETURNING id').bind('tg:' + (new URLSearchParams(initData).get('hash') ?? ''), t + 600000).first();
     if (!once) fail('device_unknown');
-    return startSession(env, 'tg');
+    return startSession(env, req, 'tg', 'Telegram', body);
   }
   if (method === 'POST' && path === '/v1/admin/login/link') {
     if (await lockedUntil(env, cfg)) fail('blocked', { until: new Date(cfg.pinLock.until).toISOString() });
@@ -94,7 +129,7 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
     if (!m || exp < t || exp > t + LINK_MS + 60000 || !safeEqual(await tagged(env.TOKEN_SECRET, 'panel-link', `${m[1]}.${m[2]}`), m[3])) fail('device_unknown');
     const once = await env.DB.prepare('INSERT INTO pow_used (id, expires_at) VALUES (?1, ?2) ON CONFLICT(id) DO NOTHING RETURNING id').bind('link:' + m![2], exp + 60000).first();
     if (!once) fail('device_unknown');
-    return startSession(env, 'tg', 'Ссылка из бота, браузер');
+    return startSession(env, req, 'tg', 'Ссылка из бота, браузер', body);
   }
   if (method === 'POST' && path === '/v1/admin/login/email/start') {
     if ((await bump(env, 'admin:code', 3600000)) > 5) fail('too_fast', { retryAfter: 3600 });
@@ -114,7 +149,7 @@ export async function handleAdmin(req: Request, env: Env, path: string): Promise
     if (typeof b.code !== 'string' || !safeEqual(await tagged(env.TOKEN_SECRET, 'admin-code', b.code), row!.code_hash)) fail('code_invalid', { attemptsLeft: Math.max(0, 5 - row!.attempts) });
     if (!(await pinOk(env, cfg, typeof b.pin === 'string' ? b.pin : null))) fail('code_invalid');
     await env.DB.prepare("DELETE FROM login_codes WHERE email = '__admin__'").run();
-    return startSession(env, 'web');
+    return startSession(env, req, 'web', 'Сайт: код с почты и PIN', body);
   }
 
   // ---------- дальше — только с токеном ----------

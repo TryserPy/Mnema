@@ -51,7 +51,7 @@ putSecret('TELEGRAM_WEBHOOK_SECRET', secret);
 
 const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
   method: 'POST',
-  body: new URLSearchParams({ url: `${server}/v1/tg/webhook`, secret_token: secret, allowed_updates: '["message"]' })
+  body: new URLSearchParams({ url: `${server}/v1/tg/webhook`, secret_token: secret, allowed_updates: '["message","callback_query"]' })
 }).then((r) => r.json());
 if (!res.ok) {
   console.error(`Telegram не поставил вебхук: ${res.description}`);
@@ -59,10 +59,12 @@ if (!res.ok) {
 }
 // Меню команд в Telegram: видно по кнопке «/» в чате с ботом.
 const commands = [
+  { command: 'start', description: 'Что умеет бот' },
   { command: 'panel', description: 'Открыть панель (и ссылка для браузера)' },
   { command: 'status', description: 'Режим, расход и последняя ошибка ИИ' },
   { command: 'check', description: 'Проверить ключ ИИ (Polza)' },
-  { command: 'pause', description: 'Пауза: Refrain ИИ только у меня' }
+  { command: 'pause', description: 'Пауза: Refrain ИИ только у меня' },
+  { command: 'logout', description: 'Завершить все сеансы панели' }
 ];
 await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ commands }) }).catch(() => null);
 console.error(`Готово: вебхук → ${server}/v1/tg/webhook. Напиши боту /panel.`);
