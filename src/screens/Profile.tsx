@@ -3,7 +3,9 @@ import { useMemo } from 'react';
 import { openBackups } from '../components/BackupsHost';
 import { canReport } from '../components/ReportProblem';
 import { openReportProblem } from '../refrain';
-import { Icon, plural } from '../components/ui';
+import { Icon, plural, toast } from '../components/ui';
+import { devOn, tapVersion } from '../devMode';
+import { APP_VERSION } from '../update';
 import { periodStats } from '../progress';
 import { dayStart, DAY, streak } from '../srs';
 import { useData } from '../store';
@@ -64,6 +66,18 @@ export function Profile({ go }: { go: (r: Route) => void }) {
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        className="prof-version small muted"
+        onClick={() => {
+          // Семь нажатий — режим разработчика (как в Android). После четвёртого — подсказка, сколько осталось.
+          const n = tapVersion();
+          if (n === 7) toast(devOn() ? 'Режим разработчика включён — внизу слева кнопка 🐞' : 'Режим разработчика выключен');
+          else if (n >= 4) toast(`Ещё ${7 - n} — и включится режим разработчика`);
+        }}
+      >
+        Refrain {APP_VERSION}
+      </button>
     </div>
   );
 }

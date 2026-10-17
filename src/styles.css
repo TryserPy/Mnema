@@ -956,6 +956,10 @@ input[type='range'] { accent-color: var(--accent); }
   .modal { width: 100% !important; max-height: 92dvh; border-radius: 22px 22px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); animation: sheetIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
   @keyframes sheetIn { from { transform: translateY(40%); opacity: 0.4; } }
   .modal-head h2 { font-size: 1.2rem; }
+  /* «Ручка» листа: за шапку можно потянуть вниз и закрыть. */
+  .modal { position: relative; }
+  .modal::before { content: ''; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line); opacity: 0.9; }
+  .modal-head { touch-action: none; padding-top: 6px; }
   .review { padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); gap: 12px; }
   .review-card { padding: 20px 18px; border-radius: 20px; }
   .question { font-size: 1.25rem; }
@@ -1511,3 +1515,24 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .focus-text { display: flex; flex-direction: column; line-height: 1.1; margin-right: 2px; }
 .focus-time { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
 .app.has-tabbar .focus-pill { bottom: calc(80px + env(safe-area-inset-bottom)); }
+
+/* ---------- Режим разработчика (1.32) ---------- */
+.dev-fab { position: fixed; left: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 64; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow-pop); font-size: 20px; }
+.dev-log { margin: 0; max-height: min(46dvh, 420px); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--sunken); padding: 10px; border-radius: 10px; font-size: 13px; line-height: 1.45; }
+.dev-level { width: auto; min-width: 120px; }
+.dev-net { max-height: min(50dvh, 440px); overflow: auto; display: grid; gap: 4px; }
+.dev-net-row { display: grid; grid-template-columns: auto auto auto auto 1fr; gap: 8px; font-size: 12px; padding: 6px 8px; border-radius: 8px; background: var(--sunken); align-items: baseline; }
+.dev-net-row.bad .dev-status { color: var(--danger, #c0392b); font-weight: 600; }
+.dev-url { overflow-wrap: anywhere; min-width: 0; }
+.dev-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dev-table th { text-align: left; font-weight: 500; color: var(--muted); padding: 4px 8px 4px 0; vertical-align: top; width: 40%; }
+.dev-table td { padding: 4px 0; overflow-wrap: anywhere; }
+.dev-flag { padding: 2px 8px; border-radius: 999px; background: var(--sunken); opacity: 0.6; }
+.dev-flag.on { opacity: 1; }
+.prof-version { display: block; margin: 20px auto 0; padding: 12px 16px; min-height: 44px; background: none; border: 0; }
+@media (max-width: 720px) {
+  .dev-net-row { grid-template-columns: auto auto 1fr; }
+  .dev-net-row .dev-url { grid-column: 1 / -1; }
+  .dev-log { font-size: 14px; }
+  .dev-fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}

@@ -425,11 +425,39 @@ export function Modal({ title, onClose, children, width = 520, sticky = false }:
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+  // Телефон: окно — нижний лист; потянуть за шапку вниз — закрыть (как в Telegram). Только transform — без перерисовки раскладки.
+  const sheet = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y: number; t: number; dy: number } | null>(null);
+  const onDown = (e: React.PointerEvent) => {
+    if (sticky || e.pointerType === 'mouse' || !window.matchMedia('(max-width: 720px)').matches) return;
+    if ((e.target as HTMLElement).closest('button, input, select, textarea, a')) return;
+    drag.current = { y: e.clientY, t: performance.now(), dy: 0 };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || !sheet.current) return;
+    d.dy = Math.max(0, e.clientY - d.y);
+    sheet.current.style.transition = 'none';
+    sheet.current.style.transform = `translateY(${d.dy}px)`;
+  };
+  const onUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || !sheet.current) return;
+    const speed = d.dy / Math.max(1, performance.now() - d.t);
+    sheet.current.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1)';
+    if (d.dy > 110 || (d.dy > 30 && speed > 0.6)) {
+      sheet.current.style.transform = 'translateY(100%)';
+      haptic(8);
+      closeTimer.current = setTimeout(() => closeRef.current(), 180);
+    } else sheet.current.style.transform = '';
+  };
   // Окно всегда в <body>: иначе карточка с анимацией (transform) обрезает его и перекрывает соседями.
   return createPortal(
     <div className={'modal-back' + (closing ? ' closing' : '')} onMouseDown={(e) => !sticky && e.target === e.currentTarget && close()}>
-      <div className="modal" data-part="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
-        <div className="modal-head">
+      <div ref={sheet} className="modal" data-part="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
+        <div className="modal-head" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           <h2>{title}</h2>
           <button className="icon-btn" onClick={close} aria-label="Закрыть">
             <Icon name="x" />
@@ -1172,6 +1200,17 @@ export function keepMenusInView(): () => void {
 
 // ---------- Всплывающее сообщение внизу (с кнопкой, например «Вернуть») ----------
 type ToastFn = (text: string, action?: { label: string; run: () => void }) => void;
+/** Короткая вибрация на ключевых действиях (телефон). Уважает «Анимации: выкл.» и «Уменьшить движение». */
+export function haptic(ms: number | number[] = 10): void {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.vibrate) return;
+    if (document.documentElement.dataset.motion === 'off' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    navigator.vibrate(ms);
+  } catch {
+    /* нет вибрации */
+  }
+}
+
 let toastListener: ToastFn | null = null;
 export function onToast(fn: ToastFn) {
   toastListener = fn;

@@ -14,6 +14,14 @@ type Step = 'pages' | 'reading' | 'review';
 let uidN = 0;
 const uid = () => 'p' + ++uidN + Date.now().toString(36);
 
+/** Одинаковые подсказки к разным страницам — одной строкой: «Стр. 1, 2, 4: …», а не три одинаковые. */
+export function groupByText(items: { n: number; text: string }[]): { pages: number[]; text: string }[] {
+  const out = new Map<string, number[]>();
+  for (const it of items) out.set(it.text, [...(out.get(it.text) ?? []), it.n]);
+  return [...out].map(([text, pages]) => ({ text, pages }));
+}
+const pagesLabel = (p: number[]) => (p.length === 1 ? `Стр. ${p[0]}` : `Стр. ${p.join(', ')}`);
+
 export function TextbookImport({
   initialFiles,
   hasNote,
@@ -349,14 +357,14 @@ export function TextbookImport({
                 {t}
               </div>
             ))}
-            {results.filter((r) => r.advice?.length).map((r) => (
-              <div key={'a' + r.n} className="hint warn">
-                Стр. {r.n}: {r.advice!.map((a) => a.text).join(' ')}
+            {groupByText(results.filter((r) => r.advice?.length).map((r) => ({ n: r.n, text: r.advice!.map((a) => a.text).join(' ') }))).map((g) => (
+              <div key={'a' + g.text} className="hint warn">
+                {pagesLabel(g.pages)}: {g.text}
               </div>
             ))}
-            {results.filter((r) => r.note).map((r) => (
-              <div key={'n' + r.n} className="hint warn">
-                Стр. {r.n}: {r.note}
+            {groupByText(results.filter((r) => r.note).map((r) => ({ n: r.n, text: r.note! }))).map((g) => (
+              <div key={'n' + g.text} className="hint warn">
+                {pagesLabel(g.pages)}: {g.text}
               </div>
             ))}
             {results.filter((r) => weak(r) && !r.advice?.length).map((r) => (

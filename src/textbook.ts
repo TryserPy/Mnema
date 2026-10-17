@@ -463,13 +463,14 @@ function photoTrouble(prep: Prepared): string {
 }
 
 /** refrain — та же задача для Refrain ИИ (фото уже уменьшено до 1600 px или текст страниц). */
-async function askAi(system: string, text: string, photoUri: string | null, maxTokens: number, refrain?: RefrainFields): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+async function askAi(system: string, text: string, photoUri: string | null, maxTokens: number, refrain?: RefrainFields): Promise<{ ok: true; text: string } | { ok: false; error: string; unavailable?: boolean }> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) return { ok: false, error: 'ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.' };
   try {
     const r = await api.aiAsk(aiRequest('textbook', { system, text, image: photoUri ? { mime: 'image/jpeg', data: photoUri.split(',')[1] } : undefined, maxTokens, refrain }));
     noteAnswer(r, refrain?.task);
-    if (!r.ok) return { ok: false, error: aiError(r) };
+    // unavailable — спросить было некого (нет входа в Refrain ИИ и ключа): остальные страницы просить бессмысленно.
+    if (!r.ok) return { ok: false, error: aiError(r), ...(r.signIn || r.noKey ? { unavailable: true } : {}) };
     return { ok: true, text: r.text };
   } catch (e) {
     return { ok: false, error: humanError((e as Error).message || String(e)) };
@@ -487,7 +488,7 @@ export interface AiReadOptions {
  * разворот режется по корешку на две страницы (каждая половина читается крупнее, чем весь разворот целиком).
  * Если ИИ не справился, страница читается без интернета.
  */
-export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onProgress?: Progress): Promise<{ pages: PageResult[]; direct: boolean }> {
+export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onProgress?: Progress): Promise<{ pages: PageResult[]; direct: boolean; unavailable?: string }> {
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
   onProgress?.('Готовлю фото…', 0.05);
@@ -501,6 +502,7 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
   const parts = halves ?? [prep];
   const direct = o.direct && parts.length === 1 && o.style !== 'verbatim';
   const pages: PageResult[] = [];
+  let unavailable: string | undefined;
   for (let j = 0; j < parts.length; j++) {
     const span: [number, number] = [0.15 + (0.8 * j) / parts.length, 0.15 + (0.8 * (j + 1)) / parts.length];
     const part = dewarpPrepared(parts[j]);
@@ -508,17 +510,23 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
     const canvas = part.color;
     const photo = canvasToJpeg(scaleCanvas(canvas, 1800), 0.85);
     onProgress?.(parts.length > 1 ? `ИИ читает ${j === 0 ? 'левую' : 'правую'} страницу разворота…` : direct ? 'ИИ делает конспект страницы…' : 'ИИ читает страницу…', span[0]);
-    const fallback = async (why: string): Promise<PageResult> => {
+    const fallback = async (why: string, quiet = false): Promise<PageResult> => {
       if (!api.ocrRecognize) throw new Error(why);
-      onProgress?.('ИИ не справился — читаю без интернета…', span[0]);
+      onProgress?.(quiet ? 'Читаю без интернета…' : 'ИИ не справился — читаю без интернета…', span[0]);
       const r = await readUpright(p, part, onProgress, span);
-      return { ...r.page, n, note: `${why} Страница прочитана без интернета — проверь её внимательнее.` };
+      // quiet: причина одна на все страницы — её показывает readPages один раз, а не у каждой страницы.
+      return { ...r.page, n, note: quiet ? 'Прочитана без интернета — проверь её внимательнее.' : `${why} Страница прочитана без интернета — проверь её внимательнее.` };
     };
+    if (unavailable) {
+      pages.push(await fallback(unavailable, true));
+      continue;
+    }
     // Refrain ИИ: «Конспект»/«Кратко» сразу по странице или «Дословно» (чтение для свода), фото — 1600 px.
     const refrain: RefrainFields = { task: direct ? (o.style === 'brief' ? 'textbook.brief' : 'textbook.summary') : 'textbook.verbatim', image: { mime: 'image/jpeg', data: canvasToJpeg(scaleCanvas(canvas, REFRAIN_SIDE), 0.85).split(',')[1] }, ...(n ? { page: n } : {}) };
     const ans = await askAi(direct ? pageSystem(o.style) : readSystem(), `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000, refrain);
     if (!ans.ok) {
-      pages.push(await fallback(ans.error));
+      if (ans.unavailable) unavailable = ans.error;
+      pages.push(await fallback(ans.error, Boolean(ans.unavailable)));
       continue;
     }
     const verdict = judgeAiAnswer(ans.text);
@@ -539,7 +547,7 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
   }
   if (!pages.length) throw new Error('ИИ не нашёл на фото текста учебника.' + photoTrouble(prep));
   if (parts.length > 1) pages[0].note = (pages[0].note ? pages[0].note + ' ' : '') + 'На снимке разворот — страницы прочитаны по очереди, слева направо.';
-  return { pages, direct };
+  return { pages, direct, ...(unavailable ? { unavailable } : {}) };
 }
 
 /** Одна страница ИИ (для проверок): режим «Дословно». */
@@ -583,16 +591,19 @@ export async function readPages(inputs: PageInput[], o: RunOptions, h: RunHooks)
   const results: PageResult[] = [];
   const errors: string[] = [];
   let lastDirect = false;
+  // ИИ некому отвечать (нет входа и ключа) — остальные страницы сразу без интернета, причина — одной строкой.
+  let aiDown = '';
   for (let i = 0; i < inputs.length; i++) {
     if (h.cancelled()) return null;
     const p = inputs[i];
     h.progress(i, 'Готовлю фото…', 0);
     const onP: Progress = (text, frac) => h.progress(i, text, frac);
     try {
-      if (o.engine === 'ai') {
+      if (o.engine === 'ai' && !aiDown) {
         const r = await recognizeWithAiPages(p, { style: o.style, direct: inputs.length === 1 }, onP);
         results.push(...r.pages);
         lastDirect = r.direct;
+        if (r.unavailable) aiDown = r.unavailable;
       } else {
         results.push(...(await recognizeOfflinePages(p, onP)));
       }
@@ -604,7 +615,8 @@ export async function readPages(inputs: PageInput[], o: RunOptions, h: RunHooks)
   applyDetectedPages(results);
   const notes: string[] = [];
   let summary: string | null = null;
-  if (o.engine === 'ai' && o.style !== 'verbatim' && results.length && !(results.length === 1 && lastDirect)) {
+  if (aiDown) notes.push(`${aiDown.replace(/\.?$/, '.')} Страницы прочитаны без интернета — проверь текст внимательнее.`);
+  if (o.engine === 'ai' && !aiDown && o.style !== 'verbatim' && results.length && !(results.length === 1 && lastDirect)) {
     h.progress(inputs.length - 1, results.length > 1 ? 'ИИ составляет один конспект по всем страницам…' : 'ИИ составляет конспект…', 0.5);
     const why = await mergeWithAi(results, o.style, (t) => h.progress(inputs.length - 1, t, 0.7)).then(
       (r) => (r.ok ? ((summary = r.markdown), '') : r.why),

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RefrainHost } from './components/RefrainHost';
 import { FocusTimer } from './components/FocusTimer';
@@ -53,6 +53,9 @@ import { TopicScreen } from './screens/TopicScreen';
 import { isTopicPackage } from './share';
 import { isPackFile, openPack } from './mnemaPack';
 import { PackHost } from './components/PackDialogs';
+import { devOn, initDev, onDev } from './devMode';
+
+const DevConsoleHost = lazy(() => import('./components/DevConsole').then((m) => ({ default: m.DevConsoleHost })));
 import { readOpenedFile } from './openFile';
 import { forecast, itemKey, itemOrds, streak, todayCounts, tomorrowSubjects } from './srs';
 import { dataReadOnly, getData, pruneDoneHomework, updateSettings, updateTopic, useData } from './store';
@@ -95,6 +98,11 @@ export function App() {
   if (toast) lastToast.current = toast;
   const toastPres = usePresence(Boolean(toast), 200);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const dev = useSyncExternalStore(onDev, devOn, () => false);
+  useEffect(() => initDev(), []);
+  const toastRef = useRef('');
+  const toastCount = useRef(1);
+  if (!toast) toastRef.current = '';
   useEffect(() => onToast((text, action) => showToast(text, action)), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [dragging, setDragging] = useState(false);
   const dragTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -470,6 +478,13 @@ export function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function showToast(t: string, action?: { label: string; run: () => void }) {
+    // Тот же текст ещё на экране — не мигаем заново, а дописываем «×N» и продлеваем показ.
+    const base = (s: string) => s.replace(/ ×\d+$/, '');
+    if (toastRef.current && base(toastRef.current) === t) {
+      toastCount.current++;
+      t = `${t} ×${toastCount.current}`;
+    } else toastCount.current = 1;
+    toastRef.current = t;
     setToast(t);
     setToastAction(action ?? null);
     clearTimeout(toastTimer.current);
@@ -597,6 +612,11 @@ export function App() {
       {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
       <RefrainHost go={go} where={() => exactPlace(routeRef.current)} />
       <PackHost go={go} />
+      {dev && (
+        <Suspense fallback={null}>
+          <DevConsoleHost />
+        </Suspense>
+      )}
       <FocusTimer />
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">

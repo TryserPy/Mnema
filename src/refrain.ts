@@ -99,28 +99,65 @@ export async function shrinkImage(img: { mime: string; data: string }, max = REF
 
 const LOG_MAX = 50;
 const LINE_MAX = 300;
-const log: string[] = [];
+
+export type LogLevel = 'error' | 'warn' | 'info';
+/** Запись журнала: одинаковые подряд сворачиваются в одну со счётчиком и временем последней. */
+export interface LogEntry {
+  at: number;
+  last: number;
+  level: LogLevel;
+  text: string;
+  n: number;
+}
+const log: LogEntry[] = [];
+const listeners = new Set<() => void>();
 
 /** Строка журнала без почт, путей, длинных чисел и длинных токенов: в баг-репорт уходит только это. */
 export function scrubLine(s: string): string {
   return String(s)
     .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[почта]')
     .replace(/(?:[A-Za-z]:\\|file:\/\/\/?|\/(?:home|Users|data|storage|root|mnt|media|var|tmp|opt)\/)[^\s"'<>)]*/g, '[путь]')
+    .replace(/\b(?:Bearer|OAuth|Basic)\s+[^\s"']+/gi, '[ключ]')
+    .replace(/\b(?:sk-|sk-or-|AIza|y0_|ghp_|xkeysib-)[A-Za-z0-9_-]{8,}/g, '[ключ]')
     .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[…]')
     .replace(/\b\d{7,}\b/g, '[число]')
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '') // eslint-disable-line no-control-regex
     .slice(0, LINE_MAX);
 }
 
-/** Записать ошибку в журнал (в памяти, последние 50 строк; на диск и в localStorage не пишется). */
-export function logLine(s: string): void {
-  const t = new Date().toTimeString().slice(0, 8);
-  log.push(scrubLine(`${t} ${s}`));
-  if (log.length > LOG_MAX) log.splice(0, log.length - LOG_MAX);
+const hhmmss = (t: number) => new Date(t).toTimeString().slice(0, 8);
+
+/** Записать в журнал (в памяти, последние 50 записей; на диск и в localStorage не пишется). Повтор подряд — ×N. */
+export function logLine(s: string, level: LogLevel = 'error', now = Date.now()): void {
+  const text = scrubLine(s);
+  const top = log[log.length - 1];
+  if (top && top.text === text && top.level === level) {
+    top.n++;
+    top.last = now;
+  } else {
+    log.push({ at: now, last: now, level, text, n: 1 });
+    if (log.length > LOG_MAX) log.splice(0, log.length - LOG_MAX);
+  }
+  for (const l of listeners) l();
 }
 
+export function logEntries(): readonly LogEntry[] {
+  return log;
+}
+
+export function clearLog(): void {
+  log.length = 0;
+  for (const l of listeners) l();
+}
+
+export function onLog(cb: () => void): () => void {
+  listeners.add(cb);
+  return () => void listeners.delete(cb);
+}
+
+/** Строки для «Сообщить о проблеме»: «15:31:55 текст ×2 (последний раз 15:32:00)». */
 export function journalLines(): string[] {
-  return log.slice(-LOG_MAX);
+  return log.slice(-LOG_MAX).map((e) => `${hhmmss(e.at)} ${e.text}${e.n > 1 ? ` ×${e.n} (последний раз ${hhmmss(e.last)})` : ''}`);
 }
 
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -155,6 +192,7 @@ export function takeSignIn(): boolean {
 /** Ответ ИИ пришёл: обновить счётчик, при лимите или закрытом тесте показать экран (RefrainHost). */
 export function noteAnswer(r: AiAnswer, task?: TaskId): void {
   if (!r.ok) logLine(`ИИ${task ? ` (${task})` : ''}: ${r.code ?? ''} ${r.error}`);
+  else logLine(`ИИ${task ? ` (${task})` : ''}: ответ получен${r.via ? ` (${r.via})` : ''}`, 'info');
   const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(!r.ok ? { error: r.error } : {}), ...(!r.ok && (r.signIn || r.code === 'session_revoked' || r.code === 'device_unknown') ? { signIn: true } : {}), ...(task ? { task } : {}) };
   if (n.quota || n.code || n.error) window.dispatchEvent(new CustomEvent<RefrainNotice>('refrain:answer', { detail: n }));
 }
