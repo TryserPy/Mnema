@@ -1,5 +1,5 @@
 import { makeCopy } from '../components/copyUi';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { RulesList } from '../components/Rules';
 import { exportForAi } from '../components/ChangesDialog';
 import { SubjectTerms, termGroups } from '../components/SubjectTerms';
@@ -173,7 +173,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           const pct = m.total ? Math.round((m.learned / m.total) * 100) : 0;
           const dueT = c.review + c.learning;
           return (
-            <button key={t.id} className={'topic-row' + (depth ? ' nested' : '')} style={{ marginLeft: depth * 28, animationDelay: Math.min(i, 12) * 30 + 'ms' }} onClick={() => go({ name: 'topic', id: t.id })}>
+            <button key={t.id} className={'topic-row' + (depth ? ' nested' : '')} style={{ '--depth': depth, animationDelay: Math.min(i, 12) * 30 + 'ms' } as CSSProperties} onClick={() => go({ name: 'topic', id: t.id })}>
               <span className="grow stack gap4">
                 <strong className="row gap6">
                   {depth > 0 && <span className="sub-mark">↳</span>}

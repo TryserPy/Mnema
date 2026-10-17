@@ -7,7 +7,7 @@ import { SketchPad, type Stroke } from '../components/Drawing';
 import { canSpeak, speak, stopSpeaking, useSpeaking } from '../speak';
 import { Markdown } from '../components/Markdown';
 import { PageViewer } from '../components/PageViewer';
-import { Icon, Modal, AnimText, touchUI } from '../components/ui';
+import { Icon, Modal, AnimText, haptic, touchUI } from '../components/ui';
 import { checkNumber } from '../problems';
 import { compareSpoken, startVoice, voiceSupported, type VoiceSession } from '../voice';
 import { buildSession } from '../session';
@@ -137,6 +137,8 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const grade = useCallback(
     (rating: Grade) => {
       if (!current || !revealed || !card) return;
+      // Отклик пальцу: «Не помню» — двойной короткий, остальные — один.
+      haptic(rating === Rating.Again ? [8, 40, 8] : 10);
       const ms = Date.now() - shownAt.current;
       const overconf = confidence === 2 && rating === Rating.Again ? 1 : 0;
       setStats((s) => ({ done: s.done + 1, again: s.again + (rating === Rating.Again ? 1 : 0), ms: s.ms + ms, overconf: s.overconf + overconf }));

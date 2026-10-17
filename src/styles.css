@@ -68,7 +68,7 @@ code, .mono { font-family: var(--mono, 'Cascadia Mono', Consolas, ui-monospace, 
 code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 
 /* ---------- Раскладка ---------- */
-.app { display: flex; height: 100vh; overflow: hidden; position: relative; }
+.app { display: flex; height: 100vh; height: 100dvh; overflow: hidden; position: relative; }
 .sidebar { width: var(--side-w, 248px); flex-shrink: 0; position: relative; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 18px 12px 10px; gap: 14px; }
 .main { flex: 1; overflow-y: auto; }
 .page { max-width: var(--rf-content-w, 1060px); margin: 0 auto; padding: var(--rf-page-pad, 36px 40px 56px); display: flex; flex-direction: column; gap: var(--gap); }
@@ -338,7 +338,7 @@ code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; }
 
 /* ---------- Окно ---------- */
 .modal-back { position: fixed; inset: 0; background: rgba(20, 22, 30, 0.45); display: grid; place-items: center; z-index: 65; padding: 24px; } /* выше выдвижной панели телефона (60) */
-.modal { max-width: 100%; max-height: calc(100vh - 48px); overflow-y: auto; background: var(--surface); border-radius: var(--rf-radius-modal, 22px); padding: 22px 24px 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
+.modal { max-width: 100%; max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--surface); border-radius: var(--rf-radius-modal, 22px); padding: 22px 24px 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
 .modal-head h2 { font-family: var(--display); font-size: 1.4rem; font-weight: 600; }
 .modal p { margin: 0; line-height: 1.55; }
@@ -502,7 +502,7 @@ section.card h3 { margin-bottom: 2px; }
 .chip-btn.neutral { border-color: var(--line-2); background: var(--surface); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
 .chip-btn.neutral.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .icon-btn.bordered-sm { border: 1px solid var(--line-2); background: var(--surface); font-size: 1.1rem; }
-.map-box { height: calc(100vh - 290px); min-height: 420px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); overflow: hidden; }
+.map-box { height: calc(100vh - 290px); height: calc(100dvh - 290px); min-height: 420px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); overflow: hidden; }
 .map-svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; touch-action: none; }
 .map-svg:active { cursor: grabbing; }
 .map-link { stroke: var(--line-2); stroke-width: 1.5; }
@@ -651,7 +651,7 @@ input[type='range'] { accent-color: var(--accent); }
 }
 
 /* ---------- 1.1.1: граф ---------- */
-.map-box.graph { position: relative; height: calc(100vh - 250px); min-height: 460px; background: radial-gradient(ellipse at center, var(--surface) 0%, var(--surface-2) 100%); }
+.map-box.graph { position: relative; height: calc(100vh - 250px); height: calc(100dvh - 250px); min-height: 460px; background: radial-gradient(ellipse at center, var(--surface) 0%, var(--surface-2) 100%); }
 .map-canvas { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
 .graph-tools { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
 .graph-tools .icon-btn.on { background: var(--sunken); color: var(--accent-text, var(--accent)); }
@@ -829,7 +829,7 @@ input[type='range'] { accent-color: var(--accent); }
 @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 30%, transparent); } }
 
 /* Меню «Важное» */
-.imp-panel { position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; animation: panelIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.05); }
+.imp-panel { position: sticky; top: 16px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; animation: panelIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.05); }
 @keyframes panelIn { from { opacity: 0; transform: translateX(18px); } }
 .imp-head { display: flex; align-items: center; gap: 4px; padding: 14px 12px 10px 16px; border-bottom: 1px solid var(--line); }
 .imp-head .icon-btn.on { background: var(--sunken); color: var(--accent-text, var(--accent)); }
@@ -1115,7 +1115,7 @@ textarea.cell { resize: none; field-sizing: content; min-height: 0; line-height:
 }
 
 /* «Сегодня»: совет — внизу экрана */
-.today-page { min-height: calc(100vh - 40px); }
+.today-page { min-height: calc(100vh - 40px); min-height: calc(100dvh - 40px); }
 @media (max-width: 720px) { .today-page { min-height: calc(100dvh - 130px); } }
 
 /* ================= 1.4: анимации для каждого действия ================= */
@@ -1233,7 +1233,7 @@ html[data-font='comfortaa'] body { letter-spacing: -0.005em; }
 .note-layout.full.with-panel { grid-template-columns: minmax(0, 1fr) 340px; padding-left: max(24px, calc((100vw - 1400px) / 2)); padding-right: max(24px, calc((100vw - 1400px) / 2)); }
 @keyframes fullIn { from { opacity: 0; transform: scale(0.985); } }
 .note-full-bar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 12px; padding: 14px 0 12px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); font-family: var(--display); font-size: 1.1rem; }
-.note-layout.full .note-page { min-height: calc(100vh - 110px); }
+.note-layout.full .note-page { min-height: calc(100vh - 110px); min-height: calc(100dvh - 110px); }
 .note-layout.full .note-float { top: 70px; }
 html[data-no-windows] .note-layout.full { animation: none; }
 @media (max-width: 720px) {
@@ -1535,4 +1535,42 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
   .dev-net-row .dev-url { grid-column: 1 / -1; }
   .dev-log { font-size: 14px; }
   .dev-fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- 1.32: телефон — длинные названия, счётчики, вложенность ---------- */
+/* Название темы — одно длинное слово тоже переносится, а не налезает на полоску и счётчик. */
+.topic-row strong, .tt-label, .know-found-row, .create-text strong { overflow-wrap: anywhere; hyphens: auto; }
+.topic-row.nested { margin-left: calc(var(--depth, 1) * 28px); }
+.topic-row > .badge { flex-shrink: 0; }
+.subtopic-chip { max-width: 100%; min-width: 0; }
+.subtopic-chip .chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subtopic-chip .chip-count { flex-shrink: 0; }
+.app.mobile .subtopic-chip { min-height: 40px; }
+@media (max-width: 720px) {
+  /* Строка темы: название и счётчик сверху, полоска прогресса — под ними на всю ширину. */
+  .app.mobile .topic-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 10px; padding: 14px 16px; }
+  .app.mobile .topic-row > .progress { grid-column: 1 / -1; width: 100%; height: 4px; }
+  .app.mobile .topic-row.nested { margin-left: calc(var(--depth, 1) * 14px); }
+  .app.mobile .topic-row .sub-mark { display: none; }
+}
+
+/* «Все темы» на телефоне — дерево в нижнем листе */
+.tt .modal, .tt-list { min-height: 0; }
+.tt-list { display: grid; gap: 2px; max-height: calc(80dvh - 120px); overflow-y: auto; overscroll-behavior: contain; margin: 0 -6px; padding: 0 6px; }
+.tt-row { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; padding-left: calc(var(--depth, 0) * 16px); }
+.tt-twisty { width: 40px; height: 44px; display: grid; place-items: center; background: none; border: 0; color: var(--muted); border-radius: 10px; }
+.tt-chev { display: grid; transition: transform 0.18s ease; }
+.tt-chev.rot { transform: rotate(90deg); }
+.tt-name { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 10px; border-radius: 12px; background: none; border: 0; text-align: left; min-width: 0; color: inherit; font: inherit; }
+.tt-name:active { background: var(--sunken); }
+.tt-subj .tt-name { font-weight: 600; }
+.tt-label { flex: 1; min-width: 0; line-height: 1.3; }
+.tt-count { flex-shrink: 0; min-width: 26px; padding: 2px 8px; border-radius: 999px; background: var(--sunken); color: var(--muted); font-size: 0.8rem; text-align: center; font-variant-numeric: tabular-nums; }
+.tt-ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 15px; color: #fff; flex-shrink: 0; }
+.tt-empty { display: block; padding: 6px 0 10px 56px; }
+@media (prefers-reduced-motion: reduce) { .tt-chev { transition: none; } }
+/* Телефон: маленькие текстовые кнопки — нажимаемая область не меньше 44 px по высоте (текст тот же). */
+@media (max-width: 720px) {
+  .app.mobile :is(.link-btn, .crumb) { min-height: 44px; display: inline-flex; align-items: center; }
+  .app.mobile .modal .btn.small { min-height: 40px; }
 }

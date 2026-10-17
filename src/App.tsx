@@ -53,6 +53,7 @@ import { TopicScreen } from './screens/TopicScreen';
 import { isTopicPackage } from './share';
 import { isPackFile, openPack } from './mnemaPack';
 import { PackHost } from './components/PackDialogs';
+import { TopicTreeSheet } from './components/TopicTreeSheet';
 import { devOn, initDev, onDev } from './devMode';
 
 const DevConsoleHost = lazy(() => import('./components/DevConsole').then((m) => ({ default: m.DevConsoleHost })));
@@ -99,6 +100,7 @@ export function App() {
   const toastPres = usePresence(Boolean(toast), 200);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const dev = useSyncExternalStore(onDev, devOn, () => false);
+  const [treeOpen, setTreeOpen] = useState(false);
   useEffect(() => initDev(), []);
   const toastRef = useRef('');
   const toastCount = useRef(1);
@@ -590,7 +592,7 @@ export function App() {
       <main className="main" data-part="main">
         <div className="page-anim" key={route.name + ('id' in route ? route.id : '') + ':' + fresh}>
         <ErrorBoundary onHome={() => go({ name: 'today' })}>
-        {route.name === 'knowledge' && <Knowledge go={go} onTree={mobile ? () => setDrawer(true) : undefined} />}
+        {route.name === 'knowledge' && <Knowledge go={go} onTree={mobile ? () => setTreeOpen(true) : undefined} />}
         {route.name === 'profile' && <Profile go={go} />}
         {route.name === 'today' && <Today go={go} onNewSubject={() => setAddingSubject({})} />}
         {route.name === 'homework' && <HomeworkScreen go={go} />}
@@ -612,6 +614,7 @@ export function App() {
       {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
       <RefrainHost go={go} where={() => exactPlace(routeRef.current)} />
       <PackHost go={go} />
+      {treeOpen && <TopicTreeSheet go={go} onClose={() => setTreeOpen(false)} />}
       {dev && (
         <Suspense fallback={null}>
           <DevConsoleHost />

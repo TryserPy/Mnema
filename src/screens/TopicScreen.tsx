@@ -271,8 +271,8 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                       <Icon name="starFill" size={14} />
                     </span>
                   )}
-                  {k.name}
-                  {n > 0 && <span className="muted small">{n}</span>}
+                  <span className="chip-name">{k.name}</span>
+                  {n > 0 && <span className="muted small chip-count">{n}</span>}
                 </button>
               );
             }

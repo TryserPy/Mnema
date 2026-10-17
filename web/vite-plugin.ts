@@ -43,8 +43,7 @@ export function mnemaWeb(): Plugin {
       order: 'post',
       handler(html) {
         const out = html
-          .replace(/(<meta http-equiv="Content-Security-Policy" content=")[^"]*(")/, `$1${WEB_CSP}$2`)
-          .replace('content="width=device-width, initial-scale=1"', 'content="width=device-width, initial-scale=1, viewport-fit=cover"');
+          .replace(/(<meta http-equiv="Content-Security-Policy" content=")[^"]*(")/, `$1${WEB_CSP}$2`); // viewport-fit=cover уже в index.html
         const tags = [
           '<meta name="description" content="Refrain — запоминай учебный материал: конспект, карточки и повторения по расписанию.">',
           `<meta name="theme-color" content="${THEME}">`,

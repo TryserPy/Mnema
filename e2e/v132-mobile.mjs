@@ -15,7 +15,8 @@ const VIEWS = [
   { name: '360', width: 360, height: 800 },
   { name: '390', width: 390, height: 844 },
   { name: '412', width: 412, height: 915 },
-  { name: 'land', width: 800, height: 360 }
+  { name: 'land', width: 800, height: 360 },
+  { name: 'desk', width: 1280, height: 820 }
 ];
 let bad = 0;
 const problems = [];
