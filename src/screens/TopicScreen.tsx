@@ -2,7 +2,7 @@ import { Capped } from '../components/Capped';
 import { makeCopy } from '../components/copyUi';
 import { Dismissible, hideTip } from '../components/Dismissible';
 import { deleteTopicWithUndo } from '../components/SubjectDialogs';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { exportForAi } from '../components/ChangesDialog';
 import { ImportantPanel, NoteToCards } from '../components/ImportantPanel';
 import { PageViewer } from '../components/PageViewer';
@@ -38,8 +38,11 @@ import type { Card, CardType, ListKind, Route } from '../types';
 import { openExamDialog } from '../components/ExamDialog';
 import { NoteHistoryDialog } from '../components/NoteHistory';
 import { AiCardDrafts } from '../components/AiCardDrafts';
-import { SourceCards } from '../components/SourceCards';
 import { aiAvailable } from '../ai';
+
+// Карточки из источника и решение по шагам (1.32) — грузятся при открытии.
+const SourceCards = lazy(() => import('../components/SourceCards').then((m) => ({ default: m.SourceCards })));
+const SolveDialog = lazy(() => import('../components/SolveDialog').then((m) => ({ default: m.SolveDialog })));
 
 /** Темы, где ученик нажал «Не сейчас» у подсказки про черновики карточек: до перезапуска не напоминаем. */
 const offerDismissed = new Set<string>();
@@ -70,6 +73,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [noteCards, setNoteCards] = useState(false);
   const [aiCards, setAiCards] = useState(false);
   const [srcCards, setSrcCards] = useState(false);
+  const [solve, setSolve] = useState(false);
   const [, setOfferTick] = useState(0);
   const [printOpen, setPrintOpen] = useState(false);
   const [packOpen, setPackOpen] = useState(false);
@@ -223,6 +227,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
               { label: 'Черновики карточек от ИИ', icon: 'bot', hint: 'ИИ предложит вопросы по конспекту, ты проверишь', onClick: () => setAiCards(true), hidden: !topic.note.trim() || !aiAvailable(data) },
               { label: 'Карточки из ссылки, видео или книги', icon: 'link', hint: 'Статья, YouTube с субтитрами, глава EPUB — ИИ предложит вопросы', onClick: () => setSrcCards(true), hidden: !aiAvailable(data) },
+              { label: 'Решить задачу по шагам', icon: 'sparkle', hint: 'Фото или текст условия — ИИ объяснит решение', onClick: () => setSolve(true), hidden: !aiAvailable(data) },
               { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
               {
                 label: 'Проверить себя',
@@ -397,7 +402,10 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       {packOpen && <PackExportDialog initial={{ kind: 'topic', id }} onClose={() => setPackOpen(false)} />}
       {noteCards && <NoteToCards topicId={id} onClose={() => setNoteCards(false)} />}
       {aiCards && <AiCardDrafts topicId={id} onClose={() => setAiCards(false)} />}
-      {srcCards && <SourceCards topicId={id} onClose={() => setSrcCards(false)} />}
+      <Suspense fallback={null}>
+        {srcCards && <SourceCards topicId={id} onClose={() => setSrcCards(false)} />}
+        {solve && <SolveDialog topicId={id} onClose={() => setSolve(false)} onNoteSaved={() => setReload((n) => n + 1)} />}
+      </Suspense>
       {historyOpen && (
         <NoteHistoryDialog
           topicId={id}
@@ -729,7 +737,11 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           </button>
         )}
         {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
-        {srcDrafts && <SourceCards topicId={topicId} onClose={() => setSrcDrafts(false)} />}
+        {srcDrafts && (
+          <Suspense fallback={null}>
+            <SourceCards topicId={topicId} onClose={() => setSrcDrafts(false)} />
+          </Suspense>
+        )}
         {adding && (
           <Modal title="Новая карточка" onClose={() => setAdding(false)} width={620}>
             <CardEditor topicId={topicId} onDone={() => setAdding(false)} />
@@ -760,7 +772,11 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           </button>
         )}
         {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
-        {srcDrafts && <SourceCards topicId={topicId} onClose={() => setSrcDrafts(false)} />}
+        {srcDrafts && (
+          <Suspense fallback={null}>
+            <SourceCards topicId={topicId} onClose={() => setSrcDrafts(false)} />
+          </Suspense>
+        )}
         {hard.length > 0 && (
           <button className={'chip-btn' + (onlyHard ? ' on' : '')} onClick={() => setOnlyHard(!onlyHard)} title="Карточки, которые долго не запоминаются">
             Трудные · {hard.length}

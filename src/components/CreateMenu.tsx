@@ -1,6 +1,7 @@
 // «＋ Создать»: одно место, откуда создаётся всё — карточка, тема, предмет, домашка, контрольная, файл изменений.
 // На компьютере — кнопка в левой панели, на телефоне — ячейка нижней панели; из поиска — команда «Создать…».
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { aiAvailable } from '../ai';
 import { addCard, addTopic, sortedSubjects, useData } from '../store';
 import type { Route } from '../types';
 import { openChanges } from './ChangesDialog';
@@ -8,7 +9,9 @@ import { openExamDialog } from './ExamDialog';
 import { NotebookImport } from './NotebookImport';
 import { Icon, Modal, toast } from './ui';
 
-type Sheet = null | 'menu' | 'card' | 'topic' | 'notebook';
+type Sheet = null | 'menu' | 'card' | 'topic' | 'notebook' | 'solve';
+// «Решить по шагам» (1.32, N3) — грузится при открытии.
+const SolveDialog = lazy(() => import('./SolveDialog').then((m) => ({ default: m.SolveDialog })));
 let opener: ((s: Sheet) => void) | null = null;
 /** Открыть «Создать» из любого места (кнопки оболочки, поиск). */
 export const openCreate = () => opener?.('menu');
@@ -38,10 +41,17 @@ export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: 
   if (sheet === 'card') return <QuickCardDialog at={at} onClose={close} />;
   if (sheet === 'topic') return <QuickTopicDialog at={at} go={go} onClose={close} />;
   if (sheet === 'notebook') return <NotebookImport at={at} go={go} onClose={close} />;
+  if (sheet === 'solve')
+    return (
+      <Suspense fallback={null}>
+        <SolveDialog topicId={at.topicId} subjectId={at.subjectId} onClose={close} />
+      </Suspense>
+    );
 
   const items: { icon: string; title: string; hint: string; run: () => void; hidden?: boolean }[] = [
     { icon: 'cardPlus', title: 'Быстрая карточка', hint: 'Вопрос и ответ — в любую тему', run: () => setSheet('card'), hidden: data.topics.length === 0 },
     { icon: 'book', title: 'Новая тема', hint: 'Название — конспект допишешь потом', run: () => setSheet('topic'), hidden: data.subjects.length === 0 },
+    { icon: 'sparkle', title: 'Решить по шагам', hint: 'Фото задачи — ИИ объяснит решение с формулами', run: () => setSheet('solve'), hidden: !aiAvailable(data) },
     { icon: 'pen', title: 'Из тетради', hint: 'Фото записей или файл: Word, PDF, Markdown, Notion', run: () => setSheet('notebook'), hidden: data.subjects.length === 0 },
     { icon: 'folderPlus', title: 'Новый предмет', hint: 'Например, «Биология»', run: () => (close(), onNewSubject()) },
     { icon: 'folder', title: 'Новая папка', hint: 'Собрать предметы вместе, например «Естественные науки»', run: () => (close(), onNewSubject({ as: 'folder' })) },

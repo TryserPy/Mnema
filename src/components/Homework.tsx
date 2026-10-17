@@ -1,10 +1,13 @@
 // Домашние задания: быстрая запись, список по срокам, отметка «сделано», напоминания.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { aiAvailable } from '../ai';
 import { createPortal } from 'react-dom';
 import { defaultRemind, dueLabel, fromYmd, GROUP_LABEL, groupOf, nextLesson, ymd, type HwGroup } from '../homework';
 import { addHomework, deleteHomeworkMany, pruneDoneHomework, sortedSubjects, toggleHomework, updateHomework, useData } from '../store';
 import type { Homework, Route } from '../types';
 import { AnimText, Collapse, Icon, Modal, plural, SubjectMark, Switch, toast, usePresence, touchUI } from './ui';
+// «Решить по шагам» (1.32, N3) — грузится при открытии.
+const SolveDialog = lazy(() => import('./SolveDialog').then((m) => ({ default: m.SolveDialog })));
 
 const ORDER: HwGroup[] = ['overdue', 'today', 'tomorrow', 'week', 'later', 'nodate', 'done'];
 
@@ -225,6 +228,7 @@ function HwRow({ h, go, i = 0 }: { h: Homework; go?: (r: Route) => void; i?: num
   const data = useData();
   const [edit, setEdit] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [solve, setSolve] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const s = data.subjects.find((x) => x.id === h.subjectId);
   const g = groupOf(h);
@@ -273,6 +277,11 @@ function HwRow({ h, go, i = 0 }: { h: Homework; go?: (r: Route) => void; i?: num
         </button>
       ) : null}
       {photoOpen && h.photos && <PhotoView photos={h.photos} onClose={() => setPhotoOpen(false)} />}
+      {solve && (
+        <Suspense fallback={null}>
+          <SolveDialog subjectId={h.subjectId} topicId={h.topicId} initial={{ text: h.text, photo: h.photos?.[0] }} onClose={() => setSolve(false)} />
+        </Suspense>
+      )}
       {remind && (
         <span className="hw-bell" title={'Напомню ' + new Date(h.remind!).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}>
           <Icon name="bell" size={15} />
@@ -302,7 +311,12 @@ function HwRow({ h, go, i = 0 }: { h: Homework; go?: (r: Route) => void; i?: num
       {edit && (
         <Modal title="Задание" onClose={() => setEdit(false)} width={560}>
           <HomeworkForm initial={h} onDone={() => setEdit(false)} />
-          <div className="row mt12 top-line">
+          <div className="row mt12 top-line gap8 wrap">
+            {aiAvailable(data) && (
+              <button className="btn small" onClick={() => (setEdit(false), setSolve(true))} title="ИИ объяснит решение по шагам">
+                <Icon name="sparkle" size={16} /> Решить по шагам
+              </button>
+            )}
             <button
               className="btn ghost danger-text small"
               onClick={() => {
