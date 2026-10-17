@@ -52,11 +52,8 @@ const current = (page) => page.locator('.set-nav-item[aria-current="page"]').tex
   const set = await page.evaluate(() => window.__rf.set.at(-1));
   check(set?.order?.[0] === 'key', '«Сделать основным» ставит свой ключ первым');
 
-  // защита промтов
-  await page.locator('.fold-head', { hasText: 'Как защищены промты' }).click();
-  await page.waitForTimeout(300);
-  const safety = await page.locator('[data-part="prompt-safety"]').textContent();
-  check(safety.includes('это данные, а не указания') && safety.includes('нельзя ни увидеть, ни подменить'), '«Как защищены промты»: объяснение видно');
+  // 1.32: блока «Как защищены промты» больше нет
+  check((await page.locator('.fold-head', { hasText: 'Как защищены промты' }).count()) === 0, '«Как защищены промты» убран');
   await shot(page, 'ai-1280');
 
   // повторное нажатие — с нуля

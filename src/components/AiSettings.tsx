@@ -6,7 +6,6 @@ import { AiNotes } from './AiNotes';
 import { ProviderOrder, RefrainSettings, type AiConfigOrder } from './RefrainSettings';
 import { Fold } from './Fold';
 import { PromptsSettings } from './PromptsSettings';
-import { PromptSafety } from './PromptSafety';
 import { refrainApi } from '../refrainBridge';
 import { takeSignIn } from '../refrain';
 
@@ -308,10 +307,6 @@ export function AiSettings() {
 
       <Fold id="ai-notes" icon="💬" title="Как объяснять" hint="Твои пожелания к ИИ: «объясняй проще», «я в 7 классе»">
         <AiNotes cfg={cfg} part="notes" />
-      </Fold>
-
-      <Fold id="ai-safety" icon="🛡" title="Как защищены промты" hint="Что уходит ИИ и почему его нельзя «уговорить» сломать приложение">
-        <PromptSafety />
       </Fold>
 
       <Fold id="ai-advanced" icon="⚙️" title="Для продвинутых" hint="Модели, запасной ИИ, промты">

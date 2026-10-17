@@ -98,7 +98,7 @@ export function RefrainSettings({ cfg, focusLogin = false }: { cfg: AiConfigOrde
 
   return (
     <div className="stack gap12 rf-settings" data-part="refrain">
-      <span className="small muted">Каждый день — бесплатные страницы. Ключ не нужен, только почта. Уходит только то фото или текст, с которым ты попросил помочь.</span>
+      <span className="small muted">Каждый день — бесплатные страницы. Ключ не нужен, только почта. Уходит только фото или текст, с которым ты попросил помочь, и название темы.</span>
       {msg && <div className={'hint ' + msg.kind} role="status">{msg.text}</div>}
       {!st.signedIn ? (
         st.secure ? (
