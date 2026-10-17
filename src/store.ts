@@ -110,6 +110,8 @@ declare global {
       speak?: (text: string, lang: string) => void;
       speakStop?: () => void;
       print?: () => void;
+      /** Окно входа в Яндекс (Windows, Linux): адрес страницы с токеном или null, если окно закрыли. */
+      yandexLogin?: (url: string) => Promise<string | null>;
       secretGet?: (name: string) => Promise<string>;
       secretSet?: (name: string, value: string) => Promise<boolean>;
       obsidianExport?: (files: { path: string; content: string; base64?: boolean }[]) => Promise<{ ok: boolean; canceled?: boolean; folder?: string; written?: number; zip?: boolean }>;

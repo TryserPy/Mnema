@@ -31,6 +31,7 @@ const notify = require('./notify.cjs');
 const updater = require('./updater.cjs');
 const ocr = require('./ocr.cjs');
 const sync = require('./sync.cjs');
+const oauth = require('./oauth.cjs');
 const openFiles = require('./openFiles.cjs');
 const linux = require('./linux.cjs');
 const { permissionAllowed, lockDown } = require('./secure.cjs');
@@ -295,6 +296,7 @@ if (!single) {
   ai.register();
   ocr.register();
   sync.register(() => mainWin);
+  oauth.register(() => mainWin);
   tray.register(() => mainWin);
   notify.register(() => mainWin);
   updater.register(() => mainWin);

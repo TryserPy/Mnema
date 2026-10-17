@@ -300,9 +300,9 @@ export function App() {
       const c = getData().settings.cloud;
       if (!c?.auto) return;
       try {
-        const [pass, encPass] = await Promise.all([window.mnemaApi!.secretGet!('cloud-pass'), window.mnemaApi!.secretGet!('cloud-enc')]);
+        const { cloudSync, cloudSecretName } = await import('./cloud');
+        const [pass, encPass] = await Promise.all([window.mnemaApi!.secretGet!(cloudSecretName(c)), window.mnemaApi!.secretGet!('cloud-enc')]);
         if (!pass) return;
-        const { cloudSync } = await import('./cloud');
         await cloudSync(c, pass, c.encrypt ? encPass : '');
         failed = false;
       } catch (e) {

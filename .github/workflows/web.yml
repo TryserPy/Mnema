@@ -27,7 +27,11 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx tsc --noEmit
-      - run: npx vite build --mode web
+      - name: Сборка
+        # ClientID приложения на oauth.yandex.ru (вход в Яндекс Диск); переменная репозитория, не секрет. Пусто — вход через Яндекс скрыт.
+        env:
+          VITE_YANDEX_CLIENT_ID: ${{ vars.YANDEX_CLIENT_ID }}
+        run: npx vite build --mode web
       - name: Выкладка на сайт
         env:
           TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}

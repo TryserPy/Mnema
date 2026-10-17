@@ -1,14 +1,17 @@
-// Облачная копия и синхронизация через WebDAV (Яндекс Диск, Nextcloud, любой WebDAV).
-// Скачиваем копию из облака, сливаем с данными на устройстве и кладём результат обратно.
+// Облачная копия и синхронизация: Яндекс Диск через REST API и вход в Яндекс (OAuth, только папка приложения),
+// либо любой WebDAV (Nextcloud, платный Яндекс Диск). Скачиваем копию из облака, сливаем с данными на устройстве и кладём результат обратно.
 // По желанию шифруем паролем (AES-GCM, ключ из пароля через PBKDF2) — тогда облако видит только шифр.
 import { forSync, getData, normalizeData, replaceData, updateSettings } from './store';
 import { mergeData, trashedText, type MergeReport } from './sync';
 import { toast } from './components/ui';
 import type { AppData } from './types';
+import { YANDEX_API, yandexError } from './yandexDisk';
 
 export const CLOUD_FILE = 'mnema-data.json';
 
 export interface CloudSettings {
+  /** yandex — Яндекс Диск через вход в Яндекс (REST API); webdav (или нет поля, до 1.32) — логин и пароль WebDAV. */
+  kind?: 'yandex' | 'webdav';
   url: string; // например https://webdav.yandex.ru
   user: string;
   folder: string; // папка в облаке
@@ -68,12 +71,115 @@ function fileUrl(c: CloudSettings) {
   return { dir: `${base}/${folder.split('/').map(encodeURIComponent).join('/')}`, file: `${base}/${folder ? folder.split('/').map(encodeURIComponent).join('/') + '/' : ''}${CLOUD_FILE}` };
 }
 
-function httpError(status: number, text: string): Error {
-  if (status === 401) return new Error('Облако не приняло логин или пароль. Для Яндекс Диска нужен пароль приложения (Яндекс ID → Безопасность → Пароли приложений → «Файлы»).');
+/** Ошибка облака с кодом: по нему окно облака показывает кнопку («Войти через Яндекс» при 402 у WebDAV). */
+export class CloudError extends Error {
+  constructor(
+    message: string,
+    public code: 'webdav_paid' | 'auth' | 'other' = 'other'
+  ) {
+    super(message);
+  }
+}
+
+function httpError(status: number, text: string, yandex = false): Error {
+  // Яндекс Диск по WebDAV на бесплатном тарифе: 402 «WebDAV is not available for the free tariff».
+  if (status === 402) return new CloudError(yandex ? 'Яндекс больше не даёт WebDAV на бесплатном тарифе. Подключи Диск через вход в Яндекс — это бесплатно и без пароля приложения.' : 'Облако просит оплату за этот способ доступа (WebDAV).', 'webdav_paid');
+  if (status === 401) return new CloudError(yandex ? 'Яндекс не принял логин или пароль приложения. Проще подключить Диск через вход в Яндекс.' : 'Облако не приняло логин или пароль.', 'auth');
   if (status === 403) return new Error('Нет доступа к папке в облаке.');
   if (status === 507) return new Error('В облаке закончилось место.');
-  if (status === 0) return new Error('Нет связи с облаком. Проверь интернет. ' + text);
-  return new Error(`Облако ответило ошибкой ${status}. ${text.slice(0, 120)}`);
+  if (status === 0) return new Error('Нет связи с облаком. Проверь интернет.');
+  return new Error(`Облако ответило ошибкой ${status}. ${text.replace(/\s+/g, ' ').slice(0, 120)}`);
+}
+
+type Http = NonNullable<NonNullable<Window['mnemaApi']>['http']>;
+type HttpRes = { status: number; text: string };
+
+/** Сбой сети, перегрузка, «занято» — повторить с паузой 1, 2, 4 с. Остальные ответы — сразу. */
+export async function withRetry(call: () => Promise<HttpRes>, wait = (ms: number) => new Promise((r) => setTimeout(r, ms))): Promise<HttpRes> {
+  let r = await call();
+  for (let i = 0; i < 3 && [0, 423, 429, 500, 502, 503, 504].includes(r.status); i++) {
+    await wait(1000 * 2 ** i);
+    r = await call();
+  }
+  return r;
+}
+
+/** Где лежит копия: прочитать (null — копии ещё нет), подготовить папку, записать. */
+export interface CloudBackend {
+  read(): Promise<string | null>;
+  prepare(): Promise<void>;
+  write(body: string): Promise<void>;
+}
+
+export function webdavBackend(http: Http, c: CloudSettings, pass: string): CloudBackend {
+  if (!/^https:\/\//i.test(c.url) && !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/i.test(c.url)) throw new Error('Адрес облака должен начинаться с https://');
+  const yandex = /webdav\.yandex\./i.test(c.url);
+  const auth = { authorization: basic(c.user, pass) };
+  const { dir, file } = fileUrl(c);
+  return {
+    async read() {
+      const got = await withRetry(() => http({ url: file, method: 'GET', headers: auth, timeout: 180000 }));
+      if (got.status === 200) return got.text;
+      if (got.status === 404) return null;
+      throw httpError(got.status, got.text, yandex);
+    },
+    async prepare() {
+      if (!c.folder.trim()) return;
+      const mk = await withRetry(() => http({ url: dir, method: 'MKCOL', headers: auth, timeout: 30000 }));
+      if (![201, 405, 301, 200].includes(mk.status)) throw httpError(mk.status, mk.text, yandex);
+    },
+    async write(body) {
+      const put = await withRetry(() => http({ url: file, method: 'PUT', headers: { ...auth, 'content-type': 'application/json' }, body, timeout: 300000 }));
+      if (![200, 201, 204].includes(put.status)) throw httpError(put.status, put.text, yandex);
+    }
+  };
+}
+
+/** Путь в папке приложения на Диске: app:/Refrain/mnema-data.json. Доступ токена — только к этой папке. */
+export function yandexPath(folder: string, name = CLOUD_FILE): string {
+  const f = folder.trim().replace(/^\/+|\/+$/g, '').replace(/[\\:*?"<>|]/g, '');
+  return `app:/${f ? f + '/' : ''}${name}`;
+}
+
+/**
+ * Яндекс Диск через REST API (cloud-api.yandex.net). Скачать: GET resources/download → href → GET href.
+ * Загрузить: GET resources/upload → href → PUT href. Папка: PUT resources (409 — уже есть). Токен уходит только на cloud-api.
+ */
+export function yandexBackend(http: Http, c: CloudSettings, token: string): CloudBackend {
+  if (!token) throw new CloudError('Войди в Яндекс, чтобы подключить Диск.', 'auth');
+  const auth = { authorization: `OAuth ${token}`, accept: 'application/json' };
+  const api = (path: string, method = 'GET') => withRetry(() => http({ url: YANDEX_API + path, method, headers: auth, timeout: 30000 }));
+  const href = (text: string): string => {
+    try {
+      const u = (JSON.parse(text) as { href?: unknown }).href;
+      if (typeof u === 'string' && /^https:\/\//.test(u)) return u;
+    } catch {
+      /* ниже ошибка */
+    }
+    throw new Error('Яндекс Диск ответил не так, как ожидалось. Попробуй ещё раз позже.');
+  };
+  const path = encodeURIComponent(yandexPath(c.folder));
+  return {
+    async read() {
+      const r = await api(`/resources/download?path=${path}`);
+      if (r.status === 404) return null;
+      if (r.status !== 200) throw yandexError(r.status, r.text);
+      const got = await withRetry(() => http({ url: href(r.text), method: 'GET', timeout: 180000 }));
+      if (got.status !== 200) throw yandexError(got.status, got.text);
+      return got.text;
+    },
+    async prepare() {
+      if (!c.folder.trim()) return;
+      const r = await api(`/resources?path=${encodeURIComponent(yandexPath(c.folder, '').replace(/\/$/, ''))}`, 'PUT');
+      if (![201, 409].includes(r.status)) throw yandexError(r.status, r.text);
+    },
+    async write(body) {
+      const r = await api(`/resources/upload?path=${path}&overwrite=true`);
+      if (r.status !== 200) throw yandexError(r.status, r.text);
+      const put = await withRetry(() => http({ url: href(r.text), method: 'PUT', headers: { 'content-type': 'application/json' }, body, timeout: 300000 }));
+      if (![200, 201, 202].includes(put.status)) throw yandexError(put.status, put.text);
+    }
+  };
 }
 
 export interface CloudResult {
@@ -110,21 +216,22 @@ export function warnTrashed(r: MergeReport): void {
   if (r.trashed) toast(trashedText(r));
 }
 
-/** Синхронизация с облаком: скачать → слить → загрузить. */
-export async function cloudSync(c: CloudSettings, pass: string, encPass: string, onStep?: (s: string) => void): Promise<CloudResult> {
+/**
+ * Синхронизация с облаком: скачать → слить → загрузить. secret — пароль WebDAV или токен Яндекса (по c.kind);
+ * в журналы и тексты ошибок ни он, ни логин не попадают.
+ */
+export async function cloudSync(c: CloudSettings, secret: string, encPass: string, onStep?: (s: string) => void): Promise<CloudResult> {
   const http = window.mnemaApi?.http;
   if (!http) throw new Error('Облако работает в приложении Refrain (Windows, Linux или Android).');
   if (c.encrypt && !encPass) throw new Error('Включено шифрование — задай пароль шифрования.');
-  if (!/^https:\/\//i.test(c.url) && !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/i.test(c.url)) throw new Error('Адрес облака должен начинаться с https://');
-  const auth = { authorization: basic(c.user, pass) };
-  const { dir, file } = fileUrl(c);
+  const backend = c.kind === 'yandex' ? yandexBackend(http, c, secret) : webdavBackend(http, c, secret);
   onStep?.('Проверяю облако…');
-  const got = await http({ url: file, method: 'GET', headers: auth, timeout: 180000 });
+  const got = await backend.read();
   let report: MergeReport | null = null;
-  if (got.status === 200) {
+  if (got !== null) {
     onStep?.('Объединяю с копией из облака…');
-    assertCloudEncrypted(got.text, c.encrypt);
-    const text = await decryptText(got.text, encPass);
+    assertCloudEncrypted(got, c.encrypt);
+    const text = await decryptText(got, encPass);
     let remote: AppData;
     try {
       remote = normalizeData(JSON.parse(text));
@@ -132,19 +239,18 @@ export async function cloudSync(c: CloudSettings, pass: string, encPass: string,
       throw new Error('Файл в облаке повреждён или это не данные Refrain.');
     }
     report = mergeRemote(remote);
-  } else if (got.status === 404) {
+  } else {
     onStep?.('Создаю папку в облаке…');
-    if (c.folder.trim()) {
-      const mk = await http({ url: dir, method: 'MKCOL', headers: auth, timeout: 30000 });
-      if (![201, 405, 301, 200].includes(mk.status)) throw httpError(mk.status, mk.text);
-    }
-  } else throw httpError(got.status, got.text);
+    await backend.prepare();
+  }
 
   onStep?.('Загружаю в облако…');
   const json = JSON.stringify(forSync(getData()));
   const body = c.encrypt ? await encryptText(json, encPass) : json;
-  const put = await http({ url: file, method: 'PUT', headers: { ...auth, 'content-type': 'application/json' }, body, timeout: 300000 });
-  if (![200, 201, 204].includes(put.status)) throw httpError(put.status, put.text);
+  await backend.write(body);
   updateSettings({ cloud: { ...c, lastAt: new Date().toISOString() } });
   return { report, uploadedBytes: body.length };
 }
+
+/** Имя секрета для входа в облако: пароль WebDAV или токен Яндекса. */
+export const cloudSecretName = (c: Pick<CloudSettings, 'kind'>): string => (c.kind === 'yandex' ? 'cloud-yandex' : 'cloud-pass');

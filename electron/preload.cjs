@@ -82,6 +82,7 @@ contextBridge.exposeInMainWorld('mnemaApi', {
     return () => ipcRenderer.removeListener('sync:done', h);
   },
   http: (r) => ipcRenderer.invoke('net:http', r),
+  yandexLogin: (url) => ipcRenderer.invoke('oauth:yandex', url),
   secretGet: (name) => ipcRenderer.invoke('secret:get', name),
   secretSet: (name, value) => ipcRenderer.invoke('secret:set', name, value),
   obsidianExport: (files) => ipcRenderer.invoke('obsidian:export', files),

@@ -39,7 +39,11 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx tsc --noEmit
       - run: npx vitest run
-      - run: npx vite build
+      - name: Сборка
+        # ClientID приложения на oauth.yandex.ru (вход в Яндекс Диск); переменная репозитория, не секрет. Пусто — вход через Яндекс скрыт.
+        env:
+          VITE_YANDEX_CLIENT_ID: ${{ vars.YANDEX_CLIENT_ID }}
+        run: npx vite build
       - uses: actions/upload-artifact@v4
         with:
           name: dist
