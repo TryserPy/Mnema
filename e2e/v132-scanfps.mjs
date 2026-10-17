@@ -50,7 +50,11 @@ const r = await page.evaluate(() => {
 });
 console.log(`анимация полосы: ${anim.name}, свойства: ${anim.props.join(', ')}`);
 console.log(`главный поток при замедлении ×${RATE}: ${r.fps} кадров/с за ${r.seconds} с, самые долгие паузы: ${r.worst.join(', ')} мс, пауз > 250 мс: ${r.over250}`);
-const ok = anim.props.length === 1 && anim.props[0] === 'transform';
-console.log(ok ? '✓ полоса анимируется только transform — плавная при занятом главном потоке' : '✗ полоса анимирует свойства раскладки');
+const ok1 = anim.props.length === 1 && anim.props[0] === 'transform';
+console.log(ok1 ? '✓ полоса анимируется только transform — плавная при занятом главном потоке' : '✗ полоса анимирует свойства раскладки');
+// 1.32, п.7: разбор фото — в фоновом потоке; в окне не должно быть пауз дольше 0,6 с даже при замедлении ×4.
+const ok2 = r.worst[0] < 600;
+console.log(ok2 ? `✓ самая долгая пауза окна ${r.worst[0]} мс (< 600)` : `✗ пауза окна ${r.worst[0]} мс — разбор фото снова держит главный поток`);
+const ok = ok1 && ok2;
 await browser.close();
 process.exit(ok ? 0 : 1);

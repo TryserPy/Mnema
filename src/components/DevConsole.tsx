@@ -5,6 +5,7 @@ import { clearNet, devOn, netEntries, onDev, setDev } from '../devMode';
 import { clearLog, logEntries, onLog, openReportProblem, type LogLevel } from '../refrain';
 import { getData } from '../store';
 import { APP_VERSION } from '../update';
+import { prepStats, workerPossible } from '../textbookOffload';
 import { Modal, Segmented, toast } from './ui';
 
 type Tab = 'log' | 'net' | 'data' | 'perf';
@@ -174,6 +175,7 @@ function DataTab() {
     ['Предметы / темы / карточки', `${d.subjects.length} / ${d.topics.length} / ${d.cards.length}`],
     ['Повторений в журнале', String(d.logs.length)],
     ['Облако', d.settings.cloud ? `${d.settings.cloud.kind ?? 'webdav'}${d.settings.cloud.lastAt ? ', ' + new Date(d.settings.cloud.lastAt).toLocaleString('ru-RU') : ''}` : 'нет'],
+    ['Фото учебника', `в фоне ${prepStats.worker}, в окне ${prepStats.main}${workerPossible() ? '' : ' · фоновый поток недоступен'}${prepStats.lastError ? ' · ' + prepStats.lastError.slice(0, 80) : ''}`],
     ['Ключи localStorage (без значений)', lsKeys.join(', ') || '—']
   ];
   return (

@@ -5,13 +5,13 @@
 import { aiError, humanError } from './ai';
 import { aiRequest } from './aiTasks';
 import { noteAnswer, REFRAIN_SIDE, type RefrainFields } from './refrain';
-import { boxBlur, findPageQuad, flattenLight, makeYielder, medianGlyphHeight, noiseLevel, quadSize, rgbaToGray, skewOf, stretchContrast, warpQuad, type Gray } from './textbookImage';
-import { adviceFor, applyRowWarp, cropRgba, estimateRowWarp, findSpine, inkCoverage, lightStats, rotateGrayQ, rotateRgbaQ, sharpness, textDirection, type Advice, type PhotoFacts } from './textbookPhoto';
+import { rgbaToGray, type Gray } from './textbookImage';
+import { adviceFor, type Advice, type PhotoFacts } from './textbookPhoto';
+import { dewarpPixels, drawPage, grayCanvas, jpegKey, ocrImage, rotatePixels180, sharpnessOfText, splitPixels, tickUi, type Part, type PreparedPixels, type PrepInfo, type Want } from './textbookPrep';
+import { analyzeOffThread, prepareOffThread, rotateOffThread } from './textbookOffload';
 import { refineFigureBox, remapFigureMarks, tidyFigures } from './textbookFigures';
 import { mergeInput, mergeSystem, pageSystem, parseMerged, readSystem, type NoteStyle } from './textbookNote';
-import { analyzeRegions, strokeStat } from './textbookRegions';
-import { buildPage, judgeAiAnswer, median, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
-import type { Quad } from './textbookImage';
+import { buildPage, judgeAiAnswer, type Box, type Doubt, type Figure, type OcrLine, type PageResult, type Rect } from './textbookText';
 
 export { assemble, fixOcrText, judgeAiAnswer, parseAiMarkdown, sanitizeAiText } from './textbookText';
 export type { Box, Doubt, Figure, PageResult } from './textbookText';
@@ -28,9 +28,7 @@ export interface PageInput {
   crop?: Box; // доли 0..1 от повёрнутой картинки
 }
 
-/** Высота строчных букв, к которой приводим текст перед распознаванием (px). */
-export const GLYPH_TARGET = 22;
-const WORK_SIDE = 3000;
+export { GLYPH_TARGET, markBold } from './textbookPrep';
 
 // ---------- Картинки ----------
 
@@ -41,30 +39,18 @@ export async function loadBitmap(blob: Blob): Promise<ImageBitmap> {
 /** Повернуть, обрезать и уменьшить страницу до maxSide по длинной стороне. */
 export async function renderPage(p: PageInput, maxSide: number): Promise<HTMLCanvasElement> {
   const bmp = await loadBitmap(p.file);
-  const rot = p.rotate % 360;
-  const rw = rot === 90 || rot === 270 ? bmp.height : bmp.width;
-  const rh = rot === 90 || rot === 270 ? bmp.width : bmp.height;
-  const c = p.crop ?? { x: 0, y: 0, w: 1, h: 1 };
-  const sx = Math.round(c.x * rw);
-  const sy = Math.round(c.y * rh);
-  const sw = Math.max(1, Math.round(c.w * rw));
-  const sh = Math.max(1, Math.round(c.h * rh));
-  const scale = Math.min(1, maxSide / Math.max(sw, sh));
-  // Рисуем сразу в нужный размер: гигантский холст на 12+ Мпикс не нужен.
-  const out = document.createElement('canvas');
-  out.width = Math.max(1, Math.round(sw * scale));
-  out.height = Math.max(1, Math.round(sh * scale));
-  const oc = out.getContext('2d')!;
-  oc.imageSmoothingQuality = 'high';
-  oc.save();
-  oc.scale(scale, scale);
-  oc.translate(-sx, -sy);
-  oc.translate(rw / 2, rh / 2);
-  oc.rotate((rot * Math.PI) / 180);
-  oc.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
-  oc.restore();
-  bmp.close();
-  return out;
+  try {
+    return drawPage(bmp, p.rotate, p.crop, maxSide, newCanvas) as HTMLCanvasElement;
+  } finally {
+    bmp.close();
+  }
+}
+
+function newCanvas(w: number, h: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return c;
 }
 
 export function canvasToJpeg(c: HTMLCanvasElement, q = 0.82): string {
@@ -76,8 +62,11 @@ async function canvasBytes(c: HTMLCanvasElement, type: 'image/png' | 'image/jpeg
   return new Uint8Array(await blob.arrayBuffer());
 }
 
+/** Страница картинкой: холст в окне или ImageBitmap из фонового потока (рисуется без копирования пикселей). */
+type Pic = HTMLCanvasElement | ImageBitmap;
+
 /** Вырезать кусок (в долях) и вернуть data URI. */
-export function cropUri(c: HTMLCanvasElement, b: Box, type: 'image/jpeg' | 'image/png' = 'image/jpeg', maxSide = 1100): string {
+export function cropUri(c: Pic, b: Box, type: 'image/jpeg' | 'image/png' = 'image/jpeg', maxSide = 1100): string {
   const sx = Math.max(0, Math.round(b.x * c.width));
   const sy = Math.max(0, Math.round(b.y * c.height));
   const sw = Math.max(1, Math.min(c.width - sx, Math.round(b.w * c.width)));
@@ -92,9 +81,9 @@ export function cropUri(c: HTMLCanvasElement, b: Box, type: 'image/jpeg' | 'imag
   return o.toDataURL(type, 0.85);
 }
 
-function scaleCanvas(c: HTMLCanvasElement, maxSide: number): HTMLCanvasElement {
+function scaleCanvas(c: Pic, maxSide: number): HTMLCanvasElement {
   const k = Math.min(1, maxSide / Math.max(c.width, c.height));
-  if (k === 1) return c;
+  if (k === 1 && c instanceof HTMLCanvasElement) return c;
   const o = document.createElement('canvas');
   o.width = Math.round(c.width * k);
   o.height = Math.round(c.height * k);
@@ -112,188 +101,52 @@ function canvasOf(rgba: Uint8ClampedArray, w: number, h: number): HTMLCanvasElem
   return c;
 }
 
-/** Серая картинка → PNG-байты для Tesseract. */
+/** Серая картинка → PNG-байты для Tesseract (запасной путь: обычно PNG готовит фоновый поток). */
 async function grayPng(g: Gray): Promise<Uint8Array> {
-  const rgba = new Uint8ClampedArray(g.w * g.h * 4);
-  for (let i = 0, j = 0; i < g.d.length; i++, j += 4) (rgba[j] = rgba[j + 1] = rgba[j + 2] = g.d[i]), (rgba[j + 3] = 255);
-  return canvasBytes(canvasOf(rgba, g.w, g.h), 'image/png');
+  return canvasBytes(grayCanvas(g, newCanvas) as HTMLCanvasElement, 'image/png');
 }
 
-export interface Prepared {
-  /** Выровненная цветная страница нужного размера (бумага белая). */
-  color: HTMLCanvasElement;
-  rgba: Uint8ClampedArray;
-  /** Серая для распознавания. */
-  gray: Gray;
-  info: { quad: boolean; skew: number; scale: number; glyph: number; noise: number; w: number; h: number; dir?: 'h' | 'v'; dirScores?: number[]; spread?: boolean; warp?: number; facts?: Partial<PhotoFacts> };
+/** Подготовленная страница + выровненная цветная страница картинкой (из неё режутся рисунки и сомнительные слова). */
+export interface Prepared extends Part {
+  color: Pic;
 }
 
-const tickUi = () => new Promise<void>((r) => setTimeout(r, 0));
-
-/** Во сколько раз одна сторона четырёхугольника длиннее противоположной (1 — снято прямо). */
-function foreshorten(q: Quad): number {
-  const d = (a: Quad[0], b: Quad[0]) => Math.hypot(a.x - b.x, a.y - b.y);
-  const top = d(q[0], q[1]);
-  const bottom = d(q[3], q[2]);
-  const left = d(q[0], q[3]);
-  const right = d(q[1], q[2]);
-  return Math.max(Math.max(top, bottom) / Math.max(1, Math.min(top, bottom)), Math.max(left, right) / Math.max(1, Math.min(left, right)));
+/** Картинка страницы: готовая из фонового потока или холст из пикселей (одно копирование, без пересчёта). */
+function withCanvas(px: Part): Prepared {
+  return { ...px, color: px.bitmap ?? canvasOf(px.rgba, px.info.w, px.info.h) };
 }
 
-/** Резкость по самому «текстовому» окну картинки (не по рисунку и не по пустому полю). */
-function sharpnessOfText(g: Gray): number {
-  const S = 640;
-  let best = { x: 0, y: 0, ink: -1 };
-  for (let gy = 0; gy < 3; gy++)
-    for (let gx = 0; gx < 3; gx++) {
-      const x0 = Math.max(0, Math.min(g.w - S, Math.round(((gx + 0.5) / 3) * g.w - S / 2)));
-      const y0 = Math.max(0, Math.min(g.h - S, Math.round(((gy + 0.5) / 3) * g.h - S / 2)));
-      let ink = 0;
-      for (let y = y0; y < Math.min(g.h, y0 + S); y += 3) for (let x = x0; x < Math.min(g.w, x0 + S); x += 3) if (g.d[y * g.w + x] < 150) ink++;
-      if (ink > best.ink) best = { x: x0, y: y0, ink };
-    }
-  const w = Math.min(S, g.w);
-  const h = Math.min(S, g.h);
-  const d = new Uint8ClampedArray(w * h);
-  for (let y = 0; y < h; y++) d.set(g.d.subarray((best.y + y) * g.w + best.x, (best.y + y) * g.w + best.x + w), y * w);
-  return sharpness({ w, h, d });
-}
+/** Фото страницы в конспекте (1600 px) и что ещё приготовить в фоновом потоке. */
+const PHOTO = { side: 1600, q: 0.82 };
+const WANT_OFFLINE: Want = { ocr: true, jpegs: [PHOTO] };
+const AI_PHOTO = { side: 1800, q: 0.85 };
+const WANT_AI: Want = { ocr: false, jpegs: [AI_PHOTO, { side: REFRAIN_SIDE, q: 0.85 }, PHOTO] };
+const jpegOf = (prep: Prepared, j: { side: number; q: number }) => prep.jpegs?.[jpegKey(j.side, j.q)] ?? canvasToJpeg(scaleCanvas(prep.color, j.side), j.q);
 
 /**
  * Подготовка: страница на столе → ровный прямоугольник, ровный свет, строки горизонтально (снимок на боку поворачиваем),
- * буквы нужного размера.
+ * буквы нужного размера. С 1.32 — в фоновом потоке, если он доступен (textbookOffload.ts).
  */
 export async function prepareOffline(p: PageInput, onProgress?: Progress): Promise<Prepared> {
-  const tick = makeYielder();
-  onProgress?.('Ищу страницу на фото…', 0.04);
-  const src = await renderPage(p, WORK_SIDE);
-  await tickUi();
-  let W = src.width;
-  let H = src.height;
-  let rgba = src.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data as Uint8ClampedArray;
-  await tickUi();
-  let quadUsed = false;
-  let fore = 1;
-  if (!p.crop) {
-    const g0 = rgbaToGray(rgba, W, H);
-    await tickUi();
-    const quad = findPageQuad(g0);
-    await tickUi();
-    if (quad) {
-      const sz = quadSize(quad, WORK_SIDE);
-      onProgress?.('Выпрямляю страницу…', 0.14);
-      fore = foreshorten(quad);
-      rgba = await warpQuad(rgba, W, H, quad, sz.w, sz.h, tick);
-      W = sz.w;
-      H = sz.h;
-      quadUsed = true;
-    }
-  }
-  // Свет до выравнивания: по нему видно «темно / пересвет / блик».
-  const raw = rgbaToGray(rgba, W, H);
-  const light = lightStats(raw);
-  await tickUi();
-  onProgress?.('Выравниваю свет и тени…', 0.24);
-  const flat = await flattenLight(rgba, W, H, tick);
-  await tickUi();
-  // Снимок лёг на бок: строки вертикальные — поворачиваем (какой из двух поворотов верный, решит чтение).
-  const dirInfo = textDirection(flat.gray);
-  const dir = dirInfo.dir;
-  let flatColor = flat.color;
-  let flatGray = flat.gray;
-  if (dir === 'v') {
-    const r = rotateRgbaQ(flatColor, W, H, 1);
-    flatColor = r.data;
-    W = r.w;
-    H = r.h;
-    flatGray = rotateGrayQ(flatGray, 1);
-  }
-  await tickUi();
-  const skew = skewOf(flatGray, 14);
-  await tickUi();
-  const glyph = medianGlyphHeight(flatGray);
-  const noise = noiseLevel(flatGray);
-  await tickUi();
-  let scale = glyph > 0 ? Math.min(2.5, Math.max(0.5, GLYPH_TARGET / glyph)) : 1;
-  // Слишком большие страницы не раздуваем (память и время распознавания).
-  scale = Math.min(scale, 3600 / Math.max(W, H));
-  if (Math.abs(scale - 1) < 0.08) scale = 1;
-  const out = document.createElement('canvas');
-  out.width = Math.round(W * scale);
-  out.height = Math.round(H * scale);
-  const octx = out.getContext('2d', { willReadFrequently: true })!;
-  octx.fillStyle = '#fff';
-  octx.fillRect(0, 0, out.width, out.height);
-  octx.imageSmoothingQuality = 'high';
-  octx.translate(out.width / 2, out.height / 2);
-  if (skew) octx.rotate((-skew * Math.PI) / 180);
-  octx.scale(scale, scale);
-  octx.drawImage(canvasOf(flatColor, W, H), -W / 2, -H / 2);
-  const res = octx.getImageData(0, 0, out.width, out.height);
-  await tickUi();
-  const gray = rgbaToGray(res.data, out.width, out.height);
-  const facts: Partial<PhotoFacts> = { paper: light.paper, clipped: light.clipped, inkDepth: light.inkDepth, glyph, foreshorten: fore };
-  return { color: out, rgba: res.data as Uint8ClampedArray, gray, info: { quad: quadUsed, skew, scale, glyph, noise, w: out.width, h: out.height, dir, dirScores: [dirInfo.hScore, dirInfo.vScore], facts } };
-}
-
-/** Пересобирает Prepared из новых пикселей (canvas, серая). */
-function rebuild(prep: Prepared, rgba: Uint8ClampedArray, w: number, h: number, extra: Partial<Prepared['info']> = {}): Prepared {
-  const color = canvasOf(rgba, w, h);
-  return { color, rgba, gray: rgbaToGray(rgba, w, h), info: { ...prep.info, w, h, ...extra } };
+  const job = await prepareOffThread({ file: p.file, rotate: p.rotate, crop: p.crop, split: false, want: WANT_OFFLINE }, onProgress);
+  return withCanvas(job.parts[0]);
 }
 
 /** Страница вверх ногами (поворот на 180°). */
 export function rotatePrepared180(prep: Prepared): Prepared {
-  const r = rotateRgbaQ(prep.rgba, prep.info.w, prep.info.h, 2);
-  return rebuild(prep, r.data, r.w, r.h);
+  return withCanvas(rotatePixels180(prep));
 }
 
 /** Разворот: режем по корешку на левую и правую страницы (с небольшим запасом у корешка). null — это одна страница. */
 export function splitSpread(prep: Prepared): [Prepared, Prepared] | null {
-  const sp = findSpine(prep.gray);
-  if (!sp) return null;
-  const { w, h } = prep.info;
-  const L = cropRgba(prep.rgba, w, h, 0, 0, Math.round(sp.a), h);
-  const R = cropRgba(prep.rgba, w, h, Math.round(sp.b), 0, w, h);
-  return [rebuild(prep, L.data, L.w, L.h, { spread: true }), rebuild(prep, R.data, R.w, R.h, { spread: true })];
+  const halves = splitPixels(prep);
+  return halves && [withCanvas(halves[0]), withCanvas(halves[1])];
 }
 
 /** Убирает «волну» строк, если она есть. */
 export function dewarpPrepared(prep: Prepared): Prepared {
-  const warp = estimateRowWarp(prep.gray);
-  if (!warp) return prep;
-  const rgba = applyRowWarp(prep.rgba, prep.info.w, prep.info.h, warp.dy);
-  return rebuild(prep, rgba, prep.info.w, prep.info.h, { warp: Math.round(warp.amp * 10) / 10 });
-}
-
-// ---------- Жирный шрифт ----------
-
-/** Помечает жирные слова: штрихи заметно толще обычных на этой странице. */
-export function markBold(lines: OcrLine[], gray: Gray): void {
-  const wordH = median(lines.flatMap((l) => l.words.filter((w) => w.text.replace(/[^\p{L}]/gu, '').length >= 3).map((w) => w.bbox.y1 - w.bbox.y0)));
-  if (!wordH) return;
-  const stats = new Map<object, { stem: number; density: number; h: number; n: number }>();
-  for (const l of lines)
-    for (const w of l.words) {
-      const n = w.text.replace(/[^\p{L}\p{N}]/gu, '').length;
-      if (n < 1) continue;
-      const s = strokeStat(gray, w.bbox);
-      stats.set(w, { ...s, h: w.bbox.y1 - w.bbox.y0, n });
-    }
-  const body = [...stats.values()].filter((s) => s.n >= 3 && s.h > wordH * 0.8 && s.h < wordH * 1.25 && s.stem > 0);
-  if (body.length < 5) return;
-  const stem = median(body.map((s) => s.stem));
-  const dens = median(body.map((s) => s.density));
-  for (const l of lines)
-    for (const w of l.words) {
-      const s = stats.get(w);
-      if (!s) continue;
-      const rel = s.stem / stem;
-      const dRel = s.density / (dens || 1);
-      // Короткие слова и одиночные буквы — только при явном превосходстве.
-      const need = s.n <= 2 ? 1.5 : 1.28;
-      w.bold = rel >= need && s.stem - stem >= 0.8 && dRel >= 1.12;
-    }
+  const px = dewarpPixels(prep);
+  return px === prep ? prep : withCanvas(px);
 }
 
 // ---------- Без интернета ----------
@@ -339,20 +192,19 @@ async function readPrepared(p: PageInput, prep: Prepared, onProgress?: Progress,
   const api = window.mnemaApi;
   if (!api?.ocrRecognize) throw new Error('Распознавание без интернета работает в приложении для Windows, Linux, на телефоне и в браузере.');
   onProgress?.('Читаю текст…', span[0]);
-  const gray = prep.gray;
-  const ocrImg = prep.info.noise > 9 ? stretchContrast(boxBlur(gray, 1), 60, 240) : stretchContrast(gray, 60, 240);
-  const res = await api.ocrRecognize(await grayPng(ocrImg));
+  const res = await api.ocrRecognize(prep.ocrPng ?? (await grayPng(ocrImage(prep))));
   if (!res.ok) throw new Error(res.error);
   onProgress?.('Собираю абзацы, заголовки и рисунки…', span[1]);
   await tickUi();
-  const lines = (res.lines as OcrLine[]).filter((l) => l.words?.some((w) => w.text.trim()));
-  const good = goodWordCount(lines);
-  const rev = reversedShare(lines) > 0.5;
-  markBold(lines, gray);
-  // Размер строки — для порогов; рисунки и рамки ищем там, где нет уверенного текста.
-  const goodWords = lines.flatMap((l) => l.words.filter((w) => w.conf >= 30 && w.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 2).map((w) => w.bbox));
-  const mh = median(lines.map((l) => l.bbox.y1 - l.bbox.y0)) || 30;
-  const regions = analyzeRegions(prep.rgba, gray, goodWords, mh, prep.info.glyph * prep.info.scale);
+  const found = (res.lines as OcrLine[]).filter((l) => l.words?.some((w) => w.text.trim()));
+  const good = goodWordCount(found);
+  const rev = reversedShare(found) > 0.5;
+  // Жирный, рисунки и рамки, резкость — в фоновом потоке; пиксели возвращаются в страницу.
+  const an = await analyzeOffThread(prep, found);
+  prep.rgba = an.px.rgba;
+  prep.gray = an.px.gray;
+  const { lines, regions } = an;
+  const gray = prep.gray;
   const layout = buildPage({ lines, width: gray.w, height: gray.h, figures: regions.figures, boxes: regions.boxes });
   const canvas = prep.color;
   const doubts: Doubt[] = layout.doubts.slice(0, 40).map((d) => {
@@ -384,16 +236,16 @@ async function readPrepared(p: PageInput, prep: Prepared, onProgress?: Progress,
     foreshorten: 1,
     glareShare: 0,
     ...prep.info.facts,
-    sharp: sharpnessOfText(gray),
+    sharp: an.sharp,
     moire: 0,
     conf: q.conf,
     unsureShare: q.words ? q.unsure / q.words : 0,
     words: q.words
   };
-  facts.cover = inkCoverage(gray, goodWords, regions.figures);
+  facts.cover = an.cover;
   const advice: Advice[] = adviceFor(facts);
   debugHook?.({ info: prep.info, lines, layout, regions, facts: { ...facts, good, rev: rev ? 1 : 0 } as PhotoFacts, advice });
-  const page: PageResult = { n: p.n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts, detectedPage: layout.detectedPage, quality: q, advice: advice.length ? advice : undefined };
+  const page: PageResult = { n: p.n, photo: jpegOf(prep, PHOTO), markdown, figures, doubts, detectedPage: layout.detectedPage, quality: q, advice: advice.length ? advice : undefined };
   return { page, good, empty: !markdown.trim() && !figures.length, rev };
 }
 
@@ -402,13 +254,16 @@ const NO_TEXT = 'на фото не нашлось текста. Проверь,
 /** Страница читается; если текста почти нет — пробуем вверх ногами (снимок мог перевернуться). */
 async function readUpright(p: PageInput, prep: Prepared, onProgress?: Progress, span?: [number, number]): Promise<Read & { flipped: boolean }> {
   let r = await readPrepared(p, prep, onProgress, span);
+  // Перевёрнутую страницу готовим один раз (в фоновом потоке, пиксели prep уходят туда — дальше нужна только она).
+  let flippedRead: Promise<Read> | null = null;
+  const readFlipped = () => (flippedRead ??= rotateOffThread(prep, { ...WANT_OFFLINE, jpegs: prep.jpegs?.[jpegKey(PHOTO.side, PHOTO.q)] ? [PHOTO] : [] }).then((x) => readPrepared(p, withCanvas(x), onProgress, span)));
   if (r.rev) {
     // Tesseract сам перевернул страницу: слова пришли справа налево. Поворачиваем снимок и читаем заново.
-    const alt = await readPrepared(p, rotatePrepared180(prep), onProgress, span);
+    const alt = await readFlipped();
     if (!alt.rev && alt.good > r.good * 0.6) return { ...alt, flipped: true };
   }
   if (r.good < 25 || r.page.quality!.conf < 50) {
-    const alt = await readPrepared(p, rotatePrepared180(prep), onProgress, span);
+    const alt = await readFlipped();
     if (alt.good > r.good * 1.5 + 5) return { ...alt, flipped: true };
   }
   return { ...r, flipped: false };
@@ -422,14 +277,15 @@ async function readUpright(p: PageInput, prep: Prepared, onProgress?: Progress, 
 export async function recognizeOfflinePages(p: PageInput, onProgress?: Progress, opts: { spread?: boolean } = {}): Promise<PageResult[]> {
   const api = window.mnemaApi;
   if (!api?.ocrRecognize) throw new Error('Распознавание без интернета работает в приложении для Windows, Linux, на телефоне и в браузере.');
-  const prep = await prepareOffline(p, onProgress);
-  const halves = opts.spread === false ? null : splitSpread(prep);
-  const parts = halves ?? [prep];
+  // Выпрямление, свет, разрез разворота и «волна» строк — в фоновом потоке; здесь только чтение.
+  const job = await prepareOffThread({ file: p.file, rotate: p.rotate, crop: p.crop, split: opts.spread !== false, want: WANT_OFFLINE }, onProgress);
+  const halves = job.spread;
+  const parts = job.parts;
   const out: PageResult[] = [];
   let flips = 0;
   for (let j = 0; j < parts.length; j++) {
     const span: [number, number] = [0.36 + (0.5 * j) / parts.length, 0.36 + (0.5 * (j + 1)) / parts.length];
-    const r = await readUpright(p, dewarpPrepared(parts[j]), onProgress, span);
+    const r = await readUpright(p, withCanvas(parts[j]), onProgress, span);
     if (r.flipped) flips++;
     out.push(r.page);
   }
@@ -459,11 +315,11 @@ export async function recognizeOffline(p: PageInput, onProgress?: Progress): Pro
 async function plainPrepared(p: PageInput): Promise<Prepared> {
   const c = await renderPage(p, 1800);
   const rgba = c.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, c.width, c.height).data as Uint8ClampedArray;
-  return { color: c, rgba, gray: rgbaToGray(rgba, c.width, c.height), info: { quad: false, skew: 0, scale: 1, glyph: 0, noise: 0, w: c.width, h: c.height } };
+  return { color: c, rgba, gray: rgbaToGray(rgba, c.width, c.height), info: { quad: false, skew: 0, scale: 1, glyph: 0, noise: 0, w: c.width, h: c.height } satisfies PrepInfo };
 }
 
 /** Что не так со снимком — для сообщения, когда ИИ ничего не прочитал. */
-function photoTrouble(prep: Prepared): string {
+function photoTrouble(prep: Pick<PreparedPixels, 'gray' | 'info'>): string {
   const f: PhotoFacts = { paper: 255, clipped: 0, inkDepth: 0, glyph: prep.info.glyph, foreshorten: 1, glareShare: 0, ...prep.info.facts, sharp: sharpnessOfText(prep.gray), moire: 0, conf: 0, unsureShare: 1, words: 0 };
   const a = adviceFor(f).filter((x) => x.code !== 'generic');
   return a.length ? ' ' + a.map((x) => x.text).join(' ') : ' Проверь, что страница видна целиком, резкая и хорошо освещена.';
@@ -499,25 +355,30 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
   onProgress?.('Готовлю фото…', 0.05);
-  let prep: Prepared;
+  // Подготовка (и разрез разворота, и «волна» строк) — в фоновом потоке; не вышло — страница как есть.
+  let prep: Pick<PreparedPixels, 'gray' | 'info'>;
+  let parts: Part[];
   try {
-    prep = await prepareOffline(p, onProgress);
+    const job = await prepareOffThread({ file: p.file, rotate: p.rotate, crop: p.crop, split: !p.crop, want: WANT_AI }, onProgress);
+    prep = job.whole;
+    parts = job.parts;
   } catch {
-    prep = await plainPrepared(p);
+    const plain = await plainPrepared(p);
+    prep = plain;
+    parts = (p.crop ? null : splitPixels(plain)) ?? [plain];
+    parts = parts.map(dewarpPixels);
   }
-  const halves = p.crop ? null : splitSpread(prep);
-  const parts = halves ?? [prep];
   const direct = o.direct && parts.length === 1 && o.style !== 'verbatim';
   const pages: PageResult[] = [];
   let unavailable: string | undefined;
   for (let j = 0; j < parts.length; j++) {
     const span: [number, number] = [0.15 + (0.8 * j) / parts.length, 0.15 + (0.8 * (j + 1)) / parts.length];
-    const part = dewarpPrepared(parts[j]);
+    const part = withCanvas(parts[j]);
     const n = p.n + j;
     const canvas = part.color;
     onProgress?.('Сжимаю фото…', span[0]);
     await tickUi();
-    const photo = canvasToJpeg(scaleCanvas(canvas, 1800), 0.85);
+    const photo = jpegOf(part, AI_PHOTO);
     await tickUi();
     onProgress?.(parts.length > 1 ? `ИИ читает ${j === 0 ? 'левую' : 'правую'} страницу разворота…` : direct ? 'ИИ делает конспект страницы…' : 'ИИ читает страницу…', span[0]);
     const fallback = async (why: string, quiet = false): Promise<PageResult> => {
@@ -532,7 +393,7 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
       continue;
     }
     // Refrain ИИ: «Конспект»/«Кратко» сразу по странице или «Дословно» (чтение для свода), фото — 1600 px.
-    const refrain: RefrainFields = { task: direct ? (o.style === 'brief' ? 'textbook.brief' : 'textbook.summary') : 'textbook.verbatim', image: { mime: 'image/jpeg', data: canvasToJpeg(scaleCanvas(canvas, REFRAIN_SIDE), 0.85).split(',')[1] }, ...(n ? { page: n } : {}) };
+    const refrain: RefrainFields = { task: direct ? (o.style === 'brief' ? 'textbook.brief' : 'textbook.summary') : 'textbook.verbatim', image: { mime: 'image/jpeg', data: jpegOf(part, { side: REFRAIN_SIDE, q: 0.85 }).split(',')[1] }, ...(n ? { page: n } : {}) };
     const ans = await askAi(direct ? pageSystem(o.style) : readSystem(), `Страница учебника${n ? `, номер ${n}` : ''}.${parts.length > 1 ? ` Это ${j === 0 ? 'левая' : 'правая'} страница разворота.` : ''} ${direct ? 'Сделай по ней конспект по правилам.' : 'Переведи её в Markdown по правилам.'} Фото может быть повёрнуто — читай как видишь.`, photo, 6000, refrain);
     if (!ans.ok) {
       if (ans.unavailable) unavailable = ans.error;
@@ -553,7 +414,7 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
     const tidy = tidyFigures(part.rgba, part.info.w, part.info.h, parsed.figures);
     const markdown = remapFigureMarks(parsed.markdown, tidy.map);
     const figures: Figure[] = tidy.figures.map((f) => ({ box: f.box, caption: f.caption, uri: cropUri(canvas, f.box) }));
-    pages.push({ n, photo: canvasToJpeg(scaleCanvas(canvas, 1600)), markdown, figures, doubts: [], detectedPage: parsed.detectedPage, spread: parts.length > 1 ? (j === 0 ? 'left' : 'right') : undefined });
+    pages.push({ n, photo: jpegOf(part, PHOTO), markdown, figures, doubts: [], detectedPage: parsed.detectedPage, spread: parts.length > 1 ? (j === 0 ? 'left' : 'right') : undefined });
   }
   if (!pages.length) throw new Error('ИИ не нашёл на фото текста учебника.' + photoTrouble(prep));
   if (parts.length > 1) pages[0].note = (pages[0].note ? pages[0].note + ' ' : '') + 'На снимке разворот — страницы прочитаны по очереди, слева направо.';
