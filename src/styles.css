@@ -1574,3 +1574,13 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
   .app.mobile :is(.link-btn, .crumb) { min-height: 44px; display: inline-flex; align-items: center; }
   .app.mobile .modal .btn.small { min-height: 40px; }
 }
+/* Фокус-таймер: компактная «пилюля», кнопки 40 px, шаги минут */
+.focus-pill .icon-btn.small { width: 40px; height: 40px; }
+.focus-pill.mini { padding: 8px 14px 8px 10px; gap: 6px; border: 1px solid var(--line-2); font: inherit; color: inherit; cursor: pointer; }
+.focus-pill { animation: focusIn 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+@keyframes focusIn { from { opacity: 0; transform: translateY(8px) scale(0.96); } }
+.stepper { display: inline-flex; align-items: center; gap: 4px; }
+.stepper .input.num { width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+.stepper .icon-btn { width: 40px; height: 40px; font-size: 1.2rem; border: 1px solid var(--line); border-radius: 10px; }
+/* Таймер — под окнами и листами (65), чтобы не закрывать их кнопки; над содержимым и нижней панелью. */
+.focus-pill { z-index: 61; }

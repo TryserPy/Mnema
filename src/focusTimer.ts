@@ -12,7 +12,11 @@ export interface FocusState {
   left: number | null;
   /** Сколько учебных отрезков уже позади. */
   rounds: number;
+  /** Как показан: целиком, «пилюлей» (только время) или спрятан (таймер идёт). */
+  view?: FocusView;
 }
+
+export type FocusView = 'full' | 'mini' | 'hidden';
 
 const KEY = 'refrain-focus';
 const MIN = 60000;
@@ -60,11 +64,37 @@ export function clampMinutes(v: unknown, kind: 'work' | 'break'): number {
 }
 
 export function startFocus(workMin: number, now = Date.now()): void {
-  set({ phase: 'work', endsAt: now + clampMinutes(workMin, 'work') * MIN, left: null, rounds: state?.rounds ?? 0 });
+  askNotify();
+  set({ phase: 'work', endsAt: now + clampMinutes(workMin, 'work') * MIN, left: null, rounds: state?.rounds ?? 0, view: state?.view === 'mini' ? 'mini' : 'full' });
 }
 
 export function startBreak(breakMin: number, now = Date.now()): void {
-  set({ phase: 'break', endsAt: now + clampMinutes(breakMin, 'break') * MIN, left: null, rounds: state?.rounds ?? 0 });
+  set({ phase: 'break', endsAt: now + clampMinutes(breakMin, 'break') * MIN, left: null, rounds: state?.rounds ?? 0, view: state?.view ?? 'full' });
+}
+
+/** Свернуть в «пилюлю», спрятать или показать целиком. Спрятанный таймер идёт; вернуть — «Фокус» в поиске или в настройках. */
+export function setFocusView(view: FocusView): void {
+  if (state) set({ ...state, view });
+}
+
+/** Разрешение на уведомление о конце отрезка — спрашиваем при запуске (это нажатие ученика). */
+function askNotify(): void {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') void Notification.requestPermission();
+  } catch {
+    /* без уведомлений */
+  }
+}
+
+/**
+ * Через сколько мс сменится показанная секунда: таймер обновляется ровно на границе секунды, а не «когда придётся» —
+ * цифры не прыгают через одну и не замирают.
+ */
+export function msToNextSecond(s: FocusState | null, now = Date.now()): number {
+  if (!s?.endsAt) return 1000;
+  const left = s.endsAt - now;
+  if (left <= 0) return 0;
+  return (left % 1000 || 1000) + 5;
 }
 
 export function pauseFocus(now = Date.now()): void {
@@ -94,7 +124,7 @@ export function tickFocus(breakMin: number, now = Date.now()): 'work' | 'break' 
   const s = state;
   if (!s?.endsAt || s.endsAt > now) return null;
   if (s.phase === 'work') {
-    set({ phase: 'break', endsAt: now + clampMinutes(breakMin, 'break') * MIN, left: null, rounds: s.rounds + 1 });
+    set({ phase: 'break', endsAt: now + clampMinutes(breakMin, 'break') * MIN, left: null, rounds: s.rounds + 1, view: s.view });
     return 'work';
   }
   if (s.phase === 'break') {

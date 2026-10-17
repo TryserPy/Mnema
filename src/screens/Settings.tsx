@@ -7,7 +7,7 @@ import { LookPane, lookTabFor } from '../components/LookSettings';
 import { setAppearanceTab } from '../styleActions';
 import { recall, remember } from '../uiMemory';
 import { setPlace } from '../studyBack';
-import { clampMinutes, startFocus } from '../focusTimer';
+import { clampMinutes, setFocusView, startFocus, useFocus } from '../focusTimer';
 import { FeaturesPane } from '../components/FeaturesPane';
 import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
@@ -258,27 +258,37 @@ export function Settings({ go, section: initialRaw }: { go: (r: Route) => void; 
 }
 
 /** Минуты фокуса: печатаешь свободно, в настройки уходит по выходу из поля или Enter (в рамках 1–180 / 1–60). */
+/** Минуты степпером: «−» и «+» (учёба — по 5, перерыв — по 1) и поле посередине, если нужно точное число. */
 function MinutesField({ value, kind, onChange, label }: { value: number; kind: 'work' | 'break'; onChange: (v: number) => void; label: string }) {
   const [text, setText] = useState(String(value));
   useEffect(() => setText(String(value)), [value]);
-  const commit = () => {
-    const v = clampMinutes(text, kind);
+  const step = kind === 'work' ? 5 : 1;
+  const commit = (raw: string | number = text) => {
+    const v = clampMinutes(raw, kind);
     setText(String(v));
     if (v !== value) onChange(v);
   };
   return (
-    <input
-      className="input num"
-      type="number"
-      inputMode="numeric"
-      min={1}
-      max={kind === 'work' ? 180 : 60}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => e.key === 'Enter' && commit()}
-      aria-label={label}
-    />
+    <span className="stepper" role="group" aria-label={label}>
+      <button type="button" className="icon-btn" aria-label={`Меньше на ${step}`} disabled={value <= 1} onClick={() => commit(Math.max(1, value - step))}>
+        −
+      </button>
+      <input
+        className="input num"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={kind === 'work' ? 180 : 60}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => commit()}
+        onKeyDown={(e) => e.key === 'Enter' && commit()}
+        aria-label={label}
+      />
+      <button type="button" className="icon-btn" aria-label={`Больше на ${step}`} disabled={value >= (kind === 'work' ? 180 : 60)} onClick={() => commit(value + step)}>
+        +
+      </button>
+    </span>
   );
 }
 
@@ -311,6 +321,7 @@ function retentionWords(r: number) {
 }
 
 function StudyPane() {
+  const timer = useFocus();
   const data = useData();
   const s = data.settings;
   return (
@@ -361,17 +372,24 @@ function StudyPane() {
         <div className="row gap8 wrap">
           {[
             [25, 5],
+            [50, 10],
             [45, 10],
             [15, 3]
           ].map(([w, b]) => (
-            <button key={w} type="button" className={'chip-btn' + (s.focusMinutes === w && s.breakMinutes === b ? ' on' : '')} onClick={() => updateSettings({ focusMinutes: w, breakMinutes: b })}>
+            <button key={w} type="button" className={'chip-btn' + (s.focusMinutes === w && s.breakMinutes === b ? ' on' : '')} onClick={() => updateSettings({ focusMinutes: w, breakMinutes: b })} aria-label={`${w} минут учёбы, ${b} перерыв`}>
               {w}/{b}
             </button>
           ))}
           <span className="grow" />
-          <button type="button" className="btn small primary" onClick={() => startFocus(s.focusMinutes)}>
-            Начать фокус
-          </button>
+          {timer?.view === 'hidden' ? (
+            <button type="button" className="btn small" onClick={() => setFocusView('full')}>
+              Показать таймер
+            </button>
+          ) : (
+            <button type="button" className="btn small primary" onClick={() => startFocus(s.focusMinutes)}>
+              {timer ? 'Начать заново' : 'Начать фокус'}
+            </button>
+          )}
         </div>
       </Group>
     </div>

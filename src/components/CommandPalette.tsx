@@ -1,6 +1,6 @@
 // Быстрый поиск и команды (Ctrl+P): темы, конспекты, карточки, правила, домашка, предметы и команды приложения.
 // «>» в начале — только команды.
-import { focusState, startFocus, stopFocus } from '../focusTimer';
+import { focusState, setFocusView, startFocus, stopFocus } from '../focusTimer';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { openChanges } from './ChangesDialog';
 import { dueLabel } from '../homework';
@@ -85,7 +85,7 @@ export function CommandPalette({ open, onClose, go, onNew }: { open: boolean; on
       ['Повторить ещё раз…', 'repeat', () => openRepeatDialog()],
       [`Фокус (помодоро): ${data.settings.focusMinutes} минут учёбы, потом перерыв ${data.settings.breakMinutes}`, 'timer', () => startFocus(data.settings.focusMinutes)],
       [`Фокус с карточками: ${data.settings.focusMinutes} минут повторения`, 'timer', () => go({ name: 'review', focus: true, run: Date.now() })],
-      ...(focusState() ? ([['Фокус: остановить таймер', 'timer', () => stopFocus()]] as [string, string, () => void][]) : []),
+      ...(focusState() ? ([['Фокус: остановить таймер', 'timer', () => stopFocus()], ...(focusState()?.view === 'hidden' ? [['Фокус: показать таймер', 'timer', () => setFocusView('full')]] : [['Фокус: спрятать таймер (он продолжит идти)', 'timer', () => setFocusView('hidden')]])] as [string, string, () => void][]) : []),
       ['Открыть «Сегодня»', 'home', () => go({ name: 'today' })],
       ...(f.homework ? ([['Записать домашнее задание', 'homework', () => go({ name: 'homework' })], ['Открыть домашку', 'homework', () => go({ name: 'homework' })]] as [string, string, () => void][]) : []),
       ['Новая контрольная', 'test', () => openExamDialog()],
