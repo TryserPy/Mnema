@@ -6,7 +6,7 @@ import { aiAvailable, recognizeFormula } from '../ai';
 import { useData } from '../store';
 import { SketchPad, strokesToPng, type Stroke } from './Drawing';
 import { renderTex } from './Markdown';
-import { Modal, Segmented } from './ui';
+import { Icon, Modal, Segmented } from './ui';
 
 MathfieldElement.fontsDirectory = null; // шрифты уже подключены через CSS
 MathfieldElement.soundsDirectory = null;
@@ -89,9 +89,21 @@ export function FormulaEditor({ initial = '', allowDisplay = true, onInsert, onC
   }
 
   const empty = !latex.trim();
+  // Окно формулы на весь экран (то же содержимое — ничего не теряется при переключении).
+  const [full, setFull] = useState(false);
 
   return (
-    <Modal title="Формула" onClose={onClose} width={720}>
+    <Modal
+      title="Формула"
+      onClose={onClose}
+      width={720}
+      full={full}
+      headExtra={
+        <button type="button" className="icon-btn" aria-pressed={full} aria-label={full ? 'Обычный размер' : 'На весь экран'} title={full ? 'Обычный размер' : 'На весь экран'} onClick={() => setFull(!full)} {...(full ? { 'data-back': '1' } : {})}>
+          <Icon name={full ? 'shrink' : 'expand'} />
+        </button>
+      }
+    >
       <div className="stack gap12">
         {canHand && (
           <div className="tabs-narrow">

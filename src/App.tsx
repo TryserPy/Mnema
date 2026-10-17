@@ -393,6 +393,12 @@ export function App() {
   drawerRef.current = drawer;
   useEffect(() => {
     window.__mnemaBack = () => {
+      // Сначала — полноэкранный холст или формула: «Назад» сворачивает их, а не закрывает окно с рисунком.
+      const back = document.querySelector<HTMLButtonElement>('[data-back]');
+      if (back) {
+        back.click();
+        return true;
+      }
       const close = document.querySelector<HTMLButtonElement>('.modal-back .modal-head .icon-btn');
       if (close) {
         close.click();

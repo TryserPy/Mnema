@@ -1,9 +1,10 @@
 // Холст для рисунков в конспекте. Рисунок хранится как SVG (data: URI) прямо в Markdown,
 // а точки линий — в атрибутах data-points, чтобы рисунок можно было открыть и дорисовать.
-import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DOMPurify from 'dompurify';
 import { Icon } from './ui';
+import { MAX_ZOOM, useInk } from './inkGestures';
 
 export interface Stroke {
   tool: 'pen' | 'marker';
@@ -190,6 +191,7 @@ export function DrawingEditor({ initial, onSave, onCancel, context }: { initial?
   const [marker, setMarker] = useState(MARKERS[0]);
   const [size, setSize] = useState(SIZES[1]);
   const [current, setCurrent] = useState<Stroke | null>(null);
+  const curRef = useRef<Stroke | null>(null);
   const [full, setFull] = useState(false);
   const [preview, setPreview] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -208,34 +210,41 @@ export function DrawingEditor({ initial, onSave, onCancel, context }: { initial?
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  function toPoint(e: RPointerEvent): [number, number] {
-    return svgPoint(svgRef.current!, e.clientX, e.clientY);
-  }
-
   function erase(p: [number, number]) {
     const R = 12;
     const keep = data.strokes.filter((s) => !s.points.some(([x, y]) => Math.abs(x - p[0]) < R && Math.abs(y - p[1]) < R));
     if (keep.length !== data.strokes.length) setData({ ...data, strokes: keep });
   }
 
-  function down(e: RPointerEvent) {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    const p = toPoint(e);
-    if (tool === 'eraser') return erase(p);
-    setCurrent({ tool, color: tool === 'marker' ? marker : color, width: size, points: [p] });
-  }
-
-  function move(e: RPointerEvent) {
-    if (e.buttons === 0) return;
-    const p = toPoint(e);
-    if (tool === 'eraser') return erase(p);
-    if (!current) return;
-    const last = current.points[current.points.length - 1];
-    if (Math.hypot(p[0] - last[0], p[1] - last[1]) < 1.5) return;
-    setCurrent({ ...current, points: [...current.points, p] });
-  }
+  // Один палец или стилус рисует, два пальца — масштаб и сдвиг; ладонь не рисует (inkGestures.ts).
+  const ink = useInk({
+    svg: svgRef,
+    size: { w: data.width, h: data.height },
+    onStart: (p) => {
+      if (tool === 'eraser') return erase(p);
+      curRef.current = { tool, color: tool === 'marker' ? marker : color, width: size, points: [p] };
+      setCurrent(curRef.current);
+    },
+    onMove: (p) => {
+      if (tool === 'eraser') return erase(p);
+      setCurrent((c) => {
+        if (!c) return c;
+        const last = c.points[c.points.length - 1];
+        const n = Math.hypot(p[0] - last[0], p[1] - last[1]) < 1.5 / ink.view.s ? c : { ...c, points: [...c.points, p] };
+        curRef.current = n;
+        return n;
+      });
+    },
+    onEnd: () => up(),
+    onCancel: () => {
+      curRef.current = null;
+      setCurrent(null);
+    }
+  });
 
   function up() {
+    const current = curRef.current;
+    curRef.current = null;
     if (current) {
       setData({ ...data, strokes: [...data.strokes, current] });
       setRedo([]);
@@ -310,7 +319,18 @@ export function DrawingEditor({ initial, onSave, onCancel, context }: { initial?
         <button type="button" className="icon-btn flip" aria-label="Вернуть" title="Вернуть (Ctrl+Shift+Z)" onClick={redoOne} disabled={!redo.length}>
           <Icon name="undo" />
         </button>
-        <button type="button" className={'icon-btn' + (full ? ' on' : '')} aria-pressed={full} aria-label={full ? 'Свернуть холст' : 'Холст на весь экран'} title={full ? 'Свернуть (Esc)' : 'На весь экран'} onClick={() => setFull(!full)}>
+        <span className="draw-zoom" role="group" aria-label="Масштаб">
+          <button type="button" className="icon-btn" aria-label="Мельче" title="Мельче (или сведи два пальца)" onClick={() => ink.zoom(1 / 1.4)} disabled={ink.view.s <= 1}>
+            −
+          </button>
+          <button type="button" className="draw-zoom-val" title="Вернуть 100%" onClick={ink.reset} disabled={ink.view.s === 1}>
+            {Math.round(ink.view.s * 100)}%
+          </button>
+          <button type="button" className="icon-btn" aria-label="Крупнее" title="Крупнее (или разведи два пальца)" onClick={() => ink.zoom(1.4)} disabled={ink.view.s >= MAX_ZOOM}>
+            +
+          </button>
+        </span>
+        <button type="button" className={'icon-btn' + (full ? ' on' : '')} aria-pressed={full} aria-label={full ? 'Свернуть холст' : 'Холст на весь экран'} title={full ? 'Свернуть (Esc)' : 'На весь экран'} onClick={() => setFull(!full)} {...(full ? { 'data-back': '1' } : {})}>
           <Icon name={full ? 'shrink' : 'expand'} />
         </button>
       </div>
@@ -330,18 +350,17 @@ export function DrawingEditor({ initial, onSave, onCancel, context }: { initial?
           ref={svgRef}
           viewBox={`0 0 ${data.width} ${data.height}`}
           className={'draw-svg ' + tool + (themed ? ' themed' : '')}
-          onPointerDown={down}
-          onPointerMove={move}
-          onPointerUp={up}
-          onPointerLeave={up}
+          {...ink.handlers}
           role="img"
-          aria-label="Холст для рисования"
+          aria-label="Холст для рисования. Два пальца — приблизить и сдвинуть"
         >
-          <g dangerouslySetInnerHTML={{ __html: bgMarkup(bg, false) }} />
-          {all.map((s, i) => {
-            const a = strokeAttrs(s);
-            return <path key={i} d={pathD(s.points)} fill="none" stroke={a.stroke} strokeWidth={a.strokeWidth} strokeOpacity={a.strokeOpacity} strokeLinecap="round" strokeLinejoin="round" data-dark={isInk(s.color) ? '1' : undefined} />;
-          })}
+          <g transform={ink.transform}>
+            <g dangerouslySetInnerHTML={{ __html: bgMarkup(bg, false) }} />
+            {all.map((s, i) => {
+              const a = strokeAttrs(s);
+              return <path key={i} d={pathD(s.points)} fill="none" stroke={a.stroke} strokeWidth={a.strokeWidth} strokeOpacity={a.strokeOpacity} strokeLinecap="round" strokeLinejoin="round" data-dark={isInk(s.color) ? '1' : undefined} />;
+            })}
+          </g>
         </svg>
       </div>
       <div className="draw-size">
@@ -445,7 +464,9 @@ export function svgPoint(svg: SVGSVGElement, clientX: number, clientY: number): 
 export function SketchPad({ strokes, onChange, height = 240, label = 'Холст для письма', onClose }: { strokes: Stroke[]; onChange: (s: Stroke[]) => void; height?: number; label?: string; onClose?: () => void }) {
   const [erase, setErase] = useState(false);
   const [current, setCurrent] = useState<Stroke | null>(null);
+  const [full, setFull] = useState(false);
   const ref = useRef<SVGSVGElement>(null);
+  const curRef = useRef<Stroke | null>(null);
   const H = Math.round((height / 600) * 900);
   // Ширина холста в тех же единицах, что и высота: пропорции совпадают с окном, линия идёт ровно за курсором.
   const [W, setW] = useState(900);
@@ -460,42 +481,56 @@ export function SketchPad({ strokes, onChange, height = 240, label = 'Холст
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [H]);
+  }, [H, full]);
+  useEffect(() => {
+    if (!full) return;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), setFull(false));
+    window.addEventListener('keydown', k, true);
+    return () => window.removeEventListener('keydown', k, true);
+  }, [full]);
 
-  function pt(e: RPointerEvent): [number, number] {
-    return svgPoint(ref.current!, e.clientX, e.clientY);
-  }
   function eraseAt(p: [number, number]) {
     const keep = strokes.filter((s) => !s.points.some(([x, y]) => Math.abs(x - p[0]) < 14 && Math.abs(y - p[1]) < 14));
     if (keep.length !== strokes.length) onChange(keep);
   }
-  function down(e: RPointerEvent) {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    const p = pt(e);
-    if (erase) return eraseAt(p);
-    setCurrent({ tool: 'pen', color: '#1E2230', width: 4, points: [p] });
-  }
-  function move(e: RPointerEvent) {
-    if (e.buttons === 0) return;
-    const p = pt(e);
-    if (erase) return eraseAt(p);
-    if (!current) return;
-    const last = current.points[current.points.length - 1];
-    if (Math.hypot(p[0] - last[0], p[1] - last[1]) < 1.5) return;
-    setCurrent({ ...current, points: [...current.points, p] });
-  }
-  function up() {
-    if (current) onChange([...strokes, current]);
-    setCurrent(null);
-  }
+  const ink = useInk({
+    svg: ref,
+    size: { w: W, h: H },
+    onStart: (p) => {
+      if (erase) return eraseAt(p);
+      curRef.current = { tool: 'pen', color: '#1E2230', width: 4, points: [p] };
+      setCurrent(curRef.current);
+    },
+    onMove: (p) => {
+      if (erase) return eraseAt(p);
+      setCurrent((c) => {
+        if (!c) return c;
+        const last = c.points[c.points.length - 1];
+        const n = Math.hypot(p[0] - last[0], p[1] - last[1]) < 1.5 ? c : { ...c, points: [...c.points, p] };
+        curRef.current = n;
+        return n;
+      });
+    },
+    onEnd: () => {
+      const c = curRef.current;
+      setCurrent(null);
+      if (c) onChange([...strokes, c]);
+    },
+    onCancel: () => {
+      curRef.current = null;
+      setCurrent(null);
+    }
+  });
   const all = current ? [...strokes, current] : strokes;
-  return (
-    <div className="sketch">
-      <svg ref={ref} viewBox={`0 0 ${W} ${H}`} style={{ height }} className={'sketch-svg' + (erase ? ' eraser' : '')} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} role="img" aria-label={label}>
+  const pad = (
+    <div className={'sketch' + (full ? ' full' : '')}>
+      <svg ref={ref} viewBox={`0 0 ${W} ${H}`} style={full ? undefined : { height }} className={'sketch-svg' + (erase ? ' eraser' : '')} {...ink.handlers} role="img" aria-label={label + '. Два пальца — приблизить и сдвинуть'}>
         <rect width="100%" height="100%" fill="#ffffff" />
-        {all.map((s, i) => (
-          <path key={i} d={pathD(s.points)} fill="none" stroke={s.color} strokeWidth={s.width} strokeLinecap="round" strokeLinejoin="round" />
-        ))}
+        <g transform={ink.transform}>
+          {all.map((s, i) => (
+            <path key={i} d={pathD(s.points)} fill="none" stroke={s.color} strokeWidth={s.width} strokeLinecap="round" strokeLinejoin="round" />
+          ))}
+        </g>
       </svg>
       <div className="sketch-tools">
         <button type="button" className={'btn small' + (erase ? '' : ' on-tool')} onClick={() => setErase(false)}>
@@ -510,7 +545,15 @@ export function SketchPad({ strokes, onChange, height = 240, label = 'Холст
         <button type="button" className="btn small ghost" disabled={!strokes.length} onClick={() => onChange([])}>
           Очистить
         </button>
-        {onClose && (
+        {ink.view.s > 1 && (
+          <button type="button" className="btn small ghost" onClick={ink.reset} title="Вернуть 100%">
+            {Math.round(ink.view.s * 100)}% ×
+          </button>
+        )}
+        <button type="button" className="btn small ghost" aria-pressed={full} onClick={() => setFull(!full)} title={full ? 'Свернуть (Esc) — написанное сохранится' : 'На весь экран'} {...(full ? { 'data-back': '1' } : {})}>
+          <Icon name={full ? 'shrink' : 'expand'} size={14} /> {full ? 'Свернуть' : 'На весь экран'}
+        </button>
+        {onClose && !full && (
           <button type="button" className="btn small ghost sketch-close" onClick={onClose} title="Свернуть холст (Esc) — рисунок сохранится" aria-label="Свернуть холст">
             <Icon name="x" size={14} /> Свернуть
           </button>
@@ -518,4 +561,5 @@ export function SketchPad({ strokes, onChange, height = 240, label = 'Холст
       </div>
     </div>
   );
+  return full ? createPortal(<div className="draw-full sketch-full">{pad}</div>, document.body) : pad;
 }

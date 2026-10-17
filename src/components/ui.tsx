@@ -405,7 +405,7 @@ export function Icon({ name, size = 20 }: { name: keyof typeof paths | string; s
   );
 }
 
-export function Modal({ title, onClose, children, width = 520, sticky = false }: { title: string; onClose: () => void; children: ReactNode; width?: number; sticky?: boolean }) {
+export function Modal({ title, onClose, children, width = 520, sticky = false, full = false, headExtra }: { title: string; onClose: () => void; children: ReactNode; width?: number; sticky?: boolean; full?: boolean; headExtra?: ReactNode }) {
   // Закрытие с анимацией: окно сначала плавно уходит, потом исчезает.
   const [closing, setClosing] = useState(false);
   const closeRef = useRef(onClose);
@@ -455,10 +455,12 @@ export function Modal({ title, onClose, children, width = 520, sticky = false }:
   };
   // Окно всегда в <body>: иначе карточка с анимацией (transform) обрезает его и перекрывает соседями.
   return createPortal(
-    <div className={'modal-back' + (closing ? ' closing' : '')} onMouseDown={(e) => !sticky && e.target === e.currentTarget && close()}>
-      <div ref={sheet} className="modal" data-part="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
-        <div className="modal-head" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+    <div className={'modal-back' + (closing ? ' closing' : '') + (full ? ' full' : '')} onMouseDown={(e) => !sticky && e.target === e.currentTarget && close()}>
+      <div ref={sheet} className={'modal' + (full ? ' full' : '')} data-part="modal" role="dialog" aria-modal="true" aria-label={title} style={full ? undefined : { width }}>
+        <div className="modal-head" onPointerDown={full ? undefined : onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           <h2>{title}</h2>
+          {headExtra && <span className="grow" />}
+          {headExtra}
           <button className="icon-btn" onClick={close} aria-label="Закрыть">
             <Icon name="x" />
           </button>
