@@ -1,5 +1,5 @@
 // Настройки: слева разделы, справа — один раздел. Ничего не надо листать и искать глазами: есть поиск по настройкам.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Logo } from '../components/Logo';
 import { Icon, Modal, plural, Switch, toast, touchUI } from '../components/ui';
 import { Group, PaneHead, SRow } from '../components/SettingsKit';
@@ -13,6 +13,9 @@ import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
 import { MarkdownImport } from '../components/MarkdownImport';
+// Импорт карточек и готовые колоды (1.32, N1) — грузятся при открытии.
+const CardImport = lazy(() => import('../components/CardImport').then((m) => ({ default: m.CardImport })));
+const DeckCatalog = lazy(() => import('../components/DeckCatalog').then((m) => ({ default: m.DeckCatalog })));
 import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
 import { CloudDialog } from '../components/CloudDialog';
@@ -81,6 +84,8 @@ const INDEX: IndexItem[] = [
   { label: 'Облако (Яндекс Диск, Nextcloud)', section: 'data', anchor: 'sync', words: 'webdav' },
   { label: 'Файл изменений от нейросети', section: 'data', anchor: 'changes', words: 'нейросеть chatgpt ии gpt json загрузить создать изменить' },
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
+  { label: 'Импорт из Quizlet, CSV, Mochi, RemNote', section: 'data', anchor: 'import', words: 'quizlet квизлет csv excel таблица brainscape knowt remnote mochi импорт карточек' },
+  { label: 'Готовые колоды', section: 'data', anchor: 'import', words: 'колоды каталог наборы химия история английский физика скачать' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
   { label: 'Стили: крупные кнопки, стикеры, тетрадь…', section: 'look', anchor: 'style', words: 'css вид моды оформление галерея каталог' },
@@ -486,6 +491,8 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   const [msg, setMsg] = useState('');
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [anki, setAnki] = useState(false);
+  const [cardImp, setCardImp] = useState(false);
+  const [decks, setDecks] = useState(false);
   const [mdImport, setMdImport] = useState(false);
   const [sync, setSync] = useState(false);
   const [cloud, setCloud] = useState(false);
@@ -601,6 +608,16 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         </SRow>
       </Group>
       <Group title="Импорт" id="import">
+        <SRow label="Готовые колоды" hint="Химия, история, английский, физика — добавить и сразу учить">
+          <button className="btn small primary" onClick={() => setDecks(true)}>
+            Открыть
+          </button>
+        </SRow>
+        <SRow label="Из Quizlet, таблицы и других приложений" hint="Quizlet, CSV и Excel, Brainscape, Knowt, RemNote, Mochi">
+          <button className="btn small" onClick={() => setCardImp(true)}>
+            Импорт
+          </button>
+        </SRow>
         <SRow label="Из Anki" hint=".apkg, .colpkg, текстовый экспорт">
           <button className="btn small" onClick={() => setAnki(true)}>
             Выбрать файл
@@ -718,6 +735,17 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         />
       )}
       {anki && <AnkiImport onClose={() => setAnki(false)} onOpenTopic={(id) => go({ name: 'topic', id })} />}
+      <Suspense fallback={null}>
+        {cardImp && (
+          <CardImport
+            onClose={() => setCardImp(false)}
+            onOpenTopic={(id) => go({ name: 'topic', id })}
+            onAnki={() => (setCardImp(false), setAnki(true))}
+            onDecks={() => (setCardImp(false), setDecks(true))}
+          />
+        )}
+        {decks && <DeckCatalog onClose={() => setDecks(false)} onOpenTopic={(id) => go({ name: 'topic', id })} onImport={() => (setDecks(false), setCardImp(true))} />}
+      </Suspense>
       {confirmWipe && (
         <Modal title="Удалить все данные?" onClose={() => setConfirmWipe(false)}>
           <div className="stack gap12">

@@ -56,6 +56,7 @@ import { PackHost } from './components/PackDialogs';
 import { TopicTreeSheet } from './components/TopicTreeSheet';
 import { devOn, initDev, onDev } from './devMode';
 
+const CardImport = lazy(() => import('./components/CardImport').then((m) => ({ default: m.CardImport })));
 const DevConsoleHost = lazy(() => import('./components/DevConsole').then((m) => ({ default: m.DevConsoleHost })));
 import { readOpenedFile } from './openFile';
 import { forecast, itemKey, itemOrds, streak, todayCounts, tomorrowSubjects } from './srs';
@@ -128,6 +129,7 @@ export function App() {
     };
   }, []);
   const [ankiFile, setAnkiFile] = useState<File | null>(null);
+  const [cardFile, setCardFile] = useState<File | null>(null);
   const [adding, setAdding] = useState<AddingAt>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [changes, setChanges] = useState<string | null>(null); // окно «Файл изменений» (текст файла или '')
@@ -512,6 +514,11 @@ export function App() {
       setChanges(await f.text());
       return;
     }
+    // Таблица без заголовка Anki («#separator:…») и Mochi — в «Импорт карточек» с выбором столбцов (1.32, N1).
+    if (/\.mochi$/i.test(f.name) || (/\.(csv|tsv)$/i.test(f.name) && !/^#[a-z ]+:/i.test((await f.slice(0, 200).text()).replace(/^\uFEFF/, '')))) {
+      setCardFile(f);
+      return;
+    }
     if (/\.(apkg|colpkg|anki2|anki21|txt|tsv|csv)$/i.test(f.name)) {
       setAnkiFile(f);
       return;
@@ -653,6 +660,19 @@ export function App() {
         />
       )}
 
+      {cardFile && (
+        <Suspense fallback={null}>
+          <CardImport
+            key={cardFile.name + cardFile.lastModified}
+            file={cardFile}
+            start={/\.mochi$/i.test(cardFile.name) ? 'mochi' : 'table'}
+            onClose={() => setCardFile(null)}
+            onOpenTopic={(id) => go({ name: 'topic', id })}
+            onAnki={() => (setAnkiFile(cardFile), setCardFile(null))}
+            onDecks={() => setCardFile(null)}
+          />
+        </Suspense>
+      )}
       {changes !== null && <ChangesDialog key={changes.length} initial={changes} onClose={() => setChanges(null)} />}
       {updateInfo && <UpdateDialog info={updateInfo} onClose={() => setUpdateInfo(null)} />}
       {ruleOpen && data.topics.some((t) => t.id === ruleOpen) && <RuleView rule={data.topics.find((t) => t.id === ruleOpen)!} onClose={() => setRuleOpen(null)} go={go} />}
