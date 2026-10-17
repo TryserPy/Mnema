@@ -59,13 +59,15 @@ REFRAIN-SIG-1
 | Маршрут | Тело | Ответ |
 | --- | --- | --- |
 | `POST /v1/task` | `{ task, image?, text?, subject?, topic?, page?, wishes? }` | `{ text, format, promptVersion, charged, quota }` |
+| `POST /v1/extract` (1.32) | `{ url }` | `{ kind: 'article' \| 'youtube', title, text, url, cut }` — без ИИ и без списания страниц |
 | `GET /v1/me` | — | `{ emailMasked, quota, devices, access }` |
 | `POST /v1/invite` | `{ code }` | `{ ok, quota }` |
 | `DELETE /v1/devices/:id` | — | `{ ok }` |
 | `DELETE /v1/account` | — | `{ ok }`: стираются почта, счётчики, устройства, сессии |
 | `POST /v1/bug` (без входа, с PoW) | `BugReport` | `{ ok, id }` |
 
-- `task` — одна из `TASKS`; рамки задачи — `TASK_SPECS` (есть ли фото, предел `text`, потолок ответа, рассуждение).
+- `task` — одна из `TASKS`; рамки задачи — `TASK_SPECS` (есть ли фото, предел `text`, потолок ответа, рассуждение). С 1.32: `cards.source` (текст источника до 24 000 знаков, JSON до 30 карточек) и `solve` (фото и/или текст условия, хотя бы одно).
+- `/v1/extract` (1.32): ссылка проверяется `shared/urlGuard.mjs` (только http(s) на 80/443, без логина, без внутренних адресов), каждый переход — заново, предел 3 МБ / 10 с / 3 перехода, 6 в минуту и 120 в день на аккаунт (`counters`). Ошибка ссылки — `bad_request` или `upstream` с полем `detail` (что сделать).
 - Фото: JPEG/PNG/WebP, до 2 МБ после декодирования и до 2000 px по длинной стороне (сервер читает размер из заголовка файла). Приложение уменьшает до 1600 px.
 - Лишние поля — `bad_request` (не отбрасываются молча: это сигнал детектора). Поля `system`, `prompt`, `messages`, `model`, `max_tokens`, `temperature`, `reasoning*`, `tools` — правило `own_prompt`.
 - Один запрос на ученика одновременно; второй — `too_fast`.
