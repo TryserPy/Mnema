@@ -207,6 +207,15 @@ function register(winGetter) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), Math.min(Number(r.timeout) || 30000, 300000));
     try {
+      // publicOnly — ссылка из «Карточки из ссылки» (1.32): имя сайта не должно вести в локальную сеть (защита от DNS rebinding:
+      // окно проверило адрес по тексту, здесь — то, куда он на самом деле указывает).
+      if (r.publicOnly) {
+        const { parseIPv4, privateIPv4, privateIPv6 } = await import(require('url').pathToFileURL(require('path').join(__dirname, '..', 'shared', 'urlGuard.mjs')).href);
+        const host = new URL(r.url).hostname.replace(/^\[|\]$/g, '');
+        const addrs = await require('dns').promises.lookup(host, { all: true }).catch(() => []);
+        if (!addrs.length) return { status: 0, text: 'Сайт не найден' };
+        if (addrs.some((a) => (a.family === 4 ? privateIPv4(parseIPv4(a.address) || [0]) : privateIPv6(a.address)))) return { status: 0, text: 'Адрес внутренней сети' };
+      }
       // redirect: 'manual' — переходы проверяет окно (ссылки из «Карточки из ссылки»: без внутренних адресов); maxBytes — читаем не больше.
       const res = await fetch(r.url, { method: r.method || 'GET', headers: r.headers || {}, body: r.body, signal: ctrl.signal, redirect: r.redirect === 'manual' ? 'manual' : 'follow' });
       if (r.redirect === 'manual' && res.status >= 300 && res.status < 400) return { status: res.status, text: '', location: res.headers.get('location') || '' };

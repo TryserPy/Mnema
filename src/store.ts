@@ -144,7 +144,7 @@ declare global {
       onSyncIncoming?: (cb: (data: unknown) => Promise<{ data: AppData; report: unknown }>) => () => void;
       onSyncDone?: (cb: (msg: { device: string; report: import('./sync').MergeReport }) => void) => () => void;
       /** redirect: 'manual' и maxBytes понимает только Electron (1.32): Android и браузер переходят сами и читают всё. */
-      http?: (r: { url: string; method?: string; headers?: Record<string, string>; body?: string; timeout?: number; redirect?: 'manual'; maxBytes?: number }) => Promise<{ status: number; text: string; location?: string; type?: string }>;
+      http?: (r: { url: string; method?: string; headers?: Record<string, string>; body?: string; timeout?: number; redirect?: 'manual'; maxBytes?: number; publicOnly?: boolean }) => Promise<{ status: number; text: string; location?: string; type?: string }>;
       platform: string;
     };
   }

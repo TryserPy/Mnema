@@ -57,11 +57,12 @@ async function fetchHere(start: string, accept: string): Promise<{ text: string;
     const c = checkUrl(url, EXTRACT_LIMITS.urlChars);
     if (!c.ok) throw new Error(c.why);
     url = c.url;
-    const r = await http({ url, headers: { accept, 'accept-language': 'ru,en;q=0.8' }, timeout: EXTRACT_LIMITS.timeoutMs, redirect: 'manual', maxBytes: EXTRACT_LIMITS.fetchBytes });
+    const r = await http({ url, headers: { accept, 'accept-language': 'ru,en;q=0.8' }, timeout: EXTRACT_LIMITS.timeoutMs, redirect: 'manual', maxBytes: EXTRACT_LIMITS.fetchBytes, publicOnly: true });
     if (r.status >= 300 && r.status < 400 && r.location) {
       url = new URL(r.location, url).toString();
       continue;
     }
+    if (r.status === 0 && r.text === 'Адрес внутренней сети') throw new Error('Эта ссылка ведёт во внутреннюю сеть — её открыть нельзя.');
     if (r.status === 0) throw new Error('Не получилось открыть сайт. Проверь интернет и ссылку — или вставь текст сам.');
     if (r.status === 401 || r.status === 403) throw new Error('Сайт не пускает чужие программы (нужен вход или подписка). Открой статью сам, скопируй текст и вставь его.');
     if (r.status >= 400) throw new Error(`Сайт ответил ошибкой ${r.status}. Проверь ссылку или вставь текст сам.`);
