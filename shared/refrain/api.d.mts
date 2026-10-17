@@ -1,6 +1,6 @@
 // Типы контракта «приложение ↔ сервер Refrain ИИ». Значения — в api.mjs, описание — docs/refrain-1.31/contracts.md.
 
-export type TaskId = 'textbook.summary' | 'textbook.brief' | 'textbook.verbatim' | 'textbook.merge' | 'notebook.read' | 'cards' | 'explain' | 'style' | 'formula' | 'file.split';
+export type TaskId = 'textbook.summary' | 'textbook.brief' | 'textbook.verbatim' | 'textbook.merge' | 'notebook.read' | 'cards' | 'explain' | 'style' | 'formula' | 'file.split' | 'cards.source' | 'solve';
 export type ErrorCode =
   | 'limit_day'
   | 'limit_month'
@@ -31,6 +31,19 @@ export const TASKS: TaskId[];
 export const TASK_FIELDS: string[];
 export const FIELD_LIMITS: { imageBytes: number; imageSide: number; imageMimes: string[]; subject: number; topic: number; page: number; wishes: number; bodyBytes: number };
 export const ERRORS: Record<ErrorCode, number>;
+export const EXTRACT_LIMITS: { urlChars: number; fetchBytes: number; timeoutMs: number; redirects: number; textChars: number; perMinute: number; perDay: number };
+
+/** Ответ POST /v1/extract. kind — что нашлось по ссылке: статья (текст страницы) или субтитры видео YouTube. */
+export interface ExtractResponse {
+  ok: true;
+  kind: 'article' | 'youtube';
+  title: string;
+  text: string;
+  /** Адрес после переходов. */
+  url: string;
+  /** Текст длиннее EXTRACT_LIMITS.textChars — отдано начало. */
+  cut: boolean;
+}
 export const H: { auth: string; device: string; time: string; nonce: string; signature: string; app: string };
 export const SIGNATURE_WINDOW_MS: number;
 export const NONCE_TTL_MS: number;
@@ -65,6 +78,8 @@ export interface ApiError {
     quota?: Quota; // для limit_*
     devices?: DeviceInfo[]; // для device_limit
     serverTime?: number; // для clock_skew: время сервера, мс
+    /** Для /v1/extract: что не так со ссылкой или страницей — понятным текстом, с тем, что сделать дальше. */
+    detail?: string;
   };
 }
 

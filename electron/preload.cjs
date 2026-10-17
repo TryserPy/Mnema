@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('mnemaApi', {
     loginVerify: (p) => ipcRenderer.invoke('refrain:loginVerify', p),
     me: () => ipcRenderer.invoke('refrain:me'),
     invite: (code) => ipcRenderer.invoke('refrain:invite', { code }),
+    extract: (url) => ipcRenderer.invoke('refrain:extract', { url }),
     unbind: (id) => ipcRenderer.invoke('refrain:unbind', { id }),
     deleteAccount: () => ipcRenderer.invoke('refrain:deleteAccount'),
     logout: () => ipcRenderer.invoke('refrain:logout'),

@@ -40,7 +40,9 @@ const ASK_TASK: Record<TemplateTask, AiTask> = {
   'notebook.read': 'textbook',
   cards: 'cards',
   explain: 'explain',
-  formula: 'other'
+  formula: 'other',
+  'cards.source': 'cards',
+  solve: 'explain'
 };
 
 const MAX_TOKENS: Record<TemplateTask, number> = {
@@ -51,7 +53,9 @@ const MAX_TOKENS: Record<TemplateTask, number> = {
   'notebook.read': 3000,
   cards: 1500,
   explain: 500,
-  formula: 300
+  formula: 300,
+  'cards.source': 3000,
+  solve: 4000
 };
 
 type Trial = { state: 'idle' } | { state: 'busy' } | { state: 'error'; text: string } | { state: 'done'; md: string; note?: string };

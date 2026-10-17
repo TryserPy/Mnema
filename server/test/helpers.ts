@@ -37,6 +37,8 @@ export class Harness {
   /** Баланс на счёте Polza, ₽ (GET /balance); null — Polza отвечает ошибкой. */
   polzaBalance: number | null = 1000;
   openai: (body: Record<string, unknown>) => Response | Promise<Response> = () => openAiOk();
+  /** Чужие сайты для /v1/extract: адрес → ответ; undefined — «нет такого сайта». */
+  web: (url: string, init?: RequestInit) => Response | undefined = () => undefined;
   usageApi: () => Response = () => new Response(JSON.stringify({ data: [], has_more: false }), { headers: { 'content-type': 'application/json' } });
   env: Env;
   private tgId = 1;
@@ -59,6 +61,8 @@ export class Harness {
         if (url.startsWith('https://polza.ai/api/v1/balance')) return this.polzaBalance === null ? new Response('{}', { status: 500 }) : Response.json({ amount: String(this.polzaBalance) });
         if (url.startsWith('https://api.openai.com/v1/organization/usage/')) return this.usageApi();
         if (url.startsWith('https://api.github.com/')) return Response.json({ number: 42 }, { status: 201 });
+        const w = this.web(url, init);
+        if (w) return w;
         return new Response('no route in test', { status: 599 });
       }) as typeof fetch
     };

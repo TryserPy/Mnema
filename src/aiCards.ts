@@ -53,7 +53,7 @@ export function cardsPrompt(p: { subject?: string; topic: string; note: string; 
 const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
 /** Разобрать ответ ИИ: пары «вопрос :: ответ». Мусор, повторы и уже существующие вопросы отбрасываем, длину режем. */
-export function parseAiCards(answer: string, have: string[] = []): AiCardDraft[] {
+export function parseAiCards(answer: string, have: string[] = [], max = DRAFTS_MAX): AiCardDraft[] {
   const seen = new Set(have.map(norm));
   const out: AiCardDraft[] = [];
   const text = answer.replace(/```[a-z]*\n?/gi, '').replace(/\r/g, '');
@@ -68,7 +68,7 @@ export function parseAiCards(answer: string, have: string[] = []): AiCardDraft[]
     if (!k || seen.has(k)) continue;
     seen.add(k);
     out.push({ front, back });
-    if (out.length >= DRAFTS_MAX) break;
+    if (out.length >= max) break;
   }
   return out;
 }

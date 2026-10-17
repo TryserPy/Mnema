@@ -8,6 +8,7 @@ import type { Env } from './env';
 import { ApiFail, clientInfo, corsHeaders, errorResponse, json, readJson } from './http';
 import { handleAccountDelete, handleDeviceDelete, handleInvite, handleMe } from './me';
 import { handleTask } from './task';
+import { handleExtract } from './extract';
 
 export { BudgetCounter, StudentCounter } from './counters';
 
@@ -24,6 +25,7 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
   if (m === 'POST' && p === '/v1/tg/webhook') return handleWebhook(req, env);
   const info = await clientInfo(req, env);
   if (m === 'POST' && p === '/v1/task') return handleTask(req, env, info, ctx);
+  if (m === 'POST' && p === '/v1/extract') return handleExtract(req, env, info);
   if (m === 'POST' && p === '/v1/auth/pow') {
     const { body } = await readJson(req, 256);
     const purpose = (body as { purpose?: unknown }).purpose;

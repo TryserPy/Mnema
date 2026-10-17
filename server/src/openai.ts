@@ -1,7 +1,7 @@
 // Запрос к модели (Chat Completions, формат OpenAI) — через Polza.ai или напрямую в OpenAI: адрес LLM_BASE_URL.
 // Ключ — секрет OPENAI_API_KEY (ключ Polza или OpenAI): не попадает ни в журнал, ни в ответы, ни в тексты ошибок.
 // Модель одна (OPENAI_MODEL), рассуждение и потолок ответа — из реестра задач; приложение их не задаёт.
-import { CARDS_SCHEMA, type TaskSpec } from '../../shared/prompts/tasks';
+import { CARDS_SCHEMA, CARDS_SOURCE_SCHEMA, type TaskSpec } from '../../shared/prompts/tasks';
 import { outbound, type Env } from './env';
 
 export interface LlmUsage {
@@ -71,7 +71,7 @@ async function callOnce(env: Env, spec: TaskSpec, system: string, user: string, 
     max_completion_tokens: spec.maxTokens,
     reasoning_effort: reasoning,
     ...(directOpenAI(env) ? { store: false } : {}),
-    ...(spec.id === 'cards' ? { response_format: { type: 'json_schema', json_schema: CARDS_SCHEMA } } : {})
+    ...(spec.id === 'cards' ? { response_format: { type: 'json_schema', json_schema: CARDS_SCHEMA } } : spec.id === 'cards.source' ? { response_format: { type: 'json_schema', json_schema: CARDS_SOURCE_SCHEMA } } : {})
   };
   if (!llmKey(env)) return { ok: false, cut: false, result: { ok: false, status: 0, usage: null, error: 'ключ ИИ не задан (секрет OPENAI_API_KEY)' } };
   let res: Response;

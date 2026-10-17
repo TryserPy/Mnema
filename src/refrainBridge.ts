@@ -1,6 +1,6 @@
 // Refrain ИИ в окне приложения: одни и те же действия на Windows/Linux (preload → главный процесс) и Android (клиент живёт в окне).
 // Здесь нет токенов и ключа устройства: наружу отдаются только результаты (маска почты, лимит, устройства, номер обращения).
-import type { BugReport, DeviceInfo, Me, Quota } from '../shared/refrain/api.mjs';
+import type { BugReport, DeviceInfo, ExtractResponse, Me, Quota } from '../shared/refrain/api.mjs';
 import type { RefrainClient, RefrainResult, RefrainStatus } from '../shared/refrainClient.mjs';
 
 export interface RefrainApi {
@@ -9,6 +9,8 @@ export interface RefrainApi {
   loginVerify(p: { email: string; code: string; invite?: string; replaceDevice?: string }): Promise<RefrainResult<{ emailMasked: string; quota: Quota }>>;
   me(): Promise<RefrainResult<Omit<Me, 'ok'>>>;
   invite(code: string): Promise<RefrainResult<{ quota: Quota }>>;
+  /** Текст статьи или субтитры YouTube по ссылке (1.32). */
+  extract(url: string): Promise<RefrainResult<Omit<ExtractResponse, 'ok'>>>;
   unbind(id: string): Promise<RefrainResult>;
   deleteAccount(): Promise<RefrainResult>;
   logout(): Promise<RefrainResult>;
@@ -28,6 +30,7 @@ export function refrainBridge(c: RefrainClient, o: { deviceName: string }): { re
       loginVerify: (p) => c.loginVerify({ email: p.email, code: p.code, invite: p.invite, replaceDevice: p.replaceDevice, deviceName: o.deviceName }),
       me: () => c.me(),
       invite: (code) => c.invite(code),
+      extract: (url) => c.extract(url),
       unbind: (id) => c.unbind(id),
       deleteAccount: () => c.deleteAccount(),
       logout: () => c.logout(),

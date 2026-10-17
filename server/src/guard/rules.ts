@@ -51,6 +51,8 @@ export function checkTaskBody(body: unknown): ContractCheck {
     if (spec.image === 'forbidden' || !im || typeof im !== 'object' || Object.keys(im).some((k) => k !== 'mime' && k !== 'data') || typeof im.data !== 'string' || !FIELD_LIMITS.imageMimes.includes(String(im.mime))) bad('extra_fields');
     else if ((im.data as string).length > Math.ceil((FIELD_LIMITS.imageBytes * 4) / 3) + 4) bad('oversize', 'payload_too_large');
   } else if (spec.image === 'required') bad('extra_fields');
+  // Фото или текст «по желанию» (решение задачи): хоть что-то одно должно быть.
+  if (spec.image === 'optional' && b.image === undefined && (typeof b.text !== 'string' || !b.text.trim())) bad('extra_fields');
   for (const k of ['wishes', 'text'] as const) if (typeof b[k] === 'string' && ROLE_INJECTION.test(b[k] as string)) bad('own_prompt');
   return { rules: [...rules], error };
 }

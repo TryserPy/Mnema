@@ -35,7 +35,11 @@ export const TASK_SPECS: Record<TaskId, TaskSpec> = {
   explain: { id: 'explain', title: 'Объяснить иначе', promptVersion: 'e1', promptTokens: 150, maxTokens: 350, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 2500, pagesEstimate: 0.05 },
   style: { id: 'style', title: 'Стиль с ИИ', promptVersion: 'y2', promptTokens: 2500, maxTokens: 4500, reasoning: 'low', format: 'json', image: 'forbidden', textMax: 12000, pagesEstimate: 1.5 },
   formula: { id: 'formula', title: 'Формула от руки', promptVersion: 'f1', promptTokens: 120, maxTokens: 200, reasoning: 'none', format: 'latex', image: 'required', textMax: 0, pagesEstimate: 0.05 },
-  'file.split': { id: 'file.split', title: 'Разбить файл по темам', promptVersion: 'p1', promptTokens: 150, maxTokens: 600, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 12000, pagesEstimate: 0.3 }
+  'file.split': { id: 'file.split', title: 'Разбить файл по темам', promptVersion: 'p1', promptTokens: 150, maxTokens: 600, reasoning: 'none', format: 'text', image: 'forbidden', textMax: 12000, pagesEstimate: 0.3 },
+  // 1.32, N2: карточки по статье, субтитрам видео или главе книги — текст длиннее конспекта, карточек до 30.
+  'cards.source': { id: 'cards.source', title: 'Карточки из ссылки, видео или книги', promptVersion: 'r1', promptTokens: 550, maxTokens: 3500, reasoning: 'low', format: 'json', image: 'forbidden', textMax: 24000, pagesEstimate: 1 },
+  // 1.32, N3: пошаговое решение задачи — по фото условия, по тексту или по обоим.
+  solve: { id: 'solve', title: 'Решение задачи', promptVersion: 'q1', promptTokens: 650, maxTokens: 5000, reasoning: 'low', format: 'markdown', image: 'optional', textMax: 2000, pagesEstimate: 1.5 }
 };
 
 /**
@@ -69,6 +73,13 @@ export const CARDS_SCHEMA = {
       }
     }
   }
+} as const;
+
+/** Схема ответа «Карточки из источника»: как «Карточки», но до 30 штук. */
+export const CARDS_SOURCE_SCHEMA = {
+  ...CARDS_SCHEMA,
+  name: 'refrain_cards_source',
+  schema: { ...CARDS_SCHEMA.schema, properties: { cards: { ...CARDS_SCHEMA.schema.properties.cards, maxItems: 30 } } }
 } as const;
 
 /** Наибольшая возможная стоимость задачи в µ₽ — её сервер резервирует до запроса. */

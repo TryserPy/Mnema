@@ -179,6 +179,7 @@ function register() {
   r('refrain:loginVerify', (c, a) => c.loginVerify({ email: a.email, code: a.code, invite: a.invite, replaceDevice: a.replaceDevice, deviceName: a.deviceName || require('os').hostname() }));
   r('refrain:me', (c) => c.me());
   r('refrain:invite', (c, a) => c.invite(a.code));
+  r('refrain:extract', (c, a) => c.extract(a.url));
   r('refrain:unbind', (c, a) => c.unbind(a.id));
   r('refrain:deleteAccount', (c) => c.deleteAccount());
   r('refrain:logout', (c) => c.logout());

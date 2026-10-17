@@ -15,6 +15,7 @@ import { AnkiImport } from '../components/AnkiImport';
 import { MarkdownImport } from '../components/MarkdownImport';
 // Импорт карточек и готовые колоды (1.32, N1) — грузятся при открытии.
 const CardImport = lazy(() => import('../components/CardImport').then((m) => ({ default: m.CardImport })));
+const SourceCards = lazy(() => import('../components/SourceCards').then((m) => ({ default: m.SourceCards })));
 const DeckCatalog = lazy(() => import('../components/DeckCatalog').then((m) => ({ default: m.DeckCatalog })));
 import { KeySettings } from '../components/KeySettings';
 import { SyncDialog } from '../components/SyncDialog';
@@ -85,6 +86,7 @@ const INDEX: IndexItem[] = [
   { label: 'Файл изменений от нейросети', section: 'data', anchor: 'changes', words: 'нейросеть chatgpt ии gpt json загрузить создать изменить' },
   { label: 'Импорт из Anki', section: 'data', anchor: 'import', words: 'apkg колода' },
   { label: 'Импорт из Quizlet, CSV, Mochi, RemNote', section: 'data', anchor: 'import', words: 'quizlet квизлет csv excel таблица brainscape knowt remnote mochi импорт карточек' },
+  { label: 'Карточки из ссылки, YouTube или книги EPUB', section: 'data', anchor: 'import', words: 'ссылка статья youtube ютуб видео субтитры epub книга глава сайт' },
   { label: 'Готовые колоды', section: 'data', anchor: 'import', words: 'колоды каталог наборы химия история английский физика скачать' },
   { label: 'Экспорт в Anki и печать карточек', section: 'data', anchor: 'export', words: 'распечатать' },
   { label: 'Удалить всё', section: 'data', anchor: 'danger', words: 'очистить' },
@@ -493,6 +495,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   const [anki, setAnki] = useState(false);
   const [cardImp, setCardImp] = useState(false);
   const [decks, setDecks] = useState(false);
+  const [srcCards, setSrcCards] = useState(false);
   const [mdImport, setMdImport] = useState(false);
   const [sync, setSync] = useState(false);
   const [cloud, setCloud] = useState(false);
@@ -616,6 +619,11 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         <SRow label="Из Quizlet, таблицы и других приложений" hint="Quizlet, CSV и Excel, Brainscape, Knowt, RemNote, Mochi">
           <button className="btn small" onClick={() => setCardImp(true)}>
             Импорт
+          </button>
+        </SRow>
+        <SRow label="Карточки из ссылки, видео или книги" hint="Статья, YouTube с субтитрами, глава EPUB — ИИ предложит вопросы, ты проверишь">
+          <button className="btn small" onClick={() => setSrcCards(true)}>
+            Открыть
           </button>
         </SRow>
         <SRow label="Из Anki" hint=".apkg, .colpkg, текстовый экспорт">
@@ -744,6 +752,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             onDecks={() => (setCardImp(false), setDecks(true))}
           />
         )}
+        {srcCards && <SourceCards onClose={() => setSrcCards(false)} onOpenTopic={(id) => go({ name: 'topic', id })} />}
         {decks && <DeckCatalog onClose={() => setDecks(false)} onOpenTopic={(id) => go({ name: 'topic', id })} onImport={() => (setDecks(false), setCardImp(true))} />}
       </Suspense>
       {confirmWipe && (

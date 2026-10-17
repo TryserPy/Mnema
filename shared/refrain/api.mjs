@@ -6,7 +6,7 @@ export const API_VERSION = 1;
 export const API_PREFIX = '/v1';
 
 /** Задачи, которые приложение может попросить. Промты к ним собирает сервер (shared/prompts/tasks.ts). */
-export const TASKS = ['textbook.summary', 'textbook.brief', 'textbook.verbatim', 'textbook.merge', 'notebook.read', 'cards', 'explain', 'style', 'formula', 'file.split'];
+export const TASKS = ['textbook.summary', 'textbook.brief', 'textbook.verbatim', 'textbook.merge', 'notebook.read', 'cards', 'explain', 'style', 'formula', 'file.split', 'cards.source', 'solve'];
 
 /** Поля тела POST /v1/task. Всё прочее — нарушение контракта (сервер отвечает bad_request и записывает сигнал «лишние поля»). */
 export const TASK_FIELDS = ['task', 'image', 'text', 'subject', 'topic', 'page', 'wishes'];
@@ -21,6 +21,20 @@ export const FIELD_LIMITS = {
   page: 9999, // номер страницы — целое 1…page
   wishes: 400, // «Свои указания», как AI_NOTE_MAX в src/aiNotes.ts
   bodyBytes: 3 * 1024 * 1024 // весь JSON вместе с base64
+};
+
+/**
+ * POST /v1/extract (1.32, N2): текст статьи или субтитры YouTube по ссылке — без ИИ и без списания страниц.
+ * Сервер скачивает страницу сам: только http(s), без внутренних адресов, с пределом размера, времени и переходов (shared/urlGuard.mjs).
+ */
+export const EXTRACT_LIMITS = {
+  urlChars: 2000,
+  fetchBytes: 3 * 1024 * 1024, // сколько байт страницы читаем, дальше обрываем
+  timeoutMs: 10000, // на каждый запрос к чужому сайту
+  redirects: 3,
+  textChars: 60000, // сколько текста отдаём приложению
+  perMinute: 6, // запросов на аккаунт
+  perDay: 120
 };
 
 /** Коды ошибок. HTTP-статус фиксирован; приложение показывает текст по коду, а не по статусу. */

@@ -1,5 +1,5 @@
 // Типы клиента Refrain ИИ (shared/refrainClient.mjs).
-import type { BugReport, DeviceInfo, ErrorCode, Me, Platform, Quota, TaskRequest } from './refrain/api.mjs';
+import type { BugReport, DeviceInfo, ErrorCode, ExtractResponse, Me, Platform, Quota, TaskRequest } from './refrain/api.mjs';
 
 export const REFRAIN_API: string;
 export const CACHE_TTL_MS: number;
@@ -29,6 +29,8 @@ export interface RefrainFail {
   attemptsLeft?: number;
   quota?: Quota;
   devices?: DeviceInfo[];
+  /** /v1/extract: что не так со ссылкой — и что сделать. */
+  detail?: string;
 }
 export type RefrainResult<T = object> = ({ ok: true } & T) | RefrainFail;
 
@@ -58,6 +60,7 @@ export interface RefrainClient {
   task(fields: Omit<TaskRequest, 'wishes'> & { wishes?: string }, wishes?: string): Promise<RefrainResult<{ text: string; format: string; cached?: boolean; charged: number; quota: Quota | null }>>;
   me(): Promise<RefrainResult<Omit<Me, 'ok'>>>;
   invite(code: string): Promise<RefrainResult<{ quota: Quota }>>;
+  extract(url: string): Promise<RefrainResult<Omit<ExtractResponse, 'ok'>>>;
   unbind(deviceId: string): Promise<RefrainResult>;
   deleteAccount(): Promise<RefrainResult>;
   logout(): Promise<RefrainResult>;

@@ -514,6 +514,14 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
       return { ok: true, text: r.text, format: r.format, charged: r.charged, quota: r.quota };
     },
 
+    /** Текст статьи или субтитры YouTube по ссылке (1.32, N2): страницу скачивает сервер, ИИ не вызывается, страницы не списываются. */
+    async extract(url) {
+      const u = String(url || '').trim();
+      if (!u || u.length > 2000) return fail('bad_request');
+      if (!session()) return fail('signed_out');
+      return signed('POST', '/extract', { url: u }, 45000);
+    },
+
     async me() {
       const r = await signed('GET', '/me');
       if (r.ok !== false) {

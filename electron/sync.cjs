@@ -207,8 +207,24 @@ function register(winGetter) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), Math.min(Number(r.timeout) || 30000, 300000));
     try {
-      const res = await fetch(r.url, { method: r.method || 'GET', headers: r.headers || {}, body: r.body, signal: ctrl.signal });
-      return { status: res.status, text: await res.text() };
+      // redirect: 'manual' — переходы проверяет окно (ссылки из «Карточки из ссылки»: без внутренних адресов); maxBytes — читаем не больше.
+      const res = await fetch(r.url, { method: r.method || 'GET', headers: r.headers || {}, body: r.body, signal: ctrl.signal, redirect: r.redirect === 'manual' ? 'manual' : 'follow' });
+      if (r.redirect === 'manual' && res.status >= 300 && res.status < 400) return { status: res.status, text: '', location: res.headers.get('location') || '' };
+      if (!(Number(r.maxBytes) > 0) || !res.body) return { status: res.status, text: await res.text() };
+      const reader = res.body.getReader();
+      const parts = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        parts.push(value);
+        total += value.length;
+        if (total >= r.maxBytes) {
+          await reader.cancel().catch(() => {});
+          break;
+        }
+      }
+      return { status: res.status, text: Buffer.concat(parts).subarray(0, r.maxBytes).toString('utf8'), type: res.headers.get('content-type') || '' };
     } catch (e) {
       return { status: 0, text: e.name === 'AbortError' ? 'Нет ответа' : String((e.cause && e.cause.code) || e.message || e) };
     } finally {

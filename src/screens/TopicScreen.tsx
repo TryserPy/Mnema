@@ -38,6 +38,7 @@ import type { Card, CardType, ListKind, Route } from '../types';
 import { openExamDialog } from '../components/ExamDialog';
 import { NoteHistoryDialog } from '../components/NoteHistory';
 import { AiCardDrafts } from '../components/AiCardDrafts';
+import { SourceCards } from '../components/SourceCards';
 import { aiAvailable } from '../ai';
 
 /** Темы, где ученик нажал «Не сейчас» у подсказки про черновики карточек: до перезапуска не напоминаем. */
@@ -68,6 +69,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const plugins = usePlugins();
   const [noteCards, setNoteCards] = useState(false);
   const [aiCards, setAiCards] = useState(false);
+  const [srcCards, setSrcCards] = useState(false);
   const [, setOfferTick] = useState(0);
   const [printOpen, setPrintOpen] = useState(false);
   const [packOpen, setPackOpen] = useState(false);
@@ -220,6 +222,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
               { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) }), hidden: !canRepeat },
               { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
               { label: 'Черновики карточек от ИИ', icon: 'bot', hint: 'ИИ предложит вопросы по конспекту, ты проверишь', onClick: () => setAiCards(true), hidden: !topic.note.trim() || !aiAvailable(data) },
+              { label: 'Карточки из ссылки, видео или книги', icon: 'link', hint: 'Статья, YouTube с субтитрами, глава EPUB — ИИ предложит вопросы', onClick: () => setSrcCards(true), hidden: !aiAvailable(data) },
               { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
               {
                 label: 'Проверить себя',
@@ -394,6 +397,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
       {packOpen && <PackExportDialog initial={{ kind: 'topic', id }} onClose={() => setPackOpen(false)} />}
       {noteCards && <NoteToCards topicId={id} onClose={() => setNoteCards(false)} />}
       {aiCards && <AiCardDrafts topicId={id} onClose={() => setAiCards(false)} />}
+      {srcCards && <SourceCards topicId={id} onClose={() => setSrcCards(false)} />}
       {historyOpen && (
         <NoteHistoryDialog
           topicId={id}
@@ -681,6 +685,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [fromNote, setFromNote] = useState(false);
   const [aiDrafts, setAiDrafts] = useState(false);
+  const [srcDrafts, setSrcDrafts] = useState(false);
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
   const canAi = aiAvailable(data) && Boolean(data.topics.find((t) => t.id === topicId)?.note.trim()); // ИИ включён и есть конспект: можно предложить черновики
@@ -718,7 +723,13 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
           )}
         </div>
         {fromNote && <NoteToCards topicId={topicId} onClose={() => setFromNote(false)} />}
+        {aiAvailable(data) && (
+          <button className="btn" onClick={() => setSrcDrafts(true)} title="Статья, видео YouTube с субтитрами или глава книги EPUB">
+            <Icon name="link" size={16} /> Из ссылки или книги
+          </button>
+        )}
         {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
+        {srcDrafts && <SourceCards topicId={topicId} onClose={() => setSrcDrafts(false)} />}
         {adding && (
           <Modal title="Новая карточка" onClose={() => setAdding(false)} width={620}>
             <CardEditor topicId={topicId} onDone={() => setAdding(false)} />
@@ -743,7 +754,13 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
             <Icon name="bot" size={16} /> Черновики от ИИ
           </button>
         )}
+        {aiAvailable(data) && (
+          <button className="btn" onClick={() => setSrcDrafts(true)} title="Статья, видео YouTube с субтитрами или глава книги EPUB">
+            <Icon name="link" size={16} /> Из ссылки или книги
+          </button>
+        )}
         {aiDrafts && <AiCardDrafts topicId={topicId} onClose={() => setAiDrafts(false)} />}
+        {srcDrafts && <SourceCards topicId={topicId} onClose={() => setSrcDrafts(false)} />}
         {hard.length > 0 && (
           <button className={'chip-btn' + (onlyHard ? ' on' : '')} onClick={() => setOnlyHard(!onlyHard)} title="Карточки, которые долго не запоминаются">
             Трудные · {hard.length}
