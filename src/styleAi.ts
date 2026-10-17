@@ -2,7 +2,7 @@
 // Главное правило: ответ ИИ — недоверенные данные, как файл от одноклассника. Из него берётся только JSON, дальше — cleanMod
 // (переменные, атрибуты, настройки, CSS через sanitizeCss) и проверка читаемости. Кода в стиле нет и быть не может.
 // Чистые функции — их проверяют тесты (v130-styles.test.ts); запрос к модели — в самом конце файла (askStyle).
-import { humanError } from './ai';
+import { aiError } from './ai';
 import { aiRequest } from './aiTasks';
 import { sanitizeCss } from './safeCss';
 import { fixContrast, type BaseAppearance, type Fix } from './styleContrast';
@@ -344,7 +344,7 @@ export async function askStyle(wish: string, opts: { id: string; base: BaseAppea
   const api = window.mnemaApi;
   if (!api?.aiAsk) throw new Error('ИИ-помощник работает в приложении для Windows, Linux, на телефоне и в браузере.');
   const r = await api.aiAsk(aiRequest('style', { system: styleSystemPrompt(), text: styleUserText(wish, opts.current), maxTokens: 4000, refrain: { task: 'style', text: styleUserText(wish, opts.current) } }));
-  if (!r.ok) throw new Error(humanError(r.error));
+  if (!r.ok) throw new Error(aiError(r));
   if (!r.text?.trim()) throw new Error('Модель вернула пустой ответ. Попробуй ещё раз.');
   return parseAiStyle(r.text, { id: opts.id, fallbackName: opts.current?.name ?? wish.slice(0, 40), base: opts.base });
 }

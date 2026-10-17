@@ -8,6 +8,7 @@ import { canonicalString, ERRORS, H, powOk, type Quota } from '../shared/refrain
 import { createAiService } from '../shared/aiCore.mjs';
 import { b64url, createRefrainClient, derToP1363, FALLBACK_CODES, fromB64, refrainMessage, sha256, sha256hex, solvePow, type RefrainSession, type RefrainSigner } from '../shared/refrainClient.mjs';
 import { fitSide, quotaLines, refrainFields, scrubLine } from './refrain';
+import { aiError } from './ai';
 import { androidDeviceName } from './refrainBridge';
 
 const quota = (used = 1): Quota => ({ day: { used, limit: 30 }, month: { used, limit: 400 }, resetsAt: '2026-10-16T00:00:00.000Z', group: 'student' });
@@ -251,6 +252,21 @@ describe('порядок поставщиков', () => {
     });
     const r = await s.ask(req);
     expect(r).toMatchObject({ ok: false, code: 'limit_day', quota: { day: { used: 30 } } });
+  });
+
+  it('Refrain ИИ не ответил, и свой ключ не принят — главная ошибка от Refrain ИИ, ошибка ключа — отдельно', async () => {
+    let cfg: unknown = { provider: 'anthropic', keys: { anthropic: 'e:sk-old' }, order: ['refrain', 'key', 'local'] };
+    const s = createAiService({
+      http: async () => ({ status: 401, text: JSON.stringify({ error: { type: 'authentication_error', message: 'invalid x-api-key' } }) }),
+      store: { read: () => cfg, write: (c) => (cfg = c), encrypt: (x) => 'e:' + x, decrypt: (x) => (x ? x.slice(2) : ''), newId: () => 'p1' },
+      refrain: { signedIn: () => true, task: async () => ({ ok: false, code: 'upstream', error: 'Сбой ИИ, попробуй ещё раз.' }) } as never
+    });
+    const r = await s.ask(req);
+    expect(r).toMatchObject({ ok: false, error: 'Сбой ИИ, попробуй ещё раз.' });
+    expect((r as { backup?: string }).backup).toMatch(/^401/);
+    const text = aiError(r as never);
+    expect(text.startsWith('Сбой ИИ, попробуй ещё раз.')).toBe(true);
+    expect(text).toContain('Запасной ИИ (свой ключ) тоже не ответил: Сервис не принял ключ');
   });
 
   it('bad_request не уходит дальше: это ошибка приложения', async () => {

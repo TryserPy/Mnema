@@ -3,7 +3,7 @@ import { aiRequest, type AiTask } from './aiTasks';
 import { cardsPrompt, noteForAi, parseAiCards, type AiCardDraft } from './aiCards';
 import { noteAnswer, refrainFields, shrinkImage } from './refrain';
 import { promptSystem } from './prompts';
-import type { AiRequest } from './store';
+import type { AiAnswer, AiRequest } from './store';
 import type { AppData } from './types';
 
 export function aiAvailable(data: AppData): boolean {
@@ -20,7 +20,7 @@ async function ask(task: AiTask | null, req: AiRequest): Promise<string> {
   const sent = task ? aiRequest(task, req) : { ...req, refrain: refrainFields(req.refrain) };
   const r = await api.aiAsk(sent);
   noteAnswer(r, sent.refrain?.task);
-  if (!r.ok) throw new Error(humanError(r.error) + (r.signIn ? ' Или войди в Refrain ИИ: Настройки → ИИ-помощник — тогда свой ключ не нужен.' : ''));
+  if (!r.ok) throw new Error(aiError(r));
   if (!r.text) throw new Error('Модель вернула пустой ответ.');
   return r.text;
 }
@@ -34,6 +34,15 @@ function resetLocal(): string {
   const d = new Date();
   d.setUTCHours(24, 0, 0, 0);
   return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Текст ошибки ответа aiAsk: ошибка Refrain ИИ (или того, кого спрашивали), ошибка запасного ИИ и подсказка войти. */
+export function aiError(r: Extract<AiAnswer, { ok: false }>): string {
+  return (
+    humanError(r.error) +
+    (r.backup ? ` Запасной ИИ (свой ключ) тоже не ответил: ${humanError(r.backup)}` : '') +
+    (r.signIn ? ' Или войди в Refrain ИИ: Настройки → ИИ-помощник — тогда свой ключ не нужен.' : '')
+  );
 }
 
 export function humanError(e: string): string {

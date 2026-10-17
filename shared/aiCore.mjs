@@ -523,7 +523,9 @@ export function createAiService({ http, store, refrain = null }) {
         if (refrain && req.refrain && !refrain.signedIn()) lastError += ' Или войди в Refrain ИИ: Настройки → ИИ-помощник.';
       }
       const code = refrainFail && !triedAfterRefrain && Object.prototype.hasOwnProperty.call(ERRORS, refrainFail.code) ? refrainFail.code : undefined;
-      return { ok: false, error: lastError, ...(code ? { code } : {}), ...(signIn ? { signIn: true } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
+      // Refrain ИИ не ответил, и запасной (свой ключ) тоже: главное — ошибка Refrain ИИ, иначе её заслоняет «ключ не принят» от старого ключа.
+      const backup = refrainFail && triedAfterRefrain ? lastError : '';
+      return { ok: false, error: backup ? refrainFail.error : lastError, ...(backup ? { backup } : {}), ...(code ? { code } : {}), ...(signIn ? { signIn: true } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
     },
     async transcribe(req) {
       if (!req || typeof req.data !== 'string' || req.data.length > 20 * 1024 * 1024) return { ok: false, error: 'Запись слишком длинная' };
