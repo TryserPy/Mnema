@@ -13,6 +13,7 @@ import { PluginsSettings } from '../components/PluginsSettings';
 import { AnkiExportDialog, PrintDialog } from '../components/ExportDialogs';
 import { AnkiImport } from '../components/AnkiImport';
 import { MarkdownImport } from '../components/MarkdownImport';
+import { FsrsFitDialog, fitHint } from '../components/FsrsFit';
 // Импорт карточек и готовые колоды (1.32, N1) — грузятся при открытии.
 const CardImport = lazy(() => import('../components/CardImport').then((m) => ({ default: m.CardImport })));
 const SourceCards = lazy(() => import('../components/SourceCards').then((m) => ({ default: m.SourceCards })));
@@ -72,6 +73,7 @@ const INDEX: IndexItem[] = [
   { label: 'Новых карточек в день', section: 'study', anchor: 'newPerDay', words: 'лимит' },
   { label: 'Простые кнопки «Не помню / Помню»', section: 'study', anchor: 'simple', words: 'оценки две' },
   { label: 'Насколько надёжно запоминать', section: 'study', anchor: 'retention', words: 'fsrs интервалы' },
+  { label: 'Подогнать расписание под меня', section: 'study', anchor: 'fit', words: 'fsrs оптимизация параметры под себя интервалы память точнее' },
   { label: 'Новый день начинается в', section: 'study', anchor: 'dayStart', words: 'полночь' },
   { label: 'Фокус (помодоро): минуты учёбы и перерыва', section: 'study', anchor: 'focus', words: 'таймер помидор перерыв фокус-режим' },
   { label: 'Напоминания о домашке', section: 'reminders', anchor: 'hw', words: 'уведомления дз' },
@@ -331,9 +333,11 @@ function StudyPane() {
   const timer = useFocus();
   const data = useData();
   const s = data.settings;
+  const [fitOpen, setFitOpen] = useState(false);
   return (
     <div className="stack gap16">
       <PaneHead title="Учёба" text="Сколько учить каждый день и как отвечать." />
+      {fitOpen && <FsrsFitDialog onClose={() => setFitOpen(false)} />}
       <Group>
         <SRow label="Новых карточек в день" hint="Сколько новых добавлять к повторению" id="newPerDay">
           <input className="input num" type="number" min={0} max={200} value={s.newPerDay} onChange={(e) => updateSettings({ newPerDay: Math.max(0, Math.min(200, Number(e.target.value) || 0)) })} aria-label="Новых карточек в день" />
@@ -348,6 +352,11 @@ function StudyPane() {
       <Group title="Точная настройка">
         <SRow label="Насколько надёжно запоминать" hint={`${Math.round(s.retention * 100)}% — ${retentionWords(s.retention)}`} id="retention">
           <input type="range" min={0.8} max={0.95} step={0.01} value={s.retention} onChange={(e) => updateSettings({ retention: Number(e.target.value) })} aria-label="Насколько надёжно запоминать" />
+        </SRow>
+        <SRow label="Подогнать расписание под меня" hint={fitHint(s)} id="fit">
+          <button className="btn small" onClick={() => setFitOpen(true)}>
+            {s.fsrsParams ? 'Настроить' : 'Подогнать'}
+          </button>
         </SRow>
         <SRow label="Максимум повторений в день" id="maxReviews">
           <input className="input num" type="number" min={10} max={2000} value={s.maxReviews} onChange={(e) => updateSettings({ maxReviews: Math.max(10, Math.min(2000, Number(e.target.value) || 10)) })} aria-label="Максимум повторений в день" />

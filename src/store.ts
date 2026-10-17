@@ -19,6 +19,7 @@ import { cleanBg } from './bgImage';
 import { cleanCustomMods, cleanMyStyle, cleanSnippets, cleanStyleBackup, cleanStyleValues } from './styleSystem';
 import { migrateAppearance } from './styleMigrate';
 import { cleanAiNotes, cleanTaskProviders } from './aiNotes';
+import { cleanFitParams } from './fsrsFit';
 import { cleanStudyPick } from './studyPick';
 import { cleanExam, cleanNoteHistory, cleanSchedule, cleanTopics, cleanTrash, validExamDate } from './safeData';
 import type { AppData, NoteVersion, Removed, TrashEntry, Card, CardType, Poem, Confidence, Exam, FeatureId, Folder, Homework, ItemState, ListKind, ListMode, ReviewLogEntry, Settings, StudyList, Subject, TestResult, Topic } from './types';
@@ -286,6 +287,7 @@ export function normalizeData(raw: unknown): AppData {
       myStyle: cleanMyStyle(r.settings?.myStyle),
       styleBackup: cleanStyleBackup(r.settings?.styleBackup),
       aiNotes: cleanAiNotes(r.settings?.aiNotes),
+      fsrsParams: cleanFitParams(r.settings?.fsrsParams),
       aiTaskProvider: cleanTaskProviders(r.settings?.aiTaskProvider),
       aiAuto: r.settings?.aiAuto && typeof r.settings.aiAuto === 'object' && r.settings.aiAuto.cards === true ? { cards: true } : undefined,
       studyPick: cleanStudyPick(r.settings?.studyPick),

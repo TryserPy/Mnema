@@ -123,12 +123,18 @@ export function checkTyped(input: string, expected: string): boolean {
 
 // ---------- FSRS ----------
 
-const schedulers = new Map<number, ReturnType<typeof fsrs>>();
-export function scheduler(settings: Pick<Settings, 'retention'>) {
-  let f = schedulers.get(settings.retention);
+/** Что нужно планировщику из настроек: «как надёжно запоминать» и (если ученик подогнал) свои параметры. */
+export type SchedSettings = Pick<Settings, 'retention'> & Partial<Pick<Settings, 'fsrsParams'>>;
+
+const schedulers = new Map<string, ReturnType<typeof fsrs>>();
+export function scheduler(settings: SchedSettings) {
+  const w = settings.fsrsParams?.w;
+  const key = settings.retention + (w ? ':' + w.join(',') : '');
+  let f = schedulers.get(key);
   if (!f) {
-    f = fsrs({ request_retention: settings.retention, enable_fuzz: true, maximum_interval: 3650 });
-    schedulers.set(settings.retention, f);
+    f = fsrs({ request_retention: settings.retention, enable_fuzz: true, maximum_interval: 3650, ...(w ? { w } : {}) });
+    if (schedulers.size > 8) schedulers.clear();
+    schedulers.set(key, f);
   }
   return f;
 }
@@ -167,13 +173,13 @@ export function fromFsrs(c: FCard): ItemState {
 export const GRADES: Grade[] = [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy];
 
 /** Интервалы для четырёх кнопок (мс от now). */
-export function previewIntervals(state: ItemState | undefined, now: Date, settings: Pick<Settings, 'retention'>): number[] {
+export function previewIntervals(state: ItemState | undefined, now: Date, settings: SchedSettings): number[] {
   const f = scheduler(settings);
   const p = f.repeat(toFsrs(state, now), now);
   return GRADES.map((g) => p[g].card.due.getTime() - now.getTime());
 }
 
-export function gradeItem(state: ItemState | undefined, now: Date, rating: Grade, settings: Pick<Settings, 'retention'>): ItemState {
+export function gradeItem(state: ItemState | undefined, now: Date, rating: Grade, settings: SchedSettings): ItemState {
   const f = scheduler(settings);
   return fromFsrs(f.next(toFsrs(state, now), now, rating).card);
 }

@@ -354,6 +354,8 @@ export interface Settings {
   fontScale: number; // 0.9–1.3
   density: Density;
   retention: number; // 0.80–0.95
+  /** Расписание, подогнанное под ученика (1.32, «Подогнать под меня»): параметры FSRS по его журналу. Нет поля — стандартные. */
+  fsrsParams?: import('./fsrsFit').FitParams;
   newPerDay: number;
   sessionMinutes?: number; // «Учиться»: сколько минут есть (5, 10, 20); нет или 0 — всё на сегодня
   sessionSkip?: { day: string; kinds: string[] }; // шаги плана, которые пропустили в этот день
