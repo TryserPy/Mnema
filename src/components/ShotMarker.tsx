@@ -1,18 +1,12 @@
-// «Сообщить о проблеме»: снимок (окна или свой) с отметками — рамкой обводишь место, где проблема. Отметки рисуются прямо
+// «Сообщить о проблеме»: снимок (окна или свой) с отметками — рамка, стрелка, маркер, «скрыть». Отметки рисуются прямо
 // на картинке, которая уйдёт с отчётом; сама картинка — JPEG не больше SHOT_MAX знаков base64.
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './ui';
 
 /** Сервер принимает снимок до 1 МБ (≈1,4 млн знаков base64). */
 export const SHOT_MAX = 1.4 * 1024 * 1024;
 const SIDE = 1600;
-
-interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => {
@@ -54,115 +48,220 @@ export async function imageFileToShot(f: File): Promise<string> {
   }
 }
 
-function paint(ctx: CanvasRenderingContext2D, img: HTMLImageElement, boxes: Box[], w: number, h: number) {
+type Tool = 'box' | 'arrow' | 'pen' | 'blur';
+type Shape = { tool: Tool; pts: { x: number; y: number }[] };
+
+const TOOLS: { id: Tool; name: string; icon: string }[] = [
+  { id: 'box', name: 'Рамка', icon: '▭' },
+  { id: 'arrow', name: 'Стрелка', icon: '↗' },
+  { id: 'pen', name: 'Маркер', icon: '✎' },
+  { id: 'blur', name: 'Скрыть', icon: '▦' }
+];
+
+function rectOf(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
+}
+
+/** Нарисовать снимок и отметки. «Скрыть» — крупная мозаика: личное на снимке (почта, имя) не прочитать. */
+export function paint(ctx: CanvasRenderingContext2D, img: CanvasImageSource, shapes: Shape[], w: number, h: number) {
   ctx.clearRect(0, 0, w, h);
   ctx.drawImage(img, 0, 0, w, h);
   const line = Math.max(3, Math.round(Math.max(w, h) / 320));
-  for (const b of boxes) {
-    const x = Math.min(b.x, b.x + b.w);
-    const y = Math.min(b.y, b.y + b.h);
-    const bw = Math.abs(b.w);
-    const bh = Math.abs(b.h);
-    ctx.fillStyle = 'rgba(229, 56, 59, 0.12)';
-    ctx.fillRect(x, y, bw, bh);
-    ctx.lineWidth = line;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const s of shapes) {
+    const a = s.pts[0];
+    const b = s.pts[s.pts.length - 1];
+    if (!a || !b) continue;
+    if (s.tool === 'blur') {
+      const q = rectOf(a, b);
+      const r = { x: Math.floor(q.x), y: Math.floor(q.y), w: Math.ceil(q.w), h: Math.ceil(q.h) };
+      const cell = Math.max(10, Math.round(Math.max(w, h) / 90));
+      for (let y = r.y; y < r.y + r.h; y += cell)
+        for (let x = r.x; x < r.x + r.w; x += cell) {
+          const px = ctx.getImageData(Math.min(w - 1, Math.round(x + cell / 2)), Math.min(h - 1, Math.round(y + cell / 2)), 1, 1).data;
+          ctx.fillStyle = `rgb(${px[0]},${px[1]},${px[2]})`;
+          ctx.fillRect(x, y, Math.min(cell, r.x + r.w - x), Math.min(cell, r.y + r.h - y));
+        }
+      continue;
+    }
     ctx.strokeStyle = '#e5383b';
-    ctx.strokeRect(x, y, bw, bh);
+    ctx.lineWidth = s.tool === 'pen' ? line * 2.2 : line;
+    if (s.tool === 'box') {
+      const r = rectOf(a, b);
+      ctx.fillStyle = 'rgba(229, 56, 59, 0.12)';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+    } else if (s.tool === 'pen') {
+      ctx.globalAlpha = 0.45;
+      ctx.strokeStyle = '#ffd400';
+      ctx.beginPath();
+      s.pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      const head = line * 5;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x - head * Math.cos(ang - 0.5), b.y - head * Math.sin(ang - 0.5));
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x - head * Math.cos(ang + 0.5), b.y - head * Math.sin(ang + 0.5));
+      ctx.stroke();
+    }
   }
 }
 
-/** Снимок с отметками. onChange получает итоговую картинку (с рамками) каждый раз, когда рамок стало больше или меньше. */
+/**
+ * Снимок в форме — обычная картинка: страница листается пальцем как всегда (раньше любое касание рисовало рамку
+ * и перехватывало прокрутку). Нажатие — полноэкранный редактор: рамка, стрелка, маркер, «скрыть»; там рисует один палец.
+ * onChange получает итоговую картинку (с отметками).
+ */
 export function ShotMarker({ src, onChange }: { src: string; onChange: (jpeg: string) => void }) {
+  const [shapes, setShapes] = useState<Shape[]>([]);
+  const [preview, setPreview] = useState(src);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    setShapes([]);
+    setPreview(src);
+  }, [src]);
+  return (
+    <div className="stack gap6 rf-marker">
+      <button type="button" className="rf-shot-btn" onClick={() => setEditing(true)} aria-label="Открыть снимок и отметить, где проблема">
+        <img className="rf-shot" src={`data:image/jpeg;base64,${preview}`} alt="Снимок, который уйдёт с отчётом" />
+        <span className="rf-shot-hint">✎ Отметить</span>
+      </button>
+      <span className="small muted">{shapes.length ? `Отметок: ${shapes.length}. Нажми на снимок, чтобы поправить.` : 'Нажми на снимок, чтобы обвести место, где проблема, или скрыть личное.'}</span>
+      {editing && (
+        <ShotEditor
+          src={src}
+          initial={shapes}
+          onCancel={() => setEditing(false)}
+          onDone={(list, jpeg) => {
+            setShapes(list);
+            setPreview(jpeg);
+            onChange(jpeg);
+            setEditing(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Полноэкранный редактор снимка. Второй палец отменяет текущий штрих (случайное касание ладонью). */
+function ShotEditor({ src, initial, onCancel, onDone }: { src: string; initial: Shape[]; onCancel: () => void; onDone: (shapes: Shape[], jpeg: string) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
-  const [boxes, setBoxes] = useState<Box[]>([]);
-  const draft = useRef<Box | null>(null);
-  const changeRef = useRef(onChange);
-  changeRef.current = onChange;
+  const [shapes, setShapes] = useState<Shape[]>(initial);
+  const [tool, setTool] = useState<Tool>('box');
+  const draft = useRef<Shape | null>(null);
+  const pointers = useRef(new Set<number>());
 
   useEffect(() => {
     let alive = true;
-    setBoxes([]);
-    void loadImage(`data:image/jpeg;base64,${src}`)
-      .then((i) => alive && setImg(i))
-      .catch(() => alive && setImg(null));
+    void loadImage(`data:image/jpeg;base64,${src}`).then((i) => alive && setImg(i), () => undefined);
     return () => {
       alive = false;
     };
   }, [src]);
-
   const size = img ? (() => {
     const k = Math.min(1, SIDE / Math.max(img.naturalWidth, img.naturalHeight));
     return { w: Math.max(1, Math.round(img.naturalWidth * k)), h: Math.max(1, Math.round(img.naturalHeight * k)) };
   })() : null;
-
-  const redraw = (list: Box[]) => {
+  const redraw = (list: Shape[]) => {
     const c = canvas.current;
-    if (!c || !img || !size) return;
-    paint(c.getContext('2d')!, img, list, size.w, size.h);
+    if (c && img && size) paint(c.getContext('2d', { willReadFrequently: true })!, img, list, size.w, size.h);
   };
-
+  useEffect(() => redraw(shapes)); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    redraw(boxes);
-    const c = canvas.current;
-    if (!c || !img) return;
-    changeRef.current(boxes.length ? toJpeg(c) || src : src);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [img, boxes]);
-
-  if (!img || !size) return null;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [onCancel]);
 
   const at = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) / r.width) * size.w, y: ((e.clientY - r.top) / r.height) * size.h };
+    return { x: ((e.clientX - r.left) / r.width) * size!.w, y: ((e.clientY - r.top) / r.height) * size!.h };
   };
 
-  return (
-    <div className="stack gap6 rf-marker">
-      <canvas
-        ref={canvas}
-        width={size.w}
-        height={size.h}
-        className="rf-shot rf-shot-canvas"
-        role="img"
-        aria-label="Снимок, который уйдёт с отчётом. Обведи рамкой место, где проблема"
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          const p = at(e);
-          draft.current = { x: p.x, y: p.y, w: 0, h: 0 };
-        }}
-        onPointerMove={(e) => {
-          if (!draft.current) return;
-          const p = at(e);
-          draft.current = { ...draft.current, w: p.x - draft.current.x, h: p.y - draft.current.y };
-          redraw([...boxes, draft.current]);
-        }}
-        onPointerUp={() => {
-          const d = draft.current;
-          draft.current = null;
-          // Простое нажатие — небольшая рамка вокруг точки: на телефоне так проще.
-          const r = Math.max(24, Math.round(Math.max(size.w, size.h) / 30));
-          const box = d && (Math.abs(d.w) > 8 || Math.abs(d.h) > 8) ? d : d ? { x: d.x - r, y: d.y - r, w: r * 2, h: r * 2 } : null;
-          if (box) setBoxes([...boxes, box]);
-        }}
-        onPointerCancel={() => {
-          draft.current = null;
-          redraw(boxes);
-        }}
-      />
-      <div className="row gap8 wrap">
-        <span className="small muted grow">{boxes.length ? `Отмечено мест: ${boxes.length}` : 'Обведи рамкой или нажми, где проблема'}</span>
-        {boxes.length > 0 && (
-          <>
-            <button type="button" className="btn small ghost" onClick={() => setBoxes(boxes.slice(0, -1))}>
-              <Icon name="undo" size={14} /> Убрать последнюю
-            </button>
-            <button type="button" className="btn small ghost" onClick={() => setBoxes([])}>
-              Стереть все
-            </button>
-          </>
+  return createPortal(
+    <div className="shot-editor" role="dialog" aria-modal="true" aria-label="Отметить на снимке">
+      <div className="shot-tools" role="toolbar" aria-label="Инструменты">
+        {TOOLS.map((t) => (
+          <button key={t.id} type="button" className={'shot-tool' + (tool === t.id ? ' on' : '')} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>
+            <span aria-hidden="true">{t.icon}</span>
+            {t.name}
+          </button>
+        ))}
+        <button type="button" className="shot-tool" disabled={!shapes.length} onClick={() => setShapes(shapes.slice(0, -1))} aria-label="Отменить последнюю отметку">
+          <Icon name="undo" size={16} />
+        </button>
+      </div>
+      <div className="shot-stage">
+        {size && (
+          <canvas
+            ref={canvas}
+            width={size.w}
+            height={size.h}
+            className="shot-canvas"
+            onPointerDown={(e) => {
+              pointers.current.add(e.pointerId);
+              if (pointers.current.size > 1) {
+                draft.current = null;
+                redraw(shapes);
+                return;
+              }
+              e.currentTarget.setPointerCapture(e.pointerId);
+              draft.current = { tool, pts: [at(e)] };
+            }}
+            onPointerMove={(e) => {
+              const d = draft.current;
+              if (!d) return;
+              const p = at(e);
+              d.pts = d.tool === 'pen' ? [...d.pts, p] : [d.pts[0], p];
+              redraw([...shapes, d]);
+            }}
+            onPointerUp={(e) => {
+              pointers.current.delete(e.pointerId);
+              const d = draft.current;
+              draft.current = null;
+              if (!d || !size) return;
+              const a = d.pts[0];
+              const b = d.pts[d.pts.length - 1];
+              const tiny = Math.hypot(b.x - a.x, b.y - a.y) < 8;
+              // Простое нажатие рамкой — небольшая рамка вокруг точки: пальцем так проще.
+              const r = Math.max(24, Math.round(Math.max(size.w, size.h) / 30));
+              if (tiny && d.tool === 'box') setShapes([...shapes, { tool: 'box', pts: [{ x: a.x - r, y: a.y - r }, { x: a.x + r, y: a.y + r }] }]);
+              else if (!tiny) setShapes([...shapes, d]);
+              else redraw(shapes);
+            }}
+            onPointerCancel={(e) => {
+              pointers.current.delete(e.pointerId);
+              draft.current = null;
+              redraw(shapes);
+            }}
+          />
         )}
       </div>
-    </div>
+      <div className="shot-bar">
+        <button type="button" className="btn" onClick={onCancel}>
+          Отмена
+        </button>
+        <button
+          type="button"
+          className="btn primary"
+          onClick={() => {
+            const c = canvas.current;
+            onDone(shapes, c && shapes.length ? toJpeg(c) || src : src);
+          }}
+        >
+          Готово
+        </button>
+      </div>
+    </div>,
+    document.body
   );
 }

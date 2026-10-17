@@ -2,7 +2,7 @@
 // с рамками вокруг места, где проблема. Всё видно до отправки.
 import { useRef, useState } from 'react';
 import { refrainPlatform } from '../../shared/refrainClient.mjs';
-import { refrainApi } from '../refrainBridge';
+import { androidDeviceName, refrainApi } from '../refrainBridge';
 import { journalLines, scrubLine, type ReportContext } from '../refrain';
 import { APP_VERSION } from '../update';
 import { getData } from '../store';
@@ -24,6 +24,13 @@ const CATEGORIES: { id: NonNullable<ReportContext['category']>; name: string }[]
 function lookName(): string {
   const l = getData().settings.look;
   return `${l?.style ?? 'modern'} · ${l?.light ?? ''}/${l?.dark ?? ''}`.slice(0, 40);
+}
+
+/** Технические сведения — приложатся сами: версия, устройство, экран. Без имени, почты и содержимого. */
+export function techLine(ua = navigator.userAgent, w = window.innerWidth, h = window.innerHeight, dpr = window.devicePixelRatio || 1): string {
+  const dev = /Android/.test(ua) ? androidDeviceName(ua) : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'устройство';
+  const browser = /Electron\//.test(ua) ? 'приложение' : /; wv\)/.test(ua) ? 'приложение Android' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'браузер';
+  return `Refrain ${APP_VERSION} · ${dev} · ${browser} · экран ${w}×${h} @${Math.round(dpr * 10) / 10}x`;
 }
 
 /** Можно ли отправить форму на этой платформе (в веб-версии Refrain ИИ нет — нет и отправки). */
@@ -50,13 +57,19 @@ export function ReportProblem({ ctx, shot, where = '', onClose }: { ctx: ReportC
   const base = own ?? (shot && shot.length < SHOT_MAX ? shot : null);
   const shotOk = Boolean(base);
   const error = ctx.error ? scrubLine(ctx.error) : '';
+  const tech = techLine();
 
   if (!api) return null;
   if (sent !== null)
     return (
       <Modal title="Сообщить о проблеме" onClose={onClose}>
         <div className="stack gap12">
-          <p>Отправлено, номер #{sent}. Спасибо!</p>
+          <p className="rf-sent">
+            <span className="rf-sent-ico" aria-hidden="true">
+              ✓
+            </span>
+            Отправлено, номер #{sent}. Спасибо — разработчик посмотрит.
+          </p>
           <div className="row end">
             <button className="btn primary" onClick={onClose}>
               Готово
@@ -71,7 +84,7 @@ export function ReportProblem({ ctx, shot, where = '', onClose }: { ctx: ReportC
     setErr('');
     const platform = window.mnemaApi?.platform ?? '';
     const where = place.trim().replace(/\s+/g, ' ').slice(0, 120);
-    const body = (where ? `Экран: ${where}\n` : '') + text.trim();
+    const body = (where ? `Экран: ${where}\n` : '') + (text.trim() || '(без описания)') + `\n\n${tech}`;
     const pic = marked ?? base;
     const r = await api.bug({
       category,
@@ -112,7 +125,7 @@ export function ReportProblem({ ctx, shot, where = '', onClose }: { ctx: ReportC
         </label>
         {error && <div className="hint info small">Ошибка: {error}</div>}
         <textarea className="input" rows={5} maxLength={TEXT_MAX} value={text} onChange={(e) => setText(e.target.value)} placeholder="Что случилось и что ты делал перед этим" aria-label="Что случилось" />
-        <span className="small muted">Не пиши почту, телефон и другие личные данные: отчёт читают разработчики.</span>
+        <span className="small muted">Не пиши почту, телефон и другие личные данные: отчёт читают разработчики. Само приложится: {tech}.</span>
         {log.length > 0 && (
           <div className="stack gap4">
             <div className="row gap8">
@@ -169,7 +182,7 @@ export function ReportProblem({ ctx, shot, where = '', onClose }: { ctx: ReportC
           <button type="button" className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button type="submit" className="btn primary" disabled={busy || !text.trim()}>
+          <button type="submit" className="btn primary" disabled={busy || (!text.trim() && !error && !(withShot && base))}>
             {busy ? 'Отправляю…' : 'Отправить'}
           </button>
         </div>
