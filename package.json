@@ -1,7 +1,7 @@
 {
   "name": "mnema",
   "productName": "Refrain",
-  "version": "1.31.1",
+  "version": "1.31.2",
   "description": "Refrain — приложение для запоминания учебного материала",
   "private": true,
   "main": "electron/main.cjs",
