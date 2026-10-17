@@ -20,7 +20,9 @@ import { AiSettings } from '../components/AiSettings';
 import { FEATURES, MODS_AVAILABLE } from '../featureList';
 import type { Route, SettingsSection } from '../types';
 import { addExample } from '../seed';
-import { downloadBytes, downloadFile, importTopicPackage, isTopicPackage } from '../share';
+import { downloadBytes, downloadFile } from '../share';
+import { openPack, PACK_MAX_BYTES } from '../mnemaPack';
+import { PackExportDialog } from '../components/PackDialogs';
 import { normalizeAnswer } from '../srs';
 import { APP_VERSION, checkUpdate, UPDATE_REPO, type UpdateInfo } from '../update';
 import { UpdateFlow } from '../components/UpdateFlow';
@@ -470,6 +472,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
   const [sync, setSync] = useState(false);
   const [cloud, setCloud] = useState(false);
   const [exportKind, setExportKind] = useState<'anki' | 'print' | null>(null);
+  const [packOpen, setPackOpen] = useState(false);
   const [pendingBackup, setPendingBackup] = useState<ReturnType<typeof normalizeData> | null>(null);
   const api = window.mnemaApi;
   async function runObsidianExport() {
@@ -590,7 +593,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
             Выбрать
           </button>
         </SRow>
-        <SRow label="Тема из файла" hint="Файл .mnema, которым поделился друг">
+        <SRow label="Файл Refrain (.mnema)" hint="Темы и предметы, которыми поделился друг, или файл с другого устройства">
           <button className="btn small" onClick={() => topicRef.current?.click()}>
             Выбрать файл
           </button>
@@ -602,6 +605,11 @@ function DataPane({ go }: { go: (r: Route) => void }) {
         </SRow>
       </Group>
       <Group title="Экспорт" id="export">
+        <SRow label="Файл Refrain (.mnema)" hint="Всё или один предмет — на другое устройство или другу. Можно с паролем">
+          <button className="btn small primary" onClick={() => setPackOpen(true)}>
+            Сохранить
+          </button>
+        </SRow>
         <SRow label="В Anki" hint="Файл .apkg">
           <button className="btn small" onClick={() => setExportKind('anki')}>
             Экспорт
@@ -669,10 +677,8 @@ function DataPane({ go }: { go: (r: Route) => void }) {
           e.target.value = '';
           if (!f) return;
           try {
-            const pkg = JSON.parse(await f.text());
-            if (!isTopicPackage(pkg)) throw new Error('это не файл темы Refrain');
-            const r = importTopicPackage(pkg);
-            setMsg(`Добавлена тема «${pkg.topic.name}» — ${r.cards} карточек.`);
+            if (f.size > PACK_MAX_BYTES) throw new Error('файл слишком большой');
+            openPack(await f.text(), f.name);
           } catch (err) {
             setMsg('Не получилось: ' + (err as Error).message);
           }
@@ -680,6 +686,7 @@ function DataPane({ go }: { go: (r: Route) => void }) {
       />
       {sync && <SyncDialog onClose={() => setSync(false)} />}
       {cloud && <CloudDialog onClose={() => setCloud(false)} />}
+      {packOpen && <PackExportDialog onClose={() => setPackOpen(false)} />}
       {exportKind === 'anki' && <AnkiExportDialog onClose={() => setExportKind(null)} />}
       {exportKind === 'print' && <PrintDialog onClose={() => setExportKind(null)} />}
       {mdImport && (

@@ -14,7 +14,7 @@ import { Markdown } from '../components/Markdown';
 import { NoteEditor, type NoteApi } from '../components/NoteEditor';
 import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, selHow, usePresence, AnimText } from '../components/ui';
 import { boldTerms, mentioned, suggestFromSelection } from '../noteTools';
-import { exportTopic } from '../share';
+import { PackExportDialog } from '../components/PackDialogs';
 import { examsOf } from '../examList';
 import { buildPrompt, examPlan, formatInterval, isLeech, itemKey, itemOrds, normalizeAnswer } from '../srs';
 import { addList, addPoem, addTopic, childTopics, deleteCard, LIST_PRESETS, resetCardProgress, subjectRules, topicWithDescendants, updateTopic, useData, getData } from '../store';
@@ -70,6 +70,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [aiCards, setAiCards] = useState(false);
   const [, setOfferTick] = useState(0);
   const [printOpen, setPrintOpen] = useState(false);
+  const [packOpen, setPackOpen] = useState(false);
   if (!topic) return <div className="page">Тема не найдена.</div>;
   const subject = data.subjects.find((s) => s.id === topic.subjectId);
   const allCards = data.cards.filter((c) => c.topicId === id);
@@ -234,7 +235,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                 label: 'Поделиться',
                 icon: 'share',
                 items: [
-                  { label: 'Файлом', icon: 'share', hint: 'Другу или на другое устройство', onClick: () => exportTopic(data, id) },
+                  { label: 'Файлом', icon: 'share', hint: 'Другу или на другое устройство', onClick: () => setPackOpen(true) },
                   { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
                   { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 }
                 ]
@@ -390,6 +391,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
         </div>
       )}
       {printOpen && <PrintDialog topicId={id} onClose={() => setPrintOpen(false)} />}
+      {packOpen && <PackExportDialog initial={{ kind: 'topic', id }} onClose={() => setPackOpen(false)} />}
       {noteCards && <NoteToCards topicId={id} onClose={() => setNoteCards(false)} />}
       {aiCards && <AiCardDrafts topicId={id} onClose={() => setAiCards(false)} />}
       {historyOpen && (

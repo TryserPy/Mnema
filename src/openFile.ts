@@ -1,6 +1,7 @@
 // Файл Refrain, открытый из файлового менеджера (двойной щелчок, «Открыть с помощью») или командой «refrain файл».
 // Главный процесс читает файл и присылает окну имя и текст; здесь — понять, что это, не меняя данные.
 import { isTopicPackage, type importTopicPackage } from './share';
+import { isPackFile } from './mnemaPack';
 import { isStyleFile, OLD_STYLE_EXT, parseStyleFile, STYLE_EXT } from './styleSystem';
 import type { Mod } from './types';
 
@@ -28,6 +29,8 @@ export function readOpenedFile(f: OpenedFile, styleId: string): OpenedResult {
     return { kind: 'error', message: `«${name}» повреждён: это не файл Refrain` };
   }
   if (isTopicPackage(raw)) return { kind: 'topic', pkg: raw };
+  // Версия 2 (всё, предмет) и файл с паролем — разберёт окно PackHost.
+  if (isPackFile(raw)) return { kind: 'topic', pkg: raw as TopicPackage };
   if (isStyleFile(raw)) {
     try {
       return { kind: 'style', mod: parseStyleFile(f.text, styleId) };

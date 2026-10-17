@@ -50,7 +50,9 @@ import { ExamDialogHost } from './components/ExamDialog';
 import { RepeatDialogHost } from './components/RepeatDialog';
 import { Today } from './screens/Today';
 import { TopicScreen } from './screens/TopicScreen';
-import { importTopicPackage, isTopicPackage } from './share';
+import { isTopicPackage } from './share';
+import { isPackFile, openPack } from './mnemaPack';
+import { PackHost } from './components/PackDialogs';
 import { readOpenedFile } from './openFile';
 import { forecast, itemKey, itemOrds, streak, todayCounts, tomorrowSubjects } from './srs';
 import { dataReadOnly, getData, pruneDoneHomework, updateSettings, updateTopic, useData } from './store';
@@ -361,11 +363,8 @@ export function App() {
     () =>
       window.mnemaApi?.onOpenFile?.((f) => {
         const r = readOpenedFile(f, 'm-' + Math.random().toString(36).slice(2, 9));
-        if (r.kind === 'topic') {
-          const added = importTopicPackage(r.pkg);
-          showToast(`Добавлена тема «${r.pkg.topic.name}»`);
-          if (added.firstTopicId) go({ name: 'topic', id: added.firstTopicId });
-        } else if (r.kind === 'style') {
+        if (r.kind === 'topic') openPack(f.text, f.name);
+        else if (r.kind === 'style') {
           updateSettings({ customMods: [...getData().settings.customMods, r.mod] });
           showToast(`Стиль «${r.mod.name}» добавлен — включи его в «Настройки → Оформление»`);
         } else showToast(r.message);
@@ -503,10 +502,8 @@ export function App() {
     } catch {
       /* может быть ответ нейросети с текстом вокруг JSON */
     }
-    if (isTopicPackage(pkg)) {
-      const r = importTopicPackage(pkg);
-      showToast(`Добавлена тема «${pkg.topic.name}»`);
-      if (r.firstTopicId) go({ name: 'topic', id: r.firstTopicId });
+    if (isTopicPackage(pkg) || isPackFile(pkg)) {
+      openPack(text, f.name);
       return;
     }
     // Файл изменений (например, от нейросети) — показать, что поменяется.
@@ -599,6 +596,7 @@ export function App() {
 
       {dragging && <div className="drop-hint"><span>Отпусти файл: тема Refrain (.mnema), колода Anki (.apkg, .txt) или фото страниц учебника (в открытой теме)</span></div>}
       <RefrainHost go={go} where={() => exactPlace(routeRef.current)} />
+      <PackHost go={go} />
       <FocusTimer />
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
