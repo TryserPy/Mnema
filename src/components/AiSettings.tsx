@@ -8,6 +8,7 @@ import { Fold } from './Fold';
 import { PromptsSettings } from './PromptsSettings';
 import { PromptSafety } from './PromptSafety';
 import { refrainApi } from '../refrainBridge';
+import { takeSignIn } from '../refrain';
 
 type ConfigPatch = Partial<Omit<AiConfig, 'hasKey' | 'custom'>> & { key?: { provider: 'anthropic' | 'gemini'; value: string } };
 type Status = { kind: 'ok' | 'warn' | 'info'; text: string } | null;
@@ -44,6 +45,8 @@ export function AiSettings() {
   const [editing, setEditing] = useState<CustomAi | 'new' | null>(null);
 
   const [keysPlain, setKeysPlain] = useState(false);
+  // Пришли по кнопке «Войти в Refrain ИИ»: форму входа показываем, даже если основной сейчас свой ключ.
+  const [signInAsked] = useState(() => takeSignIn());
   useEffect(() => {
     void api?.aiGetConfig?.().then(setCfg);
     void api?.aiKeyStorage?.().then((k) => setKeysPlain(!k.encrypted));
@@ -138,18 +141,34 @@ export function AiSettings() {
         </div>
       </div>
 
-      {mode === 'refrain' && (
+      {(mode === 'refrain' || (signInAsked && refrainOn)) && (
         <div className="ai-step">
-          <RefrainSettings cfg={ordered} />
+          <RefrainSettings cfg={ordered} focusLogin={signInAsked} />
         </div>
       )}
 
       {mode === 'refrain' && readyKeys.length > 0 && (
-        <div className="hint row gap8 wrap" role="note" data-part="own-key-note">
-          <span className="grow">
-            🔑 Твой ключ сохранён: {readyKeys.map((x) => x.name).join(', ')}. Сейчас он запасной — работает, когда ты не вошёл в Refrain ИИ, у него кончился лимит или нет связи.
+        <div className="hint rf-mode-note" role="note" data-part="own-key-note">
+          <span aria-hidden="true">🔑</span>
+          <span>
+            <strong>Запасной: твой ключ</strong> ({readyKeys.map((x) => x.name).join(', ')})
+            <br />
+            <span className="small muted">Сработает сам, если Refrain ИИ не ответит.</span>
           </span>
           <button className="btn small" onClick={() => void choose('key')}>
+            Сделать основным
+          </button>
+        </div>
+      )}
+      {mode === 'key' && refrainOn && (
+        <div className="hint rf-mode-note" role="note" data-part="refrain-backup-note">
+          <span aria-hidden="true">✨</span>
+          <span>
+            <strong>Запасной: Refrain ИИ</strong>
+            <br />
+            <span className="small muted">Сработает сам, если твой ключ не ответит{readyKeys.length ? '' : ' — а ключа пока нет'}. Нужен вход по почте.</span>
+          </span>
+          <button className="btn small" onClick={() => void choose('refrain')}>
             Сделать основным
           </button>
         </div>

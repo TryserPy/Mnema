@@ -9,3 +9,9 @@
 .rf-shot { max-width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); }
 .rf-shot-canvas { width: 100%; max-height: none; height: auto; cursor: crosshair; touch-action: none; display: block; }
 .rf-lab { min-width: 52px; }
+.rf-device-name { gap: 2px; }
+.rf-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 11px; background: var(--accent-soft, var(--sunken)); color: var(--accent, inherit); vertical-align: 1px; }
+.rf-failed { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+.rf-failed[data-part='signin-bar'] { flex-wrap: wrap; }
+.rf-failed[data-part='signin-bar'] > span { flex: 1 1 100%; }
+.rf-mode-note { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 10px; }

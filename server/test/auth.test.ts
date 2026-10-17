@@ -82,6 +82,7 @@ describe('токены', () => {
     expect(r1.status).toBe(200);
     d.access = r1.body.accessToken;
     expect((await d.call('GET', '/v1/me')).status).toBe(200);
+    h.clock += 3 * 60000; // позже окна повтора (REFRESH_RETRY_MS) — уже не потерянный ответ, а кража
     const reuse = await d.call('POST', '/v1/auth/refresh', { refreshToken: old }, { token: '' });
     expect(reuse.body.error.code).toBe('session_revoked');
     // Устройство, с которого пришёл повтор, отвязано; остальные сессии аккаунта закрыты.
@@ -89,6 +90,46 @@ describe('токены', () => {
     expect((await other.call('GET', '/v1/me')).body.error.code).toBe('session_revoked');
     expect(await count(h, "SELECT COUNT(*) AS n FROM journal WHERE action = 'guard.level2'")).toBe(1);
     expect(h.telegram().some((m) => m.text.includes('refresh_reuse'))).toBe(true);
+  });
+
+  it('ответ на обновление потерялся: тот же токен с того же устройства в течение 2 минут — новая пара, без тревоги', async () => {
+    const h = new Harness();
+    const d = await h.login('lost@example.com');
+    const other = await h.login('lost@example.com');
+    const old = d.refresh;
+    const lost = await d.call('POST', '/v1/auth/refresh', { refreshToken: old }, { token: '' });
+    expect(lost.status).toBe(200); // ответ до приложения не дошёл
+    h.clock += 30000;
+    const again = await d.call('POST', '/v1/auth/refresh', { refreshToken: old }, { token: '' });
+    expect(again.status).toBe(200);
+    d.access = again.body.accessToken;
+    d.refresh = again.body.refreshToken;
+    expect((await d.call('GET', '/v1/me')).status).toBe(200);
+    expect((await other.call('GET', '/v1/me')).status).toBe(200);
+    expect(h.telegram().some((m) => m.text.includes('refresh_reuse'))).toBe(false);
+    await d.renew();
+    // С другого устройства тот же старый токен — кража: всё закрыто.
+    const thief = await other.call('POST', '/v1/auth/refresh', { refreshToken: old }, { token: '' });
+    expect(thief.body.error.code).toBe('session_revoked');
+    expect((await d.call('GET', '/v1/me')).body.error.code).toBe('session_revoked');
+  });
+
+  it('часы устройства неточные — clock_skew со временем сервера, а не device_unknown; вход не теряется', async () => {
+    const h = new Harness();
+    const d = await h.login('clock@example.com');
+    const r = await d.call('GET', '/v1/me', undefined, { time: h.clock + 10 * 60000 });
+    expect(r.body.error.code).toBe('clock_skew');
+    expect(r.body.error.serverTime).toBe(h.clock);
+    expect((await d.call('GET', '/v1/me')).status).toBe(200);
+  });
+
+  it('повтор nonce — too_fast, устройство остаётся', async () => {
+    const h = new Harness();
+    const d = await h.login('nonce@example.com');
+    const nonce = 'AAAAAAAAAAAAAAAAAAAAAA';
+    expect((await d.call('GET', '/v1/me', undefined, { nonce })).status).toBe(200);
+    expect((await d.call('GET', '/v1/me', undefined, { nonce })).body.error.code).toBe('too_fast');
+    expect((await d.call('GET', '/v1/me')).status).toBe(200);
   });
 
   it('истёкший токен доступа — token_expired', async () => {

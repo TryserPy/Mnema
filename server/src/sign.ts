@@ -53,9 +53,9 @@ export async function verifySigned(req: Request, env: Env, raw: Uint8Array, info
   const time = Number(h(H.time));
   const nonce = h(H.nonce);
   const sig = h(H.signature);
-  const bad = async (rules: RuleId[], extra?: { account?: Account; group?: GroupId; device?: Device }): Promise<never> => {
+  const bad = async (rules: RuleId[], extra?: { account?: Account; group?: GroupId; device?: Device }, answer: () => never = () => fail('device_unknown')): Promise<never> => {
     await signal(env, rules, { info, account: extra?.account ? { id: extra.account.id, email: extra.account.email, group: extra.group ?? 'student' } : undefined, device: extra?.device ? { id: extra.device.id, name: extra.device.name, platform: extra.device.platform } : undefined });
-    return fail('device_unknown');
+    return answer();
   };
   if (!/^dev_[A-Za-z0-9_-]{16}$/.test(deviceId) || !/^[A-Za-z0-9_-]{22}$/.test(nonce) || !/^[A-Za-z0-9_-]{86}$/.test(sig) || !Number.isSafeInteger(time)) return bad(['token_unknown']);
   const device = await env.DB.prepare('SELECT * FROM devices WHERE id = ?1').bind(deviceId).first<Device>();
@@ -69,7 +69,9 @@ export async function verifySigned(req: Request, env: Env, raw: Uint8Array, info
   const url = new URL(req.url);
   const message = canonicalString({ method: req.method, path: url.pathname + url.search, bodySha256Hex: await sha256hex(raw), time, nonce, deviceId });
   if (!(await verifyDevice(device.public_key, sig, message))) return bad(['sig_invalid']);
-  if (Math.abs(t - time) > SIGNATURE_WINDOW_MS) return bad(['time_skew']);
+  // Подпись верна — это само устройство, просто часы неточные: отдаём время сервера, приложение поправит и повторит.
+  // Раньше здесь был device_unknown, и приложение стирало вход: на телефоне с ручным временем вход «заканчивался» сам.
+  if (Math.abs(t - time) > SIGNATURE_WINDOW_MS) return bad(['time_skew'], undefined, () => fail('clock_skew', { serverTime: t }));
 
   let sessionId: string | null = null;
   if (mode === 'access') {
@@ -81,7 +83,8 @@ export async function verifySigned(req: Request, env: Env, raw: Uint8Array, info
     if (!sess || sess.revoked) fail('session_revoked');
     sessionId = claims.s;
   }
-  if (!(await student(env, account.id).nonce(deviceId, nonce, t))) return bad(['nonce_replay'], ctx);
+  // Повтор nonce — сигнал, но не повод выкидывать устройство: подделать подпись нельзя, а повтор бывает от сетевого слоя.
+  if (!(await student(env, account.id).nonce(deviceId, nonce, t))) return bad(['nonce_replay'], ctx, () => fail('too_fast', { retryAfter: 1 }));
   if (t - device.last_seen > 60000) await env.DB.prepare('UPDATE devices SET last_seen = ?2 WHERE id = ?1').bind(deviceId, t).run();
   return { account, group, device, sessionId, clientRules: clientRules(info.app, env.APP_VERSIONS.split(',').map((v) => v.trim())) };
 }

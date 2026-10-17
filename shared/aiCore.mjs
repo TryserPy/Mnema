@@ -230,15 +230,39 @@ export function createAiService({ http, store, refrain = null }) {
     return resolve(c, c.provider);
   }
 
-  /** Свой ключ: основной ИИ или выбранный для задачи. null — не настроен (или основной — модель на компьютере: это отдельный шаг). */
+  /** Любой свой ИИ, у которого есть ключ (или ключ не нужен): для фото — только понимающий картинки. Порядок — как в настройках. */
+  function anyReady(c, image) {
+    for (const id of ['gemini', 'anthropic', ...c.custom.map((x) => 'custom:' + x.id)]) {
+      try {
+        const r = resolve(c, id);
+        if ((!r.needKey || r.key) && !(image && r.p.vision === false)) return r;
+      } catch {
+        /* удалён */
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Свой ключ: основной ИИ или выбранный для задачи. null — не настроен (или основной — модель на компьютере: это отдельный шаг).
+   * У основного нет ключа, а у другого своего ИИ есть — берём тот: иначе «Не указан ключ для Claude», хотя ключ Gemini сохранён.
+   */
   function keyStep(c, req) {
     let r = pickFor(c, req.provider);
     if (r.id === 'local') return null;
     if (req.image && r.p.vision === false) {
-      if (!c.visionProvider) throw new Error(`«${r.p.name}» не понимает картинки. В настройках ИИ выбери, какой ИИ использовать для картинок.`);
+      if (!c.visionProvider) {
+        const other = anyReady(c, true);
+        if (other) return other;
+        throw new Error(`«${r.p.name}» не понимает картинки. В настройках ИИ выбери, какой ИИ использовать для картинок.`);
+      }
       r = resolve(c, c.visionProvider);
     }
-    if (r.needKey && !r.key) throw new Error(`Не указан ключ API для «${r.p.name}».`);
+    if (r.needKey && !r.key) {
+      const other = anyReady(c, Boolean(req.image));
+      if (other) return other;
+      throw Object.assign(new Error('Нет ключа ИИ.'), { noKey: true });
+    }
     return r;
   }
 
@@ -475,6 +499,7 @@ export function createAiService({ http, store, refrain = null }) {
       // Свой ключ не сработал (неверный, отключён, кончились деньги), а Refrain ИИ дальше по порядку — спрашиваем его, остальное пропускаем.
       let keyFailed = false;
       let signIn = false;
+      let noKey = false;
       const refrainReady = Boolean(refrain && req.refrain && typeof req.refrain === 'object' && refrain.signedIn());
       for (let i = 0; i < c.order.length; i++) {
         const step = c.order[i];
@@ -497,7 +522,8 @@ export function createAiService({ http, store, refrain = null }) {
         try {
           r = step === 'key' ? keyStep(c, req) : localStep(c, req);
         } catch (e) {
-          if (!why) why = e.message || String(e);
+          if (e.noKey) noKey = true;
+          else if (!why) why = e.message || String(e);
           continue;
         }
         if (!r) continue;
@@ -518,14 +544,16 @@ export function createAiService({ http, store, refrain = null }) {
           break;
         }
       }
+      // Никого не спросили: ни входа в Refrain ИИ, ни ключа. Текст и кнопки («Войти», «Добавить ключ») — в приложении (src/ai.ts).
       if (!lastError) {
-        lastError = why || 'Не выбран ИИ.';
-        if (refrain && req.refrain && !refrain.signedIn()) lastError += ' Или войди в Refrain ИИ: Настройки → ИИ-помощник.';
+        const canSignIn = Boolean(refrain && req.refrain && !refrain.signedIn());
+        if (canSignIn) signIn = true;
+        lastError = why || (canSignIn ? 'Нужен вход в Refrain ИИ или свой ключ ИИ.' : noKey ? 'Нет ключа ИИ — добавь его в настройках ИИ-помощника.' : 'Не выбран ИИ.');
       }
       const code = refrainFail && !triedAfterRefrain && Object.prototype.hasOwnProperty.call(ERRORS, refrainFail.code) ? refrainFail.code : undefined;
       // Refrain ИИ не ответил, и запасной (свой ключ) тоже: главное — ошибка Refrain ИИ, иначе её заслоняет «ключ не принят» от старого ключа.
       const backup = refrainFail && triedAfterRefrain ? lastError : '';
-      return { ok: false, error: backup ? refrainFail.error : lastError, ...(backup ? { backup } : {}), ...(code ? { code } : {}), ...(signIn ? { signIn: true } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
+      return { ok: false, error: backup ? refrainFail.error : lastError, ...(backup ? { backup } : {}), ...(code ? { code } : {}), ...(signIn ? { signIn: true } : {}), ...(noKey ? { noKey: true } : {}), ...(refrainFail && refrainFail.quota ? { quota: refrainFail.quota } : {}) };
     },
     async transcribe(req) {
       if (!req || typeof req.data !== 'string' || req.data.length > 20 * 1024 * 1024) return { ok: false, error: 'Запись слишком длинная' };

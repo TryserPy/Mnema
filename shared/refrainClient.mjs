@@ -2,7 +2,7 @@
 // Один код для Electron (главный процесс) и Android (окно приложения). Сеть, хранилище и подпись передаются снаружи:
 // секретная часть ключа устройства живёт только в safeStorage (Electron) или Android Keystore — сюда приходит лишь готовая подпись.
 // Токены и ключи никуда не пишутся, кроме переданного хранилища (оно шифрует), и не попадают в тексты ошибок.
-import { API_PREFIX, FIELD_LIMITS, H, TASKS, TASK_FIELDS, canonicalString, powOk } from './refrain/api.mjs';
+import { ACCESS_TTL_MS, API_PREFIX, FIELD_LIMITS, H, TASKS, TASK_FIELDS, canonicalString, powOk } from './refrain/api.mjs';
 
 /** Адрес сервера Refrain ИИ (Cloudflare Worker, docs/refrain-1.31/launch.md). Один на всё приложение. */
 export const REFRAIN_API = 'https://refrain-ai.mnema-ai.workers.dev';
@@ -11,8 +11,11 @@ export const REFRAIN_API = 'https://refrain-ai.mnema-ai.workers.dev';
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const CACHE_MAX = 60;
 
-/** При этих ошибках Refrain ИИ запрос уходит следующему по порядку (свой ключ, без интернета). network — нет связи с сервером. */
-export const FALLBACK_CODES = ['limit_day', 'limit_month', 'paused', 'access_closed', 'blocked', 'upstream', 'network'];
+/**
+ * При этих ошибках Refrain ИИ запрос уходит следующему по порядку (свой ключ, без интернета). network — нет связи с сервером;
+ * вход закончился или часы неточные — Refrain ИИ здесь сейчас не ответит, а свой ключ может.
+ */
+export const FALLBACK_CODES = ['limit_day', 'limit_month', 'paused', 'access_closed', 'blocked', 'upstream', 'network', 'session_revoked', 'device_unknown', 'signed_out', 'clock_skew', 'device_key', 'too_fast'];
 
 /** Платформа для заголовка x-refrain-app и устройства: сервер знает только windows, linux и android. */
 export function refrainPlatform(p) {
@@ -175,7 +178,7 @@ export function refrainMessage(code, extra = {}) {
     case 'paused':
       return 'Refrain ИИ на паузе. Попробуй позже или подключи свой ключ.';
     case 'access_closed':
-      return 'Refrain ИИ сейчас в закрытом тесте. Если у тебя есть приглашение, введи его: Настройки → ИИ-помощник.';
+      return 'Refrain ИИ сейчас в закрытом тесте. Если у тебя есть приглашение — введи его.';
     case 'blocked':
       return `Доступ к Refrain ИИ приостановлен${untilText(extra.until)}.`;
     case 'too_fast':
@@ -191,7 +194,9 @@ export function refrainMessage(code, extra = {}) {
       return 'Вход в Refrain ИИ устарел. Попробуй ещё раз.';
     case 'device_unknown':
     case 'session_revoked':
-      return 'Вход в Refrain ИИ на этом устройстве закончился. Войди заново: Настройки → ИИ-помощник.';
+      return 'Вход в Refrain ИИ на этом устройстве закончился — войди ещё раз по почте.';
+    case 'clock_skew':
+      return 'Часы на устройстве спешат или отстают. Включи автоматическое время в настройках устройства и попробуй ещё раз.';
     case 'device_limit':
       return 'К аккаунту уже привязано наибольшее число устройств. Выбери, какое отвязать.';
     case 'pow_invalid':
@@ -207,7 +212,7 @@ export function refrainMessage(code, extra = {}) {
     case 'network':
       return 'Нет связи с Refrain ИИ. Проверь интернет.';
     case 'signed_out':
-      return 'Войди в Refrain ИИ: Настройки → ИИ-помощник.';
+      return 'Ты не вошёл в Refrain ИИ.';
     case 'no_secure_storage':
       return 'На этом устройстве нет защищённого хранилища ключей, поэтому Refrain ИИ здесь не включить. Можно пользоваться своим ключом.';
     case 'device_key':
@@ -255,6 +260,9 @@ export function cacheKey(body) {
 export function createRefrainClient({ http, store, signer, platform, appVersion, base = REFRAIN_API, now = () => Date.now(), random = (n) => crypto.getRandomValues(new Uint8Array(n)), pause }) {
   const appHeader = `refrain/${appVersion} (${platform})`;
   let refreshing = null;
+  // Поправка к часам устройства (мс): сервер присылает своё время в ответе clock_skew. Подпись и сроки токенов — по времени сервера.
+  let skew = 0;
+  const clock = () => now() + skew;
 
   function session() {
     try {
@@ -287,7 +295,7 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
 
   /** Подписанный запрос. withAccess — с токеном доступа (все, кроме /auth/refresh). */
   async function sendSigned(method, path, raw, s, withAccess, timeout) {
-    const time = Math.floor(now());
+    const time = Math.floor(clock());
     const nonce = b64url(random(16));
     const fullPath = API_PREFIX + path;
     const message = canonicalString({ method, path: fullPath, bodySha256Hex: sha256hex(raw), time, nonce, deviceId: s.deviceId });
@@ -301,6 +309,16 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
     if (raw) headers['content-type'] = 'application/json';
     if (withAccess) headers[H.auth] = `Bearer ${s.accessToken}`;
     return parse(await http(base + fullPath, { method, headers, body: raw || undefined, timeout }));
+  }
+
+  /** Подписанный запрос; часы разошлись с сервером — поправить и повторить один раз (раньше это выкидывало из Refrain ИИ). */
+  async function sendTimed(method, path, raw, s, withAccess, timeout) {
+    const r = await sendSigned(method, path, raw, s, withAccess, timeout);
+    if (r.ok === false && r.code === 'clock_skew' && Number.isFinite(r.serverTime)) {
+      skew = r.serverTime - now();
+      return sendSigned(method, path, raw, s, withAccess, timeout);
+    }
+    return r;
   }
 
   function clearCache() {
@@ -334,12 +352,22 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
     if (refreshing) return refreshing;
     if (staleAccess && s.accessToken !== staleAccess) return Promise.resolve({ ok: true });
     refreshing = (async () => {
-      const r = await sendSigned('POST', '/auth/refresh', JSON.stringify({ refreshToken: s.refreshToken }), s, false, 30000);
+      const body = JSON.stringify({ refreshToken: s.refreshToken });
+      let r = await sendTimed('POST', '/auth/refresh', body, s, false, 30000);
+      // Ответ мог потеряться, а токен на сервере уже сменился: тот же токен в течение 2 минут сервер примет как повтор (REFRESH_RETRY_MS).
+      if (r.ok === false && r.code === 'network') {
+        await new Promise((res) => setTimeout(res, 1500));
+        r = await sendTimed('POST', '/auth/refresh', body, s, false, 30000);
+      }
       if (r.ok === false) {
         if (r.code === 'session_revoked' || r.code === 'device_unknown') await forget();
         return r;
       }
-      store.write({ ...s, accessToken: r.accessToken, refreshToken: r.refreshToken, accessExpiresAt: Date.parse(r.accessExpiresAt) || now() + 60000, quota: r.quota ?? s.quota });
+      try {
+        store.write({ ...s, accessToken: r.accessToken, refreshToken: r.refreshToken, accessExpiresAt: Date.parse(r.accessExpiresAt) || clock() + 60000, quota: r.quota ?? s.quota });
+      } catch {
+        return fail('device_key');
+      }
       return { ok: true };
     })().finally(() => {
       refreshing = null;
@@ -351,19 +379,19 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
     if (refreshing) await refreshing;
     let s = session();
     if (!s) return fail('signed_out');
-    if (!s.accessToken || (s.accessExpiresAt || 0) - now() < REFRESH_AHEAD_MS) {
+    if (!s.accessToken || (s.accessExpiresAt || 0) - clock() < REFRESH_AHEAD_MS) {
       const u = await refresh(s.accessToken);
       if (u.ok === false) return u;
       s = session();
     }
     const raw = body === undefined ? '' : JSON.stringify(body);
-    let r = await sendSigned(method, path, raw, s, true, timeout);
+    let r = await sendTimed(method, path, raw, s, true, timeout);
     if (r.ok === false && r.code === 'token_expired') {
       const u = await refresh(s.accessToken);
       if (u.ok === false) return u;
       s = session();
       if (!s) return fail('signed_out');
-      r = await sendSigned(method, path, raw, s, true, timeout);
+      r = await sendTimed(method, path, raw, s, true, timeout);
     }
     if (r.ok === false && (r.code === 'session_revoked' || r.code === 'device_unknown')) await forget();
     return r;
@@ -459,7 +487,14 @@ export function createRefrainClient({ http, store, signer, platform, appVersion,
       if (replaceDevice) body.replaceDevice = replaceDevice;
       const r = await plain('/auth/verify', body);
       if (r.ok === false) return r;
-      store.write({ deviceId: r.deviceId, accessToken: r.accessToken, refreshToken: r.refreshToken, accessExpiresAt: Date.parse(r.accessExpiresAt) || now(), emailMasked: r.emailMasked, quota: r.quota });
+      // Сроки токенов — по часам сервера: запоминаем поправку, если часы устройства неточные.
+      const serverNow = Date.parse(r.accessExpiresAt) - ACCESS_TTL_MS;
+      if (Number.isFinite(serverNow) && Math.abs(serverNow - now()) > 60000) skew = serverNow - now();
+      try {
+        store.write({ deviceId: r.deviceId, accessToken: r.accessToken, refreshToken: r.refreshToken, accessExpiresAt: Date.parse(r.accessExpiresAt) || clock(), emailMasked: r.emailMasked, quota: r.quota });
+      } catch {
+        return fail('device_key');
+      }
       return { ok: true, emailMasked: r.emailMasked, quota: r.quota };
     },
 

@@ -14,6 +14,7 @@ export type ErrorCode =
   | 'internal'
   | 'token_expired'
   | 'device_unknown'
+  | 'clock_skew'
   | 'session_revoked'
   | 'device_limit'
   | 'pow_invalid'
@@ -35,6 +36,7 @@ export const SIGNATURE_WINDOW_MS: number;
 export const NONCE_TTL_MS: number;
 export const ACCESS_TTL_MS: number;
 export const REFRESH_TTL_MS: number;
+export const REFRESH_RETRY_MS: number;
 export function canonicalString(p: { method: string; path: string; bodySha256Hex: string; time: number; nonce: string; deviceId: string }): string;
 export function parseAppHeader(v: string | null | undefined): { version: string; platform: Platform } | null;
 export function powOk(hashBytes: Uint8Array, difficulty: number): boolean;
@@ -62,6 +64,7 @@ export interface ApiError {
     attemptsLeft?: number; // для code_invalid
     quota?: Quota; // для limit_*
     devices?: DeviceInfo[]; // для device_limit
+    serverTime?: number; // для clock_skew: время сервера, мс
   };
 }
 

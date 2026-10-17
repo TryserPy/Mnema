@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { AiConfig } from '../store';
 import { refrainApi, type DeviceInfo, type Quota } from '../refrainBridge';
-import { quotaLines, refrainMessage } from '../refrain';
+import { quotaLines, refrainMessage, takeSignIn } from '../refrain';
 import type { RefrainFail, RefrainStatus } from '../../shared/refrainClient.mjs';
 import { Fold } from './Fold';
 import { Modal } from './ui';
@@ -13,6 +13,35 @@ export type AiConfigOrder = AiConfig & { order?: Step[]; refrain?: boolean };
 
 const STEP_NAME: Record<Step, string> = { refrain: 'Refrain ИИ', key: 'Свой ключ', local: 'Без интернета' };
 const PLATFORM_NAME: Record<string, string> = { windows: 'Windows', linux: 'Linux', android: 'Android' };
+
+/** «сегодня», «вчера», «3 дня назад», «12 сентября» — когда устройство последний раз обращалось к Refrain ИИ. */
+export function seenText(iso: string, now = Date.now()): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const days = Math.floor((new Date(now).setHours(0, 0, 0, 0) - new Date(t).setHours(0, 0, 0, 0)) / 86400000);
+  if (days <= 0) return 'сегодня';
+  if (days === 1) return 'вчера';
+  if (days < 7) return `${days} ${days < 5 ? 'дня' : 'дней'} назад`;
+  return new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+}
+
+/** Строка устройства: «Pixel 7 · Android · был активен вчера». Название — то, что прислало само устройство. */
+function DeviceLine({ d }: { d: DeviceInfo }) {
+  const name = d.name.replace(/^Android · /, '');
+  const seen = seenText(d.lastSeen);
+  return (
+    <span className="grow stack rf-device-name">
+      <span className="small">
+        <strong>{name}</strong>
+        {d.current && <span className="rf-tag">это устройство</span>}
+      </span>
+      <span className="small muted">
+        {PLATFORM_NAME[d.platform] ?? d.platform}
+        {seen && ` · последняя активность: ${seen}`}
+      </span>
+    </span>
+  );
+}
 
 /** Текст ошибки для ученика: известный код — по таблице, иначе то, что пришло. */
 export function failText(r: RefrainFail): string {
@@ -37,7 +66,7 @@ export function QuotaMeter({ quota }: { quota: Quota }) {
   );
 }
 
-export function RefrainSettings({ cfg }: { cfg: AiConfigOrder }) {
+export function RefrainSettings({ cfg, focusLogin = false }: { cfg: AiConfigOrder; focusLogin?: boolean }) {
   const api = refrainApi();
   const [st, setSt] = useState<RefrainStatus | null>(null);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -74,6 +103,7 @@ export function RefrainSettings({ cfg }: { cfg: AiConfigOrder }) {
       {!st.signedIn ? (
         st.secure ? (
           <RefrainLogin
+            focus={focusLogin}
             onDone={(text) => {
               setMsg({ kind: 'ok', text });
               void refresh();
@@ -110,10 +140,7 @@ export function RefrainSettings({ cfg }: { cfg: AiConfigOrder }) {
           <Fold id="refrain-account" title="Аккаунт и устройства" hint={devices.length ? `Устройств: ${devices.length}` : undefined}>
             {devices.map((d) => (
               <div key={d.id} className="row gap8 rf-device">
-                <span className="grow small">
-                  {d.name} · {PLATFORM_NAME[d.platform] ?? d.platform}
-                  {d.current && ' · это устройство'}
-                </span>
+                <DeviceLine d={d} />
                 {!d.current && (
                   <button
                     className="btn small ghost"
@@ -224,8 +251,11 @@ export function InviteForm({ onDone }: { onDone: (text: string) => void }) {
   );
 }
 
-/** Вход: почта → код (+ приглашение) → при device_limit выбрать, какое устройство отвязать. */
-function RefrainLogin({ onDone }: { onDone: (text: string) => void }) {
+/**
+ * Вход: почта → код (+ приглашение) → при device_limit выбрать, какое устройство отвязать — и вход завершается сам.
+ * Если код за это время устарел, выбранное устройство помнится: после нового кода вход повторится с ним же.
+ */
+function RefrainLogin({ onDone, focus = false }: { onDone: (text: string) => void; focus?: boolean }) {
   const api = refrainApi()!;
   const [phase, setPhase] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
@@ -235,6 +265,8 @@ function RefrainLogin({ onDone }: { onDone: (text: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
+  const [replace, setReplace] = useState<DeviceInfo | null>(null);
+  const [autoFocus] = useState(() => focus || takeSignIn());
 
   const start = async () => {
     setBusy(true);
@@ -244,15 +276,31 @@ function RefrainLogin({ onDone }: { onDone: (text: string) => void }) {
     if (r.ok) setPhase('code');
     else setErr(failText(r));
   };
-  const verify = async (replaceDevice?: string) => {
+  const verify = async (replaceDevice = replace?.id, typed = code) => {
     setBusy(true);
     setErr('');
-    const r = await api.loginVerify({ email: email.trim(), code: code.trim(), ...(invite.trim() ? { invite: invite.trim() } : {}), ...(replaceDevice ? { replaceDevice } : {}) });
+    const r = await api.loginVerify({ email: email.trim(), code: typed.trim(), ...(invite.trim() ? { invite: invite.trim() } : {}), ...(replaceDevice ? { replaceDevice } : {}) });
     setBusy(false);
-    if (r.ok) return onDone(`Готово: вход как ${r.emailMasked}.`);
-    if (r.code === 'device_limit' && r.devices) return setDevices(r.devices);
+    if (r.ok) {
+      setDevices(null);
+      setReplace(null);
+      return onDone(replaceDevice ? `Готово: вход как ${r.emailMasked}. Старое устройство отвязано.` : `Готово: вход как ${r.emailMasked}.`);
+    }
+    if (r.code === 'device_limit' && r.devices) {
+      setReplace(null);
+      return setDevices(r.devices);
+    }
+    setDevices(null);
     if (r.code === 'access_closed' || r.code === 'invite_invalid') setShowInvite(true);
-    setErr(failText(r));
+    if (r.code === 'code_invalid' || r.code === 'code_locked') setCode('');
+    setErr(failText(r) + (replaceDevice && r.code === 'code_invalid' ? ' Нажми «Прислать код ещё раз» — устройство для отвязки запомнено, вход завершится сам.' : ''));
+  };
+  const resend = async () => {
+    setBusy(true);
+    setErr('');
+    const r = await api.loginStart(email.trim());
+    setBusy(false);
+    setErr(r.ok ? '' : failText(r));
   };
 
   if (devices)
@@ -261,11 +309,16 @@ function RefrainLogin({ onDone }: { onDone: (text: string) => void }) {
         <span className="small">{refrainMessage('device_limit')}</span>
         {devices.map((d) => (
           <div key={d.id} className="row gap8 rf-device">
-            <span className="grow small">
-              {d.name} · {PLATFORM_NAME[d.platform] ?? d.platform}
-            </span>
-            <button className="btn small" disabled={busy} onClick={() => void verify(d.id).then(() => setDevices(null))}>
-              Отвязать и войти
+            <DeviceLine d={d} />
+            <button
+              className="btn small"
+              disabled={busy}
+              onClick={() => {
+                setReplace(d);
+                void verify(d.id);
+              }}
+            >
+              {busy && replace?.id === d.id ? 'Вхожу…' : 'Отвязать и войти'}
             </button>
           </div>
         ))}
@@ -289,7 +342,7 @@ function RefrainLogin({ onDone }: { onDone: (text: string) => void }) {
         <>
           <span className="small muted">Войди по почте — пришлём код. Пароль не нужен.</span>
           <div className="row gap8">
-            <input className="input grow" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="почта@example.com" aria-label="Почта" />
+            <input className="input grow" type="email" autoComplete="email" autoFocus={autoFocus} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="почта@example.com" aria-label="Почта" />
             <button className="btn primary" type="submit" disabled={busy || !/^\S+@\S+\.\S+$/.test(email.trim())}>
               {busy ? 'Проверяю…' : 'Прислать код'}
             </button>
@@ -298,8 +351,14 @@ function RefrainLogin({ onDone }: { onDone: (text: string) => void }) {
       ) : (
         <>
           <span className="small muted">Код отправлен на {email.trim()}. Если письма нет — проверь «Спам».</span>
+          {replace && <span className="small">После входа отвяжется: {replace.name}.</span>}
           <div className="row gap8">
-            <input className="input grow mono" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="6 цифр" aria-label="Код из письма" />
+            <input className="input grow mono" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setCode(v);
+                // Шесть цифр набраны или вставлены из письма — входим сразу, без лишнего нажатия (как в Telegram).
+                if (v.length === 6 && code.length !== 6 && !busy) void verify(replace?.id, v);
+              }} placeholder="6 цифр" aria-label="Код из письма" />
             <button className="btn primary" type="submit" disabled={busy || code.trim().length !== 6}>
               {busy ? 'Вхожу…' : 'Войти'}
             </button>
@@ -311,9 +370,14 @@ function RefrainLogin({ onDone }: { onDone: (text: string) => void }) {
               Есть приглашение
             </button>
           )}
-          <button type="button" className="btn small ghost" onClick={() => { setPhase('email'); setCode(''); setErr(''); }}>
-            Другая почта
-          </button>
+          <div className="row gap8 wrap">
+            <button type="button" className="btn small ghost" disabled={busy} onClick={() => void resend()}>
+              Прислать код ещё раз
+            </button>
+            <button type="button" className="btn small ghost" onClick={() => { setPhase('email'); setCode(''); setErr(''); setReplace(null); }}>
+              Другая почта
+            </button>
+          </div>
         </>
       )}
       {err && <span className="small warn-text" role="alert">{err}</span>}

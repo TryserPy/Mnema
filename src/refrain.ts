@@ -136,12 +136,26 @@ export interface RefrainNotice {
   task?: TaskId;
   /** Текст ошибки — под ней кнопка «Сообщить о проблеме» с автозаполнением. */
   error?: string;
+  /** Никого не спросили: не вошёл в Refrain ИИ (и нет своего ключа) — показать «Войти» и «Добавить ключ». */
+  signIn?: boolean;
+}
+
+// «Войти в Refrain ИИ» из подсказки: настройки ИИ откроют форму входа и поставят курсор в поле почты.
+let signInWanted = false;
+export function wantSignIn(): void {
+  signInWanted = true;
+}
+/** Забрать просьбу войти (один раз). */
+export function takeSignIn(): boolean {
+  const w = signInWanted;
+  signInWanted = false;
+  return w;
 }
 
 /** Ответ ИИ пришёл: обновить счётчик, при лимите или закрытом тесте показать экран (RefrainHost). */
 export function noteAnswer(r: AiAnswer, task?: TaskId): void {
   if (!r.ok) logLine(`ИИ${task ? ` (${task})` : ''}: ${r.code ?? ''} ${r.error}`);
-  const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(!r.ok ? { error: r.error } : {}), ...(task ? { task } : {}) };
+  const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(!r.ok ? { error: r.error } : {}), ...(!r.ok && (r.signIn || r.code === 'session_revoked' || r.code === 'device_unknown') ? { signIn: true } : {}), ...(task ? { task } : {}) };
   if (n.quota || n.code || n.error) window.dispatchEvent(new CustomEvent<RefrainNotice>('refrain:answer', { detail: n }));
 }
 

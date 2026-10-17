@@ -76,7 +76,7 @@ export interface AiRequest {
  * signIn — свой ключ не подошёл, а в Refrain ИИ не вошли: подсказать вход.
  * backup — Refrain ИИ не ответил (его ошибка в error), и запасной по порядку тоже: ошибка запасного.
  */
-export type AiAnswer = { ok: true; text: string; via?: 'refrain' | 'key' | 'local'; quota?: Quota } | { ok: false; error: string; backup?: string; code?: ErrorCode; quota?: Quota; signIn?: boolean };
+export type AiAnswer = { ok: true; text: string; via?: 'refrain' | 'key' | 'local'; quota?: Quota } | { ok: false; error: string; backup?: string; code?: ErrorCode; quota?: Quota; signIn?: boolean; noKey?: boolean };
 
 export interface Vault {
   root: string;

@@ -1,7 +1,7 @@
 // Слушает ответы ИИ и просьбы «Сообщить о проблеме»: экран лимита, приглашение, строка под ошибкой ИИ и форма отчёта.
 import '../refrain.css';
 import { useEffect, useRef, useState } from 'react';
-import { categoryFor, onRefrainAnswer, onReportProblem, openReportProblem, type RefrainNotice, type ReportContext } from '../refrain';
+import { categoryFor, onRefrainAnswer, onReportProblem, openReportProblem, wantSignIn, type RefrainNotice, type ReportContext } from '../refrain';
 import { refrainApi } from '../refrainBridge';
 import type { Route } from '../types';
 import { categoryOfRoute, whereLabel } from '../where';
@@ -43,6 +43,7 @@ export function RefrainHost({ go, where }: { go: (r: Route) => void; where?: () 
 
   const toAi = () => {
     setLimit(null);
+    setFailed(null);
     go({ name: 'settings', section: 'ai' });
   };
 
@@ -57,7 +58,27 @@ export function RefrainHost({ go, where }: { go: (r: Route) => void; where?: () 
           onOffline={() => void window.mnemaApi?.aiSetConfig?.({ provider: 'local' }).finally(toAi)}
         />
       )}
-      {failed && !report && (
+      {failed && !report && failed.signIn && (
+        <div className="rf-failed" role="status" data-part="signin-bar">
+          <span className="small grow">Чтобы ИИ помог, войди в Refrain ИИ (бесплатно, только почта) или добавь свой ключ.</span>
+          <button
+            className="btn small primary"
+            onClick={() => {
+              wantSignIn();
+              toAi();
+            }}
+          >
+            Войти в Refrain ИИ
+          </button>
+          <button className="btn small" onClick={toAi}>
+            Добавить ключ
+          </button>
+          <button className="icon-btn small" aria-label="Закрыть" onClick={() => setFailed(null)}>
+            ×
+          </button>
+        </div>
+      )}
+      {failed && !report && !failed.signIn && (
         <div className="rf-failed" role="status">
           <span className="small grow">Не получилось у ИИ?</span>
           <button className="btn small" onClick={() => openReportProblem({ task: failed.task, error: failed.error, category: categoryFor(failed.task) })}>

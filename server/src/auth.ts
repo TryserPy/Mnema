@@ -1,5 +1,5 @@
 // Вход по почте и коду, устройства, токены. Ответ на /v1/auth/start одинаковый для любой почты.
-import { ACCESS_TTL_MS, REFRESH_TTL_MS, powOk } from '../../shared/refrain/api.mjs';
+import { ACCESS_TTL_MS, REFRESH_RETRY_MS, REFRESH_TTL_MS, powOk } from '../../shared/refrain/api.mjs';
 import type { AuthTokens, AuthVerify, PowChallenge } from '../../shared/refrain/api.mjs';
 import { INVITE_RE } from '../../shared/refrain/policy';
 import { accountByEmail, devicesOf, effectiveGroup, groupLimits, normEmail, quotaOf, revokeSessions, student, unbindDevice, type Account } from './accounts';
@@ -182,25 +182,43 @@ export async function authRefresh(req: Request, env: Env, info: ClientInfo): Pro
   const hash = await tagged(env.TOKEN_SECRET, 'refresh', token as string);
   const t = now(env);
   const sess = await env.DB.prepare('SELECT * FROM sessions WHERE refresh_hash = ?1').bind(hash).first<{ id: string; account_id: string; device_id: string; expires_at: number; revoked: number }>();
+  const who = { info, account: { id: s.account.id, email: s.account.email, group: s.group }, device: { id: s.device.id, name: s.device.name, platform: s.device.platform } };
+  /**
+   * Тот же токен пришёл ещё раз с того же устройства (подпись ключом устройства) вскоре после смены: ответ на прошлое обновление
+   * потерялся (связь, приложение закрыли). Выдаём новую пару по живой сессии этого устройства — без тревоги и без закрытия всех сессий.
+   */
+  const retry = async (usedAt: number, accountId: string, deviceId: string | null): Promise<Response | null> => {
+    if (accountId !== s.account.id || deviceId !== s.device.id || t - usedAt > REFRESH_RETRY_MS) return null;
+    const live = await env.DB.prepare('SELECT id, refresh_hash FROM sessions WHERE account_id = ?1 AND device_id = ?2 AND revoked = 0 AND expires_at >= ?3 ORDER BY expires_at DESC').bind(s.account.id, s.device.id, t).first<{ id: string; refresh_hash: string }>();
+    if (!live) return null;
+    // Токен, который ушёл в потерянном ответе, тоже считается использованным: если он всё-таки дошёл, его повтор — тот же случай.
+    await env.DB.prepare('INSERT INTO refresh_used (hash, account_id, used_at, device_id) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(hash) DO NOTHING').bind(live.refresh_hash, s.account.id, t, s.device.id).run();
+    await journal(env, { actor: 'system', action: 'refresh.retry', target: { kind: 'account', id: s.account.id } });
+    return Response.json(await newSession(env, s.account, s.device.id, live.id));
+  };
   if (!sess) {
-    const used = await env.DB.prepare('SELECT account_id FROM refresh_used WHERE hash = ?1').bind(hash).first<{ account_id: string }>();
+    const used = await env.DB.prepare('SELECT account_id, used_at, device_id FROM refresh_used WHERE hash = ?1').bind(hash).first<{ account_id: string; used_at: number; device_id: string | null }>();
     if (used) {
+      const again = await retry(used.used_at, used.account_id, used.device_id);
+      if (again) return again;
       await revokeSessions(env, used.account_id);
-      await signal(env, ['refresh_reuse'], { info, account: { id: s.account.id, email: s.account.email, group: s.group }, device: { id: s.device.id, name: s.device.name, platform: s.device.platform } });
+      await signal(env, ['refresh_reuse'], who);
       fail('session_revoked');
     }
     fail('session_revoked');
   }
   if (sess!.revoked || sess!.expires_at < t) fail('session_revoked');
   if (sess!.device_id !== s.device.id || sess!.account_id !== s.account.id) {
-    await signal(env, ['token_unknown'], { info, account: { id: s.account.id, email: s.account.email, group: s.group }, device: { id: s.device.id, name: s.device.name, platform: s.device.platform } });
+    await signal(env, ['token_unknown'], who);
     fail('device_unknown');
   }
   // Токен обновления тратится атомарно: из двух одновременных refresh одним токеном второй — повтор (кража), а не вторая пара токенов.
-  const first = await env.DB.prepare('INSERT INTO refresh_used (hash, account_id, used_at) VALUES (?1, ?2, ?3) ON CONFLICT(hash) DO NOTHING RETURNING hash').bind(hash, s.account.id, t).first();
+  const first = await env.DB.prepare('INSERT INTO refresh_used (hash, account_id, used_at, device_id) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(hash) DO NOTHING RETURNING hash').bind(hash, s.account.id, t, s.device.id).first();
   if (!first) {
+    const again = await retry(t, s.account.id, sess!.device_id);
+    if (again) return again;
     await revokeSessions(env, s.account.id);
-    await signal(env, ['refresh_reuse'], { info, account: { id: s.account.id, email: s.account.email, group: s.group }, device: { id: s.device.id, name: s.device.name, platform: s.device.platform } });
+    await signal(env, ['refresh_reuse'], who);
     fail('session_revoked');
   }
   return Response.json(await newSession(env, s.account, s.device.id, sess!.id));

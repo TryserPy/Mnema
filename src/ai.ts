@@ -41,7 +41,7 @@ export function aiError(r: Extract<AiAnswer, { ok: false }>): string {
   return (
     humanError(r.error) +
     (r.backup ? ` Запасной ИИ (свой ключ) тоже не ответил: ${humanError(r.backup)}` : '') +
-    (r.signIn ? ' Или войди в Refrain ИИ: Настройки → ИИ-помощник — тогда свой ключ не нужен.' : '')
+    (r.signIn && !/^Нужен вход/.test(r.error) ? ' Войди в Refrain ИИ — тогда свой ключ не нужен.' : '')
   );
 }
 

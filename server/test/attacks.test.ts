@@ -17,7 +17,7 @@ describe('повтор и подделка запроса', () => {
     const req = await d.signedRequest('GET', '/v1/me');
     expect((await h.fetch(req.clone())).status).toBe(200);
     const r2 = await h.fetch(req.clone());
-    expect(((await r2.json()) as any).error.code).toBe('device_unknown');
+    expect(((await r2.json()) as any).error.code).toBe('too_fast'); // повтор — не повод выкидывать устройство самому, это решают баллы
     expect(await journalHas(h, 'guard.level1')).toBe(true); // 60 баллов → замедление
     expect(await count(h, "SELECT COUNT(*) AS n FROM blocks WHERE level = 1 AND kind = 'account'")).toBe(1);
     await h.fetch(req.clone()); // ещё 60 → уровень 2: отзыв токенов и отвязка устройства
@@ -47,7 +47,7 @@ describe('повтор и подделка запроса', () => {
     const h = new Harness();
     await h.setting('mode', 'all');
     const d = await h.login('old@example.com');
-    expect((await d.call('GET', '/v1/me', undefined, { time: h.clock - 3 * 60000 })).body.error.code).toBe('device_unknown');
+    expect((await d.call('GET', '/v1/me', undefined, { time: h.clock - 3 * 60000 })).body.error.code).toBe('clock_skew');
     const req = await d.signedRequest('POST', '/v1/task', summaryTask());
     const forged = new Request(req, { body: JSON.stringify(summaryTask({ topic: 'другая' })) });
     expect(((await (await h.fetch(forged)).json()) as any).error.code).toBe('device_unknown');
