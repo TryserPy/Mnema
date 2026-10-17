@@ -171,10 +171,13 @@ export async function prepareOffline(p: PageInput, onProgress?: Progress): Promi
   let W = src.width;
   let H = src.height;
   let rgba = src.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data as Uint8ClampedArray;
+  await tickUi();
   let quadUsed = false;
   let fore = 1;
   if (!p.crop) {
-    const quad = findPageQuad(rgbaToGray(rgba, W, H));
+    const g0 = rgbaToGray(rgba, W, H);
+    await tickUi();
+    const quad = findPageQuad(g0);
     await tickUi();
     if (quad) {
       const sz = quadSize(quad, WORK_SIDE);
@@ -189,6 +192,7 @@ export async function prepareOffline(p: PageInput, onProgress?: Progress): Promi
   // Свет до выравнивания: по нему видно «темно / пересвет / блик».
   const raw = rgbaToGray(rgba, W, H);
   const light = lightStats(raw);
+  await tickUi();
   onProgress?.('Выравниваю свет и тени…', 0.24);
   const flat = await flattenLight(rgba, W, H, tick);
   await tickUi();
@@ -204,9 +208,12 @@ export async function prepareOffline(p: PageInput, onProgress?: Progress): Promi
     H = r.h;
     flatGray = rotateGrayQ(flatGray, 1);
   }
+  await tickUi();
   const skew = skewOf(flatGray, 14);
+  await tickUi();
   const glyph = medianGlyphHeight(flatGray);
   const noise = noiseLevel(flatGray);
+  await tickUi();
   let scale = glyph > 0 ? Math.min(2.5, Math.max(0.5, GLYPH_TARGET / glyph)) : 1;
   // Слишком большие страницы не раздуваем (память и время распознавания).
   scale = Math.min(scale, 3600 / Math.max(W, H));
@@ -508,7 +515,10 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
     const part = dewarpPrepared(parts[j]);
     const n = p.n + j;
     const canvas = part.color;
+    onProgress?.('Сжимаю фото…', span[0]);
+    await tickUi();
     const photo = canvasToJpeg(scaleCanvas(canvas, 1800), 0.85);
+    await tickUi();
     onProgress?.(parts.length > 1 ? `ИИ читает ${j === 0 ? 'левую' : 'правую'} страницу разворота…` : direct ? 'ИИ делает конспект страницы…' : 'ИИ читает страницу…', span[0]);
     const fallback = async (why: string, quiet = false): Promise<PageResult> => {
       if (!api.ocrRecognize) throw new Error(why);

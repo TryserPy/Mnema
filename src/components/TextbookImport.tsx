@@ -308,7 +308,7 @@ export function TextbookImport({
           </strong>
           <span className="muted">{progress.text}</span>
           <div className="progress wide" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((progress.i + progress.frac) / pages.length) * 100)}>
-            <span style={{ width: `${Math.max(3, ((progress.i + progress.frac) / pages.length) * 100)}%`, background: 'var(--accent)' }} />
+            <span className="scale" style={{ transform: `scaleX(${Math.max(0.03, (progress.i + progress.frac) / pages.length)})`, background: 'var(--accent)' }} />
           </div>
           <span className="small muted">{mode === 'ai' ? 'Обычно до минуты на страницу, плюс конспект по всем страницам.' : 'Читаю прямо на устройстве, обычно 5–15 секунд на страницу.'}</span>
           <button className="btn ghost" onClick={stopReading}>

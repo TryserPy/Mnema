@@ -34,8 +34,9 @@ html[data-no-guide] .hot, html[data-motion='off'] .hot { animation: none; }
 .mock-qr i { background: #fff; }
 .mock-qr i.on { background: #111; }
 .mock-viewfinder { position: relative; padding: 10px; border: 2px dashed var(--accent); border-radius: 10px; }
-.mock-scanline { position: absolute; left: 6px; right: 6px; height: 2px; background: var(--accent); top: 10px; animation: scan 1.2s ease-in-out infinite alternate; }
-@keyframes scan { to { top: calc(100% - 12px); } }
+.mock-scanline { position: absolute; left: 6px; right: 6px; height: 2px; background: var(--accent); top: 10px; animation: mockScan 1.2s ease-in-out infinite alternate; }
+/* Своё имя: общее «scan» перебивало анимацию сканирования учебника. */
+@keyframes mockScan { to { top: calc(100% - 12px); } }
 .mock-flow { display: flex; gap: 6px; }
 .mock-flow i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: flow 1s ease-in-out infinite; }
 .mock-flow i:nth-child(2) { animation-delay: 0.2s; }

@@ -761,8 +761,10 @@ input[type='range'] { accent-color: var(--accent); }
 .tb-reading { padding: 20px 0; }
 .tb-scan { position: relative; width: 220px; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: var(--sunken); box-shadow: var(--shadow); }
 .tb-scan img { width: 100%; height: 100%; object-fit: contain; }
-.scan-line { position: absolute; left: 0; right: 0; height: 26%; background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent) 35%, transparent), transparent); animation: scan 1.8s ease-in-out infinite alternate; }
-@keyframes scan { from { top: -26%; } to { top: 100%; } }
+/* Полоса «сканирования» двигается transform'ом — её рисует видеокарта, и она плавная, даже когда процессор занят разбором фото
+   (раньше анимировался top: на телефоне при обработке выходил ~1 кадр в секунду). */
+.scan-line { position: absolute; left: 0; right: 0; top: 0; height: 26%; background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent) 35%, transparent), transparent); animation: tbScan 1.8s ease-in-out infinite alternate; will-change: transform; }
+@keyframes tbScan { from { transform: translateY(-100%); } to { transform: translateY(385%); } }
 .progress.wide { width: 320px; max-width: 100%; height: 8px; }
 .tb-error { text-align: left; }
 .tb-error > div + div { margin-top: 4px; }
@@ -1584,3 +1586,7 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .stepper .icon-btn { width: 40px; height: 40px; font-size: 1.2rem; border: 1px solid var(--line); border-radius: 10px; }
 /* Таймер — под окнами и листами (65), чтобы не закрывать их кнопки; над содержимым и нижней панелью. */
 .focus-pill { z-index: 61; }
+
+/* Полоса хода чтения — scaleX вместо width: без перерасчёта раскладки на каждый шаг. */
+.progress.wide > span.scale { width: 100% !important; transform-origin: left center; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); animation: none; }
+@media (prefers-reduced-motion: reduce) { .scan-line { animation: none; opacity: 0.6; transform: translateY(150%); } }
