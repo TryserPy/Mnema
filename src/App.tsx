@@ -385,6 +385,10 @@ export function App() {
   // Горячие клавиши, которые работают везде (кроме повторения — там свои).
   const routeRef = useRef(route);
   routeRef.current = route;
+  // Экран — в атрибут <html>: CSS прячет плавающие кнопки там, где они мешают (конспект, повторение).
+  useEffect(() => {
+    document.documentElement.dataset.route = route.name;
+  }, [route.name]);
   // Где ученик — чтобы после перезапуска открыть там же (и вкладку темы).
   useEffect(() => saveRoute(route), [route]);
 

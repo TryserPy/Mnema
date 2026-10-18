@@ -199,6 +199,20 @@ function addAtEdge(editor: Editor, what: 'row' | 'col') {
   (what === 'row' ? chain.addRowAfter() : chain.addColumnAfter()).run();
 }
 
+/** Если конец выделения под листом панели — прокрутить конспект так, чтобы выделенное было над ней. */
+function keepAbovePanel(editor: Editor) {
+  const panel = document.querySelector<HTMLElement>('.bubble.sel-panel');
+  if (!panel || editor.isDestroyed) return;
+  panel.scrollTop = 0;
+  const top = panel.getBoundingClientRect().top;
+  const at = editor.view.coordsAtPos(editor.state.selection.to);
+  const over = at.bottom + 12 - top;
+  if (over <= 0) return;
+  const sc = (document.querySelector('.note-layout.full') as HTMLElement | null) ?? (document.querySelector('.main') as HTMLElement | null);
+  if (sc && sc.scrollHeight > sc.clientHeight) sc.scrollBy({ top: over });
+  else window.scrollBy({ top: over });
+}
+
 export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, onPage, tools, onReady, onNotebook, rules = null, onRuleHover, onAddRule, onLinkHover, topicId }: Props) {
   const linkHoverRef = useRef(onLinkHover);
   linkHoverRef.current = onLinkHover;
@@ -677,7 +691,12 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     repaint();
     editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'show'));
     // Позицию пересчитать, когда панель уже на странице (иначе она считается от пустого места).
-    requestAnimationFrame(() => !editor.isDestroyed && editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'updatePosition')));
+    requestAnimationFrame(() => {
+      if (editor.isDestroyed) return;
+      editor.view.dispatch(editor.state.tr.setMeta(bubbleKey, 'updatePosition'));
+      // Телефон: панель — лист внизу (над клавиатурой). Выделенный текст прокручиваем выше неё, чтобы его было видно.
+      if (touchUI()) requestAnimationFrame(() => keepAbovePanel(editor));
+    });
   }
 
   const coKind = activeCallout(editor.state);

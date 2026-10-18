@@ -1713,3 +1713,46 @@ kbd, .nav-kbd { font: inherit; font-size: 0.72rem; padding: 2px 6px; border-radi
 .draft-note { align-items: center; }
 /* Подсказка у «Тип» и текст «Черновик восстановлен»: на узком экране — своей строкой, а не столбиком в одно слово. */
 .type-select > .grow, .draft-note > .grow { flex: 1 1 220px; min-width: 0; }
+
+/* ---------- 1.33: телефон и экранная клавиатура (src/viewport.ts: --vvh, --kb, html[data-kb]) ---------- */
+/* Нижний лист окна — над клавиатурой и не выше видимой части: «Отмена» и «Готово» не уходят под клавиатуру. */
+@media (max-width: 720px) {
+  .modal-back { padding-bottom: var(--kb, 0px); }
+  .modal { max-height: calc(var(--vvh, 100dvh) * 0.92); }
+  .modal.full { height: var(--vvh, 100dvh); }
+}
+/* Клавиатура открыта: нижняя навигация и плавающие кнопки не делят с ней высоту. */
+html[data-kb] .app.mobile .tabbar,
+html[data-kb] .dev-fab,
+html[data-kb] .focus-pill { display: none; }
+/* Кнопка консоли разработчика не закрывает рабочие места: конспект, повторение, тест и открытые окна. */
+html[data-route='topic'] .dev-fab,
+html[data-route='review'] .dev-fab,
+html[data-route='test'] .dev-fab,
+body:has(.modal-back) .dev-fab { display: none; }
+/* Панель выделения на телефоне — лист над клавиатурой (и над нижней навигацией), а не у выделения:
+   там её перекрывало системное меню «Вырезать / Копировать», а сама она закрывала текст. */
+html[data-touch] .bubble.sel-panel {
+  position: fixed !important;
+  left: 8px !important;
+  right: 8px !important;
+  top: auto !important;
+  bottom: calc(var(--kb, 0px) + 8px + env(safe-area-inset-bottom, 0px)) !important;
+  transform: none !important;
+  translate: none !important;
+  width: auto !important;
+  max-width: 480px;
+  margin: 0 auto;
+  max-height: min(48vh, calc(var(--vvh, 100dvh) * 0.46));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: 62;
+}
+html[data-touch]:not([data-kb]) body:has(.app.has-tabbar) .bubble.sel-panel { bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important; }
+html[data-touch] .bubble.sel-panel .sel-fmt { position: sticky; top: -6px; z-index: 1; background: var(--surface); padding-top: 6px; margin-top: -6px; }
+/* Лист на телефоне — компактный, чтобы целиком помещаться над клавиатурой без прокрутки: действия в две колонки, без подписей. */
+html[data-touch] .bubble.sel-panel .sel-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+html[data-touch] .bubble.sel-panel .sel-actions > button { min-height: 44px; padding: 6px 8px; gap: 8px; }
+html[data-touch] .bubble.sel-panel .sel-actions .sel-text small { display: none; }
+html[data-touch] .bubble.sel-panel .sel-actions .sel-callouts { grid-column: 1 / -1; padding-left: 4px; }
+html[data-touch] .bubble.sel-panel .sel-actions .sel-card { grid-column: 1 / -1; min-height: 44px; }

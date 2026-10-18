@@ -36,6 +36,8 @@ async function start() {
 
   // Телефон или планшет: прячем подсказки про клавиши и мышь (html[data-touch] в CSS).
   if (touchUI()) document.documentElement.dataset.touch = '1';
+  // Клавиатура и видимая часть окна (--vvh, --kb, html[data-kb]) — для нижних листов и панелей на телефоне.
+  (await import('./viewport')).initViewport();
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
