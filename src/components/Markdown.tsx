@@ -1,4 +1,5 @@
 import { katexHtml } from '../katexCache';
+import { matchHighlight } from '../highlightMark';
 import DOMPurify from 'dompurify';
 import { Marked, type TokenizerAndRendererExtension } from 'marked';
 import { useEffect, useMemo, useRef } from 'react';
@@ -71,8 +72,8 @@ const highlight: TokenizerAndRendererExtension = {
   level: 'inline',
   start: (src) => src.indexOf('=='),
   tokenizer(src) {
-    const m = /^==([^=\n]+)==/.exec(src);
-    if (m) return { type: 'highlight', raw: m[0], text: m[1], tokens: this.lexer.inlineTokens(m[1]) };
+    const m = matchHighlight(src);
+    if (m) return { type: 'highlight', raw: m.raw, text: m.inner, tokens: this.lexer.inlineTokens(m.inner) };
     return undefined;
   },
   renderer(t) {

@@ -2,7 +2,7 @@ import '../katexCache';
 // Редактор конспекта «как в Word»: без значков разметки на экране, но хранится всё в Markdown.
 import { registerNote } from '../noteRegistry';
 import { Extension, findParentNode, InputRule } from '@tiptap/core';
-import Highlight from '@tiptap/extension-highlight';
+import { MnemaHighlight as Highlight } from '../highlightMark';
 import { renderTableToMarkdown, Table, TableKit } from '@tiptap/extension-table';
 import { BlockMath, InlineMath } from '@tiptap/extension-mathematics';
 import Placeholder from '@tiptap/extension-placeholder';
