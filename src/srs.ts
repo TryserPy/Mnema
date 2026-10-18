@@ -88,6 +88,8 @@ export interface Prompt {
   numeric?: number[]; // для задачи — числа, которые надо получить
   /** Карточка «закрыть часть картинки»: какой элемент (группу рамок) спрашиваем. */
   occlusion?: number;
+  /** Общее пояснение ко всей карточке — показывается отдельно от ответа (не как «второй ответ»). */
+  note?: string;
 }
 
 export function buildPrompt(card: Card, ord: number, seed = 1): Prompt {
@@ -109,8 +111,10 @@ export function buildPrompt(card: Card, ord: number, seed = 1): Prompt {
   if (card.type === 'typing') return { question: card.front, answer: card.back, typed: card.back };
   if (card.type === 'occlusion') {
     // Картинку с рамками рисует OcclusionView; здесь — текст вопроса и подписи рамок для ответа.
+    // Ответ — только подписи спрашиваемой рамки (группы); общее пояснение — отдельно, иначе выглядело как два ответа сразу.
     const label = card.occl ? occlAnswer(card.occl, ord) : '';
-    return { question: 'Что под рамкой?', answer: [label, card.back].filter(Boolean).join('\n\n') || 'Сверь с картинкой.', occlusion: ord };
+    const note = card.back.trim();
+    return { question: 'Что под рамкой?', answer: label || (note ? '' : 'Сверь с картинкой.'), occlusion: ord, ...(note ? { note } : {}) };
   }
   return { question: card.front, answer: card.back };
 }
@@ -439,9 +443,12 @@ export function buildQueue(data: AppData, now: Date, scope: QueueScope = {}, rnd
   const newPicked: QueueItem[] = [];
   const cardOrder = new Map(data.cards.map((c, i) => [c.id, i]));
   fresh.sort((a, b) => (cardOrder.get(a.cardId) ?? 0) - (cardOrder.get(b.cardId) ?? 0) || a.ord - b.ord);
+  // «Закрыть часть картинки»: каждая рамка — отдельный вопрос про своё место, их можно учить в один день
+  // (иначе вторая рамка новой карточки не открывалась бы до завтра, а «повторённые сегодня» её вообще не видели).
+  const independent = new Set(data.cards.filter((c) => c.type === 'occlusion').map((c) => c.id));
   for (const it of fresh) {
     if (newPicked.length >= newLeft) break;
-    if (seenCards.has(it.cardId)) continue;
+    if (seenCards.has(it.cardId) && !independent.has(it.cardId)) continue;
     seenCards.add(it.cardId);
     newPicked.push(it);
   }

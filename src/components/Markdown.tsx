@@ -92,6 +92,9 @@ const pageRef: TokenizerAndRendererExtension = {
   renderer: (t) => `<span class="page-ref" data-page="${Number(t.text)}">стр. ${Number(t.text)}</span>`
 };
 
+/** Метка вокруг формулы: внутри есть команда LaTeX, ^ или _ (а скобки и = допустимы). */
+const UNSURE_MATH_AT = /^\{\?([^\n]{1,200}?(?:\\[a-zA-Z]+|[\^_])[^\n]{0,200}?)\?\}/;
+
 /** {?слово?} — неуверенно прочитанное слово «Тетради»: само слово с подсветкой. */
 const unsure: TokenizerAndRendererExtension = {
   name: 'unsure',
@@ -103,10 +106,15 @@ const unsure: TokenizerAndRendererExtension = {
   tokenizer(src) {
     const m = UNSURE_AT.exec(src);
     if (m) return { type: 'unsure', raw: m[0], text: m[1], tokens: this.lexer.inlineTokens(m[1]) };
+    // «{?=\frac{a+b}{4}?}» — ИИ пометил целую формулу (в ней скобки, поэтому обычная метка не подходит):
+    // рисуем формулу с подсветкой «неуверенно», а не сырую разметку.
+    const f = UNSURE_MATH_AT.exec(src);
+    if (f) return { type: 'unsure', raw: f[0], text: f[1], math: true, tokens: [] };
     return undefined;
   },
   renderer(t) {
-    return `<span data-unsure="" title="Неуверенно прочитано">${this.parser.parseInline(t.tokens ?? [])}</span>`;
+    const inner = (t as { math?: boolean }).math ? marked(renderTex(t.text as string, false)) : this.parser.parseInline(t.tokens ?? []);
+    return `<span data-unsure="" title="Неуверенно прочитано">${inner}</span>`;
   }
 };
 

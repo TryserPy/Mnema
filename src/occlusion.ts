@@ -67,10 +67,8 @@ export function occlTarget(o: Occlusion, ord: number): Set<number> {
 
 /** Ответ элемента: подписи его рамок через запятую. */
 export function occlAnswer(o: Occlusion, ord: number): string {
-  return [...occlTarget(o, ord)]
-    .map((i) => o.masks[i].label)
-    .filter(Boolean)
-    .join(', ');
+  // Одинаковые подписи группы («митохондрия» на двух рамках) — один раз.
+  return [...new Set([...occlTarget(o, ord)].map((i) => o.masks[i].label?.trim()).filter(Boolean))].join(', ');
 }
 
 /** Картинка из front (Markdown-картинка data:image). */

@@ -24,9 +24,9 @@ describe('рамки', () => {
   it('группы: рамки с одной группой спрашиваются вместе; ответ — подписи', () => {
     expect(occlGroups(OCC)).toEqual([1000, 7]);
     expect([...occlTarget(OCC, 1)]).toEqual([1, 2]);
-    expect(occlAnswer(OCC, 1)).toBe('митохондрия, митохондрия');
+    expect(occlAnswer(OCC, 1)).toBe('митохондрия');
     expect(itemOrds(card)).toEqual([0, 1]);
-    expect(buildPrompt(card, 0)).toMatchObject({ question: 'Что под рамкой?', answer: 'ядро\n\nСтроение клетки', occlusion: 0 });
+    expect(buildPrompt(card, 0)).toMatchObject({ question: 'Что под рамкой?', answer: 'ядро', note: 'Строение клетки', occlusion: 0 });
   });
   it('из чужих данных — только числа 0…1, не больше 80 рамок, без пустых', () => {
     expect(cleanOcclusion({ masks: [{ x: -1, y: 0.5, w: 2, h: 0.3, label: 'a'.repeat(500) }, { x: 'x' }, { x: 0.1, y: 0.1, w: 0, h: 0.1 }], all: false })).toEqual({ masks: [{ x: 0, y: 0.5, w: 1, h: 0.3, label: 'a'.repeat(200) }], all: false });

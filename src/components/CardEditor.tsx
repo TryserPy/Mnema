@@ -291,7 +291,7 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
       )}
       {type !== 'cloze' && (
         <label className="field">
-          <span>{type === 'typing' ? 'Точный ответ' : type === 'reverse' ? 'Значение' : type === 'problem' ? 'Решение и ответ' : type === 'occlusion' ? 'Пояснение к ответу (необязательно)' : 'Ответ'}</span>
+          <span>{type === 'typing' ? 'Точный ответ' : type === 'reverse' ? 'Значение' : type === 'problem' ? 'Решение и ответ' : type === 'occlusion' ? 'Общее пояснение ко всей картинке (необязательно, не ответ рамки)' : 'Ответ'}</span>
           <textarea ref={refs.back} rows={type === 'typing' ? 1 : 3} value={back} onFocus={() => (lastField.current = 'back')} onChange={(e) => setBack(e.target.value)} placeholder={type === 'typing' ? 'кислород' : type === 'problem' ? 'I = U / R = {=U/R} А' : ''} />
           {type === 'problem' && <span className="small muted">Ответ считай формулой в фигурных скобках со знаком =: {'{=U/R}'}. Можно: + − * / ^, скобки, sqrt(), sin() в градусах, pi, g = 9,8.</span>}
           {type === 'typing' && <span className="small muted">Несколько верных вариантов пиши через | например: кислород|O2</span>}

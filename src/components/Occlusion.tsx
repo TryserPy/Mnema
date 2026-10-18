@@ -256,7 +256,7 @@ export function OcclusionEditor({ img, occl, onImage, onChange }: { img: string;
       {m && (
         <div className="occl-sel row gap8 wrap">
           <span className="small strong">Рамка {sel! + 1}</span>
-          <input className="input grow" value={m.label ?? ''} maxLength={200} placeholder="Что под ней (для ответа)" aria-label="Что под рамкой" onChange={(e) => patch({ label: e.target.value || undefined })} />
+          <input className="input grow" value={m.label ?? ''} maxLength={200} placeholder="Ответ этой рамки: что под ней" aria-label="Что под рамкой" onChange={(e) => patch({ label: e.target.value || undefined })} />
           <button type="button" className="btn small ghost danger" onClick={remove}>
             <Icon name="trash" size={16} /> Удалить
           </button>

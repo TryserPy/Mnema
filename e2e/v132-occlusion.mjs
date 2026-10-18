@@ -97,6 +97,17 @@ for (const v of [
   const opened = await page.locator('.review-card .occl-mask.target.open').count();
   const labelText = await page.locator('.occl-pill text').allTextContents();
   check(opened === 1, `${v.name}: после ответа рамка открылась${labelText.length ? ', подпись: ' + labelText[0] : ''}`);
+  // 1.33: вторая рамка — своя карточка в тот же день; до ответа текста ответа нет, оценка — уже ей.
+  const firstBox = await page.locator('.review-card .occl-mask.target').first().getAttribute('y');
+  check((await page.locator('.answer-text').allInnerTexts()).join(' ').trim() === 'Заголовок параграфа', `${v.name}: в ответе только подпись этой рамки`);
+  await page.getByRole('button', { name: /Хорошо|Помню/ }).first().click();
+  await page.waitForTimeout(400);
+  const second = await page.locator('.review-card .occl-mask.target').first().getAttribute('y').catch(() => null);
+  check(second !== null && second !== firstBox, `${v.name}: следующей спрашивается вторая рамка`);
+  check((await page.locator('.answer, .answer-text').count()) === 0, `${v.name}: до «Показать ответ» ответа второй рамки не видно`);
+  await page.getByRole('button', { name: 'Показать ответ' }).click();
+  await page.waitForTimeout(200);
+  check((await page.locator('.review-card .occl-mask.target.open').count()) === 1 && !(await page.locator('.answer-text', { hasText: 'Заголовок параграфа' }).count()), `${v.name}: вторая рамка открылась, чужой подписи нет`);
   if (OUT) await page.screenshot({ path: join(OUT, `occl-a-${v.name}.png`) });
   check(!errors.length, `${v.name}: без ошибок страницы ${errors.join('; ')}`);
   await ctx.close();

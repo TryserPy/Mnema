@@ -488,9 +488,16 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               </div>
             )}
             <div className="q-row">
-              <Markdown text={prompt.answer} className="answer-text" onPage={setPageView} />
+              {prompt.answer && <Markdown text={prompt.answer} className="answer-text" onPage={setPageView} />}
               {listInfo?.lang && current?.ord === 1 && canSpeak() && <SpeakBtn text={card.front} lang={listInfo.lang} />}
             </div>
+            {prompt.note && (
+              <div className="why-box">
+                <span className="label">Пояснение ко всей картинке</span>
+                <Markdown text={prompt.note} />
+              </div>
+            )}
+
             {card.page && (
               <button className="page-ref as-btn" onClick={() => setPageView(card.page!)} title="Открыть страницу учебника">
                 <Icon name="book" size={14} /> учебник, стр. {card.page}

@@ -84,7 +84,7 @@ export function PrintDialog({ onClose, topicId, subjectId }: { onClose: () => vo
       const topic = data.topics.find((t) => t.id === c.topicId)?.name ?? '';
       for (const o of itemOrds(c)) {
         const p = buildPrompt(c, o, 1);
-        out.push({ q: p.question, a: p.answer, topic });
+        out.push({ q: p.question, a: [p.answer, p.note].filter(Boolean).join('\n\n'), topic });
       }
     }
     return out;
