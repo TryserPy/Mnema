@@ -1,9 +1,10 @@
 // Refrain ИИ в окне приложения: поля задачи для сервера (без промта), «Свои указания», счётчик страниц, уменьшение фото,
 // журнал ошибок для «Сообщить о проблеме» и события для экранов лимита и формы. Сеть, токены и подпись — в shared/refrainClient.mjs.
-import { FIELD_LIMITS, pagesLabel, type ErrorCode, type Quota, type TaskId, type TaskRequest } from '../shared/refrain/api.mjs';
+import { FIELD_LIMITS, type ErrorCode, type Quota, type TaskId, type TaskRequest } from '../shared/refrain/api.mjs';
 import { TASK_SPECS } from '../shared/prompts/tasks';
 import { REFRAIN_API, refrainMessage } from '../shared/refrainClient.mjs';
 import { cleanNote } from './aiNotes';
+import { creditsWord, pagesToCredits } from '../shared/refrain/credits';
 import { aiFailure, type AiFailure } from './aiFailure';
 import type { AiAnswer } from './store';
 import type { AiNoteKey, AiNotes } from './types';
@@ -47,23 +48,34 @@ export function refrainWishes(notes: AiNotes | undefined, key: AiNoteKey): strin
   return parts.join('; ').slice(0, FIELD_LIMITS.wishes);
 }
 
-// ---------- Счётчик страниц ----------
+// ---------- ИИ-кредиты (1.33) ----------
 
-function pagesWord(n: number): string {
-  if (!Number.isInteger(n)) return 'страницы';
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'страница';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'страницы';
-  return 'страниц';
+/** Счётчики в кредитах: из quota.credits, а от старого сервера — прежние «страницы» × 10. */
+export function quotaCredits(q: Quota): NonNullable<Quota['credits']> {
+  if (q.credits) return q.credits;
+  const c = (u: { used: number; limit: number | null }) => ({ used: pagesToCredits(u.used), limit: u.limit === null ? null : pagesToCredits(u.limit) });
+  return { day: c(q.day), month: c(q.month) };
 }
 
-/** «Сегодня 12 из 30 страниц», «В этом месяце 140 из 400»; share — доля для полоски (null — без лимита). */
-export function quotaLines(q: Quota): { day: string; month: string; dayShare: number | null; monthShare: number | null } {
+const num = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
+
+/**
+ * «Сегодня 12 из 300 кредитов», «В этом месяце 140 из 4000»; left — сколько осталось на сегодня (null — без лимита);
+ * resets — когда обновится; share — доля для полоски (null — без лимита).
+ */
+export function quotaLines(q: Quota, now = Date.now()): { day: string; month: string; dayShare: number | null; monthShare: number | null; left: number | null; resets: string } {
+  const c = quotaCredits(q);
   const line = (head: string, u: { used: number; limit: number | null }) =>
-    u.limit === null ? `${head} ${pagesLabel(u.used)} ${pagesWord(Math.floor(u.used))} · без лимита` : `${head} ${pagesLabel(u.used)} из ${u.limit} ${pagesWord(u.limit)}`;
+    u.limit === null ? `${head} ${num(u.used)} ${creditsWord(u.used)} · без лимита` : `${head} ${num(u.used)} из ${u.limit} ${creditsWord(u.limit)}`;
   const share = (u: { used: number; limit: number | null }) => (u.limit === null ? null : u.limit <= 0 ? 1 : Math.min(1, u.used / u.limit));
-  return { day: line('Сегодня', q.day), month: line('В этом месяце', q.month), dayShare: share(q.day), monthShare: share(q.month) };
+  const dayLeft = c.day.limit === null ? null : Math.max(0, c.day.limit - c.day.used);
+  const monthLeft = c.month.limit === null ? null : Math.max(0, c.month.limit - c.month.used);
+  const left = dayLeft === null ? monthLeft : monthLeft === null ? dayLeft : Math.min(dayLeft, monthLeft);
+  const at = new Date(q.resetsAt);
+  const time = Number.isNaN(at.getTime()) ? '00:00' : at.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
+  const soon = !Number.isNaN(at.getTime()) && at.getTime() - now < 36 * 3600000;
+  const resets = monthLeft !== null && monthLeft <= 0 ? 'обновятся 1-го числа' : soon ? `обновятся в ${time} по Москве` : 'обновятся в полночь по Москве';
+  return { day: line('Сегодня', c.day), month: line('В этом месяце', c.month), dayShare: share(c.day), monthShare: share(c.month), left, resets };
 }
 
 // ---------- Фото ----------

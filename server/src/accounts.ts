@@ -1,5 +1,6 @@
 // Аккаунты, устройства, сессии и действующая группа ученика.
-import type { DeviceInfo, GroupId, Quota } from '../../shared/refrain/api.mjs';
+import type { DeviceInfo, GroupId, Quota, TaskId } from '../../shared/refrain/api.mjs';
+import { CREDITS_PER_PAGE, TASK_CREDITS, TASK_KIND, type CreditKind } from '../../shared/refrain/credits';
 import { NEWBIE_DAYS, type GroupLimits } from '../../shared/refrain/policy';
 import { PAGE_MICRO } from '../../shared/prompts/tasks';
 import { nextMidnight, type StudentUsage } from './counters';
@@ -65,14 +66,34 @@ export function groupLimits(s: Settings, g: GroupId, t: number): GroupLimits {
   return found;
 }
 
-export function quotaOf(usage: StudentUsage, lim: GroupLimits, g: GroupId, t: number): Quota {
+export function quotaOf(usage: StudentUsage, lim: GroupLimits, g: GroupId, t: number, spent?: Quota['spent']): Quota {
   const pages = (micro: number) => Math.round((micro / PAGE_MICRO) * 100) / 100;
+  // Кредиты — из тех же счётчиков: лимиты групп и накопленное хранятся в прежних «страницах» (перехода данных не нужно).
+  const credits = (micro: number) => Math.round((micro / PAGE_MICRO) * CREDITS_PER_PAGE);
+  const limit = (p: number | null) => (p === null ? null : Math.round(p * CREDITS_PER_PAGE));
   return {
     day: { used: pages(usage.day), limit: lim.perDay },
     month: { used: pages(usage.month), limit: lim.perMonth },
     resetsAt: new Date(nextMidnight(t)).toISOString(),
-    group: g
+    group: g,
+    credits: { day: { used: credits(usage.day), limit: limit(lim.perDay) }, month: { used: credits(usage.month), limit: limit(lim.perMonth) } },
+    ...(spent ? { spent } : {})
   };
+}
+
+/** На что ушли кредиты сегодня (по Москве): по видам операций, из учёта usage (только успешные задачи). */
+export async function spentToday(env: Env, accountId: string, t: number): Promise<NonNullable<Quota['spent']>> {
+  const from = nextMidnight(t) - 86400000;
+  const { results } = await env.DB.prepare('SELECT task, COUNT(*) AS n FROM usage WHERE account_id = ?1 AND at >= ?2 AND ok = 1 GROUP BY task').bind(accountId, from).all<{ task: string; n: number }>();
+  const by = new Map<CreditKind, { credits: number; count: number }>();
+  for (const r of results) {
+    const task = r.task as TaskId;
+    if (!(task in TASK_CREDITS)) continue;
+    const k = TASK_KIND[task];
+    const cur = by.get(k) ?? { credits: 0, count: 0 };
+    by.set(k, { credits: cur.credits + TASK_CREDITS[task] * r.n, count: cur.count + r.n });
+  }
+  return [...by].map(([kind, v]) => ({ kind, ...v })).sort((a, b) => b.credits - a.credits);
 }
 
 export async function devicesOf(env: Env, accountId: string, current?: string): Promise<DeviceInfo[]> {

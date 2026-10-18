@@ -4,6 +4,7 @@ import { FIELD_LIMITS, type TaskId, type TaskRequest, type TaskResponse } from '
 import type { RuleId } from '../../shared/refrain/guard';
 import { admits, dayBudgetRub } from '../../shared/refrain/policy';
 import { PAGE_MICRO, TASK_SPECS, costMicro, maxCostMicro } from '../../shared/prompts/tasks';
+import { TASK_CREDITS, creditsMicro } from '../../shared/refrain/credits';
 import { lunaSystem, lunaUser } from '../../shared/prompts/luna';
 import { budget, groupLimits, quotaOf, student } from './accounts';
 import { dayKey, monthKey } from './counters';
@@ -62,14 +63,16 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
   if (!admits(cfg.mode, s.group)) fail(cfg.mode === 'off' || cfg.mode === 'owner' ? 'paused' : 'access_closed');
 
   const spec = TASK_SPECS[b.task as TaskId];
+  // Бюджету — деньги с запасом (по токенам); ученику — фиксированная цена операции в ИИ-кредитах (shared/refrain/credits.ts).
   const reserve = maxCostMicro(spec, b.text?.length ?? 0, Boolean(image));
+  const charge = creditsMicro(spec.id, PAGE_MICRO);
   const perMinute = Math.floor(lim.perMinute / g.slowdown);
   const begin = await student(env, s.account.id).begin({
     now: t,
     dayLimit: lim.perDay === null ? null : lim.perDay * PAGE_MICRO,
     monthLimit: lim.perMonth === null ? null : lim.perMonth * PAGE_MICRO,
     perMinute,
-    reserve
+    reserve: charge
   });
   if (!begin.ok) {
     if (begin.parallel) ctx.waitUntil(signal(env, ['parallel'], subjects, cfg).then(() => undefined));
@@ -100,10 +103,11 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
     } catch {
       llm = { ok: false, status: 0, usage: null };
     }
-    // Ученику — страницы по прайсу модели (предсказуемо: «2 000 на вход и 900 на выход» — одна страница);
-    // бюджету и учёту — настоящая цена поставщика (у Polza с наценкой и округлением), если он её прислал.
-    const cost = llm.usage ? costMicro(llm.usage) : 0;
-    const spent = llm.usage ? (llm.usage.costMicro ?? cost) : 0;
+    // Ученику — фиксированная цена операции в кредитах (только если ИИ ответил); бюджету и учёту — настоящая цена поставщика
+    // (у Polza с наценкой и округлением), если он её прислал, иначе — по прайсу модели.
+    const cost = llm.ok ? charge : 0;
+    const priced = llm.usage ? costMicro(llm.usage) : 0;
+    const spent = llm.usage ? (llm.usage.costMicro ?? priced) : 0;
     const usage = await student(env, s.account.id).settle(ticket, cost, now(env));
     const totals = await budget(env).settle(ticket, spent, now(env));
     await env.DB.prepare('UPDATE usage SET input_tokens = ?2, cached_tokens = ?3, output_tokens = ?4, cost_micro = ?5, ok = ?6, ms = ?7 WHERE id = ?1')
@@ -119,7 +123,7 @@ export async function handleTask(req: Request, env: Env, info: ClientInfo, ctx: 
 
   const text = cleanAnswer((llm as { text: string }).text, spec.format);
   if (text === null) fail('upstream');
-  const out: TaskResponse = { ok: true, text: text!, format: spec.format, promptVersion: spec.promptVersion, charged: Math.round((cost / PAGE_MICRO) * 100) / 100, quota: quotaOf(usage, lim, s.group, t) };
+  const out: TaskResponse = { ok: true, text: text!, format: spec.format, promptVersion: spec.promptVersion, charged: Math.round((cost / PAGE_MICRO) * 100) / 100, chargedCredits: TASK_CREDITS[spec.id], quota: quotaOf(usage, lim, s.group, t) };
   return Response.json(out);
 }
 

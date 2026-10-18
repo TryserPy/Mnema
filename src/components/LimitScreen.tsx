@@ -1,4 +1,4 @@
-// «На сегодня бесплатные страницы закончились» и «Refrain ИИ в закрытом тесте»: что делать дальше — без интернета, свой ключ или без ИИ.
+// «На сегодня бесплатные ИИ-кредиты закончились» и «Refrain ИИ в закрытом тесте»: что делать дальше — без интернета, свой ключ или без ИИ.
 import type { ErrorCode, Quota } from '../../shared/refrain/api.mjs';
 import { refrainMessage } from '../refrain';
 import { InviteForm, QuotaMeter } from './RefrainSettings';
@@ -17,10 +17,11 @@ export function LimitScreen({ code, quota, onClose, onOffline, onOwnKey }: { cod
       </Modal>
     );
   return (
-    <Modal title={code === 'limit_day' ? 'На сегодня бесплатные страницы закончились' : 'Бесплатные страницы на этот месяц закончились'} onClose={onClose}>
+    <Modal title={code === 'limit_day' ? 'На сегодня ИИ-кредиты закончились' : 'ИИ-кредиты на этот месяц закончились'} onClose={onClose}>
       <div className="stack gap12" data-part="limit">
         <p className="small">{refrainMessage(code)}</p>
-        {quota && <QuotaMeter quota={quota} />}
+        {quota && <QuotaMeter quota={quota} prices={false} />}
+        <p className="small muted">Пока ждёшь — можно учить карточки и писать конспект: повторения кредиты не тратят. А помочь с ИИ может модель на компьютере или свой ключ:</p>
         <Choices onClose={onClose} onOffline={onOffline} onOwnKey={onOwnKey} />
       </div>
     </Modal>

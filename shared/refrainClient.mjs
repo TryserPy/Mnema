@@ -172,9 +172,9 @@ function untilText(until) {
 export function refrainMessage(code, extra = {}) {
   switch (code) {
     case 'limit_day':
-      return 'На сегодня бесплатные страницы Refrain ИИ закончились. Лимит обновится в 00:00 по Москве.';
+      return 'На сегодня бесплатные ИИ-кредиты Refrain закончились. Они обновятся в 00:00 по Москве.';
     case 'limit_month':
-      return 'Бесплатные страницы Refrain ИИ на этот месяц закончились.';
+      return 'Бесплатные ИИ-кредиты Refrain на этот месяц закончились. Они обновятся 1-го числа.';
     case 'paused':
       return 'Refrain ИИ на паузе. Попробуй позже или подключи свой ключ.';
     case 'access_closed':

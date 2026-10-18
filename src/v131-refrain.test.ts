@@ -350,10 +350,11 @@ describe('тексты и журнал', () => {
     expect(s).not.toContain('A'.repeat(40));
   });
 
-  it('счётчик «12 из 30 страниц»', () => {
+  it('счётчик от старого сервера (в страницах) — в ИИ-кредитах: «120 из 300 кредитов»', () => {
     const q = quotaLines({ ...quota(12), month: { used: 140, limit: null } });
-    expect(q.day).toBe('Сегодня 12 из 30 страниц');
+    expect(q.day).toBe('Сегодня 120 из 300 кредитов');
     expect(q.monthShare).toBeNull();
+    expect(q.left).toBe(180);
   });
 
   it('имя Android-устройства из строки браузера', () => {

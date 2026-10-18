@@ -32,3 +32,7 @@
 .shot-canvas { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; touch-action: none; border-radius: 6px; cursor: crosshair; }
 .shot-bar { display: flex; justify-content: space-between; gap: 8px; padding-top: 8px; }
 .shot-bar .btn { min-height: 44px; min-width: 120px; }
+/* 1.33: ИИ-кредиты — остаток, на что потрачено, цены. */
+.rf-left { font-size: 1rem; }
+.rf-spent ul, .rf-prices ul { margin: 4px 0 0; padding-left: 18px; }
+.rf-prices summary { cursor: pointer; color: var(--accent-text, var(--accent)); }

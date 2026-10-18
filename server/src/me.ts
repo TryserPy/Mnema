@@ -1,7 +1,7 @@
 // Аккаунт ученика: сведения, приглашение, устройства, удаление.
 import { INVITE_RE, admits } from '../../shared/refrain/policy';
 import type { Me } from '../../shared/refrain/api.mjs';
-import { devicesOf, effectiveGroup, groupLimits, quotaOf, revokeSessions, student, unbindDevice, type Account } from './accounts';
+import { devicesOf, effectiveGroup, groupLimits, quotaOf, revokeSessions, spentToday, student, unbindDevice, type Account } from './accounts';
 import { applyInvite, bump } from './auth';
 import { now, type Env } from './env';
 import { fail, maskEmail, readJson, type ClientInfo } from './http';
@@ -16,7 +16,7 @@ export async function handleMe(req: Request, env: Env, info: ClientInfo): Promis
   const out: Me = {
     ok: true,
     emailMasked: maskEmail(s.account.email),
-    quota: quotaOf(await student(env, s.account.id).usage(t), groupLimits(cfg, s.group, t), s.group, t),
+    quota: quotaOf(await student(env, s.account.id).usage(t), groupLimits(cfg, s.group, t), s.group, t, await spentToday(env, s.account.id, t)),
     devices: await devicesOf(env, s.account.id, s.device.id),
     access: admits(cfg.mode, s.group) ? 'open' : 'closed'
   };

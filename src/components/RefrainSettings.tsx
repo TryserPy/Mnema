@@ -1,12 +1,13 @@
-// Refrain ИИ в «Настройки → ИИ-помощник»: вход по почте, счётчик страниц, приглашение, устройства, порядок поставщиков,
+// Refrain ИИ в «Настройки → ИИ-помощник»: вход по почте, счётчик ИИ-кредитов, приглашение, устройства, порядок поставщиков,
 // выход и удаление аккаунта. Сеть, токены и ключ устройства — в shared/refrainClient.mjs (окно видит только результаты).
 import { useEffect, useState } from 'react';
 import type { AiConfig } from '../store';
 import { refrainApi, type DeviceInfo, type Quota } from '../refrainBridge';
 import { quotaLines, refrainMessage, takeSignIn } from '../refrain';
+import { creditsWord, KIND_TITLE, TASK_CREDITS } from '../../shared/refrain/credits';
 import type { RefrainFail, RefrainStatus } from '../../shared/refrainClient.mjs';
 import { Fold } from './Fold';
-import { Modal } from './ui';
+import { Modal, plural } from './ui';
 
 export type Step = 'refrain' | 'key' | 'local';
 export type AiConfigOrder = AiConfig & { order?: Step[]; refrain?: boolean };
@@ -48,7 +49,7 @@ export function failText(r: RefrainFail): string {
   return refrainMessage(r.code, r) || r.error || 'Не получилось. Попробуй ещё раз.';
 }
 
-export function QuotaMeter({ quota }: { quota: Quota }) {
+export function QuotaMeter({ quota, prices = true }: { quota: Quota; prices?: boolean }) {
   const q = quotaLines(quota);
   const bar = (share: number | null) =>
     share === null ? null : (
@@ -57,14 +58,56 @@ export function QuotaMeter({ quota }: { quota: Quota }) {
       </span>
     );
   return (
-    <div className="stack gap4 rf-quota">
+    <div className="stack gap4 rf-quota" data-part="quota">
+      {q.left !== null && (
+        <strong className="rf-left">
+          Осталось {q.left} {creditsWord(q.left)} · {q.resets}
+        </strong>
+      )}
       <span className="small">{q.day}</span>
       {bar(q.dayShare)}
       <span className="small muted">{q.month}</span>
       {bar(q.monthShare)}
+      {quota.spent && quota.spent.length > 0 && (
+        <div className="small rf-spent">
+          <span className="muted">Сегодня потрачено на:</span>
+          <ul>
+            {quota.spent.map((x) => (
+              <li key={x.kind}>
+                {KIND_TITLE[x.kind]} — {x.credits} {creditsWord(x.credits)}
+                <span className="muted"> ({x.count} {plural(x.count, 'раз', 'раза', 'раз')})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {prices && (
+        <details className="small rf-prices">
+          <summary>Сколько стоит</summary>
+          <ul>
+            {PRICE_LIST.map(([t, n]) => (
+              <li key={t}>
+                {t} — {n} {creditsWord(n)}
+              </li>
+            ))}
+          </ul>
+          <span className="muted">Если ИИ не ответил, кредиты не списываются. Свой ключ и модель на компьютере кредиты не тратят.</span>
+        </details>
+      )}
     </div>
   );
 }
+
+/** Цены для «Сколько стоит» — из той же таблицы весов, по которой списывает сервер. */
+const PRICE_LIST: [string, number][] = [
+  ['Страница учебника (фото → конспект)', TASK_CREDITS['textbook.summary']],
+  ['Страница тетради', TASK_CREDITS['notebook.read']],
+  ['Карточки по конспекту', TASK_CREDITS.cards],
+  ['«Объясни иначе», формула от руки', TASK_CREDITS.explain],
+  ['Карточки из ссылки, видео (субтитры) или книги — за часть текста', TASK_CREDITS['cards.source']],
+  ['Решение задачи по шагам', TASK_CREDITS.solve],
+  ['Стиль с ИИ', TASK_CREDITS.style]
+];
 
 export function RefrainSettings({ cfg, focusLogin = false }: { cfg: AiConfigOrder; focusLogin?: boolean }) {
   const api = refrainApi();
@@ -98,7 +141,7 @@ export function RefrainSettings({ cfg, focusLogin = false }: { cfg: AiConfigOrde
 
   return (
     <div className="stack gap12 rf-settings" data-part="refrain">
-      <span className="small muted">Каждый день — бесплатные страницы. Ключ не нужен, только почта. Уходит только фото или текст, с которым ты попросил помочь, и название темы.</span>
+      <span className="small muted">Каждый день — бесплатные ИИ-кредиты (страница учебника — 10, «Объясни иначе» — 1). Ключ не нужен, только почта. Уходит только фото или текст, с которым ты попросил помочь, и название темы.</span>
       {msg && <div className={'hint ' + msg.kind} role="status">{msg.text}</div>}
       {!st.signedIn ? (
         st.secure ? (
@@ -168,7 +211,7 @@ export function RefrainSettings({ cfg, focusLogin = false }: { cfg: AiConfigOrde
       {confirm === 'delete' && (
         <Modal title="Удалить аккаунт Refrain ИИ?" onClose={() => setConfirm(null)}>
           <div className="stack gap12">
-            <p className="small">На сервере сотрутся почта, счётчики страниц, устройства и входы. Конспекты на устройстве останутся.</p>
+            <p className="small">На сервере сотрутся почта, счётчики ИИ-кредитов, устройства и входы. Конспекты на устройстве останутся.</p>
             <div className="row gap8 end">
               <button className="btn" onClick={() => setConfirm(null)}>
                 Отмена
@@ -205,7 +248,7 @@ export function ProviderOrder({ cfg, onConfig }: { cfg: AiConfigOrder; onConfig:
   return (
     <div className="stack gap4">
       <strong className="small">Если первый не ответил</strong>
-      <span className="small muted">Кого спрашивать по очереди: если первый недоступен или кончились страницы — следующего.</span>
+      <span className="small muted">Кого спрашивать по очереди: если первый недоступен или кончились ИИ-кредиты — следующего.</span>
       <ol className="rf-order">
         {order.map((s, i) => (
           <li key={s} className="row gap8">

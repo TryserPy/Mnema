@@ -64,6 +64,12 @@ export interface Quota {
   /** Когда обнулится дневной счётчик: полночь по Москве, ISO-время. */
   resetsAt: string;
   group: GroupId;
+  /**
+   * 1.33: то же в ИИ-кредитах (day/month выше — в прежних «страницах» для старых версий приложения; 1 страница = 10 кредитов).
+   * spent — на что потрачено сегодня (только в ответе /v1/me).
+   */
+  credits?: { day: { used: number; limit: number | null }; month: { used: number; limit: number | null } };
+  spent?: { kind: 'scan' | 'cards' | 'explain' | 'source' | 'solve' | 'style' | 'other'; credits: number; count: number }[];
 }
 
 export interface ApiError {
@@ -178,6 +184,8 @@ export interface TaskResponse {
   promptVersion: string;
   /** Сколько страниц списано за этот ответ (доли страницы). */
   charged: number;
+  /** 1.33: сколько ИИ-кредитов списано за эту задачу. */
+  chargedCredits?: number;
   quota: Quota;
 }
 

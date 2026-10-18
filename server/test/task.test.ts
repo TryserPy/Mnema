@@ -1,5 +1,6 @@
-// Задача: промт собирает сервер, списывается настоящий расход, в базе только цифры, ключ не утекает.
+// Задача: промт собирает сервер, ученику списываются ИИ-кредиты по весу операции, бюджету — настоящий расход, в базе только цифры, ключ не утекает.
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_GROUPS } from '../../shared/refrain/policy';
 import { Harness, openAiOk, summaryTask } from './helpers';
 
 describe('POST /v1/task', () => {
@@ -153,19 +154,46 @@ describe('POST /v1/task', () => {
     expect((await d.task({ task: 'cards', text: 'x' })).body.error.code).toBe('upstream');
   });
 
-  it('дневной лимит: после исчерпания — limit_day с остатком', async () => {
+  it('дневной лимит в ИИ-кредитах: фиксированный вес операции, после исчерпания — limit_day с остатком', async () => {
     const h = new Harness();
     await h.setting('mode', 'all');
+    // План «Новичок» на 3 прежние страницы в день = 30 кредитов (план переводится в кредиты сам, без перехода данных).
+    await h.setting('groups', DEFAULT_GROUPS.map((g) => (g.id === 'newbie' ? { ...g, perDay: 3 } : g)));
     const d = await h.login('lim@example.com');
-    h.openai = () => openAiOk('## Т', { prompt_tokens: 10000, completion_tokens: 12000, prompt_tokens_details: { cached_tokens: 0 } }); // ≈ 10,8 страницы
-    expect((await d.task()).status).toBe(200);
+    // Длинный ответ не дороже короткого: ученик платит вес операции (скан страницы — 10 кредитов), а не токены.
+    h.openai = () => openAiOk('## Т', { prompt_tokens: 10000, completion_tokens: 12000, prompt_tokens_details: { cached_tokens: 0 } });
+    const first = await d.task();
+    expect(first.status).toBe(200);
+    expect(first.body.chargedCredits).toBe(10);
+    expect(first.body.quota.credits.day).toEqual({ used: 10, limit: 30 });
+    expect(first.body.quota.day.limit).toBe(3); // старым версиям — прежние «страницы»
+    for (let i = 0; i < 2; i++) {
+      h.clock += 61000;
+      expect((await d.task()).status).toBe(200);
+    }
     h.clock += 61000;
     const r = await d.task();
     expect(r.body.error.code).toBe('limit_day');
-    expect(r.body.error.quota.day.limit).toBe(10);
+    expect(r.body.error.message).toMatch(/ИИ-кредиты/);
+    expect(r.body.error.quota.credits.day).toEqual({ used: 30, limit: 30 });
+    const me = await d.call('GET', '/v1/me');
+    expect(me.body.quota.spent).toEqual([{ kind: 'scan', credits: 30, count: 3 }]);
     h.clock += 24 * 3600000;
     await d.renew();
     expect((await d.task()).status).toBe(200);
+  });
+
+  it('ИИ не ответил — кредиты не списаны; «Объясни иначе» стоит 1 кредит', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const d = await h.login('w@example.com');
+    h.openai = () => new Response('boom', { status: 500 });
+    expect((await d.task({ task: 'explain', text: 'q' })).body.error.code).toBe('upstream');
+    h.openai = () => openAiOk('ok');
+    h.clock += 61000;
+    const r = await d.task({ task: 'explain', text: 'q' });
+    expect(r.body.chargedCredits).toBe(1);
+    expect(r.body.quota.credits.day.used).toBe(1);
   });
 
   it('лимит в минуту у новичка — 4', async () => {
