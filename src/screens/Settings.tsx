@@ -385,18 +385,21 @@ function StudyPane() {
         <SRow label="Фокус: перерыв, минут">
           <MinutesField value={s.breakMinutes} kind="break" onChange={(v) => updateSettings({ breakMinutes: v })} label="Сколько минут длится перерыв" />
         </SRow>
-        <div className="row gap8 wrap">
-          {[
-            [25, 5],
-            [50, 10],
-            [45, 10],
-            [15, 3]
-          ].map(([w, b]) => (
-            <button key={w} type="button" className={'chip-btn' + (s.focusMinutes === w && s.breakMinutes === b ? ' on' : '')} onClick={() => updateSettings({ focusMinutes: w, breakMinutes: b })} aria-label={`${w} минут учёбы, ${b} перерыв`}>
-              {w}/{b}
-            </button>
-          ))}
-          <span className="grow" />
+        <SRow label="Готовые наборы" hint="Учёба / перерыв, минут">
+          <span className="row gap8 wrap focus-presets">
+            {[
+              [25, 5],
+              [50, 10],
+              [45, 10],
+              [15, 3]
+            ].map(([w, b]) => (
+              <button key={w} type="button" className={'chip-btn' + (s.focusMinutes === w && s.breakMinutes === b ? ' on' : '')} onClick={() => updateSettings({ focusMinutes: w, breakMinutes: b })} aria-label={`${w} минут учёбы, ${b} перерыв`} aria-pressed={s.focusMinutes === w && s.breakMinutes === b}>
+                {w}/{b}
+              </button>
+            ))}
+          </span>
+        </SRow>
+        <SRow label={timer ? (timer.phase === 'break' ? 'Сейчас перерыв' : timer.endsAt ? 'Фокус идёт' : 'Фокус на паузе') : 'Фокус'} hint={timer ? 'Таймер — в углу экрана.' : `${s.focusMinutes} мин учёбы, потом ${s.breakMinutes} мин перерыв.`}>
           {timer?.view === 'hidden' ? (
             <button type="button" className="btn small" onClick={() => setFocusView('full')}>
               Показать таймер
@@ -406,7 +409,7 @@ function StudyPane() {
               {timer ? 'Начать заново' : 'Начать фокус'}
             </button>
           )}
-        </div>
+        </SRow>
       </Group>
     </div>
   );

@@ -70,7 +70,8 @@ export function FocusTimer() {
   }, [s?.endsAt, settings.breakMinutes, settings.focusMinutes]);
 
   if (!s || s.view === 'hidden') return null;
-  const left = focusLeft(s, now);
+  // Не раньше настоящего «сейчас»: сразу после старта now ещё старое (с монтирования), и таймер показывал 25:02 вместо 25:00.
+  const left = focusLeft(s, Math.max(now, Date.now()));
   const paused = !s.endsAt && s.phase !== 'done';
   const label = s.phase === 'work' ? 'Учёба' : 'Перерыв';
   if (s.view === 'mini' && s.phase !== 'done')
