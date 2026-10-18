@@ -2,6 +2,7 @@
 import '../refrain.css';
 import { useEffect, useRef, useState } from 'react';
 import { categoryFor, onRefrainAnswer, onReportProblem, openReportProblem, wantSignIn, type RefrainNotice, type ReportContext } from '../refrain';
+import { aiNotice, type AiNotice } from '../aiFailure';
 import { refrainApi } from '../refrainBridge';
 import type { Route } from '../types';
 import { categoryOfRoute, whereLabel } from '../where';
@@ -12,18 +13,39 @@ const LIMIT_CODES: string[] = ['limit_day', 'limit_month', 'access_closed'];
 
 export function RefrainHost({ go, where }: { go: (r: Route) => void; where?: () => Route }) {
   const [limit, setLimit] = useState<RefrainNotice | null>(null);
-  const [failed, setFailed] = useState<RefrainNotice | null>(null);
+  const [failed, setFailed] = useState<(RefrainNotice & { notice: AiNotice }) | null>(null);
+  // Когда какая плашка показывалась: одна и та же причина не всплывает на каждой странице и после каждого нажатия.
+  const seen = useRef(new Map<string, number>());
   const [report, setReport] = useState<{ ctx: ReportContext; shot: string | null; where: string } | null>(null);
   const whereRef = useRef(where);
   whereRef.current = where;
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // «Настройки ИИ» / «Войти» из ошибки любого ИИ-действия (AiRun) — работает и в веб-версии.
+  useEffect(() => {
+    const h = () => {
+      setLimit(null);
+      setFailed(null);
+      go({ name: 'settings', section: 'ai' });
+    };
+    // Экран сам показал ошибку с действиями (AiRun.AiProblem) — плашку убираем, чтобы не закрывать этот текст.
+    const inline = () => setFailed(null);
+    window.addEventListener('refrain:ai-settings', h);
+    window.addEventListener('refrain:ai-inline', inline);
+    return () => {
+      window.removeEventListener('refrain:ai-settings', h);
+      window.removeEventListener('refrain:ai-inline', inline);
+    };
+  }, [go]);
+
   useEffect(() => {
     if (!refrainApi()) return;
     const off1 = onRefrainAnswer((n) => {
       if (n.code && LIMIT_CODES.includes(n.code)) return setLimit(n);
-      if (!n.error) return;
-      setFailed(n);
+      const notice = aiNotice(n, seen.current, Date.now());
+      if (!notice) return;
+      seen.current.set(notice.key, Date.now());
+      setFailed({ ...n, notice });
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setFailed(null), 12000);
     });
@@ -40,6 +62,12 @@ export function RefrainHost({ go, where }: { go: (r: Route) => void; where?: () 
       clearTimeout(timer.current);
     };
   }, []);
+
+  /** Закрыта крестиком — до перезапуска больше не показываем. */
+  const dismiss = () => {
+    if (failed) seen.current.set(failed.notice.key, Infinity);
+    setFailed(null);
+  };
 
   const toAi = () => {
     setLimit(null);
@@ -58,9 +86,9 @@ export function RefrainHost({ go, where }: { go: (r: Route) => void; where?: () 
           onOffline={() => void window.mnemaApi?.aiSetConfig?.({ provider: 'local' }).finally(toAi)}
         />
       )}
-      {failed && !report && failed.signIn && (
+      {failed && !report && failed.notice.kind === 'signin' && (
         <div className="rf-failed" role="status" data-part="signin-bar">
-          <span className="small grow">Чтобы ИИ помог, войди в Refrain ИИ (бесплатно, только почта) или добавь свой ключ.</span>
+          <span className="small grow">{failed.notice.hint ?? 'Чтобы ИИ помог, войди в Refrain ИИ (бесплатно, только почта) или добавь свой ключ.'}</span>
           <button
             className="btn small primary"
             onClick={() => {
@@ -70,21 +98,34 @@ export function RefrainHost({ go, where }: { go: (r: Route) => void; where?: () 
           >
             Войти в Refrain ИИ
           </button>
-          <button className="btn small" onClick={toAi}>
-            Добавить ключ
-          </button>
-          <button className="icon-btn small" aria-label="Закрыть" onClick={() => setFailed(null)}>
+          {!failed.notice.hint && (
+            <button className="btn small" onClick={toAi}>
+              Добавить ключ
+            </button>
+          )}
+          <button className="icon-btn small" aria-label="Закрыть" onClick={dismiss}>
             ×
           </button>
         </div>
       )}
-      {failed && !report && !failed.signIn && (
-        <div className="rf-failed" role="status">
-          <span className="small grow">Не получилось у ИИ?</span>
+      {failed && !report && failed.notice.kind === 'settings' && (
+        <div className="rf-failed" role="status" data-part="ai-settings-bar">
+          <span className="small grow">{failed.notice.hint}</span>
+          <button className="btn small primary" onClick={toAi}>
+            Настройки ИИ
+          </button>
+          <button className="icon-btn small" aria-label="Закрыть" onClick={dismiss}>
+            ×
+          </button>
+        </div>
+      )}
+      {failed && !report && failed.notice.kind === 'report' && (
+        <div className="rf-failed" role="status" data-part="ai-report-bar">
+          <span className="small grow">Похоже на сбой Refrain, а не на настройки. Можно отправить разработчику — ошибка подставится сама.</span>
           <button className="btn small" onClick={() => openReportProblem({ task: failed.task, error: failed.error, category: categoryFor(failed.task) })}>
             Сообщить о проблеме
           </button>
-          <button className="icon-btn small" aria-label="Закрыть" onClick={() => setFailed(null)}>
+          <button className="icon-btn small" aria-label="Закрыть" onClick={dismiss}>
             ×
           </button>
         </div>

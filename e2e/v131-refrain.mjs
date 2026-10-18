@@ -113,8 +113,8 @@ for (const [theme, width] of [
   check((await page.evaluate(() => window.__rf.calls)).some((c) => c[0] === 'invite' && c[1] === 'ABCD-1234'), `${tag}: приглашение отправлено`);
   check(!(await page.locator('.modal', { hasText: 'в закрытом тесте' }).count()), `${tag}: окно закрылось`);
 
-  // Ошибка ИИ → «Сообщить о проблеме» с автозаполнением
-  await page.evaluate(() => (window.__rf.answer = { ok: false, code: 'upstream', error: 'Сбой ИИ, попробуй ещё раз.' }));
+  // Настоящий сбой (internal) → «Сообщить о проблеме» с автозаполнением; upstream/нет сети — без плашки (1.33)
+  await page.evaluate(() => (window.__rf.answer = { ok: false, code: 'internal', error: 'Сбой ИИ на сервере.' }));
   await page.getByRole('button', { name: 'Проверить' }).first().click();
   await page.locator('.rf-failed').waitFor({ timeout: 5000 });
   await page.locator('.rf-failed').getByRole('button', { name: 'Сообщить о проблеме' }).click();

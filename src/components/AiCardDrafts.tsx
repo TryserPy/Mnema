@@ -5,11 +5,13 @@ import { draftCards } from '../ai';
 import type { AiCardDraft } from '../aiCards';
 import { addCard, useData } from '../store';
 import { Icon, Modal, Skeleton, plural, toast } from './ui';
+import { AiProblem, AiWorking, failureOf } from './AiRun';
+import type { AiFailure } from '../aiFailure';
 
 /** Сколько черновиков отмечено сразу: 40 новых карточек за раз — долг на недели, лучше начать с малого. */
 const PRESET = 10;
 
-type Phase = { name: 'loading' } | { name: 'error'; text: string } | { name: 'done' };
+type Phase = { name: 'loading' } | { name: 'error'; text: string; failure: AiFailure } | { name: 'done' };
 
 export function AiCardDrafts({ topicId, onClose }: { topicId: string; onClose: () => void }) {
   const data = useData();
@@ -35,7 +37,7 @@ export function AiCardDrafts({ topicId, onClose }: { topicId: string; onClose: (
       setDrafts(list.map((d, i) => ({ ...d, on: i < PRESET })));
       setPhase({ name: 'done' });
     } catch (e) {
-      if (alive.current) setPhase({ name: 'error', text: (e as Error).message || 'Не получилось.' });
+      if (alive.current) setPhase({ name: 'error', text: (e as Error).message || 'Не получилось.', failure: failureOf(e) });
     }
   }
   useEffect(() => {
@@ -50,9 +52,7 @@ export function AiCardDrafts({ topicId, onClose }: { topicId: string; onClose: (
       <div className="stack gap12">
         {phase.name === 'loading' && (
           <div className="stack gap8">
-            <p className="row gap8">
-              <Icon name="sparkle" size={18} /> ИИ читает конспект и придумывает вопросы…
-            </p>
+            <AiWorking label="ИИ читает конспект и придумывает вопросы…" onCancel={onClose} />
             <p className="small muted">Текст конспекта (без картинок) отправлен ИИ-помощнику, которого ты настроил. Карточки он только предложит — добавишь ты сам.</p>
             <div className="bulk-list" aria-hidden>
               {[0, 1, 2].map((i) => (
@@ -65,13 +65,10 @@ export function AiCardDrafts({ topicId, onClose }: { topicId: string; onClose: (
         )}
         {phase.name === 'error' && (
           <div className="stack gap8">
-            <div className="hint warn">{phase.text}</div>
+            <AiProblem error={phase.text} failure={phase.failure} onRetry={() => void run()} />
             <div className="row end gap8">
               <button className="btn ghost" onClick={onClose}>
                 Закрыть
-              </button>
-              <button className="btn primary" onClick={() => void run()}>
-                Попробовать ещё раз
               </button>
             </div>
           </div>

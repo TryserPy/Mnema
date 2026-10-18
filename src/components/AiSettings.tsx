@@ -59,6 +59,8 @@ export function AiSettings() {
   async function save(patch: ConfigPatch) {
     const next = await api!.aiSetConfig!(patch);
     setCfg(next);
+    // Подпись «Отвечает: …» у ИИ-действий обновится сама.
+    window.dispatchEvent(new CustomEvent('refrain:ai-config'));
     return next;
   }
 

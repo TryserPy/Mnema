@@ -567,6 +567,8 @@ export function App() {
         </ErrorBoundary>
         <RepeatDialogHost go={go} />
         <TutorialHost route={route} go={go} />
+        {/* И при повторении: экран лимита, плашка под ошибкой ИИ, «Настройки ИИ» из ошибки и форма «Сообщить о проблеме». */}
+        <RefrainHost go={go} where={() => exactPlace(routeRef.current)} />
       </div>
     );
   }

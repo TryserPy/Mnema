@@ -5,6 +5,7 @@ import { noteAnswer, refrainFields, shrinkImage } from './refrain';
 import { promptSystem } from './prompts';
 import type { AiAnswer, AiRequest } from './store';
 import type { AppData } from './types';
+import { AiError, aiFailure } from './aiFailure';
 
 export function aiAvailable(data: AppData): boolean {
   return data.settings.features.ai && Boolean(window.mnemaApi?.aiAsk);
@@ -20,7 +21,7 @@ async function ask(task: AiTask | null, req: AiRequest): Promise<string> {
   const sent = task ? aiRequest(task, req) : { ...req, refrain: refrainFields(req.refrain) };
   const r = await api.aiAsk(sent);
   noteAnswer(r, sent.refrain?.task);
-  if (!r.ok) throw new Error(aiError(r));
+  if (!r.ok) throw new AiError(aiError(r), aiFailure(r));
   if (!r.text) throw new Error('Модель вернула пустой ответ.');
   return r.text;
 }

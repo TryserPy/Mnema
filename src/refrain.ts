@@ -4,6 +4,7 @@ import { FIELD_LIMITS, pagesLabel, type ErrorCode, type Quota, type TaskId, type
 import { TASK_SPECS } from '../shared/prompts/tasks';
 import { REFRAIN_API, refrainMessage } from '../shared/refrainClient.mjs';
 import { cleanNote } from './aiNotes';
+import { aiFailure, type AiFailure } from './aiFailure';
 import type { AiAnswer } from './store';
 import type { AiNoteKey, AiNotes } from './types';
 
@@ -175,6 +176,8 @@ export interface RefrainNotice {
   error?: string;
   /** Никого не спросили: не вошёл в Refrain ИИ (и нет своего ключа) — показать «Войти» и «Добавить ключ». */
   signIn?: boolean;
+  /** Причина неудачи: ожидаемое состояние или настоящий сбой (только его можно отправить разработчику). */
+  failure?: AiFailure;
 }
 
 // «Войти в Refrain ИИ» из подсказки: настройки ИИ откроют форму входа и поставят курсор в поле почты.
@@ -193,7 +196,7 @@ export function takeSignIn(): boolean {
 export function noteAnswer(r: AiAnswer, task?: TaskId): void {
   if (!r.ok) logLine(`ИИ${task ? ` (${task})` : ''}: ${r.code ?? ''} ${r.error}`);
   else logLine(`ИИ${task ? ` (${task})` : ''}: ответ получен${r.via ? ` (${r.via})` : ''}`, 'info');
-  const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(!r.ok ? { error: r.error } : {}), ...(!r.ok && (r.signIn || r.code === 'session_revoked' || r.code === 'device_unknown') ? { signIn: true } : {}), ...(task ? { task } : {}) };
+  const n: RefrainNotice = { ...(r.quota ? { quota: r.quota } : {}), ...(!r.ok && r.code ? { code: r.code } : {}), ...(!r.ok ? { error: r.error } : {}), ...(!r.ok && (r.signIn || r.code === 'session_revoked' || r.code === 'device_unknown') ? { signIn: true } : {}), ...(!r.ok ? { failure: aiFailure(r) } : {}), ...(task ? { task } : {}) };
   if (n.quota || n.code || n.error) window.dispatchEvent(new CustomEvent<RefrainNotice>('refrain:answer', { detail: n }));
 }
 

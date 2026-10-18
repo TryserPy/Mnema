@@ -2,6 +2,8 @@
 // черновики карточек от ИИ → ученик отмечает и правит → карточки в эту тему (или в новую тему с названием источника).
 import { useRef, useState } from 'react';
 import { aiAvailable } from '../ai';
+import { AiProblem, AiWorking, failureOf } from './AiRun';
+import type { AiFailure } from '../aiFailure';
 import type { AiCardDraft } from '../aiCards';
 import type { EpubBook } from '../epub';
 import { cardsFromSource, loadUrl, sourceParts, type Source } from '../sourceCards';
@@ -9,7 +11,7 @@ import { addCard, importTopics, useData } from '../store';
 import { Icon, Modal, plural, Segmented, Skeleton, SUBJECT_COLORS, toast } from './ui';
 
 type Tab = 'link' | 'book' | 'text';
-type Step = { name: 'input' } | { name: 'loading'; what: string } | { name: 'source'; src: Source } | { name: 'drafts'; src: Source; drafts: (AiCardDraft & { on: boolean })[] };
+type Step = { name: 'input' } | { name: 'loading'; what: string; back: Step } | { name: 'source'; src: Source } | { name: 'drafts'; src: Source; drafts: (AiCardDraft & { on: boolean })[] };
 
 /** Сразу отмечено: 15 новых карточек за раз — посильно; остальные можно добавить потом. */
 const PRESET = 15;
@@ -28,18 +30,26 @@ export function SourceCards({ topicId, onClose, onOpenTopic }: { topicId?: strin
   const [part, setPart] = useState(0);
   const [step, setStep] = useState<Step>({ name: 'input' });
   const [error, setError] = useState('');
+  // Ошибка ИИ (а не ссылки или файла): причина и повтор — «Повторить», «Настройки ИИ», «Войти».
+  const [aiFail, setAiFail] = useState<{ failure: AiFailure; retry: () => void } | null>(null);
+  // Номер действия: после «Отменить» ответ уже ушедшего запроса не применяется.
+  const runId = useRef(0);
   const [target, setTarget] = useState(data.subjects[0]?.id ?? '__new');
   const fileRef = useRef<HTMLInputElement>(null);
   const canAi = aiAvailable(data);
 
   async function openLink() {
     setError('');
-    setStep({ name: 'loading', what: /youtu/i.test(url) ? 'Достаю субтитры видео…' : 'Открываю страницу…' });
+    setAiFail(null);
+    const id = ++runId.current;
+    setStep({ name: 'loading', what: /youtu/i.test(url) ? 'Достаю субтитры видео…' : 'Открываю страницу…', back: { name: 'input' } });
     try {
       const src = await loadUrl(url);
+      if (id !== runId.current) return;
       setPart(0);
       setStep({ name: 'source', src });
     } catch (e) {
+      if (id !== runId.current) return;
       setError((e as Error).message);
       setStep({ name: 'input' });
     }
@@ -47,7 +57,8 @@ export function SourceCards({ topicId, onClose, onOpenTopic }: { topicId?: strin
 
   async function openBook(f: File) {
     setError('');
-    setStep({ name: 'loading', what: 'Открываю книгу…' });
+    setAiFail(null);
+    setStep({ name: 'loading', what: 'Открываю книгу…', back: { name: 'input' } });
     try {
       const { parseEpub } = await import('../epub');
       const b = await parseEpub(new Uint8Array(await f.arrayBuffer()));
@@ -74,14 +85,19 @@ export function SourceCards({ topicId, onClose, onOpenTopic }: { topicId?: strin
 
   async function makeCards(src: Source) {
     setError('');
-    setStep({ name: 'loading', what: 'ИИ читает и придумывает вопросы…' });
+    setAiFail(null);
+    const id = ++runId.current;
+    setStep({ name: 'loading', what: 'ИИ читает и придумывает вопросы…', back: { name: 'source', src } });
     try {
       const parts = sourceParts(src.text);
       const have = topic ? data.cards.filter((c) => c.topicId === topic.id).map((c) => c.front) : [];
       const list = await cardsFromSource({ title: src.title, text: parts[Math.min(part, parts.length - 1)], subject: subject?.name, have });
+      if (id !== runId.current) return;
       setStep({ name: 'drafts', src, drafts: list.map((d, i) => ({ ...d, on: i < PRESET })) });
     } catch (e) {
+      if (id !== runId.current) return;
       setError((e as Error).message || 'Не получилось.');
+      setAiFail({ failure: failureOf(e), retry: () => void makeCards(src) });
       setStep({ name: 'source', src });
     }
   }
@@ -107,7 +123,8 @@ export function SourceCards({ topicId, onClose, onOpenTopic }: { topicId?: strin
     <Modal title="Карточки из ссылки, видео или книги" onClose={onClose} width={720} sticky={busy || step.name === 'drafts'}>
       <div className="stack gap12">
         {!canAi && <div className="hint warn">Сначала подключи ИИ: войди в Refrain ИИ или добавь свой ключ (Настройки → ИИ). Без ИИ карточки по тексту не сделать.</div>}
-        {error && (
+        {error && aiFail && <AiProblem error={error} failure={aiFail.failure} onRetry={aiFail.retry} />}
+        {error && !aiFail && (
           <div className="hint warn" role="alert">
             {error}
           </div>
@@ -118,7 +135,7 @@ export function SourceCards({ topicId, onClose, onOpenTopic }: { topicId?: strin
             <Segmented<Tab>
               ariaLabel="Откуда"
               value={tab}
-              onChange={(t) => (setTab(t), setError(''))}
+              onChange={(t) => (setTab(t), setError(''), setAiFail(null))}
               options={[
                 { value: 'link', label: 'Ссылка' },
                 { value: 'book', label: 'Книга EPUB' },
@@ -207,12 +224,16 @@ export function SourceCards({ topicId, onClose, onOpenTopic }: { topicId?: strin
         )}
 
         {step.name === 'loading' && (
-          <div className="stack gap8">
-            <p className="row gap8">
-              <Icon name="sparkle" size={18} /> {step.what}
-            </p>
+          <AiWorking
+            label={step.what}
+            via={step.back.name === 'source'}
+            onCancel={() => {
+              runId.current++;
+              setStep(step.back);
+            }}
+          >
             <Skeleton lines={4} label={step.what} />
-          </div>
+          </AiWorking>
         )}
 
         {step.name === 'source' && <SourceView src={step.src} part={part} setPart={setPart} onBack={() => setStep({ name: 'input' })} onMake={() => void makeCards(step.src)} />}

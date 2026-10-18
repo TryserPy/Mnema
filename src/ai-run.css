@@ -1,0 +1,7 @@
+/* 1.33: общие состояния ИИ-действий и уровни сообщений (ошибка / предупреждение / сведения). */
+.hint.error { background: var(--again-bg); border: 1px solid color-mix(in srgb, var(--again-ink) 30%, transparent); color: var(--again-ink); }
+.hint.info { background: var(--sunken); border: 1px solid var(--line); color: var(--ink); }
+.ai-via { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.ai-via b { font-weight: 600; color: var(--ink); }
+.ai-problem > span { overflow-wrap: anywhere; }
+.ai-working > .row > span { min-width: 0; }

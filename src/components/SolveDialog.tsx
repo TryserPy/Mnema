@@ -1,6 +1,8 @@
 // «Решить по шагам» (1.32, N3): фото условия (камера или галерея) и/или текст → пошаговое решение от ИИ с формулами.
 // Решение можно положить в конспект темы или сделать из него карточку (условие → ответ, шаги — в «почему»).
 import { useRef, useState } from 'react';
+import { AiProblem, AiWorking, failureOf } from './AiRun';
+import type { AiFailure } from '../aiFailure';
 import { aiAvailable } from '../ai';
 import { solutionCard, solveProblem, SOLVE_TEXT_MAX } from '../solve';
 import { addCard, getData, sortedSubjects, updateTopic, useData } from '../store';
@@ -28,6 +30,9 @@ export function SolveDialog({ onClose, topicId, subjectId, initial, onNoteSaved 
   const [camera, setCamera] = useState(false);
   const [step, setStep] = useState<Step>({ name: 'input' });
   const [error, setError] = useState('');
+  const [failure, setFailure] = useState<AiFailure | undefined>();
+  // Номер запроса: после «Отменить» ответ уже ушедшего запроса не применяется.
+  const runId = useRef(0);
   const [cardTopic, setCardTopic] = useState(topic?.id ?? data.topics.find((t) => t.subjectId === subject && !t.kind)?.id ?? '');
   const [saved, setSaved] = useState<{ note?: boolean; card?: boolean }>({});
   const fileRef = useRef<HTMLInputElement>(null);
@@ -36,6 +41,7 @@ export function SolveDialog({ onClose, topicId, subjectId, initial, onNoteSaved 
 
   async function takeFile(f: File) {
     setError('');
+    setFailure(undefined);
     if (!/^image\//.test(f.type)) return setError('Нужна картинка: фото или скриншот условия.');
     if (f.size > 25 * 1024 * 1024) return setError('Фото слишком большое. Сфотографируй с меньшим разрешением.');
     try {
@@ -47,14 +53,18 @@ export function SolveDialog({ onClose, topicId, subjectId, initial, onNoteSaved 
 
   async function run() {
     setError('');
+    setFailure(undefined);
     setSaved({});
     setStep({ name: 'busy' });
+    const id = ++runId.current;
     try {
       const m = /^data:([^;]+);base64,(.*)$/.exec(photo);
       const md = await solveProblem({ text, image: m ? { mime: m[1], data: m[2] } : undefined, subject: subj?.name, topic: topic?.name });
-      setStep({ name: 'done', md });
+      if (id === runId.current) setStep({ name: 'done', md });
     } catch (e) {
+      if (id !== runId.current) return;
       setError((e as Error).message || 'Не получилось.');
+      setFailure(failureOf(e));
       setStep({ name: 'input' });
     }
   }
@@ -81,7 +91,8 @@ export function SolveDialog({ onClose, topicId, subjectId, initial, onNoteSaved 
     <Modal title="Решить по шагам" onClose={onClose} width={720} sticky={step.name === 'busy'}>
       <div className="stack gap12">
         {!canAi && <div className="hint warn">Сначала подключи ИИ: войди в Refrain ИИ или добавь свой ключ (Настройки → ИИ).</div>}
-        {error && (
+        {error && failure && <AiProblem error={error} failure={failure} onRetry={() => void run()} />}
+        {error && !failure && (
           <div className="hint warn" role="alert">
             {error}
           </div>
@@ -150,10 +161,15 @@ export function SolveDialog({ onClose, topicId, subjectId, initial, onNoteSaved 
 
         {step.name === 'busy' && (
           <div className="stack gap8">
-            <p className="row gap8">
-              <Icon name="sparkle" size={18} /> Решаю по шагам…
-            </p>
-            <Skeleton lines={6} label="ИИ решает задачу" />
+            <AiWorking
+              label="Решаю по шагам…"
+              onCancel={() => {
+                runId.current++;
+                setStep({ name: 'input' });
+              }}
+            >
+              <Skeleton lines={6} label="ИИ решает задачу" />
+            </AiWorking>
           </div>
         )}
 

@@ -345,7 +345,7 @@ describe('zip: защита и лимиты', () => {
     const e: Record<string, Uint8Array> = {};
     for (let i = 0; i <= LIMITS.entries; i++) e[`f${i}.md`] = new Uint8Array(0);
     await expect(packFromZip(await zipOf(e))).rejects.toThrow('слишком много');
-  });
+  }, 30000); // тысячи записей архива: на медленной машине дольше стандартных 5 с
   it('заметок больше предела — лишние отбрасываются', () => {
     const entries = Array.from({ length: LIMITS.notes + 5 }, (_, i) => ({ path: `n${i}.md`, bytes: bytes('x') }));
     const pack = packFromEntries(entries);

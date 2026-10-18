@@ -18,6 +18,8 @@ import { backLabel, reviewBack } from '../studyBack';
 import { openRepeatDialog, repeatAtOf } from '../components/RepeatDialog';
 import { useCardSwipe } from '../components/cardSwipe';
 import { Dismissible } from '../components/Dismissible';
+import { AiProblem, AiWorking, failureOf } from '../components/AiRun';
+import type { AiFailure } from '../aiFailure';
 import '../session.css';
 import { buildPrompt, buildQueue, cardLapses, checkTyped, formatInterval, GRADES, MINUTE, previewIntervals, type QueueItem } from '../srs';
 import { getData, markLeechSeen, recordReview, tagLastAnswer, updateCard, useData } from '../store';
@@ -65,7 +67,9 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
   const [handStrokes, setHandStrokes] = useState<Stroke[]>([]);
   const handOpenRef = useRef(false);
   handOpenRef.current = handOpen;
-  const [explain, setExplain] = useState<{ state: 'idle' | 'loading' | 'done' | 'error'; text: string; added?: boolean }>({ state: 'idle', text: '' });
+  const [explain, setExplain] = useState<{ state: 'idle' | 'loading' | 'done' | 'error'; text: string; added?: boolean; failure?: AiFailure }>({ state: 'idle', text: '' });
+  // Номер запроса «Объясни иначе»: после «Отменить» или перехода к другой карточке старый ответ не применяется.
+  const explainRun = useRef(0);
   const [editLeech, setEditLeech] = useState(false);
   // «Почему?»: после верного ответа иногда просим объяснить себе одной фразой (самообъяснение).
   const [whyAsk, setWhyAsk] = useState<{ cardId: string; go: () => void } | null>(null);
@@ -126,6 +130,7 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
     setTyped('');
     setHandOpen(false);
     setHandStrokes([]);
+    explainRun.current++;
     setExplain({ state: 'idle', text: '' });
     voiceSession.current?.cancel();
     voiceSession.current = null;
@@ -255,8 +260,9 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
     return () => window.removeEventListener('keydown', onKey);
   }, [current, revealed, grade, go, typedOk, blocked, settings, route.topicId]);
 
-  async function runExplain() {
-    if (!card || !prompt || !revealed || !aiAvailable(getData()) || explain.state !== 'idle') return;
+  async function runExplain(again = false) {
+    if (!card || !prompt || !revealed || !aiAvailable(getData()) || (explain.state !== 'idle' && !(again && explain.state === 'error'))) return;
+    const id = ++explainRun.current;
     setExplain({ state: 'loading', text: '' });
     try {
       const text = await explainDifferently({
@@ -267,9 +273,9 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
         why: card.why,
         note: topic?.note.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, '')
       });
-      setExplain({ state: 'done', text });
+      if (id === explainRun.current) setExplain({ state: 'done', text });
     } catch (e) {
-      setExplain({ state: 'error', text: (e as Error).message });
+      if (id === explainRun.current) setExplain({ state: 'error', text: (e as Error).message, failure: failureOf(e) });
     }
   }
   explainRef.current = () => void runExplain();
@@ -507,12 +513,19 @@ export function Review({ route, go }: { route: Extract<Route, { name: 'review' }
               </button>
             )}
             {explain.state === 'loading' && (
-              <div className="ai-box stack gap8">
-                <span className="label">Думаю, как объяснить проще…</span>
-                <Skeleton lines={3} label="ИИ готовит объяснение" />
+              <div className="ai-box">
+                <AiWorking
+                  label="Думаю, как объяснить проще…"
+                  onCancel={() => {
+                    explainRun.current++;
+                    setExplain({ state: 'idle', text: '' });
+                  }}
+                >
+                  <Skeleton lines={3} label="ИИ готовит объяснение" />
+                </AiWorking>
               </div>
             )}
-            {explain.state === 'error' && <div className="hint warn">{explain.text}</div>}
+            {explain.state === 'error' && <AiProblem error={explain.text} failure={explain.failure} onRetry={() => void runExplain(true)} />}
             {explain.state === 'done' && (
               <div className="ai-box">
                 <span className="label">Объяснение от ИИ — проверь его по учебнику</span>
