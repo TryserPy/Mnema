@@ -177,9 +177,15 @@ function ShotEditor({ src, initial, onCancel, onDone }: { src: string; initial: 
   };
   useEffect(() => redraw(shapes)); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
-    window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
+    // Esc закрывает только редактор снимка: перехватываем раньше окна «Сообщить о проблеме» (оно смотрит defaultPrevented),
+    // иначе вместе с редактором закрывалась и форма с уже написанным текстом.
+    const k = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      onCancel();
+    };
+    window.addEventListener('keydown', k, true);
+    return () => window.removeEventListener('keydown', k, true);
   }, [onCancel]);
 
   const at = (e: React.PointerEvent<HTMLCanvasElement>) => {
