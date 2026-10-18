@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { clearDraft, loadDraft, useDraft } from '../drafts';
 import { instantiate, problemErrors } from '../problems';
 import { clozeCount } from '../srs';
 import { addCard, updateCard, updateSettings, useData } from '../store';
@@ -29,15 +30,65 @@ interface Props {
 
 type Field = 'front' | 'back' | 'why';
 
+/** Что помнит черновик карточки. */
+interface CardDraft {
+  type: CardType;
+  front: string;
+  back: string;
+  why: string;
+  showWhy: boolean;
+  occImg?: string;
+  occl?: Occlusion;
+}
+
+/** Ключ черновика: новая карточка в теме (из выделенного — ещё и по тексту) или правка своей карточки. */
+export function cardDraftKey(topicId: string, card?: Pick<Card, 'id'>, initial?: { front?: string }): string {
+  if (card) return `card:${card.id}`;
+  const f = initial?.front?.trim();
+  if (!f) return `new:${topicId}`;
+  let h = 0;
+  for (let i = 0; i < f.length; i++) h = (h * 31 + f.charCodeAt(i)) | 0;
+  return `new:${topicId}:${(h >>> 0).toString(36)}`;
+}
+
+/** Все формулы $…$ в тексте — для списка «Формулы» с кнопкой «убрать». */
+export function formulasIn(text: string): { tex: string; start: number; end: number }[] {
+  const out: { tex: string; start: number; end: number }[] = [];
+  for (const m of text.matchAll(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g)) out.push({ tex: (m[1] ?? m[2]).trim(), start: m.index!, end: m.index! + m[0].length });
+  return out;
+}
+
+/** Убрать формулу из текста вместе с лишним пробелом на её месте. */
+export function removeFormula(text: string, f: { start: number; end: number }): string {
+  return (text.slice(0, f.start).replace(/[ \t]+$/, '') + (f.end < text.length && f.start > 0 ? ' ' : '') + text.slice(f.end).replace(/^[ \t]+/, '')).replace(/^ /, '');
+}
+
 export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }: Props) {
-  const [type, setType] = useState<CardType>(card?.type ?? initial?.type ?? 'basic');
-  const [front, setFront] = useState(card?.front ?? initial?.front ?? '');
-  const [back, setBack] = useState(card?.back ?? initial?.back ?? '');
-  const [why, setWhy] = useState(card?.why ?? initial?.why ?? '');
+  const draftKey = cardDraftKey(topicId, card, initial);
+  // Черновик восстанавливаем один раз, при открытии; у правки — только если он отличается от самой карточки.
+  const restored = useMemo(() => {
+    const d = loadDraft<CardDraft>(draftKey)?.value;
+    if (!d) return null;
+    if (card && d.type === card.type && d.front === card.front && d.back === card.back && d.why === (card.why ?? '')) return null;
+    return d;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [type, setType] = useState<CardType>(restored?.type ?? card?.type ?? initial?.type ?? 'basic');
+  const [front, setFront] = useState(restored?.front ?? card?.front ?? initial?.front ?? '');
+  const [back, setBack] = useState(restored?.back ?? card?.back ?? initial?.back ?? '');
+  const [why, setWhy] = useState(restored?.why ?? card?.why ?? initial?.why ?? '');
   // «Закрыть часть картинки»: картинка (в front) и рамки.
-  const [occImg, setOccImg] = useState(() => (card?.type === 'occlusion' ? (occlImage(card.front) ?? '') : ''));
-  const [occl, setOccl] = useState<Occlusion>(card?.occl ?? { masks: [], all: true });
-  const [showWhy, setShowWhy] = useState(Boolean(card?.why || initial?.why));
+  const [occImg, setOccImg] = useState(() => restored?.occImg ?? (card?.type === 'occlusion' ? (occlImage(card.front) ?? '') : ''));
+  const [occl, setOccl] = useState<Occlusion>(restored?.occl ?? card?.occl ?? { masks: [], all: true });
+  const [showWhy, setShowWhy] = useState(restored?.showWhy ?? Boolean(card?.why || initial?.why));
+  const [fromDraft, setFromDraft] = useState(Boolean(restored));
+  const draftValue: CardDraft = { type, front, back, why, showWhy, ...(type === 'occlusion' ? { occImg, occl } : {}) };
+  // Пустое (или ровно то, что было у карточки) — не черновик.
+  const draft = useDraft<CardDraft>(draftKey, draftValue, (v) => {
+    if (card) return v.type === card.type && v.front === card.front && v.back === card.back && v.why === (card.why ?? '') && (v.type !== 'occlusion' || JSON.stringify(v.occl) === JSON.stringify(card.occl));
+    const blank = !v.front.trim() && !v.back.trim() && !v.why.trim() && !v.occImg && !v.occl?.masks.length;
+    const same = Boolean(initial) && v.type === (initial?.type ?? 'basic') && v.front === (initial?.front ?? '') && v.back === (initial?.back ?? '') && v.why === (initial?.why ?? '');
+    return blank || same;
+  });
   const [saved, setSaved] = useState(false);
   const [formulaFor, setFormulaFor] = useState<Field | null>(null);
   const [exampleSeed, setExampleSeed] = useState(7);
@@ -56,6 +107,8 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
   const example = type === 'problem' && probErrors.length === 0 && front.trim() ? instantiate(front, back, exampleSeed) : null;
   const longAnswer = type !== 'cloze' && wordCount(back) > 25;
   const hasMath = /\$[^$]+\$/.test(front + back + why);
+  const formulas = (['front', 'back', 'why'] as Field[]).flatMap((field) => (field === 'why' && !showWhy ? [] : formulasIn(values[field]).map((f) => ({ ...f, field }))));
+  const whyId = useId();
 
   function makeCloze() {
     const el = refs.front.current;
@@ -86,6 +139,8 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
   function save() {
     if (!canSave) return;
     const payload = type === 'occlusion' ? { type, front: occlFront(occImg), back: back.trim(), why: why.trim() || undefined, occl } : { type, front: front.trim(), back: back.trim(), why: why.trim() || undefined, occl: undefined, ...(initial?.page && !card ? { page: initial.page } : {}) };
+    draft.discard();
+    setFromDraft(false);
     if (card) {
       updateCard(card.id, payload);
       onDone?.();
@@ -177,6 +232,28 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
           )}
         </div>
       )}
+      {fromDraft && (
+        <div className="hint info row gap8 wrap draft-note" role="status" data-part="draft-restored">
+          <span className="grow">Черновик восстановлен — продолжай с того места, где остановился.</span>
+          <button
+            type="button"
+            className="btn small ghost"
+            onClick={() => {
+              clearDraft(draftKey);
+              setFromDraft(false);
+              setType(card?.type ?? initial?.type ?? 'basic');
+              setFront(card?.front ?? initial?.front ?? '');
+              setBack(card?.back ?? initial?.back ?? '');
+              setWhy(card?.why ?? initial?.why ?? '');
+              setShowWhy(Boolean(card?.why || initial?.why));
+              setOccImg(card?.type === 'occlusion' ? (occlImage(card.front) ?? '') : '');
+              setOccl(card?.occl ?? { masks: [], all: true });
+            }}
+          >
+            Удалить черновик
+          </button>
+        </div>
+      )}
       <label className="type-select">
         <span className="small muted">Тип</span>
         <select className="input" value={type} onChange={(e) => setType(e.target.value as CardType)}>
@@ -221,11 +298,42 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
         </label>
       )}
       {showWhy ? (
-        <label className="field">
-          <span>Почему это так? (необязательно)</span>
-          <textarea ref={refs.why} rows={2} value={why} onFocus={() => (lastField.current = 'why')} onChange={(e) => setWhy(e.target.value)} placeholder="Объяснение, которое связывает факт с тем, что ты уже знаешь" />
-        </label>
+        <div className="field">
+          <div className="row gap8 field-head">
+            <label htmlFor={whyId} className="grow">
+              Почему это так? (необязательно)
+            </label>
+            {/* Убрать блок: объяснение не сохранится в карточку (пустое поле тоже не сохраняется). */}
+            <button
+              type="button"
+              className="icon-btn small"
+              aria-label="Убрать объяснение «почему»"
+              title="Убрать объяснение"
+              onClick={() => {
+                setWhy('');
+                setShowWhy(false);
+                if (lastField.current === 'why') lastField.current = 'front';
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <textarea id={whyId} ref={refs.why} rows={2} value={why} onFocus={() => (lastField.current = 'why')} onChange={(e) => setWhy(e.target.value)} placeholder="Объяснение, которое связывает факт с тем, что ты уже знаешь" />
+        </div>
       ) : null}
+      {formulas.length > 0 && (
+        <div className="formula-list" aria-label="Формулы в карточке">
+          <span className="small muted">Формулы:</span>
+          {formulas.map((f) => (
+            <span key={f.field + f.start} className="formula-chip">
+              <Markdown text={`$${f.tex}$`} className="formula-chip-tex" />
+              <button type="button" className="tpl-x" aria-label={`Убрать формулу ${f.tex}`} title="Убрать формулу" onClick={() => setters[f.field](removeFormula(values[f.field], f))}>
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="row gap12 wrap">
         {!showWhy && (
           <button type="button" className="link-btn" onClick={() => setShowWhy(true)}>
@@ -267,7 +375,15 @@ export function CardEditor({ topicId, card, initial, onDone, autoFocus = true }:
       <div className="row gap8 end wrap">
         {saved && <span className="muted small">Добавлено ✓</span>}
         {onDone && (
-          <button type="button" className="btn ghost" onClick={onDone}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              // «Отмена» — явный отказ: черновик стирается (закрытие крестиком или уход с экрана его сохраняют).
+              draft.discard();
+              onDone();
+            }}
+          >
             Отмена
           </button>
         )}

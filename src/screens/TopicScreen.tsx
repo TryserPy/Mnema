@@ -9,7 +9,7 @@ import { PageViewer } from '../components/PageViewer';
 import { TextbookImport } from '../components/lazy';
 import { NotebookImport } from '../components/NotebookImport';
 import { findImportant } from '../important';
-import { CardEditor } from '../components/CardEditor';
+import { CardEditor, cardDraftKey } from '../components/CardEditor';
 import { Markdown } from '../components/Markdown';
 import { NoteEditor, type NoteApi } from '../components/NoteEditor';
 import { ConfirmButton, Icon, Modal, MoreMenu, OverflowTabs, plural, selHow, usePresence, AnimText } from '../components/ui';
@@ -39,6 +39,7 @@ import { openExamDialog } from '../components/ExamDialog';
 import { NoteHistoryDialog } from '../components/NoteHistory';
 import { AiCardDrafts } from '../components/AiCardDrafts';
 import { aiAvailable } from '../ai';
+import { useHasDraft } from '../drafts';
 import { OcclusionView } from '../components/Occlusion';
 import { occlImage } from '../occlusion';
 
@@ -698,6 +699,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
   const [aiDrafts, setAiDrafts] = useState(false);
   const [srcDrafts, setSrcDrafts] = useState(false);
   const [adding, setAdding] = useState(false);
+  const cardDraft = useHasDraft(cardDraftKey(topicId));
   const [query, setQuery] = useState('');
   const canAi = aiAvailable(data) && Boolean(data.topics.find((t) => t.id === topicId)?.note.trim()); // ИИ включён и есть конспект: можно предложить черновики
   const [onlyHard, setOnlyHard] = useState(false);
@@ -725,7 +727,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
             <Icon name="sparkle" size={18} /> Сделать из конспекта
           </button>
           <button className="btn" onClick={() => setAdding(true)}>
-            <Icon name="plus" size={18} /> Вручную
+            <Icon name="plus" size={18} /> Вручную{cardDraft && <span className="chip neutral">черновик</span>}
           </button>
           {canAi && (
             <button className="btn" onClick={() => setAiDrafts(true)} title="ИИ предложит вопросы по конспекту, а ты проверишь и поправишь">
@@ -758,7 +760,7 @@ function CardsTab({ topicId, cards }: { topicId: string; cards: Card[] }) {
     <div className="stack gap12">
       <div className="row gap8 wrap">
         <button className="btn primary" onClick={() => setAdding(true)}>
-          <Icon name="plus" size={18} /> Карточка
+          <Icon name="plus" size={18} /> Карточка{cardDraft && <span className="chip neutral">черновик</span>}
         </button>
         <button className="btn" onClick={() => setFromNote(true)} title="Черновики карточек из жирного, определений и дат конспекта">
           <Icon name="sparkle" size={16} /> Из конспекта

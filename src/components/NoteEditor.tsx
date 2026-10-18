@@ -303,7 +303,10 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     onUpdate: ({ editor: ed }) => {
       markLong(ed);
       clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => onChangeRef.current(ed.getMarkdown()), 300);
+      saveTimer.current = setTimeout(() => {
+        saveTimer.current = undefined;
+        onChangeRef.current(ed.getMarkdown());
+      }, 300);
     }
   });
 
@@ -368,6 +371,24 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     },
     [editor]
   );
+  // Свернули приложение (телефон) или закрывают вкладку: последние 300 мс набора не ждут таймера, а сразу пишутся на диск.
+  useEffect(() => {
+    if (!editor) return;
+    const flush = () => {
+      if (saveTimer.current === undefined || editor.isDestroyed) return;
+      clearTimeout(saveTimer.current);
+      saveTimer.current = undefined;
+      onChangeRef.current(editor.getMarkdown());
+      (window as unknown as { __mnemaFlush?: () => void }).__mnemaFlush?.();
+    };
+    const hidden = () => document.visibilityState === 'hidden' && flush();
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, [editor]);
 
   // Следим за выделением: на телефоне кнопка «Выделенное» становится активной, а в меню Android
   // (Копировать / Вставить…) добавляются «В карточку», «Маркер» и другие.
