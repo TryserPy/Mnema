@@ -11,6 +11,7 @@ import { addCard, addHomework, addTopic, getData, updateCard, updateSettings, up
 import type { AppData, Card, PluginRec, Route } from '../types';
 import { emit, on } from './bus';
 import { aiText, rateCheck } from './aiGate';
+import { appHttp } from '../devMode';
 
 export interface PluginCommand {
   id: string;
@@ -297,8 +298,9 @@ function makeApi(p: PluginRec) {
       }
     },
     http: async (url: string, init: { method?: string; headers?: Record<string, string>; body?: string } = {}) => {
-      if (!window.mnemaApi?.http) throw new Error('Сеть для модов работает в приложении (Windows, Linux или Android)');
-      return window.mnemaApi.http({ url, method: init.method ?? 'GET', headers: init.headers, body: init.body, timeout: 30000 });
+      const http = appHttp();
+      if (!http) throw new Error('Сеть для модов работает в приложении (Windows, Linux или Android)');
+      return http({ url, method: init.method ?? 'GET', headers: init.headers, body: init.body, timeout: 30000 });
     }
   };
 }

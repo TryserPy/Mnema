@@ -76,23 +76,36 @@ export function recordNet(e: NetEntry): void {
   emit();
 }
 
-/** Обернуть сеть приложения (mnemaApi.http и fetch), только когда режим включён. */
+type Http = NonNullable<NonNullable<Window['mnemaApi']>['http']>;
+
+/**
+ * Сеть приложения (mnemaApi.http) с записью в консоль разработчика, когда режим включён.
+ * Сам мост не подменяем: на Windows и Linux его отдаёт contextBridge, и он заморожен —
+ * подмена http в самом мосте роняла приложение при запуске («Cannot assign to read only property 'http'»).
+ */
+export function appHttp(): Http | undefined {
+  const raw = typeof window === 'undefined' ? undefined : window.mnemaApi?.http;
+  if (!raw) return undefined;
+  return async (r) => {
+    const t = performance.now();
+    try {
+      const res = await raw(r);
+      if (on) recordNet({ at: Date.now(), method: (r.method || 'GET').toUpperCase(), url: r.url, status: res.status, ms: Math.round(performance.now() - t) });
+      return res;
+    } catch (e) {
+      if (on) recordNet({ at: Date.now(), method: (r.method || 'GET').toUpperCase(), url: r.url, status: 0, ms: Math.round(performance.now() - t) });
+      throw e;
+    }
+  };
+}
+
+/** Обернуть fetch окна, только когда режим включён. Мост mnemaApi не трогаем — см. appHttp. */
 function wrap(): void {
   if (wrapped || typeof window === 'undefined') return;
   wrapped = true;
-  const api = window.mnemaApi;
-  if (api?.http) {
-    const orig = api.http;
-    api.http = async (r) => {
-      const t = performance.now();
-      const res = await orig(r);
-      if (on) recordNet({ at: Date.now(), method: (r.method || 'GET').toUpperCase(), url: r.url, status: res.status, ms: Math.round(performance.now() - t) });
-      return res;
-    };
-  }
-  if (typeof window.fetch === 'function') {
-    const origFetch = window.fetch.bind(window);
-    window.fetch = async (input, init) => {
+  const origFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+  if (origFetch) {
+    const logged: typeof window.fetch = async (input, init) => {
       const t = performance.now();
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       try {
@@ -104,6 +117,11 @@ function wrap(): void {
         throw e;
       }
     };
+    try {
+      window.fetch = logged;
+    } catch {
+      /* fetch только для чтения — консоль просто не увидит эти запросы */
+    }
   }
   // Долгие задачи (> 50 мс) — в журнал как предупреждение; одинаковые подряд свернутся в ×N.
   try {

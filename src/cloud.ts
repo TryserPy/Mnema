@@ -6,6 +6,7 @@ import { mergeData, trashedText, type MergeReport } from './sync';
 import { toast } from './components/ui';
 import type { AppData } from './types';
 import { YANDEX_API, yandexError } from './yandexDisk';
+import { appHttp } from './devMode';
 
 export const CLOUD_FILE = 'mnema-data.json';
 
@@ -221,7 +222,7 @@ export function warnTrashed(r: MergeReport): void {
  * в журналы и тексты ошибок ни он, ни логин не попадают.
  */
 export async function cloudSync(c: CloudSettings, secret: string, encPass: string, onStep?: (s: string) => void): Promise<CloudResult> {
-  const http = window.mnemaApi?.http;
+  const http = appHttp();
   if (!http) throw new Error('Облако работает в приложении Refrain (Windows, Linux или Android).');
   if (c.encrypt && !encPass) throw new Error('Включено шифрование — задай пароль шифрования.');
   const backend = c.kind === 'yandex' ? yandexBackend(http, c, secret) : webdavBackend(http, c, secret);

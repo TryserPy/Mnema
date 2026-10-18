@@ -10,6 +10,7 @@ import { parseAiCards, type AiCardDraft } from './aiCards';
 import { promptSystem } from './prompts';
 import { refrainApi } from './refrainBridge';
 import { TASK_SPECS } from '../shared/prompts/tasks';
+import { appHttp } from './devMode';
 
 export interface Source {
   kind: 'article' | 'youtube' | 'book' | 'text';
@@ -50,7 +51,7 @@ const noFetch = () =>
 
 /** Скачать на этом устройстве (Electron, Android): переходы проверяются заново, размер ограничен. */
 async function fetchHere(start: string, accept: string): Promise<{ text: string; url: string; type: string }> {
-  const http = window.mnemaApi?.http;
+  const http = appHttp();
   if (!http || window.mnemaApi?.platform === 'web') throw new Error(noFetch());
   let url = start;
   for (let hop = 0; hop <= EXTRACT_LIMITS.redirects; hop++) {

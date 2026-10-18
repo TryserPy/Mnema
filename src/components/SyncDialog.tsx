@@ -5,6 +5,7 @@ import { formatCode, nonce, normCode, open, seal, syncKey } from '../../shared/s
 import { forSync, getData, normalizeData, replaceData } from '../store';
 import { mergeData, reportText, type MergeReport } from '../sync';
 import { warnTrashed } from '../cloud';
+import { appHttp } from '../devMode';
 import { Icon, Modal, Segmented, Skeleton } from './ui';
 
 interface Target {
@@ -30,7 +31,7 @@ export function decodeTarget(s: string): Target | 'old' | null {
 
 /** Отправить свои данные на другое устройство и получить слитые. */
 export async function syncWith(t: Target, onStep?: (s: string) => void): Promise<MergeReport> {
-  const http = window.mnemaApi?.http;
+  const http = appHttp();
   if (!http) throw new Error('Синхронизация работает в приложении Refrain (Windows, Linux или Android).');
   const key = await syncKey(t.code);
   let base = '';
