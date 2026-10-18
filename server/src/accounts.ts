@@ -88,7 +88,8 @@ export async function revokeSessions(env: Env, accountId: string, deviceId?: str
 export async function unbindDevice(env: Env, accountId: string, deviceId: string): Promise<void> {
   await env.DB.batch([
     env.DB.prepare('UPDATE devices SET revoked = 1 WHERE id = ?1 AND account_id = ?2').bind(deviceId, accountId),
-    env.DB.prepare('UPDATE sessions SET revoked = 1 WHERE device_id = ?1').bind(deviceId)
+    // Только сессии своего аккаунта: иначе по чужому id устройства можно было бы выбить чужой вход.
+    env.DB.prepare('UPDATE sessions SET revoked = 1 WHERE device_id = ?1 AND account_id = ?2').bind(deviceId, accountId)
   ]);
 }
 

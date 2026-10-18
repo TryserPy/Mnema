@@ -42,7 +42,7 @@ export const fail = (code: ErrorCode, extra: Omit<ApiError['error'], 'code' | 'm
 };
 
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } });
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers } });
 }
 
 export function errorResponse(e: ApiFail): Response {
@@ -52,12 +52,36 @@ export function errorResponse(e: ApiFail): Response {
   return json(body, ERRORS[e.code], h);
 }
 
+/** Тело целиком, но не больше max байт: без content-length (chunked) читаем по кускам и обрываем на превышении, а не держим в памяти всё. */
+async function readCapped(req: Request, max: number): Promise<Uint8Array> {
+  if (!req.body) return new Uint8Array();
+  const reader = req.body.getReader();
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      fail('payload_too_large');
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.byteLength;
+  }
+  return out;
+}
+
 /** Тело JSON не больше max байт. Не JSON или больше — ошибка контракта. */
 export async function readJson(req: Request, max: number): Promise<{ raw: Uint8Array; body: unknown }> {
   const len = Number(req.headers.get('content-length') || 0);
   if (len > max) fail('payload_too_large');
-  const raw = new Uint8Array(await req.arrayBuffer());
-  if (raw.length > max) fail('payload_too_large');
+  const raw = await readCapped(req, max);
   if (!raw.length) return { raw, body: {} };
   try {
     return { raw, body: JSON.parse(new TextDecoder().decode(raw)) };

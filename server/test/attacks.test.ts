@@ -66,6 +66,16 @@ describe('повтор и подделка запроса', () => {
     expect(await count(h, "SELECT COUNT(*) AS n FROM blocks WHERE kind IN ('account', 'device')")).toBe(0);
   });
 
+  it('«Отвязать» чужое устройство по id нельзя: его вход остаётся (IDOR)', async () => {
+    const h = new Harness();
+    await h.setting('mode', 'all');
+    const victim = await h.login('victim2@example.com');
+    const attacker = await h.login('attacker2@example.com', { ip: '192.0.2.201' });
+    expect((await attacker.call('DELETE', `/v1/devices/${victim.id}`)).status).toBe(200);
+    expect((await victim.call('GET', '/v1/me')).status).toBe(200);
+    expect(await count(h, `SELECT COUNT(*) AS n FROM sessions WHERE device_id = '${victim.id}' AND revoked = 1`)).toBe(0);
+  });
+
   it('чужой токен: токен устройства A с ключом устройства B', async () => {
     const h = new Harness();
     await h.setting('mode', 'all');
