@@ -21,6 +21,9 @@ export function rowStatus(data: AppData, c: Card): RowStatus {
 }
 const STATUS_LABEL: Record<RowStatus, string> = { new: 'новое', learning: 'учу', known: 'выучено', plain: 'без ответа — не учится, пока не допишешь' };
 const DEFAULT_W: [number, number, number] = [1, 1.2, 1];
+const WIDE_DEF_W: [number, number, number] = [0.9, 2.4, 0.6];
+/** С какой длины определение в таблице сворачивается до нескольких строк. */
+const LONG_CELL = 320;
 
 /** Разбор вставленного текста: «слово — перевод — пример», по строке на запись. */
 export function parseListText(text: string): { a: string; b: string; c?: string }[] {
@@ -80,7 +83,10 @@ export function StudyListView({ topicId, list, go, subjectId }: { topicId: strin
   const isFormula = list.kind === 'formulas';
   const tableRef = useRef<HTMLDivElement>(null);
   const [dragW, setDragW] = useState<[number, number, number] | null>(null);
-  const w = dragW ?? list.widths ?? DEFAULT_W;
+  // Ширины не заданы вручную, а «пример» пуст во всех строках — определению больше места (иначе длинное
+  // определение превращалось в узкий высокий столбик рядом с пустым столбцом).
+  const noExamples = rows.length > 0 && rows.every((r) => !r.why?.trim());
+  const w = dragW ?? list.widths ?? (noExamples ? WIDE_DEF_W : DEFAULT_W);
   const plainRows = rows.filter((c) => rowStatus(data, c) === 'plain').length;
 
   return (
@@ -182,6 +188,9 @@ export function ListRow({ card, list, status, speakable, isFormula }: { card: Ca
   const [b, setB] = useState(card.back);
   const [c, setC] = useState(card.why ?? '');
   const [editB, setEditB] = useState(false);
+  // Очень длинное определение в таблице — первые строки и «Показать полностью» (при правке — целиком).
+  const longB = b.length > LONG_CELL;
+  const [open, setOpen] = useState(false);
   useEffect(() => setA(card.front), [card.front]);
   useEffect(() => setB(card.back), [card.back]);
   useEffect(() => setC(card.why ?? ''), [card.why]);
@@ -222,7 +231,7 @@ export function ListRow({ card, list, status, speakable, isFormula }: { card: Ca
           </button>
         )}
       </span>
-      <span className="cell-wrap" role="cell">
+      <span className={'cell-wrap' + (longB && !open ? ' clamped' : '')} role="cell">
         {isFormula && !editB && /\$/.test(b) ? (
           <button type="button" className="cell cell-math" onClick={() => setEditB(true)} title="Изменить формулу">
             <Markdown text={b} />
@@ -241,7 +250,13 @@ export function ListRow({ card, list, status, speakable, isFormula }: { card: Ca
               setEditB(false);
             }}
             onKeyDown={nextOnEnter}
+            onFocus={() => setOpen(true)}
           />
+        )}
+        {longB && !open && (
+          <button type="button" className="link-btn small cell-more" onClick={() => setOpen(true)}>
+            Показать полностью
+          </button>
         )}
       </span>
       <span className="cell-wrap c" role="cell">

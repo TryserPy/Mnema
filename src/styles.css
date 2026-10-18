@@ -1756,3 +1756,23 @@ html[data-touch] .bubble.sel-panel .sel-actions > button { min-height: 44px; pad
 html[data-touch] .bubble.sel-panel .sel-actions .sel-text small { display: none; }
 html[data-touch] .bubble.sel-panel .sel-actions .sel-callouts { grid-column: 1 / -1; padding-left: 4px; }
 html[data-touch] .bubble.sel-panel .sel-actions .sel-card { grid-column: 1 / -1; min-height: 44px; }
+/* №13: очень длинное определение в таблице — первые 6 строк с плавным краем и «Показать полностью». */
+.list-tr .cell-wrap.clamped { flex-direction: column; align-items: stretch; }
+.list-tr .cell-wrap.clamped > textarea.cell { max-height: calc(6 * 1.4em + 20px); overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); }
+.list-tr .cell-more { align-self: flex-start; margin: 0 12px 8px; }
+/* Карточки, ответы и окна: длинные слова и ссылки переносятся, а не раздувают блок. */
+.card-row, .review-card, .answer, .why-box, .md, .modal, .bulk-row { min-width: 0; overflow-wrap: anywhere; }
+.md .katex-display, .why-box .katex-display, .answer .katex-display { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+/* Узкая таблица (планшет с боковой панелью, окно в половину экрана): строки «термин / определение / пример» друг под другом,
+   а не три колонки по 100 px с длинным текстом столбиком. */
+.list-view { container-type: inline-size; }
+@container (max-width: 620px) {
+  .list-tr { grid-template-columns: minmax(0, 1fr) 34px !important; grid-template-areas: 'a x' 'b x' 'c x'; }
+  .list-tr > :nth-child(1) { grid-area: a; }
+  .list-tr > :nth-child(2) { grid-area: b; border-left: none; padding-left: 23px; }
+  .list-tr > :nth-child(3) { grid-area: c; border-left: none; padding-left: 23px; }
+  .list-tr > :nth-child(4) { grid-area: x; }
+  .list-th { display: none; }
+  .list-tr .cell-wrap.a .cell { font-weight: 600; }
+  .list-tr:not(.new-row) .cell-wrap.c:has(textarea:placeholder-shown):not(:focus-within) { display: none; }
+}
