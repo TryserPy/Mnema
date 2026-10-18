@@ -3,7 +3,7 @@
 // само приложение, с той же проверкой адреса (shared/urlGuard.mjs). В браузере чужие сайты не открыть (CORS) — там
 // предлагаем вставить текст. Книга EPUB разбирается на устройстве (epub.ts). Ответ ИИ — черновики: ученик проверяет каждую карточку.
 import { EXTRACT_LIMITS } from '../shared/refrain/api.mjs';
-import { articleText, captionsText, pickTrack, youtubeTracks } from '../shared/readable.mjs';
+import { articleText, youtubeCaptions } from '../shared/readable.mjs';
 import { checkUrl, youtubeId } from '../shared/urlGuard.mjs';
 import { askAi, cardsJsonToLines } from './ai';
 import { parseAiCards, type AiCardDraft } from './aiCards';
@@ -72,16 +72,28 @@ async function fetchHere(start: string, accept: string): Promise<{ text: string;
   throw new Error('Слишком много перенаправлений. Открой статью сам и вставь её текст.');
 }
 
+/** Субтитры на этом устройстве (Electron, Android): тот же порядок и те же причины, что у сервера (shared/readable.mjs). */
 async function youtubeHere(id: string): Promise<Source> {
-  const page = await fetchHere(`https://www.youtube.com/watch?v=${id}&hl=ru`, 'text/html');
-  const { title, tracks } = youtubeTracks(page.text);
-  const track = pickTrack(tracks);
-  if (!track) throw new Error('У этого видео нет субтитров. Открой видео на YouTube → «…» → «Показать расшифровку», скопируй текст и вставь его во вкладку «Текст».');
-  const u = new URL(track.url, 'https://www.youtube.com');
-  u.searchParams.set('fmt', 'json3');
-  const text = captionsText((await fetchHere(u.toString(), 'application/json')).text);
-  if (!text) throw new Error('YouTube не отдал субтитры. Открой видео → «…» → «Показать расшифровку», скопируй текст и вставь его.');
-  return { kind: 'youtube', title: title || 'Видео YouTube', text: text.slice(0, EXTRACT_LIMITS.textChars), url: `https://www.youtube.com/watch?v=${id}`, cut: text.length > EXTRACT_LIMITS.textChars };
+  const http = appHttp();
+  if (!http || window.mnemaApi?.platform === 'web') throw new Error(noFetch());
+  let r: Awaited<ReturnType<typeof youtubeCaptions>>;
+  try {
+    r = await youtubeCaptions(
+      id,
+      (url, accept) => fetchHere(url, accept),
+      async (url, body, headers) => {
+        // Только InnerTube YouTube: адрес фиксированный, без переходов.
+        const u = new URL(url);
+        if (u.protocol !== 'https:' || u.hostname !== 'www.youtube.com' || u.pathname !== '/youtubei/v1/player') throw new Error('Неверный адрес YouTube.');
+        const res = await http({ url: u.toString(), method: 'POST', headers, body, timeout: EXTRACT_LIMITS.timeoutMs, maxBytes: EXTRACT_LIMITS.fetchBytes, publicOnly: true });
+        if (res.status < 200 || res.status >= 300) throw new Error(`youtubei ${res.status}`);
+        return { text: res.text };
+      }
+    );
+  } catch (e) {
+    throw new Error((e as { message?: string }).message || 'YouTube не отдал субтитры.');
+  }
+  return { kind: 'youtube', title: r.title || 'Видео YouTube', text: r.text.slice(0, EXTRACT_LIMITS.textChars), url: `https://www.youtube.com/watch?v=${id}`, cut: r.text.length > EXTRACT_LIMITS.textChars };
 }
 
 /** Текст по ссылке: статья или субтитры YouTube. Ошибка — понятным текстом с тем, что сделать. */

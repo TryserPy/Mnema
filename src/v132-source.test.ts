@@ -52,8 +52,10 @@ describe('текст статьи и субтитры', () => {
     const html = `x"captionTracks":[{"baseUrl":"https://www.youtube.com/api/timedtext?a=1","languageCode":"en"},{"baseUrl":"https://www.youtube.com/api/timedtext?a=2","languageCode":"ru","kind":"asr"}],"y"`;
     const t = youtubeTracks(html).tracks;
     expect(t).toHaveLength(2);
-    expect(pickTrack(t)?.lang).toBe('ru');
+    // 1.33: сделанные людьми (любой язык) раньше автоматических — даже на нужном языке.
+    expect(pickTrack(t)?.lang).toBe('en');
     expect(pickTrack(t, ['de'])?.lang).toBe('en');
+    expect(pickTrack([t[1]])?.lang).toBe('ru');
   });
   it('длинный текст — части по абзацам не длиннее предела', () => {
     const text = Array.from({ length: 40 }, (_, i) => `Абзац ${i}. ` + 'слово '.repeat(150)).join('\n\n');

@@ -96,10 +96,54 @@ export function articleText(html, maxChars = 60000) {
 
 // ---------- YouTube ----------
 
-/** Дорожки субтитров из страницы видео (ytInitialPlayerResponse): язык, адрес, автоматические или нет; и название видео. */
-export function youtubeTracks(html) {
+/** JSON-значение (массив или объект), начинающееся с позиции start, — до парной закрывающей скобки (строки учитываются). */
+function jsonAt(s, start, limit = 3_000_000) {
+  const open = s[start];
+  if (open !== '[' && open !== '{') return null;
+  let depth = 0;
+  let inStr = false;
+  for (let i = start; i < s.length && i < start + limit; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inStr = false;
+    } else if (ch === '"') inStr = true;
+    else if (ch === '[' || ch === '{') depth++;
+    else if ((ch === ']' || ch === '}') && --depth === 0) {
+      try {
+        return JSON.parse(s.slice(start, i + 1));
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+/** Дорожки из captionTracks (страница или ответ InnerTube): язык, адрес, автоматические («asr») или нет. */
+function tracksOf(arr) {
+  return (Array.isArray(arr) ? arr : [])
+    .filter((t) => t && typeof t.baseUrl === 'string' && typeof t.languageCode === 'string')
+    .map((t) => ({ lang: t.languageCode, url: t.baseUrl, auto: t.kind === 'asr' }));
+}
+
+/** Почему видео не отдаёт субтитры: по playabilityStatus плеера. */
+function playability(p) {
+  const st = p && p.playabilityStatus;
+  if (!st || !st.status || st.status === 'OK') return 'ok';
+  const why = `${st.reason || ''} ${JSON.stringify(st.errorScreen || '')}`;
+  if (/not a bot|не робот|не бот/i.test(why)) return 'bot';
+  if (st.status === 'LOGIN_REQUIRED') return /age|возраст|inappropriate/i.test(why) ? 'age' : /private|частн|доступ/i.test(why) ? 'private' : 'login';
+  if (st.status === 'AGE_CHECK_REQUIRED' || st.status === 'CONTENT_CHECK_REQUIRED') return 'age';
+  return 'unavailable';
+}
+
+/**
+ * Страница видео (ytInitialPlayerResponse): название, дорожки субтитров, ключ InnerTube и состояние
+ * (ok / consent — вместо видео страница согласия / bot / age / login / private / unavailable).
+ */
+export function youtubePage(html) {
   const s = String(html);
-  const at = s.indexOf('"captionTracks":');
   const title = (() => {
     const m = /"videoDetails":\{[^{}]*?"title":"((?:[^"\\]|\\.)*)"/.exec(s);
     if (m) {
@@ -111,44 +155,136 @@ export function youtubeTracks(html) {
     }
     return decodeEntities((/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(s) || [])[1] || '').replace(/ - YouTube$/, '').trim();
   })();
-  if (at < 0) return { title, tracks: [] };
-  // Массив JSON — до парной закрывающей скобки.
-  const start = s.indexOf('[', at);
-  let depth = 0;
-  let end = -1;
-  let inStr = false;
-  for (let i = start; i < s.length && i < start + 200000; i++) {
-    const ch = s[i];
-    if (inStr) {
-      if (ch === '\\') i++;
-      else if (ch === '"') inStr = false;
-    } else if (ch === '"') inStr = true;
-    else if (ch === '[') depth++;
-    else if (ch === ']' && --depth === 0) {
-      end = i + 1;
-      break;
-    }
+  const apiKey = (/"INNERTUBE_API_KEY":"([\w-]{20,60})"/.exec(s) || [])[1] || '';
+  if (/consent\.youtube\.com|action="https:\/\/consent\.google/i.test(s) && !/captionTracks|playabilityStatus/.test(s)) return { title, tracks: [], apiKey, state: 'consent' };
+  // Плеер целиком — если он есть; иначе ищем captionTracks в любом месте страницы.
+  const pm = /ytInitialPlayerResponse\s*=\s*\{/.exec(s);
+  const player = pm ? jsonAt(s, pm.index + pm[0].length - 1) : null;
+  let tracks = player ? tracksOf(player.captions?.playerCaptionsTracklistRenderer?.captionTracks) : [];
+  if (!tracks.length) {
+    const at = s.indexOf('"captionTracks":');
+    if (at >= 0) tracks = tracksOf(jsonAt(s, s.indexOf('[', at)));
   }
-  if (end < 0) return { title, tracks: [] };
-  let arr;
-  try {
-    arr = JSON.parse(s.slice(start, end));
-  } catch {
-    return { title, tracks: [] };
-  }
-  const tracks = (Array.isArray(arr) ? arr : [])
-    .filter((t) => t && typeof t.baseUrl === 'string' && typeof t.languageCode === 'string')
-    .map((t) => ({ lang: t.languageCode, url: t.baseUrl, auto: t.kind === 'asr' }));
-  return { title, tracks };
+  const state = player ? playability(player) : /captionTracks/.test(s) ? 'ok' : /not a bot|не робот/i.test(s) ? 'bot' : 'ok';
+  return { title: title || player?.videoDetails?.title || '', tracks, apiKey, state };
 }
 
-/** Какую дорожку брать: русская, потом английская, потом любая; сделанная людьми лучше автоматической. */
-export function pickTrack(tracks, langs = ['ru', 'en']) {
-  const score = (t) => {
-    const li = langs.findIndex((l) => t.lang === l || t.lang.startsWith(l + '-'));
-    return (li < 0 ? langs.length : li) * 2 + (t.auto ? 1 : 0);
+/** Совместимость: только название и дорожки. */
+export function youtubeTracks(html) {
+  const p = youtubePage(html);
+  return { title: p.title, tracks: p.tracks };
+}
+
+/** Ответ InnerTube /youtubei/v1/player: дорожки, название и состояние. */
+export function playerTracks(json) {
+  let p;
+  try {
+    p = typeof json === 'string' ? JSON.parse(json) : json;
+  } catch {
+    return { title: '', tracks: [], state: 'unavailable' };
+  }
+  return { title: p?.videoDetails?.title || '', tracks: tracksOf(p?.captions?.playerCaptionsTracklistRenderer?.captionTracks), state: playability(p) };
+}
+
+/**
+ * Порядок дорожек: сделанные людьми на нужном языке → сделанные людьми на любом → автоматические на нужном → автоматические на любом.
+ * Внутри — по порядку языков в langs.
+ */
+export function rankTracks(tracks, langs = ['ru', 'en']) {
+  const li = (t) => {
+    const i = langs.findIndex((l) => t.lang === l || t.lang.startsWith(l + '-'));
+    return i < 0 ? langs.length : i;
   };
-  return [...tracks].sort((a, b) => score(a) - score(b))[0] ?? null;
+  const score = (t) => (t.auto ? 2 : 0) * 100 + (li(t) < langs.length ? 0 : 100) + li(t);
+  return [...tracks].sort((a, b) => score(a) - score(b));
+}
+
+/** Какую дорожку брать (первая по rankTracks). */
+export function pickTrack(tracks, langs = ['ru', 'en']) {
+  return rankTracks(tracks, langs)[0] ?? null;
+}
+
+/** Ключ InnerTube веб-плеера (публичный, есть в каждой странице YouTube) — если на странице его не нашли. */
+const INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+/** Клиент Android: его ссылки на субтитры работают без PO-токена, который с 2025 года нужен веб-плееру (exp=xpe). */
+const ANDROID_CLIENT = { clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 30, hl: 'ru', gl: 'RU' };
+export const YT_ANDROID_UA = 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip';
+
+/** Адрес субтитров только на YouTube (защита от подмены ссылки в ответе). */
+function captionUrl(raw, fmt) {
+  let u;
+  try {
+    u = new URL(raw, 'https://www.youtube.com');
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' || !/^(www\.|m\.)?youtube\.com$/.test(u.hostname) || !u.pathname.startsWith('/api/timedtext')) return null;
+  if (fmt) u.searchParams.set('fmt', fmt);
+  else u.searchParams.delete('fmt');
+  return u.toString();
+}
+
+const HOW = 'Открой видео на YouTube → «…» → «Показать расшифровку», скопируй текст и вставь его во вкладку «Текст».';
+export const YT_WHY = {
+  none: `У этого видео нет субтитров — ни сделанных автором, ни автоматических. ${HOW}`,
+  empty: `YouTube показал, что субтитры есть, но не отдал их текст (так бывает у новых видео и при защите от программ). Попробуй позже или: ${HOW}`,
+  age: `Видео с ограничением по возрасту: YouTube не отдаёт его субтитры без входа в аккаунт. ${HOW}`,
+  login: `YouTube отдаёт это видео только после входа в аккаунт. ${HOW}`,
+  private: `Видео закрыто (частное или только по ссылке для участников) — субтитры недоступны. ${HOW}`,
+  unavailable: 'Видео недоступно: удалено, заблокировано в регионе или ссылка неверная. Проверь ссылку.',
+  bot: `YouTube попросил подтвердить, что запрос не от программы, и не отдал субтитры. Попробуй позже или: ${HOW}`,
+  consent: `Вместо видео YouTube показал страницу согласия с cookies. ${HOW}`
+};
+
+/**
+ * Текст субтитров видео. get(url, accept, headers) и post(url, body, headers) → { text } — сеть вызывающего
+ * (сервер или приложение) со своими пределами размера и времени. Порядок: дорожки со страницы, при пустом ответе — те же
+ * в XML; если не вышло — дорожки клиента Android (InnerTube). Ошибка — { code: keyof YT_WHY, message }.
+ */
+export async function youtubeCaptions(id, get, post, langs = ['ru', 'en']) {
+  if (!/^[\w-]{11}$/.test(String(id))) throw { code: 'unavailable', message: YT_WHY.unavailable };
+  const page = await get(`https://www.youtube.com/watch?v=${id}&hl=ru&has_verified=1&bpctr=9999999999`, 'text/html', { cookie: 'CONSENT=YES+1; SOCS=CAI' });
+  const info = youtubePage(page.text);
+  let title = info.title;
+  let state = info.state;
+  let sawTracks = info.tracks.length > 0;
+  const tryTracks = async (tracks) => {
+    for (const t of rankTracks(tracks, langs).slice(0, 3)) {
+      for (const fmt of ['json3', '']) {
+        const url = captionUrl(t.url, fmt);
+        if (!url) continue;
+        let body = '';
+        try {
+          body = (await get(url, fmt ? 'application/json' : 'text/xml', {})).text;
+        } catch {
+          continue;
+        }
+        const text = captionsText(body);
+        if (text) return { text, lang: t.lang, auto: t.auto };
+      }
+    }
+    return null;
+  };
+  const first = info.tracks.length ? await tryTracks(info.tracks) : null;
+  if (first) return { title, ...first };
+  // Запасной путь: InnerTube, клиент Android.
+  try {
+    const res = await post(
+      `https://www.youtube.com/youtubei/v1/player?key=${info.apiKey || INNERTUBE_KEY}&prettyPrint=false`,
+      JSON.stringify({ context: { client: ANDROID_CLIENT }, videoId: id, contentCheckOk: true, racyCheckOk: true }),
+      { 'content-type': 'application/json', 'user-agent': YT_ANDROID_UA, 'x-youtube-client-name': '3', 'x-youtube-client-version': ANDROID_CLIENT.clientVersion }
+    );
+    const p = playerTracks(res.text);
+    title = title || p.title;
+    if (p.tracks.length) sawTracks = true;
+    if (state === 'ok' || state === 'consent') state = p.state;
+    const second = p.tracks.length ? await tryTracks(p.tracks) : null;
+    if (second) return { title, ...second };
+  } catch {
+    /* запасной путь не удался — причина ниже */
+  }
+  const code = state !== 'ok' ? state : sawTracks ? 'empty' : 'none';
+  throw { code, message: YT_WHY[code] ?? YT_WHY.none };
 }
 
 /** Пометки вместо речи — [Музыка], [Аплодисменты]: в карточки не нужны. */
