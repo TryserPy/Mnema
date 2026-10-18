@@ -9,6 +9,10 @@ import type { PagePhoto } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { Markdown } from './Markdown';
 import { Icon, Modal, plural, Segmented, AnimText, Skeleton, touchUI } from './ui';
+import { pagesLabel, textbookMessages, type MsgAction, type MsgLevel, type TbMessage } from '../textbookMessages';
+import { AiSettings } from './AiSettings';
+import { wantSignIn } from '../refrain';
+import '../ai-run.css';
 
 type Step = 'pages' | 'reading' | 'review';
 let uidN = 0;
@@ -20,7 +24,55 @@ export function groupByText(items: { n: number; text: string }[]): { pages: numb
   for (const it of items) out.set(it.text, [...(out.get(it.text) ?? []), it.n]);
   return [...out].map(([text, pages]) => ({ text, pages }));
 }
-const pagesLabel = (p: number[]) => (p.length === 1 ? `Стр. ${p[0]}` : `Стр. ${p.join(', ')}`);
+
+const ACTION_LABEL: Record<MsgAction, string> = { retry: 'Прочитать ещё раз', settings: 'Настройки ИИ', signin: 'Войти в Refrain ИИ', reshoot: 'Заменить фото' };
+const LEVEL_ICON: Record<MsgLevel, string> = { error: '⛔', warn: '⚠️', info: 'ℹ️' };
+const LEVEL_NAME: Record<MsgLevel, string> = { error: 'Ошибка', warn: 'Предупреждение', info: 'Сведения' };
+
+/** Главное сообщение с одним действием; остальные — свёрнуты («Ещё N»). */
+export function TbMessages({ list, onAction }: { list: TbMessage[]; onAction: (a: MsgAction) => void }) {
+  const [open, setOpen] = useState(false);
+  if (!list.length) return null;
+  const [main, ...rest] = list;
+  const line = (m: TbMessage) => (
+    <>
+      <span className="tb-msg-ico" role="img" aria-label={LEVEL_NAME[m.level]}>
+        {LEVEL_ICON[m.level]}
+      </span>
+      <span className="tb-msg-text">
+        {m.pages.length > 0 && <b>{pagesLabel(m.pages)}: </b>}
+        {m.text}
+      </span>
+    </>
+  );
+  return (
+    <div className="stack gap8" data-part="tb-messages">
+      <div className={'hint tb-msg ' + main.level} role={main.level === 'error' ? 'alert' : 'status'} data-level={main.level}>
+        <div className="tb-msg-row">{line(main)}</div>
+        {main.action && (
+          <div className="row gap8 wrap">
+            <button type="button" className="btn small primary" onClick={() => onAction(main.action!)}>
+              {ACTION_LABEL[main.action]}
+            </button>
+          </div>
+        )}
+      </div>
+      {rest.length > 0 && (
+        <div className="tb-msg-more">
+          <button type="button" className="link-btn small" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? 'Свернуть' : `Ещё ${rest.length} ${plural(rest.length, 'подсказка', 'подсказки', 'подсказок')}`}
+          </button>
+          {open &&
+            rest.map((m) => (
+              <div key={m.key} className={'hint tb-msg small ' + m.level} data-level={m.level}>
+                <div className="tb-msg-row">{line(m)}</div>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TextbookImport({
   initialFiles,
@@ -43,12 +95,15 @@ export function TextbookImport({
   const [style, setStyle] = useState<NoteStyle>(isNoteStyle(ts.style) ? ts.style : 'summary');
   const [mode, setMode] = useState<'ai' | 'offline'>(ts.mode === 'offline' || !ai ? 'offline' : ts.mode === 'ai' ? 'ai' : ai ? 'ai' : 'offline');
   const [progress, setProgress] = useState({ i: 0, text: '', frac: 0 });
-  const [runError, setRunError] = useState('');
+  // Ни одна страница не прочиталась — сообщения на шаге «фото» (главное — с действием).
+  const [runError, setRunError] = useState<TbMessage[]>([]);
+  // Настройки ИИ поверх окна: прочитанные страницы не теряются.
+  const [aiSettings, setAiSettings] = useState(false);
   const [results, setResults] = useState<PageResult[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
   const [done, setDone] = useState<{ style: NoteStyle; engine: 'ai' | 'offline' }>({ style: 'summary', engine: 'offline' });
-  const [runNotes, setRunNotes] = useState<string[]>([]);
+  const [runNotes, setRunNotes] = useState<{ notes: string[]; aiDown?: string; mergeFail?: string }>({ notes: [] });
   const [fixes, setFixes] = useState<Record<string, string>>({});
   const [where, setWhere] = useState<'append' | 'replace'>('append');
   const [keep, setKeep] = useState(ts.keepPhotos);
@@ -103,7 +158,7 @@ export function TextbookImport({
 
   async function run() {
     setStep('reading');
-    setRunError('');
+    setRunError([]);
     cancelRef.current = false;
     updateSettings({ textbook: { ...ts, mode: mode === 'ai' ? 'ai' : 'offline', style } });
     setProgress({ i: 0, text: 'Готовлю фото…', frac: 0 });
@@ -119,7 +174,7 @@ export function TextbookImport({
     if (!out.results.length) {
       // Ни одна страница не прочиталась — возвращаем к фото с понятным объяснением, а не к пустому окну.
       setErrors([]);
-      setRunError(out.errors.join('\n'));
+      setRunError(textbookMessages({ errors: out.errors, aiDown: out.aiDown, results: [] }));
       setStep('pages');
       return;
     }
@@ -127,7 +182,7 @@ export function TextbookImport({
     setErrors(out.errors);
     setSummary(out.summary);
     setDone({ style, engine: mode });
-    setRunNotes(out.notes);
+    setRunNotes({ notes: out.notes, aiDown: out.aiDown, mergeFail: out.mergeFail });
     setFixes({});
     setEditText(null);
     setView(0);
@@ -150,6 +205,20 @@ export function TextbookImport({
     const photos: PagePhoto[] = keep ? results.map((r) => ({ n: r.n, img: r.photo })) : [];
     if (keep !== ts.keepPhotos) updateSettings({ textbook: { ...ts, keepPhotos: keep } });
     onDone(markdown, photos, where);
+  }
+
+  const messages = useMemo(
+    () => textbookMessages({ errors, notes: runNotes.notes, aiDown: runNotes.aiDown, mergeFail: runNotes.mergeFail, buildNote: built.note || undefined, results, weak }),
+    [errors, runNotes, built.note, results]
+  );
+
+  function onMsgAction(a: MsgAction) {
+    if (a === 'retry') void run();
+    else if (a === 'reshoot') setStep('pages');
+    else {
+      if (a === 'signin') wantSignIn();
+      setAiSettings(true);
+    }
   }
 
   const busy = step === 'reading';
@@ -177,13 +246,7 @@ export function TextbookImport({
           }}
           onPaste={(e) => addFiles([...e.clipboardData.files])}
         >
-          {runError && (
-            <div className="hint warn tb-error" role="alert">
-              {runError.split('\n').map((l, k) => (
-                <div key={k}>{l}</div>
-              ))}
-            </div>
-          )}
+          <TbMessages list={runError} onAction={onMsgAction} />
           {pages.length === 0 ? (
             <div className="stack gap8">
               <button className="tb-empty" onClick={() => inputRef.current?.click()}>
@@ -345,33 +408,7 @@ export function TextbookImport({
                 </div>
               </div>
             )}
-            {errors.length > 0 && (
-              <div className="hint warn" role="alert">
-                {errors.map((e, k) => (
-                  <div key={k}>{e}</div>
-                ))}
-              </div>
-            )}
-            {[...runNotes, ...(built.note ? [built.note] : [])].map((t, k) => (
-              <div key={'rn' + k} className="hint warn">
-                {t}
-              </div>
-            ))}
-            {groupByText(results.filter((r) => r.advice?.length).map((r) => ({ n: r.n, text: r.advice!.map((a) => a.text).join(' ') }))).map((g) => (
-              <div key={'a' + g.text} className="hint warn">
-                {pagesLabel(g.pages)}: {g.text}
-              </div>
-            ))}
-            {groupByText(results.filter((r) => r.note).map((r) => ({ n: r.n, text: r.note! }))).map((g) => (
-              <div key={'n' + g.text} className="hint warn">
-                {pagesLabel(g.pages)}: {g.text}
-              </div>
-            ))}
-            {results.filter((r) => weak(r) && !r.advice?.length).map((r) => (
-              <div key={'w' + r.n} className="hint">
-                Стр. {r.n} прочитана не очень уверенно ({r.quality?.conf}%). Проверь текст ниже — или сфотографируй страницу ещё раз: ровнее, ближе и при хорошем свете.
-              </div>
-            ))}
+            <TbMessages list={messages} onAction={onMsgAction} />
           </div>
           <div className="tb-right">
             <div className="row gap8">
@@ -467,12 +504,22 @@ export function TextbookImport({
           }}
         />
       )}
+      {aiSettings && (
+        <Modal title="Настройки ИИ" onClose={() => setAiSettings(false)} width={720}>
+          <AiSettings />
+          <div className="row end">
+            <button className="btn primary" onClick={() => setAiSettings(false)}>
+              Готово
+            </button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }
 
 /** Страница прочитана неуверенно: мало узнанных слов или низкая уверенность. */
-function weak(r: PageResult): boolean {
+function weak(r: Pick<PageResult, 'quality'>): boolean {
   const q = r.quality;
   return Boolean(q && q.words >= 8 && (q.conf < 72 || q.unsure / q.words > 0.3));
 }

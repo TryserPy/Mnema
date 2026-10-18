@@ -385,8 +385,8 @@ export async function recognizeWithAiPages(p: PageInput, o: AiReadOptions, onPro
       if (!api.ocrRecognize) throw new Error(why);
       onProgress?.(quiet ? 'Читаю без интернета…' : 'ИИ не справился — читаю без интернета…', span[0]);
       const r = await readUpright(p, part, onProgress, span);
-      // quiet: причина одна на все страницы — её показывает readPages один раз, а не у каждой страницы.
-      return { ...r.page, n, note: quiet ? 'Прочитана без интернета — проверь её внимательнее.' : `${why} Страница прочитана без интернета — проверь её внимательнее.` };
+      // Причину показывает textbookMessages — одной строкой на все страницы с той же причиной (quiet — та же, что у всего чтения).
+      return { ...r.page, n, aiFallback: why };
     };
     if (unavailable) {
       pages.push(await fallback(unavailable, true));
@@ -445,6 +445,10 @@ export interface RunOutput {
   summary: string | null;
   /** Что сказать ученику (откаты, пояснения). */
   notes: string[];
+  /** ИИ некому было спросить (нет входа, ключа, не запущен LM Studio): все страницы прочитаны без ИИ, причина — эта. */
+  aiDown?: string;
+  /** Связный конспект по всем страницам не получился (причина); показан подробный текст страниц. */
+  mergeFail?: string;
 }
 
 /** Если на фото виден номер страницы — берём его (только когда все номера нашлись и идут подряд). */
@@ -472,11 +476,11 @@ export async function readPages(inputs: PageInput[], o: RunOptions, h: RunHooks)
     try {
       if (o.engine === 'ai' && !aiDown) {
         const r = await recognizeWithAiPages(p, { style: o.style, direct: inputs.length === 1 }, onP);
-        results.push(...r.pages);
+        results.push(...r.pages.map((pg) => (isScreenshot({ name: p.name, type: p.file.type }) ? { ...pg, screen: true } : pg)));
         lastDirect = r.direct;
         if (r.unavailable) aiDown = r.unavailable;
       } else {
-        results.push(...(await recognizeOfflinePages(p, onP)));
+        results.push(...(await recognizeOfflinePages(p, onP)).map((pg) => (isScreenshot({ name: p.name, type: p.file.type }) ? { ...pg, screen: true } : pg)));
       }
     } catch (e) {
       errors.push(`Стр. ${p.n}: ${friendlyOcrError(e)}`);
@@ -486,17 +490,18 @@ export async function readPages(inputs: PageInput[], o: RunOptions, h: RunHooks)
   applyDetectedPages(results);
   const notes: string[] = [];
   let summary: string | null = null;
-  if (aiDown) notes.push(`${aiDown.replace(/\.?$/, '.')} Страницы прочитаны без интернета — проверь текст внимательнее.`);
+  let mergeFail = '';
+
   if (o.engine === 'ai' && !aiDown && o.style !== 'verbatim' && results.length && !(results.length === 1 && lastDirect)) {
     h.progress(inputs.length - 1, results.length > 1 ? 'ИИ составляет один конспект по всем страницам…' : 'ИИ составляет конспект…', 0.5);
     const why = await mergeWithAi(results, o.style, (t) => h.progress(inputs.length - 1, t, 0.7)).then(
       (r) => (r.ok ? ((summary = r.markdown), '') : r.why),
       (e: Error) => e.message
     );
-    if (why) notes.push(`Не удалось составить конспект по всему параграфу (${why.replace(/\.$/, '')}). Показан подробный текст страниц — его можно сократить самому, или нажми «Назад» и попробуй ещё раз.`);
+    if (why) mergeFail = why;
   }
   if (h.cancelled()) return null;
-  return { results, errors, summary, notes };
+  return { results, errors, summary, notes, ...(aiDown ? { aiDown } : {}), ...(mergeFail ? { mergeFail } : {}) };
 }
 
 /** Второй запрос: подробный текст страниц → один конспект. Длинные параграфы сводятся кусками. */
@@ -515,6 +520,14 @@ async function mergeWithAi(pages: PageResult[], style: Exclude<NoteStyle, 'verba
 }
 
 /** Ошибка распознавания — понятным текстом: что случилось и что сделать. */
+/** Скриншот, а не фото с камеры: PNG/WebP без «IMG_», или имя «Screenshot…», «Снимок экрана…». */
+export function isScreenshot(f: { name?: string; type?: string } | undefined): boolean {
+  if (!f) return false;
+  const name = f.name ?? '';
+  if (/screen ?shot|скриншот|снимок экрана|screen_|Screenshot_/i.test(name)) return true;
+  return /image\/(png|webp)/i.test(f.type ?? '') && !/^(IMG|DSC|PXL|photo)[_-]/i.test(name);
+}
+
 export function friendlyOcrError(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e ?? '');
   if (/createImageBitmap|decode|InvalidState|image source|The source image/i.test(m)) return 'не получилось открыть это фото. Сохрани его как JPEG или PNG и добавь снова.';

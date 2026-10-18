@@ -60,6 +60,10 @@ export interface PageResult {
   advice?: { code: string; text: string }[];
   /** Страница была половиной разворота (две страницы на одном снимке). */
   spread?: 'left' | 'right';
+  /** ИИ не ответил (причина) — страница прочитана встроенным распознаванием. Текст для ученика собирает textbookMessages. */
+  aiFallback?: string;
+  /** Снимок экрана (скриншот), а не фото страницы: советы про свет и камеру к нему не подходят. */
+  screen?: boolean;
 }
 
 import { fixFormulas } from './textbookMath';

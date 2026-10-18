@@ -5,3 +5,10 @@
 .ai-via b { font-weight: 600; color: var(--ink); }
 .ai-problem > span { overflow-wrap: anywhere; }
 .ai-working > .row > span { min-width: 0; }
+/* «Добавить из учебника»: главное сообщение с действием, остальное свёрнуто. */
+.tb-msg-row { display: flex; gap: 8px; align-items: flex-start; }
+.tb-msg-ico { flex: none; line-height: 1.4; }
+.tb-msg-text { min-width: 0; overflow-wrap: anywhere; }
+.tb-msg { display: flex; flex-direction: column; gap: 8px; }
+.tb-msg-more { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.tb-msg-more > .hint { align-self: stretch; }

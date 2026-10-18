@@ -405,6 +405,10 @@ export function Icon({ name, size = 20 }: { name: keyof typeof paths | string; s
   );
 }
 
+/** Открытые окна по порядку: Esc — только верхнему. */
+const modalStack: number[] = [];
+let modalSeq = 0;
+
 export function Modal({ title, onClose, children, width = 520, sticky = false, full = false, headExtra }: { title: string; onClose: () => void; children: ReactNode; width?: number; sticky?: boolean; full?: boolean; headExtra?: ReactNode }) {
   // Закрытие с анимацией: окно сначала плавно уходит, потом исчезает.
   const [closing, setClosing] = useState(false);
@@ -418,9 +422,23 @@ export function Modal({ title, onClose, children, width = 520, sticky = false, f
     setClosing(true);
     closeTimer.current = setTimeout(() => closeRef.current(), 150);
   };
+  // Esc закрывает только верхнее окно: «Настройки ИИ» поверх «Из учебника» не должны закрыть оба.
+  const me = useRef(0);
+  if (!me.current) me.current = ++modalSeq;
+  useEffect(() => {
+    const id = me.current;
+    modalStack.push(id);
+    return () => {
+      const i = modalStack.lastIndexOf(id);
+      if (i >= 0) modalStack.splice(i, 1);
+    };
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !sticky) close();
+      if (e.key !== 'Escape' || modalStack[modalStack.length - 1] !== me.current) return;
+      // Esc внутри открытого списка (select) или меню — сначала закрывает его.
+      if (e.defaultPrevented) return;
+      if (!sticky) close();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
