@@ -15,7 +15,7 @@ ADMIN_ORIGIN = "https://tryserpy.github.io"
 ADMIN_URL = "https://tryserpy.github.io/Mnema-site/admin/"
 TG_APP_URL = "https://tryserpy.github.io/Mnema-site/tg/"
 # Выпуски приложения, которые бывают на самом деле (правило «версия не существует»). Дополняется при выпуске.
-APP_VERSIONS = "1.31.0,1.31.1,1.31.2,1.32.0"
+APP_VERSIONS = "1.31.0,1.31.1,1.31.2,1.32.0,1.33.0"
 POW_DIFFICULTY = "20"
 MAIL_FROM_NAME = "Refrain"
 # Почта по SMTP ящика (секреты MAIL_FROM и SMTP_PASSWORD). Mail.ru: smtp.mail.ru.
