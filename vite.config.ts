@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => ({
       reporter: ['text-summary', 'text', 'html', 'json-summary'],
       reportsDirectory: 'coverage',
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/env.d.ts']
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/env.d.ts', 'src/testing/**']
     }
   }
 })) as any;
