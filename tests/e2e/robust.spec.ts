@@ -125,7 +125,19 @@ test('быстрые нажатия на «⋮»: меню открываетс�
   const errors = watchErrors(page);
   await openApp(page, { name: 'subject', id: 'geo' });
   const btn = page.getByRole('button', { name: 'Действия с предметом' });
-  for (let i = 0; i < 6; i++) await btn.click({ force: true, noWaitAfter: true }).catch(() => undefined);
+  // Серия касаний быстрее, чем React успевает перерисовать: открыть-закрыть-открыть…
+  await btn.evaluate((b: HTMLButtonElement) => {
+    for (let i = 0; i < 6; i++) b.click();
+  });
+  // На телефоне открытую шторку закрывает касание по затемнению (кнопка под ним), на компьютере — та же кнопка.
+  if (await page.locator('.sheet-back').count()) await page.locator('.sheet-back').click({ position: { x: 10, y: 10 } });
+  else await btn.click();
+  await expect(page.locator('.menu:not(.closing)')).toHaveCount(0);
+  await btn.evaluate((b: HTMLButtonElement) => {
+    b.click();
+    b.click();
+    b.click();
+  });
   await expect.poll(() => page.locator('.menu:not(.closing)').count()).toBeLessThanOrEqual(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('.menu')).toHaveCount(0);

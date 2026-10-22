@@ -1,0 +1,24 @@
+| src/pageNumber.ts                | 100.0 | 100.0 | 100.0 |
+| src/components/Pager.tsx         |  97.4 |  92.3 |  93.3 |
+| src/viewport.ts                  | 100.0 |  91.1 |  92.8 |
+| src/clipboardText.ts             | 100.0 |  96.0 | 100.0 |
+| src/components/PasteButton.tsx   | 100.0 |  92.3 | 100.0 |
+| src/noteTemplates.ts             | 100.0 | 100.0 | 100.0 |
+| src/zoom.ts                      | 100.0 |  94.8 |  86.7 |
+| src/backRoute.ts                 | 100.0 | 100.0 | 100.0 |
+| src/helpSearch.ts                |  90.0 |  93.3 | 100.0 |
+| src/glossary.ts                  | 100.0 | 100.0 | 100.0 |
+| src/screenTips.ts                | 100.0 | 100.0 | 100.0 |
+| src/components/ScreenTip.tsx     | 100.0 | 100.0 | 100.0 |
+| src/components/ZoomControl.tsx   | 100.0 | 100.0 | 100.0 |
+| src/components/NoteStart.tsx     | 100.0 |  83.3 | 100.0 |
+| src/menuPlace.ts                 |  92.6 |  92.3 | 100.0 |
+| src/drafts.ts                    |  97.7 |  86.5 |  95.7 |
+| src/srs.ts                       |  97.8 |  89.7 |  99.0 |
+ Test Files  103 passed (103)
+      Tests  1505 passed (1505)
+Statements   : 45.86% ( 14088/30713 )
+Branches     : 39.61% ( 9851/24868 )
+Functions    : 32.18% ( 2514/7810 )
+Lines        : 46.05% ( 11063/24022 )
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
