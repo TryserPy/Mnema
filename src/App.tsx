@@ -36,6 +36,7 @@ import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
 import { comboFromEvent, keyFor, matches, toAccelerator, typingTarget } from './keys';
 import { closeTopLayer, Icon, keepMenusInView, onToast, plural, usePresence } from './components/ui';
+import { applyZoom, getZoom, setZoom, zoomAfter, zoomKey, zoomLabel, zoomWay, type ZoomKey } from './zoom';
 import { Help } from './screens/Help';
 import { Review } from './screens/Review';
 import { Settings } from './screens/Settings';
@@ -381,6 +382,25 @@ export function App() {
       }),
     [] // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  // Масштаб интерфейса (src/zoom.ts): при запуске — сохранённый; Ctrl + / Ctrl − / Ctrl 0 — крупнее, мельче, как было.
+  useEffect(() => {
+    applyZoom(getZoom());
+    const step = (k: ZoomKey) => showToast(`Масштаб ${zoomLabel(setZoom(zoomAfter(getZoom(), k)))}`);
+    const onKey = (e: KeyboardEvent) => {
+      const k = zoomKey(e);
+      // В браузере на компьютере это масштаб самого браузера — не мешаем ему.
+      if (!k || zoomWay() === 'browser' || window.mnemaApi?.onZoomKey) return;
+      e.preventDefault();
+      step(k);
+    };
+    window.addEventListener('keydown', onKey, true);
+    const off = window.mnemaApi?.onZoomKey?.(step);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      off?.();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Горячие клавиши, которые работают везде (кроме повторения — там свои).
   const routeRef = useRef(route);

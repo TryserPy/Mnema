@@ -97,6 +97,8 @@ declare global {
       backupList?: () => Promise<{ name: string; size: number }[]>; // автокопии (раз в день, последние 8)
       backupRead?: (name: string) => Promise<string | null>;
       readClipboard?: () => Promise<string | null>; // текст из буфера обмена (Android: WebView не даёт navigator.clipboard)
+      setZoom?: (factor: number) => void; // Windows и Linux: масштаб окна (src/zoom.ts)
+      onZoomKey?: (cb: (k: 'in' | 'out' | 'reset') => void) => () => void; // Ctrl + / Ctrl − / Ctrl 0 и Ctrl+колесо из главного процесса
       obsidianPick?: () => Promise<Vault | null>;
       obsidianRead?: (rel: string) => Promise<{ text: string; images: Record<string, string> }>;
       aiGetConfig?: () => Promise<AiConfig>;

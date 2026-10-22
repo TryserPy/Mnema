@@ -77,6 +77,13 @@ public class AppActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setTextZoom(100);
+        // Масштаб интерфейса (src/zoom.ts) задаётся шириной в <meta name="viewport"> — WebView учитывает её только так.
+        // При обычных 100% там width=device-width, и всё выглядит как раньше. Двумя пальцами тоже можно приблизить.
+        s.setUseWideViewPort(true);
+        s.setLoadWithOverviewMode(false);
+        s.setSupportZoom(true);
+        s.setBuiltInZoomControls(true);
+        s.setDisplayZoomControls(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setSupportMultipleWindows(false);
 

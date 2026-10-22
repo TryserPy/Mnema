@@ -16,6 +16,7 @@ import { MotionGroups } from './MotionSettings';
 import { Snippets } from './Snippets';
 import { AddonsPane, StylesGallery } from './ModsSettings';
 import { StyleEditor } from './StyleEditor';
+import { ZoomControl } from './ZoomControl';
 
 type Tab = NonNullable<Appearance['tab']>;
 
@@ -121,6 +122,10 @@ export function LookPane({ dark, onGo, focus }: { dark: boolean; onGo?: (section
         )}
       </section>
 
+      <Group title="Масштаб" id="zoom" hint="Всё крупнее или мельче: текст, кнопки, значки. Только на этом устройстве.">
+        <ZoomControl />
+      </Group>
+
       <Collapse open={tune}>
         <div className="stack gap16 look-tune">
           <Group title="Настроить текущий" id="current" hint="Правки ложатся поверх стиля. В полном редакторе — все цвета (светлые и тёмные), шрифты, размеры, тени, рамки и части экрана.">
@@ -175,7 +180,7 @@ export function LookPane({ dark, onGo, focus }: { dark: boolean; onGo?: (section
                 <Segmented ariaLabel="Шрифт заголовков" value={look.headFont} onChange={(v) => setLook({ headFont: v })} options={HEAD_FONTS.map((f) => ({ value: f.id as Look['headFont'], label: f.id === 'literata' ? 'Книжный' : 'Как текст' }))} />
               </div>
             </SRow>
-            <SRow label="Размер текста" hint={`${Math.round(s.fontScale * 100)}%`} id="fontsize">
+            <SRow label="Размер текста" hint={`${Math.round(s.fontScale * 100)}% — только буквы`} id="fontsize">
               <input type="range" min={0.9} max={1.3} step={0.05} value={s.fontScale} onChange={(e) => setCurrent({ fontScale: Number(e.target.value) })} aria-label="Размер текста" />
             </SRow>
             <SRow label="Углы" id="shape">

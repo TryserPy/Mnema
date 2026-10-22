@@ -1,5 +1,5 @@
 // Мост между окном и главным процессом: данные, Obsidian, ИИ-помощник, трей.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 contextBridge.exposeInMainWorld('mnemaApi', {
   load: () => ipcRenderer.sendSync('data:load'),
@@ -88,5 +88,12 @@ contextBridge.exposeInMainWorld('mnemaApi', {
   secretSet: (name, value) => ipcRenderer.invoke('secret:set', name, value),
   obsidianExport: (files) => ipcRenderer.invoke('obsidian:export', files),
   saveFile: (name, base64, mime) => ipcRenderer.invoke('file:save', { name, base64, mime }),
+  // Масштаб окна (src/zoom.ts): его решает приложение и помнит; Ctrl + / Ctrl − / Ctrl 0 и Ctrl+колесо приходят из главного процесса.
+  setZoom: (f) => webFrame.setZoomFactor(Math.min(1.5, Math.max(0.75, Number(f) || 1))),
+  onZoomKey: (cb) => {
+    const h = (_e, k) => cb(k);
+    ipcRenderer.on('zoom:key', h);
+    return () => ipcRenderer.removeListener('zoom:key', h);
+  },
   platform: process.platform
 });

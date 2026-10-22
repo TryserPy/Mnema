@@ -84,6 +84,16 @@ function createWindow() {
   win.on('closed', () => {
     mainWin = null;
   });
+  // Масштаб: Ctrl + / Ctrl − / Ctrl 0 и Ctrl+колесо решает приложение (src/zoom.ts) — оно помнит выбор и показывает его
+  // в настройках. Стандартное меню и Chromium масштаб сами не меняют, иначе он сбрасывался бы при перезапуске.
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' || !(input.control || input.meta) || input.alt) return;
+    const k = input.key === '=' || input.key === '+' ? 'in' : input.key === '-' || input.key === '_' ? 'out' : input.key === '0' ? 'reset' : null;
+    if (!k) return;
+    e.preventDefault();
+    win.webContents.send('zoom:key', k);
+  });
+  win.webContents.on('zoom-changed', (_e, dir) => win.webContents.send('zoom:key', dir === 'in' ? 'in' : 'out'));
   // Внешние ссылки открываем в браузере, а не внутри приложения.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);

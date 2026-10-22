@@ -140,3 +140,8 @@ body:has(.bubble.sel-panel[style*='visibility: visible']) .note-kbar { display: 
 .note-start-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-align: left; }
 .note-start-btn:hover { border-color: var(--accent); }
 .note-start-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+
+/* Масштаб интерфейса в настройках */
+.zoom-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.zoom-ctl .icon-btn { width: 44px; height: 44px; font-size: 1.3rem; font-weight: 600; }
+.zoom-val { min-width: 4ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
