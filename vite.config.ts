@@ -26,6 +26,17 @@ export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [react(), sqlWasm(), ...(mode === 'web' ? [mnemaWeb()] : [])],
   build: { outDir: mode === 'web' ? 'dist-web' : 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1500 },
-  // server/ тестируется отдельно, в среде Workers (cd server && npm test).
-  test: { environment: 'node', exclude: [...configDefaults.exclude, 'server/**'] }
+  // server/ тестируется отдельно, в среде Workers (cd server && npm test); tests/e2e — Playwright (npm run test:e2e).
+  // Компонентные тесты (*.dom.test.tsx) сами выбирают jsdom строкой `@vitest-environment jsdom`.
+  test: {
+    environment: 'node',
+    exclude: [...configDefaults.exclude, 'server/**', 'tests/e2e/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'text', 'html', 'json-summary'],
+      reportsDirectory: 'coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/env.d.ts']
+    }
+  }
 })) as any;

@@ -13,3 +13,8 @@ undefined/
 # Локальные заметки и настройки инструментов
 CLAUDE.md
 .claude/
+
+# Отчёты тестов
+coverage/
+playwright-report/
+test-results/
