@@ -34,7 +34,7 @@ test('у темы — «N сегодня» и «выучено N%», а не г�
 });
 
 test('кнопка «▶ N» в шапке подписана словами', async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'шапка телефона');
+  test.skip(!isMobile || (page.viewportSize()?.width ?? 0) > 720, 'шапка телефона');
   await openApp(page, { name: 'subject', id: 'geo' });
   await expect(page.getByRole('button', { name: /Учить всё на сегодня: \d+ карточ/ })).toBeVisible();
 });

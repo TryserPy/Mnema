@@ -1,7 +1,7 @@
 // Доступность (axe-core): на ключевых экранах нет критических и серьёзных нарушений; меню и шторки читаются TalkBack/VoiceOver.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openApp, type Where } from './helpers';
+import { openApp, settled, type Where } from './helpers';
 
 const SCREENS: [string, Where][] = [
   ['Учусь', { name: 'today' }],
@@ -15,6 +15,8 @@ const SCREENS: [string, Where][] = [
 ];
 
 async function serious(page: Page, include?: string) {
+  // Контраст меряется после анимаций появления (полупрозрачный текст в середине анимации — не нарушение).
+  await settled(page, include ?? '.app');
   let b = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
   if (include) b = b.include(include);
   const r = await b.analyze();

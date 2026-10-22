@@ -157,7 +157,9 @@ export async function settled(page: Page, selector: string) {
       page.evaluate((s) => {
         const els = Array.from(document.querySelectorAll(s));
         if (!els.length) return -1;
-        return els.reduce((n, e) => n + e.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length + (e.parentElement?.getAnimations().filter((a) => a.playState === 'running').length ?? 0), 0);
+        // Бесконечные анимации (иллюстрации, «скелетон») не ждём — они не кончаются.
+        const live = (a: Animation) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity;
+        return els.reduce((n, e) => n + e.getAnimations({ subtree: true }).filter(live).length + (e.parentElement?.getAnimations().filter(live).length ?? 0), 0);
       }, selector)
     )
     .toBe(0);
