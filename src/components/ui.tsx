@@ -625,9 +625,20 @@ export function OverflowTabs<T extends string>({ items, value, onChange, ariaLab
   useEffect(() => {
     if (!moreOpen) return;
     const close = () => setMoreOpen(false);
+    // Esc закрывает меню «Ещё», а не окно или экран под ним (раньше оно закрывалось только щелчком мимо).
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      setMoreOpen(false);
+    };
     window.addEventListener('mousedown', close);
-    return () => window.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', esc);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', esc);
+    };
   }, [moreOpen]);
+  useBackLayer(moreOpen, () => setMoreOpen(false)); // и системная «Назад» на телефоне
   const label = (i: { label: string; count?: number }) => (
     <>
       <span className="otab-label">{i.label}</span>
