@@ -1,6 +1,6 @@
 import { Capped } from '../components/Capped';
 import { makeCopy } from '../components/copyUi';
-import { Dismissible, hideTip } from '../components/Dismissible';
+import { hideTip } from '../components/Dismissible';
 import { deleteTopicWithUndo } from '../components/SubjectDialogs';
 import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { exportForAi } from '../components/ChangesDialog';
@@ -42,6 +42,7 @@ import { aiAvailable } from '../ai';
 import { useHasDraft } from '../drafts';
 import { OcclusionView } from '../components/Occlusion';
 import { occlImage } from '../occlusion';
+import { NoteStart } from '../components/NoteStart';
 
 // Карточки из источника и решение по шагам (1.32) — грузятся при открытии.
 const SourceCards = lazy(() => import('../components/SourceCards').then((m) => ({ default: m.SourceCards })));
@@ -550,6 +551,17 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
           </div>
         )}
         {setOpen && <NoteToCards topicId={topicId} onClose={() => setSetOpen(false)} />}
+        {ready && !topic.note.trim() && !full && (
+          <NoteStart
+            topicName={topic.name}
+            onTextbook={() => setImportOpen(true)}
+            onStart={(md) => {
+              if (!md) return;
+              updateTopic(topicId, { note: md });
+              setVersion((v) => v + 1); // редактор открывается заново — уже с текстом
+            }}
+          />
+        )}
         {!ready ? (
           <div className="note-page note-skeleton" aria-busy="true">
             <i style={{ width: '42%' }} />
@@ -575,16 +587,6 @@ function NoteTab({ topicId, reload, importOpen, setImportOpen, droppedFiles, go 
           onLinkHover={onLinkHover}
           topicId={topicId}
         />
-        )}
-        {!topic.note.trim() && (
-          <Dismissible id="textbook" className="tb-hint-wrap">
-            <button className="tb-hint" onClick={() => setImportOpen(true)}>
-              <Icon name="camera" size={22} />
-              <span>
-                <strong>Есть параграф в учебнике?</strong> Сфотографируй страницы — Refrain сделает из них конспект, выделит важное и сохранит ссылки на страницы.
-              </span>
-            </button>
-          </Dismissible>
         )}
       </div>
       {panelPres.mounted && (

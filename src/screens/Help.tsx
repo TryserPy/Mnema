@@ -89,7 +89,7 @@ const anySubject = () => getData().subjects[0]?.id;
 const nav = (desk: string, phone: string): WhereStep['target'] => () => byText('.tab', phone) ?? byText('.sidebar .nav-item', desk);
 const inTopic = (target: WhereStep['target'], text: string, tab?: string): WhereStep[] => {
   const id = anyTopic();
-  return id ? [{ go: { name: 'topic', id, ...(tab ? { tab } : {}) }, target, text }] : [{ target: createBtn, text: 'Сначала нужна тема: «Создать» → «Новая тема». ' + text }];
+  return id ? [{ go: { name: 'topic', id, ...(tab ? { tab } : {}) }, target, text }] : [{ target: createBtn, text: 'Сначала нужна тема: «Создать» → «Новый конспект». ' + text }];
 };
 const topicMenu = (text: string) => inTopic('button[aria-label="Действия с темой"]', 'Это меню темы «⋯». ' + text);
 const inSubject = (target: WhereStep['target'], text: string): WhereStep[] => {

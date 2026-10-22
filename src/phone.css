@@ -94,3 +94,49 @@ html[data-kb] .app { padding-bottom: 0; }
 /* Клавиатура открыта, а окно не уменьшилось (Safari на iPhone, часть WebView): приложение — ровно видимая часть,
    иначе поле внизу экрана остаётся под клавиатурой и до него нельзя докрутить. */
 html[data-kb] .app.mobile { height: var(--vvh, 100dvh); }
+
+/* ---------- Конспект на телефоне (1.34) ---------- */
+/* Панель оформления над клавиатурой: прибита к верхнему краю клавиатуры. Видна, только пока клавиатура открыта
+   (html[data-kb]): иначе она появлялась бы от касания и сдвигала текст прямо под пальцем. */
+.note-kbar { display: none; }
+html[data-kb] .note-kbar {
+  position: fixed; z-index: 63; left: 0; right: 0;
+  bottom: var(--kb, 0px);
+  display: flex; flex-direction: column; gap: 0;
+  padding: 4px max(6px, var(--safe-left)) 2px max(6px, var(--safe-right));
+  background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.08);
+}
+.kb-line { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.kb-done { flex: none; padding-left: 4px; border-left: 1px solid var(--line); }
+.kb-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.kb-row::-webkit-scrollbar { display: none; }
+.kb-btn { flex: none; min-width: 44px; height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 10px; background: transparent; color: var(--ink); font-size: 1rem; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.kb-btn.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-text, var(--accent)); }
+.kb-btn:disabled { opacity: 0.38; }
+.kb-btn.wide { padding: 0 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent-text, var(--accent)); font-weight: 600; }
+.kb-btn.wide:disabled { background: transparent; color: var(--muted); }
+.kb-cap { font-size: 0.9rem; white-space: nowrap; }
+.kb-t { font-size: 1.1rem; line-height: 1; font-family: var(--body); }
+.kb-mark { padding: 1px 4px; border-radius: 4px; background: var(--hl-yellow, #fde68a); color: #3b2f00; }
+.kb-sep { flex: none; width: 1px; height: 24px; background: var(--line); margin: 0 2px; }
+.kb-save { align-self: flex-end; font-size: 0.72rem; color: var(--muted); padding: 0 6px 2px; }
+/* Пока панель видна, низ конспекта можно докрутить из-под неё; плавающие кнопки ей не мешают. */
+html[data-kb] body:has(.note-kbar) .main { padding-bottom: 72px; scroll-padding-bottom: 80px; }
+html[data-kb] body:has(.note-kbar) .note-float { display: none; }
+/* Панель выделения (лист снизу) важнее — пока она открыта, панель оформления прячется. */
+body:has(.bubble.sel-panel[style*='visibility: visible']) .note-kbar { display: none; }
+
+/* Сохранено / Сохраняется… — рядом с инструментами конспекта. */
+.note-save { margin-left: auto; align-self: center; font-size: 0.8rem; color: var(--muted); white-space: nowrap; padding: 0 4px; }
+.note-save.busy { color: var(--accent-text, var(--accent)); }
+.note-page.reading .ProseMirror { caret-color: transparent; }
+@media (max-width: 720px) {
+  .note-save { flex-basis: 100%; text-align: right; margin-left: 0; order: 10; }
+}
+
+/* Пустой конспект: с чего начать. */
+.note-start { display: flex; flex-direction: column; gap: 10px; padding: 14px; margin-bottom: 12px; border: 1px dashed var(--line-2, var(--line)); border-radius: 16px; background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+.note-start-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 8px; }
+.note-start-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-align: left; }
+.note-start-btn:hover { border-color: var(--accent); }
+.note-start-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }

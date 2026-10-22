@@ -64,22 +64,40 @@ export function revealFocused(vv: { height: number; offsetTop: number } | null):
   else window.scrollBy({ top: dy });
 }
 
+/**
+ * Клавиатура уменьшила само окно (Android WebView с adjustResize, Chrome с interactive-widget=resizes-content):
+ * visualViewport тогда ничего «не закрывает», но окно заметно ниже обычного для этой ширины, а в фокусе — поле ввода.
+ */
+export function resizedByKeyboard(innerHeight: number, fullHeight: number, typing: boolean): boolean {
+  return typing && fullHeight - innerHeight >= KB_MIN;
+}
+
 export function initViewport(): () => void {
   if (typeof window === 'undefined') return () => undefined;
   const root = document.documentElement;
   const vv = window.visualViewport ?? null;
   let raf = 0;
   let wasOpen = false;
+  // Обычная высота окна при этой ширине (поворот экрана меняет ширину — начинаем заново).
+  let fullW = window.innerWidth;
+  let fullH = window.innerHeight;
   const apply = () => {
     raf = 0;
+    if (window.innerWidth !== fullW) {
+      fullW = window.innerWidth;
+      fullH = window.innerHeight;
+    }
+    const typing = isTypingField(document.activeElement);
+    // Без поля в фокусе клавиатуры нет — текущая высота и есть обычная (заодно учитывает адресную строку браузера).
+    if (!typing || window.innerHeight > fullH) fullH = window.innerHeight;
     const kb = keyboardInset(window.innerHeight, vv);
-    const open = kb >= KB_MIN;
+    const open = kb >= KB_MIN || resizedByKeyboard(window.innerHeight, fullH, typing);
     // Клавиатура только что открылась (или окно уменьшилось, interactive-widget=resizes-content) — показать поле.
     if (open && !wasOpen) requestAnimationFrame(() => revealFocused(vv));
     wasOpen = open;
     root.style.setProperty('--vvh', `${Math.round(vv?.height ?? window.innerHeight)}px`);
     root.style.setProperty('--kb', `${kb >= KB_MIN ? kb : 0}px`);
-    if (kb >= KB_MIN) root.dataset.kb = '';
+    if (open) root.dataset.kb = '';
     else delete root.dataset.kb;
   };
   const schedule = () => {
@@ -95,10 +113,15 @@ export function initViewport(): () => void {
   };
   vv?.addEventListener('resize', schedule);
   vv?.addEventListener('scroll', schedule);
+  // Ушли из поля — клавиатура закрывается (окно ещё не успело вырасти): обновить сразу.
+  document.addEventListener('focusout', schedule);
+  document.addEventListener('focusin', schedule);
   window.addEventListener('resize', onResize);
   return () => {
     vv?.removeEventListener('resize', schedule);
     vv?.removeEventListener('scroll', schedule);
+    document.removeEventListener('focusout', schedule);
+    document.removeEventListener('focusin', schedule);
     window.removeEventListener('resize', onResize);
     if (raf) cancelAnimationFrame(raf);
   };

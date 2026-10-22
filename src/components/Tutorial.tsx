@@ -122,8 +122,8 @@ function stageOf(c: Ctx): Stage {
       return { major, left: 3, text: 'Нажми «Создать» — отсюда создаётся всё.', target: createBtn() };
     case 1:
       if (dialogTitle() === 'Новая тема') return { major, left: 1, text: 'Назови тему — например, «§1 Клетка» — и нажми «Создать».', target: q('.modal') };
-      if (menuOpen()) return { major, left: 2, text: 'Выбери «Новая тема».', target: byText('.modal .create-item', 'Новая тема') };
-      return { major, left: 3, text: 'Теперь тема — один параграф или раздел. Нажми «Создать» и выбери «Новая тема».', target: createBtn() };
+      if (menuOpen()) return { major, left: 2, text: 'Выбери «Новый конспект» — это тема: один параграф или раздел.', target: byText('.modal .create-item', 'Новый конспект') };
+      return { major, left: 3, text: 'Теперь тема — один параграф или раздел. Нажми «Создать» и выбери «Новый конспект».', target: createBtn() };
     case 2:
       if (!inOurTopic) return topic ? { major, left: 3, text: <>Открой свою тему «{topic.name}» — в ней пишется конспект.</>, target: anyModal() ? q('.modal') : openTopicTarget(c, topic) } : { major, left: 3, text: 'Открой любую тему — в ней пишется конспект.', target: byText('.tab', 'Знания') ?? byText('.sidebar .nav-item', 'Знания') };
       if (!q('.ProseMirror')) return { major, left: 2, text: 'Открой вкладку «Конспект».', target: byText('.topic-tabs [role="tab"], .topic-tabs button', 'Конспект') };

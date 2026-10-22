@@ -13,6 +13,8 @@ import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { recall, remember } from '../uiMemory';
 import { barUnreachable, visibleTopOf } from '../floatBar';
 import type { HighlightSettings } from '../types';
 import { AutoHighlight, autoHighlightKey, findTextRange } from './autoHighlight';
@@ -249,6 +251,12 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   const selActionRef = useRef<(a: SelAction) => void>(() => {});
   // Есть ли сейчас выделенный текст (на телефоне — кнопка «Выделенное» в панели инструментов).
   const [hasSel, setHasSel] = useState(false);
+  // 1.34: сохранено ли (правки пишутся через 300 мс после последней буквы), пишет ли ученик сейчас и режим «Чтение».
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [typing, setTyping] = useState(false);
+  const [reading, setReading] = useState(() => recall<boolean>('note-read', false));
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
   // «В выноску» в панели выделения раскрывает ряд типов.
   const [coPick, setCoPick] = useState(false);
   // Панель выделения показывает, что уже включено (жирный, маркер…) — перерисовываем её, пока она открыта.
@@ -317,9 +325,15 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     onUpdate: ({ editor: ed }) => {
       markLong(ed);
       clearTimeout(saveTimer.current);
+      if (!savingRef.current) {
+        savingRef.current = true;
+        setSaving(true);
+      }
       saveTimer.current = setTimeout(() => {
         saveTimer.current = undefined;
         onChangeRef.current(ed.getMarkdown());
+        savingRef.current = false;
+        setSaving(false);
       }, 300);
     }
   });
@@ -393,6 +407,8 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
       clearTimeout(saveTimer.current);
       saveTimer.current = undefined;
       onChangeRef.current(editor.getMarkdown());
+      savingRef.current = false;
+      setSaving(false);
       (window as unknown as { __mnemaFlush?: () => void }).__mnemaFlush?.();
     };
     const hidden = () => document.visibilityState === 'hidden' && flush();
@@ -431,6 +447,31 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
       window.__mnemaSelAction = undefined;
     };
   }, [editor]);
+
+  // Пишет ли ученик сейчас (на телефоне — панель оформления над клавиатурой); есть ли сеть (для подписи «Сохранено»).
+  useEffect(() => {
+    if (!editor) return;
+    const on = () => setTyping(true);
+    // Уход фокуса на кнопку панели не прячет её: кнопки не забирают фокус, а «Готово» прячет сама.
+    const off = () => setTimeout(() => !editor.isDestroyed && !editor.view.hasFocus() && setTyping(false), 120);
+    editor.on('focus', on);
+    editor.on('blur', off);
+    const net = () => setOnline(navigator.onLine !== false);
+    window.addEventListener('online', net);
+    window.addEventListener('offline', net);
+    return () => {
+      editor.off('focus', on);
+      editor.off('blur', off);
+      window.removeEventListener('online', net);
+      window.removeEventListener('offline', net);
+    };
+  }, [editor]);
+  // «Чтение»: текст нельзя случайно изменить, на телефоне не выскакивает клавиатура; выделять и делать карточки можно.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(!reading, false);
+    if (reading) setTyping(false);
+  }, [editor, reading]);
 
   // Настройки подсветки поменялись — перерисовать.
   useEffect(() => {
@@ -716,10 +757,20 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
     fn();
   };
 
+  const toggleReading = () => {
+    const v = !reading;
+    setReading(v);
+    remember('note-read', v || undefined);
+  };
+  const saveText = saving ? 'Сохраняется…' : online ? 'Сохранено' : 'Нет сети — сохранено на устройстве';
+
   function bar(where: 'inline' | 'float') {
     const menuHere = menuPres.mounted && (where === 'float' ? floatOpen : !floatOpen);
     return (
       <>
+        <button type="button" className={'btn small note-mode' + (reading ? ' on-tool' : '')} aria-pressed={reading} title={reading ? 'Сейчас чтение: текст не меняется. Нажми, чтобы править' : 'Читать без клавиатуры: текст не изменится случайно'} onClick={toggleReading}>
+          <Icon name={reading ? 'edit' : 'eye'} size={16} /> <span className="tl">{reading ? 'Править' : 'Читать'}</span>
+        </button>
         {tools}
         {coarse() && (
           <button
@@ -788,10 +839,14 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
   }
 
   return (
-    <div className="note-page" data-part="note">
+    <div className={'note-page' + (reading ? ' reading' : '')} data-part="note">
       <div className="note-insert" ref={barRef}>
         {bar('inline')}
+        <span className={'note-save' + (saving ? ' busy' : '')} role="status" aria-live="polite" title="Конспект хранится на этом устройстве и сохраняется сам">
+          {reading ? 'Чтение' : saveText}
+        </span>
       </div>
+      {typing && !reading && coarse() && <KeyBar editor={editor} saveText={saveText} onCard={() => runSel('card')} />}
       {floating && (
         <div className="note-float">
           <div className={'note-float-inner' + (floatOpen ? ' open' : '')}>
@@ -1047,6 +1102,57 @@ export function NoteEditor({ markdown, onChange, onMakeCard, highlight = null, o
         </Modal>
       )}
     </div>
+  );
+}
+
+/**
+ * Панель оформления над клавиатурой телефона (1.34): самое частое — под пальцем, кнопки 44×44 и не забирают фокус
+ * (иначе клавиатура пряталась бы, а выделение пропадало). «Готово» убирает клавиатуру.
+ */
+function KeyBar({ editor, saveText, onCard }: { editor: Editor; saveText: string; onCard: () => void }) {
+  const [, repaint] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    editor.on('transaction', repaint);
+    return () => void editor.off('transaction', repaint);
+  }, [editor]);
+  const keep = (e: React.SyntheticEvent) => e.preventDefault();
+  const sel = !editor.state.selection.empty;
+  const b = (label: string, icon: ReactNode, run: () => void, o: { on?: boolean; disabled?: boolean; wide?: boolean } = {}) => (
+    <button
+      type="button"
+      className={'kb-btn' + (o.on ? ' on' : '') + (o.wide ? ' wide' : '')}
+      aria-label={label}
+      title={label}
+      aria-pressed={o.on === undefined ? undefined : o.on}
+      disabled={o.disabled}
+      onPointerDown={keep}
+      onMouseDown={keep}
+      onClick={run}
+    >
+      {icon}
+    </button>
+  );
+  const c = () => editor.chain().focus();
+  return createPortal(
+    <div className="note-kbar" role="toolbar" aria-label="Оформление конспекта" data-above-kb="">
+      <div className="kb-line">
+      <div className="kb-row">
+        {b('Отменить', <Icon name="undo" size={20} />, () => c().undo().run(), { disabled: !editor.can().undo() })}
+        {b('Вернуть', <Icon name="redo" size={20} />, () => c().redo().run(), { disabled: !editor.can().redo() })}
+        <span className="kb-sep" aria-hidden="true" />
+        {b('Заголовок', <b className="kb-t">H</b>, () => c().toggleHeading({ level: 2 }).run(), { on: editor.isActive('heading') })}
+        {b('Список', <Icon name="list" size={20} />, () => c().toggleBulletList().run(), { on: editor.isActive('bulletList') })}
+        {b('Жирный', <b className="kb-t">Ж</b>, () => c().toggleBold().run(), { on: editor.isActive('bold') })}
+        {b('Курсив', <i className="kb-t">К</i>, () => c().toggleItalic().run(), { on: editor.isActive('italic') })}
+        {b('Маркер', <span className="kb-t kb-mark">М</span>, () => c().toggleHighlight().run(), { on: editor.isActive('highlight') })}
+        <span className="kb-sep" aria-hidden="true" />
+        {b(sel ? 'В карточку' : 'В карточку: сначала выдели текст', <><Icon name="cardPlus" size={20} /><span className="kb-cap">В карточку</span></>, onCard, { disabled: !sel, wide: true })}
+      </div>
+      <div className="kb-done">{b('Готово — убрать клавиатуру', <Icon name="check" size={20} />, () => editor.commands.blur())}</div>
+      </div>
+      <span className="kb-save" aria-hidden="true">{saveText}</span>
+    </div>,
+    document.body
   );
 }
 

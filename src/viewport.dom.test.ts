@@ -1,12 +1,21 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { initViewport, isTypingField, keyboardInset, KB_MIN, revealDelta, revealFocused } from './viewport';
+import { initViewport, isTypingField, keyboardInset, KB_MIN, resizedByKeyboard, revealDelta, revealFocused } from './viewport';
 
 describe('keyboardInset — сколько снизу закрыто клавиатурой', () => {
   it('нет visualViewport — 0', () => expect(keyboardInset(800, null)).toBe(0));
   it('клавиатура 300 px', () => expect(keyboardInset(800, { height: 500, offsetTop: 0 })).toBe(300));
   it('страница прокручена внутри видимой части', () => expect(keyboardInset(800, { height: 500, offsetTop: 100 })).toBe(200));
   it('не бывает меньше нуля', () => expect(keyboardInset(800, { height: 900, offsetTop: 0 })).toBe(0));
+});
+
+describe('resizedByKeyboard — окно уменьшилось под клавиатуру (adjustResize)', () => {
+  it('поле в фокусе и окно ниже обычного на KB_MIN и больше — клавиатура', () => {
+    expect(resizedByKeyboard(800 - KB_MIN, 800, true)).toBe(true);
+    expect(resizedByKeyboard(400, 800, true)).toBe(true);
+  });
+  it('без поля в фокусе — нет (например, окно на компьютере сделали ниже)', () => expect(resizedByKeyboard(400, 800, false)).toBe(false));
+  it('мелкое уменьшение (адресная строка) — нет', () => expect(resizedByKeyboard(760, 800, true)).toBe(false));
 });
 
 describe('revealDelta — насколько прокрутить к полю', () => {
@@ -96,6 +105,33 @@ describe('initViewport — CSS-переменные и html[data-kb]', () => {
     vv.height = 450;
     vv.dispatchEvent(new Event('resize'));
     expect(scrollBy).toHaveBeenCalledWith({ top: 740 - (450 - 12) });
+    stop();
+  });
+
+  it('окно само уменьшилось (Android adjustResize), поле в фокусе — data-kb; ушли из поля — нет', () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 360 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+    const vv = fakeVV(800);
+    document.body.innerHTML = '<input id="f"><button id="b">x</button>';
+    const stop = initViewport();
+    (document.getElementById('f') as HTMLInputElement).focus();
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 460 });
+    vv.height = 460;
+    window.dispatchEvent(new Event('resize'));
+    expect(document.documentElement.hasAttribute('data-kb')).toBe(true);
+    expect(document.documentElement.style.getPropertyValue('--kb')).toBe('0px'); // окно уже над клавиатурой
+    (document.getElementById('b') as HTMLButtonElement).focus();
+    document.dispatchEvent(new FocusEvent('focusout'));
+    expect(document.documentElement.hasAttribute('data-kb')).toBe(false);
+    // Поворот экрана: новая ширина — новая «обычная» высота, без ложной клавиатуры.
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 360 });
+    window.dispatchEvent(new Event('resize'));
+    expect(document.documentElement.hasAttribute('data-kb')).toBe(false);
     stop();
   });
 

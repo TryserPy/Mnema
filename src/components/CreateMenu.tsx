@@ -49,8 +49,8 @@ export function CreateHost({ route, go, onNewSubject }: { route: Route; go: (r: 
     );
 
   const items: { icon: string; title: string; hint: string; run: () => void; hidden?: boolean }[] = [
+    { icon: 'book', title: 'Новый конспект', hint: 'Тема с конспектом: шаблон, текст из буфера или фото учебника', run: () => setSheet('topic'), hidden: data.subjects.length === 0 },
     { icon: 'cardPlus', title: 'Быстрая карточка', hint: 'Вопрос и ответ — в любую тему', run: () => setSheet('card'), hidden: data.topics.length === 0 },
-    { icon: 'book', title: 'Новая тема', hint: 'Название — конспект допишешь потом', run: () => setSheet('topic'), hidden: data.subjects.length === 0 },
     { icon: 'sparkle', title: 'Решить по шагам', hint: 'Фото задачи — ИИ объяснит решение с формулами', run: () => setSheet('solve'), hidden: !aiAvailable(data) },
     { icon: 'pen', title: 'Из тетради', hint: 'Фото записей или файл: Word, PDF, Markdown, Notion', run: () => setSheet('notebook'), hidden: data.subjects.length === 0 },
     { icon: 'folderPlus', title: 'Новый предмет', hint: 'Например, «Биология»', run: () => (close(), onNewSubject()) },
@@ -175,7 +175,7 @@ function QuickTopicDialog({ at, go, onClose }: { at: { subjectId?: string }; go:
           if (!ok) return;
           const t = addTopic(subjectId, name);
           onClose();
-          go({ name: 'topic', id: t.id });
+          go({ name: 'topic', id: t.id, tab: 'note' });
         }}
       >
         <label className="stack gap4">
