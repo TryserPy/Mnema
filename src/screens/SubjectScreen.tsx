@@ -17,6 +17,9 @@ import { setPlace } from '../studyBack';
 import { addTopic, childTopics, subjectRules, updateSubject, useData } from '../store';
 import type { Route, Topic } from '../types';
 
+/** «5 карточек» — сколько возьмёт действие, видно в меню до нажатия. */
+const cardsWord = (n: number) => `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
+
 type View = 'topics' | 'rules' | 'terms' | 'timeline';
 
 export function SubjectScreen({ id, view: initialView, filter, go }: { id: string; view?: View; filter?: string; go: (r: Route) => void }) {
@@ -92,20 +95,20 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           <MoreMenu
             label="Действия с предметом"
             items={[
-              { label: `Учить весь предмет · ${due}`, icon: 'play', hint: sp.label || undefined, onClick: () => go(sp.route()), hidden: due === 0 },
-              { label: `Учить новые · ${study.kind === 'new' ? study.fresh : 0}`, icon: 'play', hint: 'По расписанию на сегодня всё, но есть новые карточки', onClick: () => go(sp.route(sp.pick, study.kind === 'new' ? study.fresh : 0)), hidden: study.kind !== 'new' },
-              { label: 'Что учить', icon: 'sliders', hint: sp.label || 'Всё: карточки и списки вместе', items: pickItems(sp, go), hidden: sp.options.length === 0 },
-              { label: 'Повторить ещё раз', icon: 'repeat', hint: 'Все темы и подтемы: повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ subjectId: id, ...pickScope(sp.pick) }), hidden: !hasCards },
-              { label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
-              { label: 'Сделать копию', icon: 'copy', hint: 'Все темы, конспекты и карточки', onClick: () => makeCopy('subject', id, go) },
-              { label: 'Новая контрольная', icon: 'test', hint: 'Выбрать темы и дату — Refrain составит план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },
-              { label: 'Импорт из Obsidian', icon: 'folder', onClick: () => setObsidian(true), hidden: !data.settings.features.obsidian },
-              { label: 'Распечатать карточки', icon: 'print', onClick: () => setExportKind('print') },
+              { section: 'Учить', label: 'Учить весь предмет', icon: 'play', hint: `${cardsWord(due)} на сегодня${sp.label ? ` · ${sp.label}` : ''}`, onClick: () => go(sp.route()), hidden: due === 0 },
+              { section: 'Учить', label: 'Учить новые', icon: 'play', hint: `${cardsWord(study.kind === 'new' ? study.fresh : 0)} сверх плана на сегодня`, onClick: () => go(sp.route(sp.pick, study.kind === 'new' ? study.fresh : 0)), hidden: study.kind !== 'new' },
+              { section: 'Учить', label: 'Что учить', icon: 'sliders', hint: sp.label || 'Сейчас: всё — карточки и термины', items: pickItems(sp, go), hidden: sp.options.length === 0 },
+              { section: 'Учить', label: 'Повторить ещё раз', icon: 'repeat', hint: 'Без изменения расписания', onClick: () => openRepeatDialog({ subjectId: id, ...pickScope(sp.pick) }), hidden: !hasCards },
+              { section: 'Подготовка', label: 'Новая контрольная', icon: 'test', hint: 'Выбери темы и дату — будет план', onClick: () => openExamDialog({ subjectId: id }), hidden: topics.length === 0 },
+              { section: 'Управление', label: 'Изменить название и цвет', icon: 'edit', onClick: () => setEditing(true) },
+              { section: 'Управление', label: 'Сделать копию', icon: 'copy', hint: 'Темы, конспекты и карточки', onClick: () => makeCopy('subject', id, go) },
               subject.topicSort !== 'manual'
-                ? { label: 'Темы — в своём порядке', icon: 'sort', hint: 'Тогда их можно расставить перетаскиванием', onClick: () => updateSubject(id, { topicSort: 'manual' }) }
-                : { label: 'Темы — по названию', icon: 'sort', hint: '§1, §2 … §10 — по номерам и алфавиту', onClick: () => updateSubject(id, { topicSort: 'name' }) },
-              { label: 'Экспорт в Anki', icon: 'share', onClick: () => setExportKind('anki') },
-              { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ subjectId: id }) },
+                ? { section: 'Управление', label: 'Темы — в своём порядке', icon: 'sort', hint: 'Можно будет перетаскивать', onClick: () => updateSubject(id, { topicSort: 'manual' }) }
+                : { section: 'Управление', label: 'Темы — по названию', icon: 'sort', hint: '§1, §2 … §10 — по номерам', onClick: () => updateSubject(id, { topicSort: 'name' }) },
+              { section: 'Управление', label: 'Импорт из Obsidian', icon: 'folder', onClick: () => setObsidian(true), hidden: !data.settings.features.obsidian },
+              { section: 'Экспорт', label: 'Распечатать карточки', icon: 'print', hint: 'Для вырезания или списком', onClick: () => setExportKind('print') },
+              { section: 'Экспорт', label: 'Экспорт в Anki', icon: 'share', hint: 'Файл .apkg вместе с прогрессом', onClick: () => setExportKind('anki') },
+              { section: 'Экспорт', label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл', onClick: () => exportForAi({ subjectId: id }) },
               { label: 'Удалить предмет', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
             ]}
           />

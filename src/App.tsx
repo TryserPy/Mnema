@@ -35,7 +35,7 @@ import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
 import { comboFromEvent, keyFor, matches, toAccelerator, typingTarget } from './keys';
-import { Icon, keepMenusInView, onToast, usePresence } from './components/ui';
+import { closeTopLayer, Icon, keepMenusInView, onToast, usePresence } from './components/ui';
 import { Help } from './screens/Help';
 import { Review } from './screens/Review';
 import { Settings } from './screens/Settings';
@@ -397,7 +397,9 @@ export function App() {
   drawerRef.current = drawer;
   useEffect(() => {
     window.__mnemaBack = () => {
-      // Сначала — полноэкранный холст или формула: «Назад» сворачивает их, а не закрывает окно с рисунком.
+      // Сначала — открытое меню или шторка (1.34: раньше «Назад» мимо них уводил с экрана).
+      if (closeTopLayer()) return true;
+      // Потом — полноэкранный холст или формула: «Назад» сворачивает их, а не закрывает окно с рисунком.
       const back = document.querySelector<HTMLButtonElement>('[data-back]');
       if (back) {
         back.click();

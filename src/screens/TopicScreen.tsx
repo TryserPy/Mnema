@@ -227,35 +227,31 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
           <MoreMenu
             label="Действия с темой"
             items={[
-              { label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'Тема и подтемы: повторённое сегодня, всё начатое, слабые места' : 'Повторённое сегодня, всё начатое, слабые места', onClick: () => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) }), hidden: !canRepeat },
-              { label: 'Карточки из конспекта', icon: 'sparkle', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
-              { label: 'Черновики карточек от ИИ', icon: 'bot', hint: 'ИИ предложит вопросы по конспекту, ты проверишь', onClick: () => setAiCards(true), hidden: !topic.note.trim() || !aiAvailable(data) },
-              { label: 'Карточки из ссылки, видео или книги', icon: 'link', hint: 'Статья, YouTube с субтитрами, глава EPUB — ИИ предложит вопросы', onClick: () => setSrcCards(true), hidden: !aiAvailable(data) },
-              { label: 'Решить задачу по шагам', icon: 'sparkle', hint: 'Фото или текст условия — ИИ объяснит решение', onClick: () => setSolve(true), hidden: !aiAvailable(data) },
-              { label: 'Добавить из учебника (фото)', icon: 'camera', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
+              { section: 'Учить', label: 'Повторить ещё раз', icon: 'repeat', hint: subCount > 0 ? 'С подтемами, без изменения расписания' : 'Без изменения расписания', onClick: () => openRepeatDialog({ topicId: id, ...pickScope(sp.pick) }), hidden: !canRepeat },
               {
+                section: 'Учить',
                 label: 'Проверить себя',
                 icon: 'bulb',
+                hint: 'Пересказ, угадайка до чтения, пробная контрольная',
                 items: [
                   { label: 'Закрой и перескажи', icon: 'eyeOff', hint: 'Расскажи по памяти и сравни с конспектом', onClick: () => setRecall(true), hidden: !topic.note.trim() },
                   { label: 'Проверь себя до чтения', icon: 'bulb', hint: 'Угадай ответы — потом запомнится лучше', onClick: () => go({ name: 'test', topicId: id, pretest: true }), hidden: cards.length < 2 || cards.some((c) => itemOrds(c).some((o) => data.states[itemKey(c.id, o)])) },
-                  { label: 'Пробная контрольная', icon: 'test', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 }
+                  { label: 'Пробная контрольная', icon: 'test', hint: 'Вопросы по карточкам темы, без расписания', onClick: () => go({ name: 'test', topicId: id }), hidden: cards.length < 2 }
                 ]
               },
-              { label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — Refrain составит план', onClick: () => openExamDialog({ topicId: id }) },
-              {
-                label: 'Поделиться',
-                icon: 'share',
-                items: [
-                  { label: 'Файлом', icon: 'share', hint: 'Другу или на другое устройство', onClick: () => setPackOpen(true) },
-                  { label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл изменений', onClick: () => exportForAi({ topicId: id }) },
-                  { label: 'Распечатать карточки', icon: 'print', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 }
-                ]
-              },
-              { label: 'Добавить подтему', icon: 'subtopic', onClick: () => setAddingSub(true), hidden: topic.kind === 'rule' },
-              { label: 'Сделать копию', icon: 'copy', hint: 'Вместе с подтемами, конспектом и карточками', onClick: () => makeCopy('topic', id, go) },
-              { label: 'История конспекта', icon: 'clock', hint: 'Вернуть прежний текст', onClick: () => setHistoryOpen(true), hidden: !data.noteHistory?.[id]?.length },
-              ...plugins.topicActions.map((a) => ({ label: a.title, icon: 'puzzle', onClick: () => a.run({ id: topic.id, name: topic.name, note: topic.note, subjectId: topic.subjectId }) })),
+              { section: 'Карточки', label: 'Карточки из конспекта', icon: 'sparkle', hint: 'Из выделенного и определений', onClick: () => setNoteCards(true), hidden: !topic.note.trim() },
+              { section: 'Карточки', label: 'Черновики карточек от ИИ', icon: 'bot', hint: 'ИИ предложит вопросы, ты проверишь', onClick: () => setAiCards(true), hidden: !topic.note.trim() || !aiAvailable(data) },
+              { section: 'Карточки', label: 'Карточки из ссылки, видео или книги', icon: 'link', hint: 'Статья, YouTube, глава EPUB', onClick: () => setSrcCards(true), hidden: !aiAvailable(data) },
+              { section: 'Карточки', label: 'Решить задачу по шагам', icon: 'sparkle', hint: 'Фото или текст условия', onClick: () => setSolve(true), hidden: !aiAvailable(data) },
+              { section: 'Карточки', label: 'Добавить из учебника (фото)', icon: 'camera', hint: 'Фото страницы → конспект', onClick: () => { go({ name: 'topic', id, tab: 'note' }); setImportOpen(true); } },
+              { section: 'Подготовка', label: 'Назначить контрольную', icon: 'calendar', hint: 'Дата и темы — будет план', onClick: () => openExamDialog({ topicId: id }) },
+              { section: 'Управление', label: 'Добавить подтему', icon: 'subtopic', onClick: () => setAddingSub(true), hidden: topic.kind === 'rule' },
+              { section: 'Управление', label: 'Сделать копию', icon: 'copy', hint: 'С подтемами, конспектом и карточками', onClick: () => makeCopy('topic', id, go) },
+              { section: 'Управление', label: 'История конспекта', icon: 'clock', hint: 'Вернуть прежний текст', onClick: () => setHistoryOpen(true), hidden: !data.noteHistory?.[id]?.length },
+              ...plugins.topicActions.map((a) => ({ section: 'Управление', label: a.title, icon: 'puzzle', onClick: () => a.run({ id: topic.id, name: topic.name, note: topic.note, subjectId: topic.subjectId }) })),
+              { section: 'Экспорт', label: 'Поделиться файлом', icon: 'share', hint: 'Другу или на другое устройство', onClick: () => setPackOpen(true) },
+              { section: 'Экспорт', label: 'Распечатать карточки', icon: 'print', hint: 'Для вырезания или списком', onClick: () => setPrintOpen(true), hidden: allCards.length === 0 },
+              { section: 'Экспорт', label: 'Выгрузить для нейросети', icon: 'bot', hint: 'Нейросеть поправит и вернёт файл', onClick: () => exportForAi({ topicId: id }) },
               { label: 'Удалить тему', icon: 'trash', danger: true, onClick: () => setConfirmDelete(true) }
             ]}
           />

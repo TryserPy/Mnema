@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { placeMenu } from '../menuPlace';
 
@@ -940,6 +940,8 @@ export interface MenuItem {
   items?: MenuItem[];
   danger?: boolean;
   hidden?: boolean;
+  /** Заголовок раздела над пунктом («Учить», «Экспорт»): ставится, когда раздел меняется (1.34). */
+  section?: string;
 }
 
 /** Что показать в меню: скрытые пункты убрать, пустую группу убрать, группу из одного пункта заменить этим пунктом. */
@@ -952,18 +954,118 @@ export function menuShown(items: MenuItem[]): MenuItem[] {
       continue;
     }
     const kids = i.items.filter((k) => !k.hidden);
-    if (kids.length === 1) out.push(kids[0]);
+    if (kids.length === 1) out.push({ ...kids[0], section: kids[0].section ?? i.section });
     else if (kids.length > 1) out.push({ ...i, items: kids });
   }
   return out;
 }
 
-/** Кнопка «⋯» с выпадающим меню редких действий. */
+/** Где в меню заголовки разделов и черта перед опасными пунктами (удалить): по пунктам, которые видны. */
+export function menuLayout(items: MenuItem[]): { item: MenuItem; head?: string; sep: boolean }[] {
+  let section: string | undefined;
+  return items.map((item, k) => {
+    const head = item.section && item.section !== section ? item.section : undefined;
+    if (item.section) section = item.section;
+    // Опасное — отдельно, внизу, за чертой (если перед ним что-то есть и у него нет своего заголовка).
+    const sep = Boolean(item.danger && k > 0 && !items[k - 1].danger && !head);
+    return { item, head, sep };
+  });
+}
+
+// ---------- «Назад» на телефоне закрывает верхний слой ----------
+// Шторки и меню записываются сюда, пока открыты: системная кнопка «Назад» (Android) и жест «назад» в браузере
+// сначала закрывают их, потом окно, потом экран (App.tsx: __mnemaBack).
+const backLayers: (() => void)[] = [];
+
+export function useBackLayer(open: boolean, close: () => void) {
+  const ref = useRef(close);
+  ref.current = close;
+  useEffect(() => {
+    if (!open) return;
+    const fn = () => ref.current();
+    backLayers.push(fn);
+    return () => {
+      const i = backLayers.lastIndexOf(fn);
+      if (i >= 0) backLayers.splice(i, 1);
+    };
+  }, [open]);
+}
+
+/** Закрыть верхнюю шторку или меню. false — закрывать нечего. */
+export function closeTopLayer(): boolean {
+  const fn = backLayers[backLayers.length - 1];
+  if (!fn) return false;
+  fn();
+  return true;
+}
+
+/** Меню на телефоне — шторка снизу: узкий экран или телефон боком (низкий экран и палец). */
+export const SHEET_QUERY = '(max-width: 720px), (pointer: coarse) and (max-height: 520px)';
+export const sheetMode = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.(SHEET_QUERY).matches);
+
+/** Потянуть шторку вниз за ручку или заголовок — закрыть (как у окон на телефоне). Только transform — без перерисовки раскладки. */
+export function useSwipeDown(sheet: React.RefObject<HTMLElement | null>, onClose: () => void) {
+  const drag = useRef<{ y: number; t: number; dy: number } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') return;
+    drag.current = { y: e.clientY, t: performance.now(), dy: 0 };
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {
+      // Указатель уже отпущен — тянуть нечего.
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || !sheet.current) return;
+    d.dy = Math.max(0, e.clientY - d.y);
+    sheet.current.style.transition = 'none';
+    sheet.current.style.transform = `translateY(${d.dy}px)`;
+  };
+  const onPointerUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    const el = sheet.current;
+    if (!d || !el) return;
+    const speed = d.dy / Math.max(1, performance.now() - d.t);
+    el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1)';
+    if (d.dy > 80 || (d.dy > 30 && speed > 0.6)) {
+      el.style.transform = 'translateY(100%)';
+      haptic(8);
+      onClose();
+    } else el.style.transform = '';
+  };
+  return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp };
+}
+
+/** Стрелки ↑↓, Home и End двигают фокус по пунктам меню. */
+function menuKeys(e: React.KeyboardEvent<HTMLElement>) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+  const list = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])'));
+  if (!list.length) return;
+  e.preventDefault();
+  const at = list.indexOf(document.activeElement as HTMLElement);
+  const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : e.key === 'ArrowDown' ? (at + 1) % list.length : (at - 1 + list.length) % list.length;
+  list[next].focus();
+}
+
+/**
+ * Кнопка «⋯» с меню редких действий. На компьютере — выпадающее меню у кнопки, на телефоне — шторка снизу поверх всего
+ * (нижней навигации, плавающих кнопок): с затемнением, ручкой, прокруткой внутри и закрытием тапом мимо, свайпом и «Назад».
+ */
 export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align = 'right' }: { items: MenuItem[]; label?: string; icon?: string; title?: string; align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false);
   const [sub, setSub] = useState<string | null>(null);
+  const [sheet, setSheet] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const close = (refocus = false) => {
+    setOpen(false);
+    if (refocus) btnRef.current?.focus({ preventScroll: true });
+  };
+  useBackLayer(open, () => close(true));
+  const swipe = useSwipeDown(menuRef, () => close(true));
   // Открыли группу или вернулись назад — фокус на первый пункт и заново поставить меню в окно (оно стало короче или длиннее).
   const switched = useRef(false);
   useEffect(() => {
@@ -980,24 +1082,91 @@ export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align 
   };
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    // Шторка: фокус внутрь (TalkBack и VoiceOver читают её сразу), прокрутка страницы под ней не уезжает.
+    if (sheet) requestAnimationFrame(() => menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true }));
+    const outside = (e: Event) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', close);
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault(); // окно под меню закрывать не нужно
+      close(true);
+    };
+    document.addEventListener('mousedown', outside);
+    document.addEventListener('touchstart', outside, { passive: true });
     window.addEventListener('keydown', esc);
     return () => {
-      document.removeEventListener('mousedown', close);
+      document.removeEventListener('mousedown', outside);
+      document.removeEventListener('touchstart', outside);
       window.removeEventListener('keydown', esc);
     };
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const top = menuShown(items);
   const group = sub ? top.find((i) => i.items && i.label === sub) : undefined;
   const visible = group?.items ?? top;
   const pres = usePresence(open, 130);
+  const menu = (
+    <div
+      ref={menuRef}
+      className={'menu' + (sheet ? ' sheet' : align === 'right' ? ' right' : '') + (pres.closing ? ' closing' : '')}
+      role="menu"
+      aria-label={group?.label ?? label}
+      onKeyDown={menuKeys}
+    >
+      {sheet && (
+        <div className="sheet-head" {...swipe}>
+          <span className="sheet-grip" aria-hidden="true" />
+          {!group && <span className="sheet-title">{label}</span>}
+        </div>
+      )}
+      {group && (
+        <button role="menuitem" className="menu-back" onClick={() => goSub(null)}>
+          <Icon name="left" size={18} /> {group.label}
+        </button>
+      )}
+      {menuLayout(visible).map(({ item: i, head, sep }) => (
+        <Fragment key={i.label}>
+          {head && (
+            <div className="menu-section" role="presentation">
+              {head}
+            </div>
+          )}
+          {sep && <div className="menu-sep" role="separator" />}
+          <button
+            role="menuitem"
+            className={i.danger ? 'danger' : ''}
+            aria-haspopup={i.items ? 'menu' : undefined}
+            onClick={() => {
+              if (i.items) return goSub(i.label);
+              setOpen(false);
+              i.onClick?.();
+            }}
+          >
+            {i.icon && <Icon name={i.icon} size={18} />}{' '}
+            {i.hint ? (
+              <span className="menu-2l">
+                <span>{i.label}</span>
+                <small>{i.hint}</small>
+              </span>
+            ) : (
+              <span className="menu-1l">{i.label}</span>
+            )}
+            {i.items && (
+              <span className="menu-chev" aria-hidden="true">
+                <Icon name="right" size={16} />
+              </span>
+            )}
+          </button>
+        </Fragment>
+      ))}
+    </div>
+  );
   return (
     <div className="more" ref={ref}>
       <button
+        ref={btnRef}
         type="button"
         className={'icon-btn bordered' + (icon !== 'dots' ? ' add-btn' : '')}
         aria-label={label}
@@ -1006,48 +1175,22 @@ export function MoreMenu({ items, label = 'Ещё', icon = 'dots', title, align 
         aria-expanded={open}
         onClick={() => {
           setSub(null);
+          setSheet(sheetMode());
           setOpen(!open);
         }}
       >
         <Icon name={icon} />
       </button>
-      {pres.mounted && (
-        <div ref={menuRef} className={'menu' + (align === 'right' ? ' right' : '') + (pres.closing ? ' closing' : '')} role="menu" aria-label={group?.label}>
-          {group && (
-            <button role="menuitem" className="menu-back" onClick={() => goSub(null)}>
-              <Icon name="left" size={18} /> {group.label}
-            </button>
-          )}
-          {visible.map((i) => (
-            <button
-              key={i.label}
-              role="menuitem"
-              className={i.danger ? 'danger' : ''}
-              aria-haspopup={i.items ? 'menu' : undefined}
-              onClick={() => {
-                if (i.items) return goSub(i.label);
-                setOpen(false);
-                i.onClick?.();
-              }}
-            >
-              {i.icon && <Icon name={i.icon} size={18} />}{' '}
-              {i.hint ? (
-                <span className="menu-2l">
-                  <span>{i.label}</span>
-                  <small>{i.hint}</small>
-                </span>
-              ) : (
-                i.label
-              )}
-              {i.items && (
-                <span className="menu-chev" aria-hidden="true">
-                  <Icon name="right" size={16} />
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+      {pres.mounted &&
+        (sheet
+          ? createPortal(
+              <>
+                <div className={'sheet-back' + (pres.closing ? ' closing' : '')} onClick={() => close(true)} aria-hidden="true" />
+                {menu}
+              </>,
+              document.body
+            )
+          : menu)}
     </div>
   );
 }
@@ -1086,7 +1229,7 @@ export function selHow(action: string): string {
 
 // Меню, которые на телефоне становятся шторкой снизу (положение задаёт CSS, подгонять нечего).
 const SHEET_MENUS = '.topic-tabs .more .menu, .otab-more .menu, .note-insert .menu, .note-float-panel .menu';
-const isPhoneSheet = (el: HTMLElement) => el.matches(SHEET_MENUS) && window.matchMedia('(max-width: 720px), (pointer: coarse)').matches;
+const isPhoneSheet = (el: HTMLElement) => el.classList.contains('sheet') || (el.matches(SHEET_MENUS) && window.matchMedia('(max-width: 720px), (pointer: coarse)').matches);
 
 /** Видимая область, в которой меню обязано поместиться: окно (с учётом экранной клавиатуры) и, если меню живёт в прокручиваемой
  *  области, её видимая ширина без полосы прокрутки. */
@@ -1099,6 +1242,9 @@ function viewBounds(el: HTMLElement) {
     const r = sc.getBoundingClientRect();
     b.left = Math.max(b.left, r.left);
     b.right = Math.min(b.right, r.left + sc.clientLeft + sc.clientWidth);
+    // И по высоте: снизу у .main на телефоне нижняя навигация — меню не должно уходить под неё (1.34).
+    b.top = Math.max(b.top, r.top);
+    b.bottom = Math.min(b.bottom, r.bottom);
   }
   return b;
 }
