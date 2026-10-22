@@ -1,0 +1,897 @@
+[WebServer] (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[WebServer]   - import "./web/vite-plugin" without a file extension (vite.config.ts:6:26). Add the file extension
+[WebServer] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+
+Running 25 tests using 4 workers
+
+[1/25] [phone-360] › tests/e2e/menu.spec.ts:78:3 › меню «⋮» предмета › при 150% шрифта и длинных русских словах в названии предмета
+[2/25] [phone-360] › tests/e2e/menu.spec.ts:92:3 › меню «⋮» предмета › пункты сгруппированы: Учить, Подготовка, Управление, Экспорт; «Удалить» — последним
+[3/25] [phone-360] › tests/e2e/menu.spec.ts:52:3 › меню «⋮» предмета › пункты не налезают, меню на экране и ничем не закрыто (с 🐞 режима разработчика)
+[4/25] [phone-360] › tests/e2e/menu.spec.ts:64:3 › меню «⋮» предмета › при крупном системном шрифте (200%) и длинных подсказках — без наложений
+  1) [phone-360] › tests/e2e/menu.spec.ts:78:3 › меню «⋮» предмета › при 150% шрифта и длинных русских словах в названии предмета 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 32
+
+    - Array []
+    + Array [
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Все темы, конспе» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Все темы, конспе» вылезает из пункта",
+    +   "текст «Новая контрольная
+    + Выбрать темы» вылезает из пункта",
+    +   "текст «Новая контрольная
+    + Выбрать темы» вылезает из пункта",
+    +   "текст «Новая контрольная
+    + Выбрать темы» вылезает из пункта",
+    +   "текст «Темы — в своём порядке
+    + Тогда и» вылезает из пункта",
+    +   "текст «Темы — в своём порядке
+    + Тогда и» вылезает из пункта",
+    +   "текст «Темы — в своём порядке
+    + Тогда и» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    + ]
+
+      84 |     await page.addStyleTag({ content: 'html { font-size: 24px !important; }' });
+      85 |     await openSubjectMenu(page);
+    > 86 |     expect(await overlaps(page, ITEMS)).toEqual([]);
+         |                                         ^
+      87 |     await withinViewport(page);
+      88 |     const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
+      89 |     expect(scrollW).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:86:41
+
+    Error Context: test-results/menu-меню-«⋮»-предмета-при-90e6f--словах-в-названии-предмета-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-меню-«⋮»-предмета-при-90e6f--словах-в-названии-предмета-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-меню-«⋮»-предмета-при-90e6f--словах-в-названии-предмета-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  2) [phone-360] › tests/e2e/menu.spec.ts:92:3 › меню «⋮» предмета › пункты сгруппированы: Учить, Подготовка, Управление, Экспорт; «Удалить» — последним 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 6
+    + Received  + 1
+
+    - Array [
+    -   "учить",
+    -   "подготовка",
+    -   "управление",
+    -   "экспорт",
+    - ]
+    + Array []
+
+      94 |     await openSubjectMenu(page);
+      95 |     const heads = await page.locator('.menu .menu-section').allInnerTexts();
+    > 96 |     expect(heads.map((h) => h.trim().toLowerCase())).toEqual(['учить', 'подготовка', 'управление', 'экспорт']);
+         |                                                      ^
+      97 |     await expect(page.locator(ITEMS).last()).toHaveText(/Удалить предмет/);
+      98 |     // Результат действия виден до нажатия: сколько карточек на сегодня.
+      99 |     await expect(page.locator(ITEMS).first()).toContainText(/\d+ карточ/);
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:96:54
+
+    Error Context: test-results/menu-меню-«⋮»-предмета-пун-b3080-спорт-«Удалить»-—-последним-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-меню-«⋮»-предмета-пун-b3080-спорт-«Удалить»-—-последним-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-меню-«⋮»-предмета-пун-b3080-спорт-«Удалить»-—-последним-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  3) [phone-360] › tests/e2e/menu.spec.ts:52:3 › меню «⋮» предмета › пункты не налезают, меню на экране и ничем не закрыто (с 🐞 режима разработчика) 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 14
+
+    - Array []
+    + Array [
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Все темы, конспе» вылезает из пункта",
+    +   "текст «Новая контрольная
+    + Выбрать темы» вылезает из пункта",
+    +   "текст «Темы — в своём порядке
+    + Тогда и» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    + ]
+
+      53 |     await openApp(page, { name: 'subject', id: 'geo' }, { dev: true });
+      54 |     await openSubjectMenu(page);
+    > 55 |     expect(await overlaps(page, ITEMS)).toEqual([]);
+         |                                         ^
+      56 |     await withinViewport(page);
+      57 |     expect(await covered(page)).toEqual([]);
+      58 |     if (isPhone(page)) {
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:55:41
+
+    Error Context: test-results/menu-меню-«⋮»-предмета-пун-b724b-о-с-🐞-режима-разработчика--phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-меню-«⋮»-предмета-пун-b724b-о-с-🐞-режима-разработчика--phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-меню-«⋮»-предмета-пун-b724b-о-с-🐞-режима-разработчика--phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  4) [phone-360] › tests/e2e/menu.spec.ts:64:3 › меню «⋮» предмета › при крупном системном шрифте (200%) и длинных подсказках — без наложений 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 40
+
+    - Array []
+    + Array [
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Все темы и п» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Все темы, конспе» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Все темы, конспе» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Все темы, конспе» вылезает из пункта",
+    +   "текст «Новая контрольная
+    + Выбрать темы» вылезает из пункта",
+    +   "текст «Новая контрольная
+    + Выбрать темы» вылезает из пункта",
+    +   "текст «Новая контрольная
+    + Выбрать темы» вылезает из пункта",
+    +   "текст «Темы — в своём порядке
+    + Тогда и» вылезает из пункта",
+    +   "текст «Темы — в своём порядке
+    + Тогда и» вылезает из пункта",
+    +   "текст «Темы — в своём порядке
+    + Тогда и» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    +   "текст «Выгрузить для нейросети
+    + Нейрос» вылезает из пункта",
+    + ]
+
+      66 |     await page.addStyleTag({ content: 'html { font-size: 32px !important; }' });
+      67 |     await openSubjectMenu(page);
+    > 68 |     expect(await overlaps(page, ITEMS)).toEqual([]);
+         |                                         ^
+      69 |     await withinViewport(page);
+      70 |     expect(await covered(page)).toEqual([]);
+      71 |     // Последний пункт достижим прокруткой меню внутри себя.
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:68:41
+
+    Error Context: test-results/menu-меню-«⋮»-предмета-при-8dee4--подсказках-—-без-наложений-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-меню-«⋮»-предмета-при-8dee4--подсказках-—-без-наложений-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-меню-«⋮»-предмета-при-8dee4--подсказках-—-без-наложений-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[5/25] [phone-360] › tests/e2e/menu.spec.ts:102:3 › меню «⋮» предмета › цели нажатия не меньше 44 px
+[6/25] [phone-360] › tests/e2e/menu.spec.ts:109:3 › меню «⋮» предмета › закрывается Esc, тапом мимо и кнопкой «Назад» (Android)
+[7/25] [phone-360] › tests/e2e/menu.spec.ts:131:3 › шторка на телефоне › снизу экрана, с затемнением и ручкой; над нижней панелью
+[8/25] [phone-360] › tests/e2e/menu.spec.ts:142:3 › шторка на телефоне › свайп вниз за ручку закрывает
+  5) [phone-360] › tests/e2e/menu.spec.ts:102:3 › меню «⋮» предмета › цели нажатия не меньше 44 px ─
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 9
+
+    - Array []
+    + Array [
+    +   "Учить весь предмет · 15",
+    +   "Изменить название и цвет",
+    +   "Сделать копию
+    + Все темы, конспекты и карточки",
+    +   "Распечатать карточки",
+    +   "Экспорт в Anki",
+    +   "Удалить предмет",
+    + ]
+
+      104 |     await openSubjectMenu(page);
+      105 |     const small = await page.evaluate((sel) => Array.from(document.querySelectorAll<HTMLElement>(sel)).filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.innerText), ITEMS);
+    > 106 |     expect(small).toEqual([]);
+          |                   ^
+      107 |   });
+      108 |
+      109 |   test('закрывается Esc, тапом мимо и кнопкой «Назад» (Android)', async ({ page }) => {
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:106:19
+
+    Error Context: test-results/menu-меню-«⋮»-предмета-цели-нажатия-не-меньше-44-px-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-меню-«⋮»-предмета-цели-нажатия-не-меньше-44-px-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-меню-«⋮»-предмета-цели-нажатия-не-меньше-44-px-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[9/25] [phone-360] › tests/e2e/menu.spec.ts:154:3 › шторка на телефоне › подменю «Что учить» открывается в той же шторке, «Назад» возвращает
+  6) [phone-360] › tests/e2e/menu.spec.ts:142:3 › шторка на телефоне › свайп вниз за ручку закрывает 
+
+    TypeError: Cannot read properties of null (reading 'left')
+
+      144 |     await openSubjectMenu(page);
+      145 |     const g = (await box(page, '.menu.sheet .sheet-grip'))!;
+    > 146 |     const x = g.left + g.width / 2;
+          |                 ^
+      147 |     const y = g.top + g.height / 2;
+      148 |     await page.locator('.menu.sheet .sheet-grip').dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y, isPrimary: true });
+      149 |     for (let k = 1; k <= 6; k++) await page.locator('.menu.sheet .sheet-grip').dispatchEvent('pointermove', { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y + k * 40, isPrimary: true });
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:146:17
+
+    Error Context: test-results/menu-шторка-на-телефоне-свайп-вниз-за-ручку-закрывает-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-шторка-на-телефоне-свайп-вниз-за-ручку-закрывает-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-шторка-на-телефоне-свайп-вниз-за-ручку-закрывает-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[10/25] [phone-360] › tests/e2e/menu.spec.ts:172:3 › меню «⋮» темы › пункты не налезают и ничем не закрыты
+[11/25] [phone-360] › tests/e2e/pager.spec.ts:20:3 › ввод номера страницы › поле с цифровой клавиатурой, показывает текущую страницу
+  7) [phone-360] › tests/e2e/menu.spec.ts:172:3 › меню «⋮» темы › пункты не налезают и ничем не закрыты 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 22
+
+    - Array []
+    + Array [
+    +   "текст «Повторить ещё раз
+    + Повторённое » вылезает из пункта",
+    +   "текст «Повторить ещё раз
+    + Повторённое » вылезает из пункта",
+    +   "текст «Черновики карточек от ИИ
+    + ИИ пр» вылезает из пункта",
+    +   "текст «Черновики карточек от ИИ
+    + ИИ пр» вылезает из пункта",
+    +   "текст «Карточки из ссылки, видео или » вылезает из пункта",
+    +   "текст «Карточки из ссылки, видео или » вылезает из пункта",
+    +   "текст «Решить задачу по шагам
+    + Фото ил» вылезает из пункта",
+    +   "текст «Решить задачу по шагам
+    + Фото ил» вылезает из пункта",
+    +   "текст «Назначить контрольную
+    + Дата и т» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Вместе с подтема» вылезает из пункта",
+    +   "текст «Сделать копию
+    + Вместе с подтема» вылезает из пункта",
+    + ]
+
+      175 |     await expect(page.locator('.menu').first()).toBeVisible();
+      176 |     await expect.poll(() => page.evaluate(() => document.querySelector('.menu')?.getAnimations().length ?? 0)).toBe(0);
+    > 177 |     expect(await overlaps(page, ITEMS)).toEqual([]);
+          |                                         ^
+      178 |     await withinViewport(page);
+      179 |     expect(await covered(page)).toEqual([]);
+      180 |   });
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:177:41
+
+    Error Context: test-results/menu-меню-«⋮»-темы-пункты-не-налезают-и-ничем-не-закрыты-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-меню-«⋮»-темы-пункты-не-налезают-и-ничем-не-закрыты-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-меню-«⋮»-темы-пункты-не-налезают-и-ничем-не-закрыты-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[12/25] [phone-360] › tests/e2e/pager.spec.ts:31:3 › ввод номера страницы › Enter переходит на страницу
+  8) [phone-360] › tests/e2e/menu.spec.ts:131:3 › шторка на телефоне › снизу экрана, с затемнением и ручкой; над нижней панелью 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.menu.sheet')
+    Expected: visible
+    Timeout: 8000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 8000ms
+      - waiting for locator('.menu.sheet')
+
+
+      132 |     await openApp(page, { name: 'subject', id: 'geo' });
+      133 |     await openSubjectMenu(page);
+    > 134 |     await expect(page.locator('.menu.sheet')).toBeVisible();
+          |                                               ^
+      135 |     await expect(page.locator('.sheet-back')).toBeVisible();
+      136 |     await expect(page.locator('.menu.sheet .sheet-grip')).toBeVisible();
+      137 |     const m = await box(page, '.menu.sheet');
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:134:47
+
+    Error Context: test-results/menu-шторка-на-телефоне-сн-2b540-и-ручкой-над-нижней-панелью-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-шторка-на-телефоне-сн-2b540-и-ручкой-над-нижней-панелью-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-шторка-на-телефоне-сн-2b540-и-ручкой-над-нижней-панелью-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  9) [phone-360] › tests/e2e/menu.spec.ts:109:3 › меню «⋮» предмета › закрывается Esc, тапом мимо и кнопкой «Назад» (Android) 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('heading', { name: 'Геометрия' })
+    Expected: visible
+    Timeout: 8000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 8000ms
+      - waiting for getByRole('heading', { name: 'Геометрия' })
+
+
+      122 |     await expect(page.locator('.menu')).toHaveCount(0);
+      123 |     // «Назад» закрыл только меню, а не экран предмета.
+    > 124 |     await expect(page.getByRole('heading', { name: 'Геометрия' })).toBeVisible();
+          |                                                                    ^
+      125 |   });
+      126 | });
+      127 |
+        at /home/user/Mnema/tests/e2e/menu.spec.ts:124:68
+
+    Error Context: test-results/menu-меню-«⋮»-предмета-зак-cc42f--и-кнопкой-«Назад»-Android--phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/menu-меню-«⋮»-предмета-зак-cc42f--и-кнопкой-«Назад»-Android--phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/menu-меню-«⋮»-предмета-зак-cc42f--и-кнопкой-«Назад»-Android--phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[13/25] [phone-360] › tests/e2e/pager.spec.ts:39:3 › ввод номера страницы › потеря фокуса тоже применяет номер
+[14/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «99» → страница 12
+  10) [phone-360] › tests/e2e/pager.spec.ts:20:3 › ввод номера страницы › поле с цифровой клавиатурой, показывает текущую страницу 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByRole('textbox', { name: /Номер страницы/ })
+    Expected: "1"
+    Timeout: 8000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveValue" with timeout 8000ms
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      20 |   test('поле с цифровой клавиатурой, показывает текущую страницу', async ({ page }) => {
+      21 |     const input = await openViewer(page);
+    > 22 |     await expect(input).toHaveValue('1');
+         |                         ^
+      23 |     await expect(input).toHaveAttribute('inputmode', 'numeric');
+      24 |     await expect(input).toHaveAttribute('enterkeyhint', /go|done/);
+      25 |     await expect(page.getByText(`из ${PAGES}`)).toBeVisible();
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:22:25
+
+    Error Context: test-results/pager-ввод-номера-страницы-8d2ad-показывает-текущую-страницу-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-8d2ad-показывает-текущую-страницу-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-8d2ad-показывает-текущую-страницу-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[15/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «0» → страница 1
+  11) [phone-360] › tests/e2e/pager.spec.ts:31:3 › ввод номера страницы › Enter переходит на страницу 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      31 |   test('Enter переходит на страницу', async ({ page }) => {
+      32 |     const input = await openViewer(page);
+    > 33 |     await input.fill('7');
+         |                 ^
+      34 |     await input.press('Enter');
+      35 |     await expect(page.getByRole('dialog', { name: /Страница 7/ })).toBeVisible();
+      36 |     await expect(input).toHaveValue('7');
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:33:17
+
+    Error Context: test-results/pager-ввод-номера-страницы-Enter-переходит-на-страницу-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-Enter-переходит-на-страницу-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-Enter-переходит-на-страницу-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[16/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «-3» → страница 1
+  12) [phone-360] › tests/e2e/pager.spec.ts:39:3 › ввод номера страницы › потеря фокуса тоже применяет номер 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      39 |   test('потеря фокуса тоже применяет номер', async ({ page }) => {
+      40 |     const input = await openViewer(page);
+    > 41 |     await input.fill('4');
+         |                 ^
+      42 |     await input.blur();
+      43 |     await expect(page.getByRole('dialog', { name: /Страница 4/ })).toBeVisible();
+      44 |   });
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:41:17
+
+    Error Context: test-results/pager-ввод-номера-страницы-21681-фокуса-тоже-применяет-номер-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-21681-фокуса-тоже-применяет-номер-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-21681-фокуса-тоже-применяет-номер-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[17/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «2.5» → страница 1
+  13) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «99» → страница 12 ──
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«99»-→-страница-12-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«99»-→-страница-12-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«99»-→-страница-12-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[18/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «abc» → страница 1
+  14) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «0» → страница 1 ────
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«0»-→-страница-1-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«0»-→-страница-1-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«0»-→-страница-1-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[19/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «» → страница 1
+  15) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «-3» → страница 1 ───
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«-3»-→-страница-1-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«-3»-→-страница-1-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«-3»-→-страница-1-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[20/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «  5 » → страница 5
+  16) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «2.5» → страница 1 ──
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«2-5»-→-страница-1-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«2-5»-→-страница-1-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«2-5»-→-страница-1-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[21/25] [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «٣» → страница 1
+  17) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «abc» → страница 1 ──
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«abc»-→-страница-1-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«abc»-→-страница-1-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«abc»-→-страница-1-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[22/25] [phone-360] › tests/e2e/pager.spec.ts:66:3 › ввод номера страницы › Esc возвращает прежний номер, не закрывая окно
+  18) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «» → страница 1 ─────
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«»-→-страница-1-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«»-→-страница-1-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«»-→-страница-1-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[23/25] [phone-360] › tests/e2e/pager.spec.ts:74:3 › ввод номера страницы › синхронизация с кнопками «вперёд/назад»
+  19) [phone-360] › tests/e2e/pager.spec.ts:74:3 › ввод номера страницы › синхронизация с кнопками «вперёд/назад» 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByRole('textbox', { name: /Номер страницы/ })
+    Expected: "2"
+    Timeout: 8000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveValue" with timeout 8000ms
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      75 |     const input = await openViewer(page);
+      76 |     await page.getByRole('button', { name: 'Следующая страница' }).click();
+    > 77 |     await expect(input).toHaveValue('2');
+         |                         ^
+      78 |     await input.fill('12');
+      79 |     await input.press('Enter');
+      80 |     await expect(page.getByRole('button', { name: 'Следующая страница' })).toBeDisabled();
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:77:25
+
+    Error Context: test-results/pager-ввод-номера-страницы-44519-я-с-кнопками-«вперёд-назад»-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-44519-я-с-кнопками-«вперёд-назад»-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-44519-я-с-кнопками-«вперёд-назад»-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[24/25] [phone-360] › tests/e2e/pager.spec.ts:85:3 › ввод номера страницы › быстрые повторные нажатия не уводят за границы
+  20) [phone-360] › tests/e2e/pager.spec.ts:85:3 › ввод номера страницы › быстрые повторные нажатия не уводят за границы 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByRole('textbox', { name: /Номер страницы/ })
+    Expected: "12"
+    Timeout: 8000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveValue" with timeout 8000ms
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      87 |     const next = page.getByRole('button', { name: 'Следующая страница' });
+      88 |     for (let i = 0; i < 20; i++) await next.click({ force: true }).catch(() => undefined);
+    > 89 |     await expect(input).toHaveValue(String(PAGES));
+         |                         ^
+      90 |   });
+      91 | });
+      92 |
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:89:25
+
+    Error Context: test-results/pager-ввод-номера-страницы-659a3-ажатия-не-уводят-за-границы-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-659a3-ажатия-не-уводят-за-границы-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-659a3-ажатия-не-уводят-за-границы-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[25/25] [phone-360] › tests/e2e/pager.spec.ts:95:3 › клавиатура не закрывает поле › поле над экранной клавиатурой
+  21) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «  5 » → страница 5 ─
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«-5-»-→-страница-5-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«-5-»-→-страница-5-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«-5-»-→-страница-5-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  22) [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «٣» → страница 1 ────
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      56 |     test(`ввод «${raw}» → страница ${want}`, async ({ page }) => {
+      57 |       const input = await openViewer(page);
+    > 58 |       await input.fill(raw);
+         |                   ^
+      59 |       await input.press('Enter');
+      60 |       await expect(page.getByRole('dialog', { name: new RegExp(`Страница ${want}\\b`) })).toBeVisible();
+      61 |       await expect(input).toHaveValue(String(want));
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:58:19
+
+    Error Context: test-results/pager-ввод-номера-страницы-ввод-«٣»-→-страница-1-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-ввод-«٣»-→-страница-1-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-ввод-«٣»-→-страница-1-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  23) [phone-360] › tests/e2e/pager.spec.ts:66:3 › ввод номера страницы › Esc возвращает прежний номер, не закрывая окно 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+      66 |   test('Esc возвращает прежний номер, не закрывая окно', async ({ page }) => {
+      67 |     const input = await openViewer(page);
+    > 68 |     await input.fill('9');
+         |                 ^
+      69 |     await input.press('Escape');
+      70 |     await expect(input).toHaveValue('1');
+      71 |     await expect(page.getByRole('dialog', { name: /Страница 1/ })).toBeVisible();
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:68:17
+
+    Error Context: test-results/pager-ввод-номера-страницы-238b1-жний-номер-не-закрывая-окно-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-ввод-номера-страницы-238b1-жний-номер-не-закрывая-окно-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-ввод-номера-страницы-238b1-жний-номер-не-закрывая-окно-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  24) [phone-360] › tests/e2e/pager.spec.ts:95:3 › клавиатура не закрывает поле › поле над экранной клавиатурой 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.focus: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: /Номер страницы/ })
+
+
+       96 |     await page.addInitScript(fakeKeyboardScript);
+       97 |     const input = await openViewer(page);
+    >  98 |     await input.focus();
+          |                 ^
+       99 |     const kb = Math.round(page.viewportSize()!.height * 0.42);
+      100 |     await page.evaluate((px) => (window as unknown as { __kb: (n: number) => void }).__kb(px), kb);
+      101 |     await expect.poll(async () => (await box(page, 'input.pager-input'))?.bottom ?? 9999).toBeLessThanOrEqual(page.viewportSize()!.height - kb + 1);
+        at /home/user/Mnema/tests/e2e/pager.spec.ts:98:17
+
+    Error Context: test-results/pager-клавиатура-не-закрыв-047b4-ле-над-экранной-клавиатурой-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/pager-клавиатура-не-закрыв-047b4-ле-над-экранной-клавиатурой-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/pager-клавиатура-не-закрыв-047b4-ле-над-экранной-клавиатурой-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  24 failed
+    [phone-360] › tests/e2e/menu.spec.ts:52:3 › меню «⋮» предмета › пункты не налезают, меню на экране и ничем не закрыто (с 🐞 режима разработчика) 
+    [phone-360] › tests/e2e/menu.spec.ts:64:3 › меню «⋮» предмета › при крупном системном шрифте (200%) и длинных подсказках — без наложений 
+    [phone-360] › tests/e2e/menu.spec.ts:78:3 › меню «⋮» предмета › при 150% шрифта и длинных русских словах в названии предмета 
+    [phone-360] › tests/e2e/menu.spec.ts:92:3 › меню «⋮» предмета › пункты сгруппированы: Учить, Подготовка, Управление, Экспорт; «Удалить» — последним 
+    [phone-360] › tests/e2e/menu.spec.ts:102:3 › меню «⋮» предмета › цели нажатия не меньше 44 px ──
+    [phone-360] › tests/e2e/menu.spec.ts:109:3 › меню «⋮» предмета › закрывается Esc, тапом мимо и кнопкой «Назад» (Android) 
+    [phone-360] › tests/e2e/menu.spec.ts:131:3 › шторка на телефоне › снизу экрана, с затемнением и ручкой; над нижней панелью 
+    [phone-360] › tests/e2e/menu.spec.ts:142:3 › шторка на телефоне › свайп вниз за ручку закрывает 
+    [phone-360] › tests/e2e/menu.spec.ts:172:3 › меню «⋮» темы › пункты не налезают и ничем не закрыты 
+    [phone-360] › tests/e2e/pager.spec.ts:20:3 › ввод номера страницы › поле с цифровой клавиатурой, показывает текущую страницу 
+    [phone-360] › tests/e2e/pager.spec.ts:31:3 › ввод номера страницы › Enter переходит на страницу 
+    [phone-360] › tests/e2e/pager.spec.ts:39:3 › ввод номера страницы › потеря фокуса тоже применяет номер 
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «99» → страница 12 ────
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «0» → страница 1 ──────
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «-3» → страница 1 ─────
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «2.5» → страница 1 ────
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «abc» → страница 1 ────
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «» → страница 1 ───────
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «  5 » → страница 5 ───
+    [phone-360] › tests/e2e/pager.spec.ts:56:5 › ввод номера страницы › ввод «٣» → страница 1 ──────
+    [phone-360] › tests/e2e/pager.spec.ts:66:3 › ввод номера страницы › Esc возвращает прежний номер, не закрывая окно 
+    [phone-360] › tests/e2e/pager.spec.ts:74:3 › ввод номера страницы › синхронизация с кнопками «вперёд/назад» 
+    [phone-360] › tests/e2e/pager.spec.ts:85:3 › ввод номера страницы › быстрые повторные нажатия не уводят за границы 
+    [phone-360] › tests/e2e/pager.spec.ts:95:3 › клавиатура не закрывает поле › поле над экранной клавиатурой 
+  1 passed (3.1m)
