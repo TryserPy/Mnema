@@ -35,7 +35,8 @@ import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
 import { comboFromEvent, keyFor, matches, toAccelerator, typingTarget } from './keys';
-import { closeTopLayer, Icon, keepMenusInView, onToast, plural, usePresence } from './components/ui';
+import { closeTopLayer, Icon, keepMenusInView, onToast, plural, touchUI, usePresence, type ToastAction } from './components/ui';
+import { backRoute, confirmExit } from './backRoute';
 import { applyZoom, getZoom, setZoom, zoomAfter, zoomKey, zoomLabel, zoomWay, type ZoomKey } from './zoom';
 import { Help } from './screens/Help';
 import { Review } from './screens/Review';
@@ -96,7 +97,7 @@ export function App() {
   const [palette, setPalette] = useState(false);
   const [addingSubject, setAddingSubject] = useState<false | { folderId?: string; as?: 'subject' | 'folder' }>(false);
   const [toast, setToast] = useState('');
-  const [toastAction, setToastAction] = useState<{ label: string; run: () => void } | null>(null);
+  const [toastActions, setToastActions] = useState<ToastAction[]>([]);
   const lastToast = useRef('');
   if (toast) lastToast.current = toast;
   const toastPres = usePresence(Boolean(toast), 200);
@@ -415,6 +416,7 @@ export function App() {
   // Кнопка «Назад» на Android: закрыть окно, меню, выйти из повторения, вернуться на «Сегодня».
   const drawerRef = useRef(false);
   drawerRef.current = drawer;
+  const lastBack = useRef<number | null>(null);
   useEffect(() => {
     window.__mnemaBack = () => {
       // Сначала — открытое меню или шторка (1.34: раньше «Назад» мимо них уводил с экрана).
@@ -443,13 +445,34 @@ export function App() {
         go(testBack(getData(), r));
         return true;
       }
-      if (r.name !== 'today') {
-        go({ name: 'today' });
+      // Экран — на уровень выше (тема → предмет → «Знания» → «Учусь»), а не сразу на «Учусь».
+      const up = backRoute(r, getData());
+      if (up) {
+        go(up);
         return true;
       }
-      return false;
+      // На «Учусь» — выход, но только вторым нажатием: первое легко сделать случайно.
+      const now = Date.now();
+      if (confirmExit(lastBack.current, now)) return false;
+      lastBack.current = now;
+      showToast('Нажми «Назад» ещё раз, чтобы выйти');
+      return true;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Браузер на телефоне и приложение с экрана «Домой» (PWA): жест и кнопка «Назад» ведут себя так же, как в приложении
+  // для Android, а не уводят со страницы. В истории браузера держим одну «ступеньку»: её съедает каждое «Назад».
+  useEffect(() => {
+    if (window.mnemaApi?.platform !== 'web' || !touchUI()) return;
+    const guard = () => history.pushState({ refrain: true }, '');
+    guard();
+    const onPop = () => {
+      if (window.__mnemaBack?.()) guard();
+      else history.back();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -511,7 +534,7 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function showToast(t: string, action?: { label: string; run: () => void }) {
+  function showToast(t: string, action?: ToastAction | ToastAction[]) {
     // Тот же текст ещё на экране — не мигаем заново, а дописываем «×N» и продлеваем показ.
     const base = (s: string) => s.replace(/ ×\d+$/, '');
     if (toastRef.current && base(toastRef.current) === t) {
@@ -520,9 +543,10 @@ export function App() {
     } else toastCount.current = 1;
     toastRef.current = t;
     setToast(t);
-    setToastAction(action ?? null);
+    const list = action ? (Array.isArray(action) ? action : [action]) : [];
+    setToastActions(list);
     clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(''), action ? 8000 : 3500);
+    toastTimer.current = setTimeout(() => setToast(''), list.length ? 8000 : 3500);
   }
 
   // Перетащить файл темы (.mnema) в окно — тема добавится.
@@ -668,17 +692,18 @@ export function App() {
       {toastPres.mounted && (
         <div className={'toast' + (toastPres.closing ? ' closing' : '')} role="status">
           <span>{toast || lastToast.current}</span>
-          {toastAction && (
+          {toastActions.map((a) => (
             <button
+              key={a.label}
               className="toast-btn"
               onClick={() => {
-                toastAction.run();
+                a.run();
                 setToast('');
               }}
             >
-              {toastAction.label}
+              {a.label}
             </button>
-          )}
+          ))}
         </div>
       )}
       {ankiFile && (

@@ -43,6 +43,7 @@ import { useHasDraft } from '../drafts';
 import { OcclusionView } from '../components/Occlusion';
 import { occlImage } from '../occlusion';
 import { NoteStart } from '../components/NoteStart';
+import { ScreenTip } from '../components/ScreenTip';
 
 // Карточки из источника и решение по шагам (1.32) — грузятся при открытии.
 const SourceCards = lazy(() => import('../components/SourceCards').then((m) => ({ default: m.SourceCards })));
@@ -84,6 +85,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
   const [packOpen, setPackOpen] = useState(false);
   if (!topic) return <div className="page">Тема не найдена.</div>;
   const subject = data.subjects.find((s) => s.id === topic.subjectId);
+  const folder = subject?.folderId ? data.folders.find((f) => f.id === subject.folderId) : undefined;
   const allCards = data.cards.filter((c) => c.topicId === id);
   const cards = allCards.filter((c) => !c.listId);
   const lists = topic.lists ?? [];
@@ -127,9 +129,18 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
         setImportOpen(true);
       }}
     >
+      <ScreenTip id="topic" />
       <div className="topic-head">
         <div className="stack gap4 grow">
-          <div className="crumbs">
+          <nav className="crumbs" aria-label="Где я">
+            {folder && (
+              <span className="row gap4">
+                <button className="crumb" onClick={() => go({ name: 'folder', id: folder.id })}>
+                  {folder.name}
+                </button>
+                <span className="crumb-sep">›</span>
+              </span>
+            )}
             <button className="crumb" onClick={() => subject && go({ name: 'subject', id: subject.id })}>
               <span className="dot" style={{ background: subject?.color }} /> {subject?.name}
             </button>
@@ -149,7 +160,7 @@ export function TopicScreen({ id, tab, go }: { id: string; tab?: string; go: (r:
                 </button>
               </span>
             ))}
-          </div>
+          </nav>
           <div className="row gap8 title-row">
             <input className="title-input" aria-label="Название темы" value={topic.name} onChange={(e) => updateTopic(id, { name: e.target.value })} />
             <button

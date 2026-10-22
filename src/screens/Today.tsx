@@ -16,6 +16,7 @@ import { examsOf } from '../examList';
 import { setScheduleDay, sortedSubjects, updateSettings, useData } from '../store';
 import type { Route } from '../types';
 import '../session.css';
+import { ScreenTip } from '../components/ScreenTip';
 
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 const WEEKDAY_FULL = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
@@ -96,6 +97,7 @@ export function Today({ go, onNewSubject }: { go: (r: Route) => void; onNewSubje
   return (
     <div className="page narrow today-page ptr-host">
       <PullToRefresh onRefresh={refresh} />
+      <ScreenTip id="today" />
       <div className="row between end-align">
         <div>
           <div className="muted">

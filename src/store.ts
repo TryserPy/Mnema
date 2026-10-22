@@ -543,6 +543,13 @@ export function deleteSubject(id: string): Removed {
   return removed;
 }
 
+/** Отменить «Сделать копию»: копия исчезает совсем и в корзину не попадает — её не удаляли, а передумали создавать. */
+export function undoCopy(kind: 'subject' | 'topic', id: string): void {
+  const r = kind === 'subject' ? deleteSubject(id) : deleteTopic(id);
+  const key = r.marks.join('|');
+  commit({ ...data, trash: (data.trash ?? []).filter((t) => t.removed.marks.join('|') !== key) });
+}
+
 /**
  * Удалить сразу несколько папок, предметов и тем (выбранных в левой панели).
  * Предметы — со всеми темами и карточками, темы — с подтемами, папки — предметы остаются без папки.

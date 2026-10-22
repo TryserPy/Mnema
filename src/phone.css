@@ -145,3 +145,17 @@ body:has(.bubble.sel-panel[style*='visibility: visible']) .note-kbar { display: 
 .zoom-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .zoom-ctl .icon-btn { width: 44px; height: 44px; font-size: 1.3rem; font-weight: 600; }
 .zoom-val { min-width: 4ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Подсказка экрана при первом открытии (ScreenTip) */
+.screen-tip { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); color: var(--ink); }
+.screen-tip > svg { flex: none; margin-top: 2px; color: var(--accent-text, var(--accent)); }
+.screen-tip .btn { flex: none; align-self: center; }
+@media (max-width: 420px) { .screen-tip { flex-wrap: wrap; } .screen-tip .btn { margin-left: 30px; } }
+
+/* ---------- Контраст по WCAG AA (axe-core, tests/e2e/a11y.spec.ts) ---------- */
+/* Цвет акцента как текст на светлой подложке акцента не дотягивал до 4,5:1 — берём его, смешанный с цветом текста
+   (в светлой теме — темнее, в тёмной — светлее). */
+:root { --accent-strong: color-mix(in srgb, var(--accent) 62%, var(--ink)); }
+.test-tag, .nav-item.create-btn, .nav-item.create-btn > .grow { color: var(--accent-strong); }
+.hero-sub2.hero-sub2 { opacity: 1; } /* session.css делал подпись полупрозрачной: 4,1:1 на акценте */
+kbd, .kbd, .key-hint, .menu-key, .nav-kbd { color: color-mix(in srgb, var(--muted) 55%, var(--ink)); }

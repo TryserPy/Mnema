@@ -16,6 +16,7 @@ import { pickScope } from '../studyPick';
 import { setPlace } from '../studyBack';
 import { addTopic, childTopics, subjectRules, updateSubject, useData } from '../store';
 import type { Route, Topic } from '../types';
+import { ScreenTip } from '../components/ScreenTip';
 
 /** «5 карточек» — сколько возьмёт действие, видно в меню до нажатия. */
 const cardsWord = (n: number) => `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
@@ -73,17 +74,18 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
 
   return (
     <div className="page narrow">
+      <ScreenTip id="subject" />
       <div className="row between end-align gap12">
         <div className="row gap12">
           <SubjectMark color={subject.color} icon={subject.icon} img={subject.iconImg} size="big" />
-          <div className="stack gap2">
+          <nav className="stack gap2" aria-label="Где я">
             {folder && (
               <button className="crumb" onClick={() => go({ name: 'folder', id: folder.id })}>
                 {folder.iconImg ? <SubjectMark color={folder.color} img={folder.iconImg} /> : folder.icon ?? '📁'} {folder.name}
               </button>
             )}
             <h1 className="display">{subject.name}</h1>
-          </div>
+          </nav>
           <button className="icon-btn small subtle" aria-label="Изменить предмет" title="Изменить название и цвет" onClick={() => setEditing(true)}>
             <Icon name="edit" size={18} />
           </button>
@@ -188,13 +190,18 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
                   )}
                 </strong>
                 <span className="muted small">
-                  {cardCount === 0 ? 'нет карточек' : `${cardCount} ${plural(cardCount, 'карточка', 'карточки', 'карточек')}`}
+                  {cardCount === 0 ? 'нет карточек' : `${cardCount} ${plural(cardCount, 'карточка', 'карточки', 'карточек')} · выучено ${pct}%`}
                   {t.examDate && ` · контрольная ${new Date(t.examDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`}
                 </span>
               </span>
-              {dueT > 0 && <span className="badge soft">{dueT}</span>}
+              {/* Сколько карточек темы повторить сегодня — словами, а не голым числом в кружке. */}
+              {dueT > 0 && (
+                <span className="badge soft" title={`Повторить сегодня: ${dueT}`}>
+                  {dueT} сегодня
+                </span>
+              )}
               {cardCount > 0 && (
-                <span className="progress" title={`Выучено ${pct}%`}>
+                <span className="progress" aria-hidden="true" title={`Выучено ${pct}%`}>
                   <span style={{ width: pct + '%', background: subject.color }} />
                 </span>
               )}

@@ -1,5 +1,5 @@
 // Общий жест «Сделать копию»: копируем и сразу говорим, что получилось, — с кнопкой «Открыть».
-import { duplicateCard, duplicateFolder, duplicateSubject, duplicateTopic, getData, pasteCopies, type ClipItem, type PastePlace } from '../store';
+import { duplicateCard, duplicateFolder, duplicateSubject, duplicateTopic, getData, pasteCopies, undoCopy, type ClipItem, type PastePlace } from '../store';
 import { plural } from './ui';
 import type { Route } from '../types';
 import { toast } from './ui';
@@ -14,7 +14,9 @@ export function makeCopy(kind: CopyKind, id: string, go: (r: Route) => void) {
   }
   const open: Route | null = kind === 'topic' ? { name: 'topic', id: r.id } : kind === 'subject' ? { name: 'subject', id: r.id } : kind === 'folder' ? { name: 'folder', id: r.id } : null;
   const label = kind === 'card' ? 'Карточка скопирована' : `Копия готова: «${r.name}»`;
-  toast(label, open ? { label: 'Открыть', run: () => go(open) } : undefined);
+  // Копию предмета или темы можно сразу отменить (нажал случайно) — без следа в корзине.
+  const undo = kind === 'subject' || kind === 'topic' ? { label: 'Отменить', run: () => undoCopy(kind, r.id) } : null;
+  toast(label, [...(open ? [{ label: 'Открыть', run: () => go(open) }] : []), ...(undo ? [undo] : [])]);
 }
 
 // ---------- Ctrl+C / Ctrl+V ----------

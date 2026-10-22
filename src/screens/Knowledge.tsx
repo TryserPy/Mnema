@@ -7,6 +7,7 @@ import { topicStatsByTopic } from '../srs';
 import { childTopics, sortedFolders, sortedSubjects, useData } from '../store';
 import type { AppData, Route, Subject } from '../types';
 import { openCreate } from '../components/CreateMenu';
+import { ScreenTip } from '../components/ScreenTip';
 
 export interface SubjectTile {
   subject: Subject;
@@ -76,6 +77,7 @@ export function Knowledge({ go, onTree }: { go: (r: Route) => void; onTree?: () 
   const loose = tiles.filter((t) => !t.subject.folderId || !data.folders.some((f) => f.id === t.subject.folderId));
   return (
     <div className="page know-page">
+      <ScreenTip id="knowledge" />
       <div className="row between gap8 wrap">
         <h1 className="display">Знания</h1>
         {onTree && tiles.length > 0 && (

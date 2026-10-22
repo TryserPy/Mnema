@@ -1394,7 +1394,9 @@ export function keepMenusInView(): () => void {
 }
 
 // ---------- Всплывающее сообщение внизу (с кнопкой, например «Вернуть») ----------
-type ToastFn = (text: string, action?: { label: string; run: () => void }) => void;
+export type ToastAction = { label: string; run: () => void };
+/** Одна кнопка («Вернуть») или две («Открыть» и «Отменить»). */
+type ToastFn = (text: string, action?: ToastAction | ToastAction[]) => void;
 /** Короткая вибрация на ключевых действиях (телефон). Уважает «Анимации: выкл.» и «Уменьшить движение». */
 export function haptic(ms: number | number[] = 10): void {
   try {
@@ -1413,7 +1415,7 @@ export function onToast(fn: ToastFn) {
     if (toastListener === fn) toastListener = null;
   };
 }
-export function toast(text: string, action?: { label: string; run: () => void }) {
+export function toast(text: string, action?: ToastAction | ToastAction[]) {
   toastListener?.(text, action);
 }
 

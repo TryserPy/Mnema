@@ -8,6 +8,9 @@ import { showWhere, type WhereStep } from '../components/ShowMe';
 import { DemoModal, type DemoId } from '../components/Demos';
 import { getData } from '../store';
 import type { Route } from '../types';
+import { GLOSSARY } from '../glossary';
+import { helpMatch, nodeText } from '../helpSearch';
+import { resetTips } from '../screenTips';
 import '../guide.css';
 
 type Section = 'learn' | 'use';
@@ -81,6 +84,7 @@ interface HowItem {
   desk?: boolean; // только компьютер
   where?: () => WhereStep[]; // «Где это?» — перейти и подсветить
   demo?: DemoId; // «Пример» — интерактивная игрушечная версия
+  also?: string; // другие слова для поиска
 }
 
 // ---- «Где это?»: шаги подсветки ----
@@ -169,6 +173,13 @@ function howGroups(): HowGroup[] {
       ]
     },
     {
+      id: 'words',
+      icon: 'book',
+      title: 'Словарь',
+      hint: 'Что значат слова в Refrain',
+      items: GLOSSARY.map((g) => ({ t: g.term, d: g.means, also: g.also }))
+    },
+    {
       id: 'safe',
       icon: 'trash',
       title: 'Если что-то пропало',
@@ -187,9 +198,49 @@ function Use({ go }: { go: (r: Route) => void }) {
   const groups = howGroups();
   const [open, setOpen] = useState<string[]>(['learn']);
   const [demo, setDemo] = useState<DemoId | null>(null);
+  const [q, setQ] = useState('');
   const toggle = (id: string) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
+  const found = q.trim()
+    ? groups.flatMap((g) => g.items.filter((it) => !(it.desk && touchUI()) && helpMatch(q, it.t, nodeText(it.d), it.also ?? '', g.title)).map((it) => ({ it, g })))
+    : null;
+  const row = (it: HowItem) => (
+    <div key={it.t} className="how-row">
+      <dt>{it.t}</dt>
+      <dd>
+        {it.d}
+        {(it.where || it.demo) && (
+          <span className="how-acts">
+            {it.where && (
+              <button type="button" className="chip-btn small" onClick={() => showWhere(it.where!())}>
+                <Icon name="search" size={14} /> Где это?
+              </button>
+            )}
+            {it.demo && (
+              <button type="button" className="chip-btn small" onClick={() => setDemo(it.demo!)}>
+                <Icon name="play" size={14} /> Пример
+              </button>
+            )}
+          </span>
+        )}
+      </dd>
+    </div>
+  );
   return (
     <div className="stack gap12 how">
+      <label className="know-search help-search">
+        <Icon name="search" size={18} />
+        <input className="input" type="search" enterKeyHint="search" placeholder="Поиск: «контрольная», «термин», «масштаб»…" aria-label="Поиск по справке" value={q} onChange={(e) => setQ(e.target.value)} />
+      </label>
+      {found && (
+        <section className="card how-found" aria-live="polite">
+          {found.length === 0 ? (
+            <p className="muted">Ничего не нашлось. Попробуй другое слово или открой разделы ниже — а если чего-то не хватает, напиши нам через «Сообщить о проблеме».</p>
+          ) : (
+            <dl className="how-list">{found.map(({ it }) => row(it))}</dl>
+          )}
+        </section>
+      )}
+      {!found && (
       <div className="card how-steps stack gap12">
         <h3>Четыре шага</h3>
         <div className="steps-pics">
@@ -208,7 +259,9 @@ function Use({ go }: { go: (r: Route) => void }) {
           ))}
         </div>
       </div>
-      {groups.map((g) => {
+      )}
+      {!found &&
+        groups.map((g) => {
         const on = open.includes(g.id);
         const items = g.items.filter((it) => !(it.desk && touchUI()));
         return (
@@ -225,30 +278,7 @@ function Use({ go }: { go: (r: Route) => void }) {
               <Icon name="chevron" size={18} />
             </button>
             <Collapse open={on}>
-              <dl className="how-list">
-                {items.map((it) => (
-                  <div key={it.t} className="how-row">
-                    <dt>{it.t}</dt>
-                    <dd>
-                      {it.d}
-                      {(it.where || it.demo) && (
-                        <span className="how-acts">
-                          {it.where && (
-                            <button type="button" className="chip-btn small" onClick={() => showWhere(it.where!())}>
-                              <Icon name="search" size={14} /> Где это?
-                            </button>
-                          )}
-                          {it.demo && (
-                            <button type="button" className="chip-btn small" onClick={() => setDemo(it.demo!)}>
-                              <Icon name="play" size={14} /> Пример
-                            </button>
-                          )}
-                        </span>
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              <dl className="how-list">{items.map(row)}</dl>
             </Collapse>
           </section>
         );
@@ -259,6 +289,15 @@ function Use({ go }: { go: (r: Route) => void }) {
         </button>
         <button className="btn ghost" onClick={startTutorial}>
           Пройти знакомство
+        </button>
+        <button
+          className="btn ghost"
+          onClick={() => {
+            resetTips();
+            go({ name: 'today' });
+          }}
+        >
+          Показать подсказки к экранам снова
         </button>
       </div>
       {demo && <DemoModal id={demo} onClose={() => setDemo(null)} />}

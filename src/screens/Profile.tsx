@@ -10,6 +10,7 @@ import { periodStats } from '../progress';
 import { dayStart, DAY, streak } from '../srs';
 import { useData } from '../store';
 import type { Route } from '../types';
+import { ScreenTip } from '../components/ScreenTip';
 
 export const profileLinks = (trashCount: number): { icon: string; title: string; hint: string; to?: Route; run?: () => void }[] => [
   { icon: 'sliders', title: 'Настройки', hint: 'Вид, напоминания, данные', to: { name: 'settings' } },
@@ -28,6 +29,7 @@ export function Profile({ go }: { go: (r: Route) => void }) {
   const learned = useMemo(() => Object.values(data.states).filter((s) => s.state === 2).length, [data]);
   return (
     <div className="page narrow prof-page">
+      <ScreenTip id="profile" />
       <h1 className="display">Профиль</h1>
       <section className="card stack gap12 prof-progress" aria-label="Мой прогресс">
         <div className="row between gap8 wrap">
