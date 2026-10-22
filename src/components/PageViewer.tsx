@@ -1,7 +1,8 @@
-// Фото страницы учебника: открывается по ссылке [стр. N], листается стрелками, приближается щелчком.
+// Фото страницы учебника: открывается по ссылке [стр. N], листается стрелками или номером страницы, приближается щелчком.
 import { useEffect, useState } from 'react';
 import type { PagePhoto } from '../types';
-import { Icon, Modal, AnimText } from './ui';
+import { Modal } from './ui';
+import { Pager } from './Pager';
 
 export function PageViewer({ pages, page, onClose }: { pages: PagePhoto[]; page: number; onClose: () => void }) {
   const sorted = [...pages].sort((a, b) => a.n - b.n);
@@ -10,6 +11,7 @@ export function PageViewer({ pages, page, onClose }: { pages: PagePhoto[]; page:
   const cur = sorted[i];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea')) return; // стрелки в поле номера двигают курсор
       if (e.key === 'ArrowLeft') setI((x) => Math.max(0, x - 1));
       if (e.key === 'ArrowRight') setI((x) => Math.min(sorted.length - 1, x + 1));
     };
@@ -28,19 +30,7 @@ export function PageViewer({ pages, page, onClose }: { pages: PagePhoto[]; page:
         <div className={'page-view' + (zoom ? ' zoom' : '')} onClick={() => setZoom(!zoom)} title={zoom ? 'Уменьшить' : 'Приблизить'}>
           <img src={cur.img} alt={`Страница ${cur.n}`} />
         </div>
-        {sorted.length > 1 && (
-          <div className="row center-row gap12 wrap">
-            <button className="icon-btn bordered" aria-label="Предыдущая страница" disabled={i === 0} onClick={() => setI(i - 1)}>
-              <Icon name="left" />
-            </button>
-            <span className="muted">
-              <AnimText value={`${i + 1} из ${sorted.length}`} />
-            </span>
-            <button className="icon-btn bordered flip" aria-label="Следующая страница" disabled={i === sorted.length - 1} onClick={() => setI(i + 1)}>
-              <Icon name="left" />
-            </button>
-          </div>
-        )}
+        {sorted.length > 1 && <Pager index={i} total={sorted.length} numbers={sorted.map((p) => p.n)} onIndex={setI} />}
       </div>
     </Modal>
   );
