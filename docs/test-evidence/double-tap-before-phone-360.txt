@@ -1,0 +1,82 @@
+
+
+Running 2 tests using 2 workers
+
+[1/2] [phone-360] › tests/e2e/robust.spec.ts:76:1 › двойной тап по «Создать» в окне предмета — один предмет
+[2/2] [phone-360] › tests/e2e/robust.spec.ts:136:1 › двойной тап по «Создать» новой темы — одна тема
+  1) [phone-360] › tests/e2e/robust.spec.ts:136:1 › двойной тап по «Создать» новой темы — одна тема 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.topic-row').filter({ hasText: 'Кишечнополостные' })
+    Expected: 1
+    Received: 2
+    Timeout:  8000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 8000ms
+      - waiting for locator('.topic-row').filter({ hasText: 'Кишечнополостные' })
+        12 × locator resolved to 2 elements
+           - unexpected value "2"
+
+
+      144 |   await expect(page.getByRole('textbox', { name: 'Название темы' })).toHaveValue('§3. Кишечнополостные');
+      145 |   await page.getByRole('main').getByRole('button', { name: /Биология/ }).first().click();
+    > 146 |   await expect(page.locator('.topic-row', { hasText: 'Кишечнополостные' })).toHaveCount(1);
+          |                                                                             ^
+      147 | });
+      148 |
+        at /home/user/Mnema/tests/e2e/robust.spec.ts:146:77
+
+    Error Context: test-results/robust-двойной-тап-по-«Создать»-новой-темы-—-одна-тема-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/robust-двойной-тап-по-«Создать»-новой-темы-—-одна-тема-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/robust-двойной-тап-по-«Создать»-новой-темы-—-одна-тема-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  2) [phone-360] › tests/e2e/robust.spec.ts:76:1 › двойной тап по «Создать» в окне предмета — один предмет 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.know-tile').filter({ hasText: 'Физика' })
+    Expected: 1
+    Received: 2
+    Timeout:  8000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 8000ms
+      - waiting for locator('.know-tile').filter({ hasText: 'Физика' })
+        3 × locator resolved to 0 elements
+          - unexpected value "0"
+        9 × locator resolved to 2 elements
+          - unexpected value "2"
+
+
+      89 |   await page.evaluate(() => localStorage.setItem('refrain-ui', JSON.stringify({ ...JSON.parse(localStorage.getItem('refrain-ui')!), route: { r: { name: 'knowledge' }, at: Date.now() } })));
+      90 |   await page.reload();
+    > 91 |   await expect(page.locator('.know-tile', { hasText: 'Физика' })).toHaveCount(1);
+         |                                                                   ^
+      92 | });
+      93 |
+      94 | test('нет сети: всё работает, данные сохраняются', async ({ page, context }) => {
+        at /home/user/Mnema/tests/e2e/robust.spec.ts:91:67
+
+    Error Context: test-results/robust-двойной-тап-по-«Соз-05402-кне-предмета-—-один-предмет-phone-360/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/robust-двойной-тап-по-«Соз-05402-кне-предмета-—-один-предмет-phone-360/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/robust-двойной-тап-по-«Соз-05402-кне-предмета-—-один-предмет-phone-360/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  2 failed
+    [phone-360] › tests/e2e/robust.spec.ts:76:1 › двойной тап по «Создать» в окне предмета — один предмет 
+    [phone-360] › tests/e2e/robust.spec.ts:136:1 › двойной тап по «Создать» новой темы — одна тема ─

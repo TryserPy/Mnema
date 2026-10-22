@@ -1,5 +1,5 @@
 import { makeCopy } from '../components/copyUi';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { RulesList } from '../components/Rules';
 import { exportForAi } from '../components/ChangesDialog';
 import { SubjectTerms, termGroups } from '../components/SubjectTerms';
@@ -32,6 +32,7 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [exportKind, setExportKind] = useState<'print' | 'anki' | null>(null);
   const [newName, setNewName] = useState('');
+  const creating = useRef(false);
   const [view, setView] = useState<View>(initialView ?? 'topics');
   useEffect(() => {
     if (initialView) setView(initialView);
@@ -91,7 +92,13 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           </button>
         </div>
         <div className="row gap8">
-          <button className="btn primary" onClick={() => setAdding(true)}>
+          <button
+            className="btn primary"
+            onClick={() => {
+              creating.current = false;
+              setAdding(true);
+            }}
+          >
             <Icon name="plus" size={18} /> Тема
           </button>
           <MoreMenu
@@ -122,7 +129,8 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           className="card row gap8"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!newName.trim()) return;
+            if (!newName.trim() || creating.current) return;
+            creating.current = true; // двойное касание «Создать» — одна тема
             const t = addTopic(id, newName);
             setNewName('');
             setAdding(false);
@@ -166,7 +174,13 @@ export function SubjectScreen({ id, view: initialView, filter, go }: { id: strin
           <div className="empty">
             <strong>Тем пока нет</strong>
             <span>Тема — это параграф или раздел учебника. В ней будет конспект и карточки.</span>
-            <button className="btn primary" onClick={() => setAdding(true)}>
+            <button
+              className="btn primary"
+              onClick={() => {
+                creating.current = false;
+                setAdding(true);
+              }}
+            >
               Добавить первую тему
             </button>
           </div>

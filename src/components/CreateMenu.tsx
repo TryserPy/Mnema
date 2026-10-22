@@ -1,6 +1,6 @@
 // «＋ Создать»: одно место, откуда создаётся всё — карточка, тема, предмет, домашка, контрольная, файл изменений.
 // На компьютере — кнопка в левой панели, на телефоне — ячейка нижней панели; из поиска — команда «Создать…».
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { aiAvailable } from '../ai';
 import { addCard, addTopic, sortedSubjects, useData } from '../store';
 import type { Route } from '../types';
@@ -166,13 +166,15 @@ function QuickTopicDialog({ at, go, onClose }: { at: { subjectId?: string }; go:
   const [subjectId, setSubjectId] = useState(at.subjectId ?? subjects[0]?.id ?? '');
   const [name, setName] = useState('');
   const ok = Boolean(subjectId && name.trim());
+  const created = useRef(false); // двойное касание «Создать» — одна тема
   return (
     <Modal title="Новая тема" onClose={onClose} width={460}>
       <form
         className="stack gap12"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!ok) return;
+          if (!ok || created.current) return;
+          created.current = true;
           const t = addTopic(subjectId, name);
           onClose();
           go({ name: 'topic', id: t.id, tab: 'note' });

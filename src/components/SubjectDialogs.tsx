@@ -1,5 +1,5 @@
 // Окна «Изменить предмет» и «Удалить предмет» — открываются из левой панели и со страницы предмета.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { addFolder, addSubject, deleteFolder, deleteMany, deleteSubject, deleteTopic, getData, restoreRemoved, sortedFolders, updateFolder, updateSubject, useData } from '../store';
 import { ColorPicker, IconPicker, Modal, plural, Segmented, SUBJECT_COLORS, toast } from './ui';
 
@@ -32,13 +32,16 @@ export function NewSubjectDialog({ onClose, onCreated, folderId: presetFolder, s
   const [icon, setIcon] = useState<string | undefined>();
   const [iconImg, setIconImg] = useState<string | undefined>();
   const [folderId, setFolderId] = useState<string | undefined>(presetFolder);
+  // Двойное касание «Создать» (окно ещё закрывается) создавало два одинаковых предмета.
+  const created = useRef(false);
   return (
     <Modal title={kind === 'subject' ? 'Новый предмет' : 'Новая папка'} onClose={onClose}>
       <form
         className="stack gap12"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!name.trim()) return;
+          if (!name.trim() || created.current) return;
+          created.current = true;
           if (kind === 'folder') onCreated(addFolder(name, color, icon, iconImg).id, 'folder');
           else {
             const sub = addSubject(name, color);
