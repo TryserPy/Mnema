@@ -36,6 +36,18 @@ test('axe: тёмная тема, экран предмета', async ({ page })
   expect(await serious(page)).toEqual([]);
 });
 
+test('axe: вкладки темы с «Ещё» (вкладок больше, чем помещается)', async ({ page }) => {
+  // Пять словарей у темы — вкладок больше, чем помещается, часть уходит в «Ещё».
+  const list = (i: number) => ({ id: 'l' + i, kind: 'terms', title: `Словарь терминов номер ${i}`, cols: ['Термин', 'Значение', 'Пример'], mode: 'show' });
+  await openApp(page, { name: 'topic', id: 'g2', tab: 'note' }, {
+    patch: (d) => {
+      (d.topics as { id: string; lists?: unknown[] }[]).find((t) => t.id === 'g2')!.lists = [1, 2, 3, 4, 5].map(list);
+    }
+  });
+  await expect(page.locator('.otab-more')).toBeVisible();
+  expect(await serious(page, '.otabs')).toEqual([]);
+});
+
 test('axe: открытое меню «⋮»', async ({ page }) => {
   await openApp(page, { name: 'subject', id: 'geo' });
   await page.getByRole('button', { name: 'Действия с предметом' }).click();

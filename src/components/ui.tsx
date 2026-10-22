@@ -677,7 +677,8 @@ export function OverflowTabs<T extends string>({ items, value, onChange, ariaLab
       ))}
       {hidden.length > 0 && (
         <div className="more otab-more" onMouseDown={(e) => e.stopPropagation()}>
-          <button className={'otab' + (moreOpen ? ' open' : '')} aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
+          {/* Внутри списка вкладок — тоже вкладка (role="tab"), иначе чтение с экрана не понимает список; открывает меню остальных. */}
+          <button role="tab" aria-selected={false} aria-haspopup="menu" className={'otab' + (moreOpen ? ' open' : '')} aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
             <span className="otab-label">Ещё</span>
             <span className="otab-count">{hidden.length}</span>
             <Icon name="chevron" size={14} />

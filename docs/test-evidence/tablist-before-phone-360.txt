@@ -1,0 +1,4 @@
+    Error: expect(received).toEqual(expected) // deep equality
+    +   "aria-required-children (critical): .otabs",
+    Error Context: test-results/a11y-axe-вкладки-темы-с-«Ещё»-узко-и-крупный-шрифт--phone-360/error-context.md
+  1 failed

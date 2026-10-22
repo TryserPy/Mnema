@@ -20,7 +20,8 @@ async function shot(page: Page, where: Where, name: string, prep?: (p: Page) => 
   await page.evaluate(() => document.fonts.ready);
   if (prep) await prep(page);
   await settled(page, '.app');
-  await expect(page).toHaveScreenshot(name + '.png', { fullPage: false, mask: [page.locator('.ProseMirror-separator')] });
+  // Допуск 5 %: на другой машине (CI) сглаживание шрифтов и тени дают ~3 % разницы; съехавшая раскладка — намного больше.
+  await expect(page).toHaveScreenshot(name + '.png', { fullPage: false, maxDiffPixelRatio: 0.05, mask: [page.locator('.ProseMirror-separator')] });
 }
 
 test('предмет', async ({ page }) => shot(page, { name: 'subject', id: 'geo' }, 'subject'));
