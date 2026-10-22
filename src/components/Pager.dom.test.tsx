@@ -115,3 +115,37 @@ describe('Pager', () => {
     expect(f.value).toBe('48');
   });
 });
+
+describe('Pager — клавиатура и фокус', () => {
+  it('Esc без изменений пропускает Esc дальше (окно может закрыться)', () => {
+    render(<Host />);
+    const f = field();
+    const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    f.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+  });
+  it('фокус: открылась клавиатура — поле прокручивается на виду, после ухода из поля — больше нет', () => {
+    const vv = Object.assign(new EventTarget(), { height: 800, offsetTop: 0, width: 360 });
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: vv });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    render(<Host />);
+    const f = field();
+    const scroll = vi.fn();
+    f.scrollIntoView = scroll;
+    fireEvent.focus(f);
+    vv.dispatchEvent(new Event('resize'));
+    expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
+    fireEvent.blur(f);
+    vv.dispatchEvent(new Event('resize'));
+    expect(scroll).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+  });
+  it('другие слова для кнопок и поля', () => {
+    render(<Pager index={0} total={2} onIndex={vi.fn()} noun="часть" nounOf="части" />);
+    expect(screen.getByRole('button', { name: 'Следующая часть' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Номер части, всего 2' })).toBeTruthy();
+  });
+});

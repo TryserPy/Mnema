@@ -58,3 +58,13 @@ describe('PasteButton', () => {
     expect(readText).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('PasteButton без ссылки на поле', () => {
+  it('текст добавляется в конец с новой строки', async () => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => 'cat\tкошка' } });
+    const onChange = vi.fn();
+    render(<PasteButton value={'dog\tсобака'} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: /Вставить/ }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('dog\tсобака\ncat\tкошка'));
+  });
+});

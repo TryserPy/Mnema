@@ -143,3 +143,37 @@ describe('initViewport — CSS-переменные и html[data-kb]', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 });
+
+describe('revealFocused — куда и что прокручивать', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('нет прокручиваемого блока — прокручивается окно', () => {
+    document.body.innerHTML = '<textarea id="t"></textarea>';
+    const t = document.getElementById('t') as HTMLTextAreaElement;
+    t.getBoundingClientRect = () => ({ top: 500, bottom: 560, left: 0, right: 10, width: 10, height: 60, x: 0, y: 500, toJSON: () => ({}) });
+    t.focus();
+    const spy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    revealFocused({ height: 400, offsetTop: 0 });
+    expect(spy).toHaveBeenCalledWith({ top: 560 - (400 - 12) });
+  });
+  it('поле уже видно — ничего не крутится', () => {
+    document.body.innerHTML = '<input id="i">';
+    const i = document.getElementById('i') as HTMLInputElement;
+    i.getBoundingClientRect = () => ({ top: 100, bottom: 140, left: 0, right: 10, width: 10, height: 40, x: 0, y: 100, toJSON: () => ({}) });
+    i.focus();
+    const spy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    revealFocused(null);
+    expect(spy).not.toHaveBeenCalled();
+  });
+  it('конспект (contenteditable): ориентир — строка с курсором, а не всё поле', () => {
+    document.body.innerHTML = '<div id="e" contenteditable="true">текст</div>';
+    const e = document.getElementById('e')!;
+    Object.defineProperty(e, 'isContentEditable', { value: true });
+    e.getBoundingClientRect = () => ({ top: 0, bottom: 3000, left: 0, right: 10, width: 10, height: 3000, x: 0, y: 0, toJSON: () => ({}) });
+    e.focus();
+    const range = { getBoundingClientRect: () => ({ top: 700, bottom: 720 }) };
+    vi.spyOn(window, 'getSelection').mockReturnValue({ rangeCount: 1, getRangeAt: () => range } as unknown as Selection);
+    const spy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    revealFocused({ height: 400, offsetTop: 0 });
+    expect(spy).toHaveBeenCalledWith({ top: 720 - (400 - 12) });
+  });
+});
