@@ -53,7 +53,11 @@ for (const big of [false, true])
         if (!(await t.count()) || !(await t.isVisible()) || (await t.isDisabled())) continue;
         const label = `${name} → «${(await t.getAttribute('aria-label')) ?? (await t.innerText()).trim()}»`;
         await t.click();
-        if (!(await page.locator('.menu:not(.closing)').count())) continue; // кнопка открыла окно, а не меню
+        // Меню появляется на кадр позже клика: ждём, пока кнопка скажет «раскрыто», и само меню.
+        // Кнопка без aria-expanded открывает окно, а не меню, — её пропускаем.
+        if ((await t.getAttribute('aria-expanded')) === null) continue;
+        await expect(t, label + ': раскрылось').toHaveAttribute('aria-expanded', 'true');
+        await expect(page.locator('.menu:not(.closing)').first(), label).toBeVisible();
         await checkOpenMenu(page, label);
         await page.keyboard.press('Escape');
         await expect(page.locator('.menu:not(.closing)'), label + ': Esc закрывает').toHaveCount(0);
