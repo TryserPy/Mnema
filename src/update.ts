@@ -3,7 +3,7 @@
 import { getData, updateSettings } from './store';
 import { appHttp } from './devMode';
 
-export const APP_VERSION = '1.33.0';
+export const APP_VERSION = '1.34.0';
 
 /**
  * Откуда брать обновления. Зашито в код, а не в настройки: иначе чужой файл резервной копии
