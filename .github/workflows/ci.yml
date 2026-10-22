@@ -18,9 +18,34 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Типы
         run: npx tsc --noEmit
-      - name: Модульные тесты
-        run: npx vitest run
+      - name: Модульные и компонентные тесты с покрытием
+        run: npx vitest run --coverage
       - name: Сборка
         run: npx vite build
       - name: Сборка веб-версии
         run: npx vite build --mode web
+
+  # Сквозные проверки в Chromium на размерах телефонов (320–430 px, телефон боком) и компьютера: playwright.config.ts.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Браузер для проверок
+        run: npx playwright install --with-deps chromium
+      - name: Сборка веб-версии
+        run: npx vite build --mode web
+      - name: Сквозные проверки
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
