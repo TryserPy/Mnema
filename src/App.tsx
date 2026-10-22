@@ -35,7 +35,7 @@ import { AnkiImport } from './components/AnkiImport';
 import { Sidebar, type AddingAt } from './components/Sidebar';
 import { acceptIncoming } from './components/SyncDialog';
 import { comboFromEvent, keyFor, matches, toAccelerator, typingTarget } from './keys';
-import { closeTopLayer, Icon, keepMenusInView, onToast, usePresence } from './components/ui';
+import { closeTopLayer, Icon, keepMenusInView, onToast, plural, usePresence } from './components/ui';
 import { Help } from './screens/Help';
 import { Review } from './screens/Review';
 import { Settings } from './screens/Settings';
@@ -599,7 +599,12 @@ export function App() {
             <Icon name="search" size={22} />
           </button>
           {dueAll > 0 && route.name !== 'today' && (
-            <button className="btn small primary" onClick={() => go({ name: 'review', session: sessionPrefs(data, new Date()), run: Date.now() })}>
+            <button
+              className="btn small primary"
+              aria-label={`Учить всё на сегодня: ${dueAll} ${plural(dueAll, 'карточка', 'карточки', 'карточек')}`}
+              title={`Учить всё на сегодня: ${dueAll} ${plural(dueAll, 'карточка', 'карточки', 'карточек')} по всем предметам`}
+              onClick={() => go({ name: 'review', session: sessionPrefs(data, new Date()), run: Date.now() })}
+            >
               <Icon name="play" size={14} /> {dueAll}
             </button>
           )}

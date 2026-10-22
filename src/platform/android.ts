@@ -31,6 +31,7 @@ interface AndroidBridge {
   setSelMenu?(json: string): void;
   listBackups?(): string;
   readBackup?(name: string): string | null;
+  clipText?(): string | null;
   // Ключ устройства Refrain ИИ в Android Keystore (секретная часть не извлекается).
   deviceSecure?(): boolean;
   deviceKey?(): string;
@@ -170,6 +171,7 @@ if (RAW) {
     // Старый APK без этих методов — автокопий в окне просто не будет видно.
     backupList: typeof RAW.listBackups === 'function' ? async () => JSON.parse(A.listBackups!() || '[]') : undefined,
     backupRead: typeof RAW.readBackup === 'function' ? async (name: string) => A.readBackup!(name) : undefined,
+    readClipboard: typeof RAW.clipText === 'function' ? async () => A.clipText!() : undefined,
     aiGetConfig: async () => ai.getConfig(),
     aiSetConfig: async (p) => ai.setConfig(p),
     aiSaveCustom: async (d) => ai.saveCustom(d),

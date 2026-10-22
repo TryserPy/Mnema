@@ -6,6 +6,7 @@ import { guessRoles, guessTable, IMPORT_LIMITS, parseMochiFile, parseRemNote, ro
 import { importTopics, useData } from '../store';
 import { Icon, Modal, plural, Segmented, Switch, SUBJECT_COLORS, toast } from './ui';
 import { Markdown } from './Markdown';
+import { PasteButton } from './PasteButton';
 
 type Pick = ImportSource | 'anki' | 'decks';
 type CardKind = 'basic' | 'reverse' | 'typing';
@@ -141,6 +142,7 @@ export function CardImport({ onClose, onOpenTopic, onAnki, onDecks, start, file 
           ))}
         </ol>
 
+        {info?.paste && <PasteButton value={text} onChange={(t) => takeText(t)} className="btn small self-start" />}
         {info?.paste && (
           <textarea
             className="input imp-paste"

@@ -4,14 +4,14 @@
 .rf-order { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .rf-device > span, .rf-order span { min-width: 0; overflow-wrap: anywhere; }
 .rf-choices > .btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; white-space: normal; height: auto; padding: 10px 14px; }
-.rf-failed { position: fixed; right: 16px; top: calc(16px + env(safe-area-inset-top, 0px)); width: min(460px, calc(100vw - 32px)); display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-pop); z-index: 64; } /* ниже окон (.modal-back — 65): в окне ошибка видна в самом окне, плашка не закрывает его кнопки */
+.rf-failed { position: fixed; right: 16px; top: calc(16px + var(--safe-top)); width: min(460px, calc(100vw - 32px)); display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-pop); z-index: 64; } /* ниже окон (.modal-back — 65): в окне ошибка видна в самом окне, плашка не закрывает его кнопки */
 .rf-log { max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--sunken); padding: 8px; border-radius: 8px; margin: 4px 0 0; }
 .rf-shot { max-width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); }
 .rf-lab { min-width: 52px; }
 .rf-device-name { gap: 2px; }
 .rf-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 11px; background: var(--accent-soft, var(--sunken)); color: var(--accent, inherit); vertical-align: 1px; }
 /* Сверху, а не внизу: внизу оценки повторения, «Сохранить» в окнах и нижняя панель телефона. На телефоне — под шапкой. */
-@media (max-width: 899px) { .rf-failed { left: 12px; right: 12px; width: auto; top: calc(60px + env(safe-area-inset-top, 0px)); } }
+@media (max-width: 899px) { .rf-failed { left: 12px; right: 12px; width: auto; top: calc(60px + var(--safe-top)); } }
 .rf-failed { flex-wrap: wrap; }
 .rf-failed > span { flex: 1 1 220px; min-width: 0; }
 .rf-failed[data-part='signin-bar'] > span { flex: 1 1 100%; }
@@ -23,7 +23,7 @@
 .rf-sent { display: flex; align-items: center; gap: 12px; }
 .rf-sent-ico { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--ok, #2BA36B); color: #fff; font-weight: 700; animation: rfPop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4); }
 @keyframes rfPop { from { transform: scale(0.4); opacity: 0; } }
-.shot-editor { position: fixed; inset: 0; z-index: 120; background: #111318; display: flex; flex-direction: column; padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)); color: #fff; }
+.shot-editor { position: fixed; inset: 0; z-index: 120; background: #111318; display: flex; flex-direction: column; padding: max(8px, var(--safe-top)) 8px max(8px, var(--safe-bottom)); color: #fff; }
 .shot-tools { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 4px 0 8px; }
 .shot-tool { min-height: 44px; min-width: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: #fff; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.9rem; }
 .shot-tool.on { background: #fff; color: #111318; }

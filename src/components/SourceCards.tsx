@@ -9,6 +9,7 @@ import type { EpubBook } from '../epub';
 import { cardsFromSource, loadUrl, sourceParts, type Source } from '../sourceCards';
 import { addCard, importTopics, useData } from '../store';
 import { Icon, Modal, plural, Segmented, Skeleton, SUBJECT_COLORS, toast } from './ui';
+import { PasteButton } from './PasteButton';
 
 type Tab = 'link' | 'book' | 'text';
 type Step = { name: 'input' } | { name: 'loading'; what: string; back: Step } | { name: 'source'; src: Source } | { name: 'drafts'; src: Source; drafts: (AiCardDraft & { on: boolean })[] };
@@ -212,6 +213,7 @@ export function SourceCards({ topicId, onClose, onOpenTopic }: { topicId?: strin
             {tab === 'text' && (
               <div className="stack gap8">
                 <input className="input" value={textTitle} onChange={(e) => setTextTitle(e.target.value)} placeholder="О чём текст (необязательно)" aria-label="Название" />
+                <PasteButton value={text} onChange={setText} className="btn small self-start" />
                 <textarea className="input" rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder="Вставь статью, расшифровку видео или главу" aria-label="Текст" />
                 <div className="row end">
                   <button className="btn primary" disabled={text.trim().length < 80 || !canAi} onClick={useText}>

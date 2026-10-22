@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
+import android.view.WindowInsets;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -85,6 +87,9 @@ public class AppActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
+                // Страница загружена заново — её стили пустые, отступы системных панелей передаём ещё раз.
+                lastInsets = null;
+                pushInsets();
                 if (pendingOpen != null) {
                     final String what = pendingOpen;
                     pendingOpen = null;
@@ -207,8 +212,55 @@ public class AppActivity extends Activity {
         });
 
         setContentView(web);
+        // Системные панели (строка состояния, жестовая полоса, вырез): если окно рисуется под ними, приложение узнаёт,
+        // сколько закрыто с каждой стороны, и ставит туда отступы (CSS --native-*, src/phone.css).
+        web.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+                v.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        pushInsets();
+                    }
+                });
+                return v.onApplyWindowInsets(insets);
+            }
+        });
+        web.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                pushInsets();
+            }
+        });
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl("https://" + HOST + "/index.html");
+    }
+
+    String lastInsets;
+
+    /**
+     * Сколько WebView закрыто системными панелями с каждой стороны (в CSS-пикселях) → --native-top/bottom/left/right.
+     * Считается пересечение окна приложения с панелями, а не сами отступы: пока окно не заходит под панели (обычный режим),
+     * всё по нулям и двойного отступа не будет. Клавиатура сюда не входит (её учитывает visualViewport, src/viewport.ts).
+     */
+    void pushInsets() {
+        if (web == null) return;
+        View decor = getWindow().getDecorView();
+        WindowInsets wi = decor.getRootWindowInsets();
+        if (wi == null || web.getWidth() == 0) return;
+        int[] at = new int[2];
+        web.getLocationInWindow(at);
+        int top = Math.max(0, wi.getStableInsetTop() - at[1]);
+        int bottom = Math.max(0, at[1] + web.getHeight() - (decor.getHeight() - wi.getStableInsetBottom()));
+        int left = Math.max(0, wi.getStableInsetLeft() - at[0]);
+        int right = Math.max(0, at[0] + web.getWidth() - (decor.getWidth() - wi.getStableInsetRight()));
+        float d = getResources().getDisplayMetrics().density;
+        String css = Math.round(top / d) + "," + Math.round(bottom / d) + "," + Math.round(left / d) + "," + Math.round(right / d);
+        if (css.equals(lastInsets)) return;
+        lastInsets = css;
+        String[] v = css.split(",");
+        web.evaluateJavascript("(function(s){s.setProperty('--native-top','" + v[0] + "px');s.setProperty('--native-bottom','" + v[1] + "px');"
+                + "s.setProperty('--native-left','" + v[2] + "px');s.setProperty('--native-right','" + v[3] + "px');})(document.documentElement.style)", null);
     }
 
     static String mime(String path) {

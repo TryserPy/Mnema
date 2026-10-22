@@ -61,3 +61,36 @@ body:has(.modal-back) .focus-pill { display: none; }
 .pager-field { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
 .pager .pager-input { width: 4.2em; min-width: 56px; height: 44px; min-height: 44px; padding: 0 6px; text-align: center; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--ink); scroll-margin: 80px; }
 .pager-total { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ---------- Системные панели: ничего не уходит под строку состояния, вырез и жестовую полосу ---------- */
+/* Chrome на Android 15+ с viewport-fit=cover рисует страницу под жестовой полосой; iPhone — под «домашней» полоской и вырезом.
+   Вырез сбоку (телефон боком) — отступ у всего приложения; снизу без нижней панели (повторение, тест, телефон боком) —
+   отступ у приложения, с панелью — у самой панели (styles.css: .tabbar). */
+.app { padding-left: var(--safe-left); padding-right: var(--safe-right); }
+.app:not(.has-tabbar) { padding-bottom: var(--safe-bottom); }
+.app:not(.mobile) { padding-top: var(--safe-top); }
+html[data-kb] .app { padding-bottom: 0; }
+.toast { bottom: calc(24px + var(--safe-bottom)); max-width: calc(100vw - 24px - var(--safe-left) - var(--safe-right)); }
+.tut-card { bottom: calc(20px + var(--safe-bottom)); }
+.app.mobile .sidebar { padding-bottom: calc(12px + var(--safe-bottom)); padding-left: var(--safe-left); }
+.style-editor { padding-top: calc(14px + var(--safe-top)); padding-bottom: calc(12px + var(--safe-bottom)); }
+.note-layout.full { padding-top: var(--safe-top); padding-bottom: calc(40px + var(--safe-bottom)); }
+.rules-drawer { padding-bottom: calc(16px + var(--safe-bottom)); }
+@media (max-width: 1150px) and (min-width: 721px) {
+  .note-layout.with-panel .imp-panel, .imp-panel { top: calc(12px + var(--safe-top)); bottom: calc(12px + var(--safe-bottom)); right: calc(12px + var(--safe-right)); }
+}
+@media (max-width: 720px) {
+  /* Шторка «Важное» снизу: её содержимое — над жестовой полосой. */
+  .note-layout.with-panel .imp-panel, .imp-panel { padding-bottom: var(--safe-bottom); }
+}
+.photo-view img { max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px); }
+
+/* Поля ввода на пальце — не мельче 16 px: иначе Safari на iPhone увеличивает страницу при фокусе, а потом не возвращает. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), textarea, select, .input { font-size: max(16px, 1rem); }
+}
+.paste-btn { gap: 6px; }
+
+/* Клавиатура открыта, а окно не уменьшилось (Safari на iPhone, часть WebView): приложение — ровно видимая часть,
+   иначе поле внизу экрана остаётся под клавиатурой и до него нельзя докрутить. */
+html[data-kb] .app.mobile { height: var(--vvh, 100dvh); }

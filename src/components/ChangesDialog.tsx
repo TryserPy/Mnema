@@ -6,6 +6,7 @@ import { buildPrompt } from '../srs';
 import { getData, replaceData } from '../store';
 import { Markdown } from './Markdown';
 import { Icon, Modal, Segmented, toast } from './ui';
+import { PasteButton } from './PasteButton';
 
 /** Предмет или тема — файлом для нейросети (картинки заменены короткими подписями, потом вернутся). */
 export function exportForAi(scope: { subjectId?: string; topicId?: string }) {
@@ -80,6 +81,7 @@ export function ChangesDialog({ initial = '', onClose }: { initial?: string; onC
             </button>
             <input ref={fileRef} type="file" accept=".json,.txt,.md,application/json,text/plain" hidden onChange={(e) => void pick(e.target.files?.[0])} />
           </div>
+          <PasteButton value={text} onChange={setText} className="btn small self-start" />
           <label className="field">
             <span>…или вставь сюда ответ нейросети</span>
             <textarea className="input changes-text" value={text} onChange={(e) => setText(e.target.value)} placeholder={'@предмет Русский язык\n@тема §1. …\nконспект…\n@карточки\nВопрос :: Ответ'} rows={6} />

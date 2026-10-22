@@ -43,6 +43,7 @@ import { deletePoem, getData, restorePoem, updatePoem, useData } from '../store'
 import type { Poem, Route } from '../types';
 import { recitalVoice, startRecital, type RecitalSession } from '../voice';
 import { ConfirmButton, Icon, MoreMenu, plural, Segmented, toast, type MenuItem } from './ui';
+import { PasteButton } from './PasteButton';
 
 const fmtDay = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 const nLines = (n: number) => `${n} ${plural(n, 'строка', 'строки', 'строк')}`;
@@ -376,7 +377,9 @@ function PoemEditor({ topicId, poem, onDone, onDeleted }: { topicId: string; poe
         </label>
       </div>
       <label className="field">
-        <span>Текст</span>
+        <span className="row between gap8">
+          Текст <PasteButton value={text} onChange={setText} className="btn small ghost" />
+        </span>
         <textarea className="input poem-textarea" autoFocus={!poem.text} rows={12} value={text} onChange={(e) => setText(e.target.value)} placeholder={'Вставь стихотворение. Строфы раздели пустой строкой.\n\nМороз и солнце; день чудесный!\nЕщё ты дремлешь, друг прелестный —\n…'} />
       </label>
       <div className="field">

@@ -96,6 +96,7 @@ declare global {
       dataFolderPath?: () => Promise<string>; // Windows: полный путь к папке «Мои данные»
       backupList?: () => Promise<{ name: string; size: number }[]>; // автокопии (раз в день, последние 8)
       backupRead?: (name: string) => Promise<string | null>;
+      readClipboard?: () => Promise<string | null>; // текст из буфера обмена (Android: WebView не даёт navigator.clipboard)
       obsidianPick?: () => Promise<Vault | null>;
       obsidianRead?: (rel: string) => Promise<{ text: string; images: Record<string, string> }>;
       aiGetConfig?: () => Promise<AiConfig>;

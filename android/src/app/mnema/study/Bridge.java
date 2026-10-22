@@ -121,6 +121,22 @@ public class Bridge {
         return r == null ? "null" : r;
     }
 
+    /** Текст из буфера обмена — для кнопки «Вставить» (WebView не даёт navigator.clipboard.readText). */
+    @JavascriptInterface
+    public String clipText(String k) {
+        if (!allowed(k)) return null;
+        try {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            if (cm == null || !cm.hasPrimaryClip()) return "";
+            android.content.ClipData clip = cm.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) return "";
+            CharSequence t = clip.getItemAt(0).coerceToText(activity);
+            return t == null ? "" : t.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @JavascriptInterface
     public String appVersion(String k) {
         if (!allowed(k)) return null;

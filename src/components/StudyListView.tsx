@@ -8,6 +8,7 @@ import { orderTabs, reorderTab } from '../tabs';
 import type { AppData, Card, ListMode, Route, StudyList } from '../types';
 import { Markdown } from './Markdown';
 import { AnimText, Icon, Modal, motionOn, plural, Segmented, toast, touchUI } from './ui';
+import { PasteButton } from './PasteButton';
 
 const MODE_LABEL: Record<ListMode, string> = { basic: 'Показать ответ', reverse: 'В обе стороны', typing: 'Вписать ответ' };
 
@@ -430,7 +431,10 @@ function PasteRows({ topicId, list, onClose }: { topicId: string; list: StudyLis
     <Modal title="Вставить списком" onClose={onClose} width={620}>
       <div className="stack gap12">
         <p className="muted small">По строке на запись. Раздели столбцы тире, двоеточием, «;» или табуляцией (так копируется из таблицы).</p>
-        <textarea className="recall-input paste-area" autoFocus placeholder={example} value={text} onChange={(e) => setText(e.target.value)} />
+        <div className="row gap8 wrap">
+          <PasteButton value={text} onChange={setText} />
+        </div>
+        <textarea className="recall-input paste-area" autoFocus placeholder={example} value={text} onChange={(e) => setText(e.target.value)} aria-label="Строки списка" />
         {parsed.length > 0 && (
           <div className="paste-preview">
             {parsed.slice(0, 6).map((r, i) => (

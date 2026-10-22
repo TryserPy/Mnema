@@ -149,3 +149,16 @@ export async function fakeSafeArea(page: Page, inset: { top?: number; bottom?: n
 }
 
 export const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1280) <= 720 || (page.viewportSize()?.height ?? 800) <= 500;
+
+/** Дождаться, пока у элемента (и его окна) закончатся анимации появления — иначе его координаты ещё «едут». */
+export async function settled(page: Page, selector: string) {
+  await expect
+    .poll(() =>
+      page.evaluate((s) => {
+        const els = Array.from(document.querySelectorAll(s));
+        if (!els.length) return -1;
+        return els.reduce((n, e) => n + e.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length + (e.parentElement?.getAnimations().filter((a) => a.playState === 'running').length ?? 0), 0);
+      }, selector)
+    )
+    .toBe(0);
+}
